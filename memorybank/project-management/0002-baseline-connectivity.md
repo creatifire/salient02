@@ -7,6 +7,7 @@
       - Include HTMX via CDN
       - Message textarea + Submit + Clear buttons
       - Append-only chat pane container
+    - STATUS: Completed — Implemented `GET /` rendering `templates/index.html` with HTMX CDN, textarea, Send/Clear buttons, and append-only chat pane
   - 0002-001-001-02 - CHUNK - Input UX
     - SUB-TASKS:
       - Ctrl+Enter submits; Enter inserts newline
