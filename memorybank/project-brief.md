@@ -57,6 +57,8 @@
 
 ## Planning
 - [Plans](./project-management/0000-epics.md) contains the high level plans, with each file getting its own epic file
+    - [Preliminary Design](./project-management/0001-preliminary-design.md)
+    - [Baseline Connectivity](./project-management/0002-baseline-connectivity.md)
 
 ## Project Standards
 - [Commit Message Conventions](./commit-messages.md)
