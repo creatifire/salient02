@@ -1,0 +1,57 @@
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Environment & secrets
+.env
+.env.*
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.pytest_cache/
+.coverage*
+htmlcov/
+.python-version
+
+# Python build
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Logs
+logs/
+backend/logs/
+*.log
+*.jsonl
+
+# Node / Astro
+node_modules/
+web/node_modules/
+web/dist/
+.astro/
+web/.astro/
+
+# Cache
+.cache/
+web/.cache/
+
+# Misc
+Thumbs.db
