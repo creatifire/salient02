@@ -1,12 +1,8 @@
-# Astro Starter Kit: Basics
+# Web (Astro host app)
 
-```sh
-pnpm create astro@latest -- --template basics
-```
+This directory contains an optional Astro site used to host or link to the backend chat UI.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
+## Project Structure
 
 Inside of your Astro project, you'll see the following folders and files:
 
@@ -26,21 +22,21 @@ Inside of your Astro project, you'll see the following folders and files:
 └── package.json
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+Tailwind v4 is configured via `@tailwindcss/vite` in `astro.config.mjs`. Basecoat CSS is imported after Tailwind in `src/styles/global.css`. Ensure `global.css` is imported from your layout.
 
-## 🧞 Commands
+## Commands
 
 All commands are run from the root of the project, from a terminal:
 
 | Command                   | Action                                           |
 | :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
+| `pnpm install`           | Installs dependencies                            |
+| `pnpm dev`               | Starts local dev server at `localhost:4321`      |
 | `pnpm build`           | Build your production site to `./dist/`          |
 | `pnpm preview`         | Preview your build locally, before deploying     |
 | `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `pnpm astro -- --help` | Get help using the Astro CLI                     |
 
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## Notes
+- Baseline does not host the chat pane here; it’s served by the backend at `http://localhost:8000/`.
+- For quick demos you can link to the backend chat page; long-term we will provide a site-wide floating button widget.
