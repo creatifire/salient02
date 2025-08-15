@@ -102,6 +102,14 @@ logger.add(config.logging.path, level=config.logging.level, serialize=True, rota
     - `GET /events/stream?session_id=...`: SSE stream for incremental assistant messages.
   - Link citations to Pinecone metadata when available.
 
+### Future site-wide integration (not in baseline)
+- Floating button appears on all pages; clicking opens a slide-in chat pane.
+- Non-iframe preferred:
+  - Option A: Include a small JS snippet and shadow-DOM based widget that mounts a container and fetches server-rendered HTMX partials.
+  - Option B: Astro/Preact component that injects a floating button and toggles a pane; the pane content fetched via HTMX endpoints.
+  - Option C: Server-side include (layout-level partial) that renders the button and a hidden pane scaffolding; HTMX swaps fill content.
+- iframe is acceptable for quick demos, but long-term we want native layout/SEO control and unified styling.
+
 ### Summarization & Inactivity
 - Inactivity threshold taken from YAML `chat.inactivity_minutes`.
 - Summaries stored in `conversation_summaries`; email sending optional per prompt and router.

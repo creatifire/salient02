@@ -12,6 +12,8 @@
       - Ctrl+Enter submits; Enter inserts newline
       - Debounce per YAML `chat.input.debounce_ms`
       - Clear button wipes pane only
+  - Optional (not in baseline): Host Page Link/Embed
+    - Dev note: Astro on 4321 can link to the backend chat page on 8000; consider an iframe only for quick demos to avoid CORS. Production approach will use a site-wide widget (see 0001 integration notes).
 
 ## 0002-002 - FEATURE - SSE Streaming Endpoint
 - 0002-002-001 - TASK - SSE route
