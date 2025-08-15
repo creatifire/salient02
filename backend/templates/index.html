@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SalesBot (Baseline)</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 1rem; }
+      .container { max-width: 800px; margin: 0 auto; }
+      .toolbar { display: flex; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+      .textarea { width: 100%; min-height: 6rem; padding: .5rem; border: 1px solid #ddd; border-radius: 6px; }
+      .buttons { display: flex; gap: .5rem; }
+      .btn { padding: .5rem .75rem; border: 1px solid #ccc; border-radius: 6px; background: #f6f6f6; cursor: pointer; }
+      .btn.primary { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+      .chat { border: 1px solid #eee; border-radius: 8px; padding: .75rem; min-height: 200px; }
+      .msg { padding: .5rem .6rem; margin-bottom: .5rem; border-radius: 6px; }
+      .msg.user { background: #eef6ff; }
+      .msg.bot { background: #f4f4f5; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>SalesBot (Baseline)</h1>
+
+      <div class="toolbar">
+        <div class="buttons">
+          <button id="sendBtn" class="btn primary" type="button">Send</button>
+          <button id="clearBtn" class="btn" type="button">Clear</button>
+        </div>
+      </div>
+
+      <textarea id="messageInput" class="textarea" placeholder="Type your message... (Ctrl+Enter to send; Enter inserts newline)"></textarea>
+
+      <div id="chatPane" class="chat" aria-live="polite"></div>
+    </div>
+
+    <script>
+      const input = document.getElementById('messageInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const chatPane = document.getElementById('chatPane');
+
+      // Append-only helper
+      function appendMessage(role, text) {
+        const div = document.createElement('div');
+        div.className = `msg ${role}`;
+        div.textContent = text;
+        chatPane.appendChild(div);
+        chatPane.scrollTop = chatPane.scrollHeight;
+      }
+
+      // Clear chat pane only
+      clearBtn.addEventListener('click', () => {
+        chatPane.innerHTML = '';
+      });
+
+      // Send handler (baseline: local echo; LLM connectivity added in later chunks)
+      function handleSend() {
+        const value = input.value;
+        if (!value.trim()) return;
+        appendMessage('user', value.trim());
+        input.value = '';
+      }
+
+      // Click send
+      sendBtn.addEventListener('click', handleSend);
+
+      // Keyboard: Ctrl+Enter submits, Enter inserts newline
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.ctrlKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      });
+    </script>
+  </body>
+  </html>
+
