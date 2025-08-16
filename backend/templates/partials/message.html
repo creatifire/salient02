@@ -1,0 +1,17 @@
+{#
+  Reusable message snippet
+  Expects:
+    - role: 'user' | 'bot'
+    - text: message content (string)
+    - allow_basic_html: boolean (if true, render with |safe)
+#}
+<div class="msg {{ role }}">
+  {% if allow_basic_html %}
+    {{ text | safe }}
+  {% else %}
+    {{ text }}
+  {% endif %}
+  
+</div>
+
+

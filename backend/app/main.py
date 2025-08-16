@@ -200,5 +200,12 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         temperature=temperature,
         max_tokens=max_tokens,
     )
-    return PlainTextResponse(text)
+    # Render via partial for consistent markup
+    allow_basic_html = (cfg.get("ui") or {}).get("allow_basic_html", True)
+    html = templates.get_template("partials/message.html").render({
+        "role": "bot",
+        "text": text,
+        "allow_basic_html": allow_basic_html,
+    })
+    return HTMLResponse(html)
 

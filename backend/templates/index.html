@@ -99,8 +99,19 @@
         const sseEnabled = (document.body.dataset.sseEnabled || 'true') === 'true';
         if (!sseEnabled) {
           fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: value }) })
-            .then(r => r.ok ? r.text() : '[error: non-stream failed]')
-            .then(text => { if (activeBotDiv) { activeBotDiv.textContent = text; } });
+            .then(async r => {
+              if (!r.ok) return '[error: non-stream failed]';
+              // Response is HTML snippet from server partial
+              const html = await r.text();
+              if (activeBotDiv) {
+                activeBotDiv.outerHTML = html;
+                activeBotDiv = null;
+              } else {
+                const wrap = document.createElement('div');
+                wrap.innerHTML = html;
+                chatPane.appendChild(wrap.firstElementChild);
+              }
+            });
           return;
         }
 

@@ -79,10 +79,11 @@
     - STATUS: Completed — Centralized `.env` loading; added defaults/validation for `llm.temperature` and `llm.max_tokens`; parsed `ui.sse_enabled` and wired it through backend → template → client; SSE endpoint gated when disabled
 
 ## 0002-006 - FEATURE - Jinja Partials
-- [ ] 0002-006-001 - TASK - Message snippet templates
-  - [ ] 0002-006-001-01 - CHUNK - Render inbound/outbound messages
+- [x] 0002-006-001 - TASK - Message snippet templates
+  - [x] 0002-006-001-01 - CHUNK - Render inbound/outbound messages
     - SUB-TASKS:
       - Ensure escaping; allow basic HTML if `ui.allow_basic_html`
+    - STATUS: Completed — Added `templates/partials/message.html` and used it in `POST /chat`; client inserts server-rendered snippet
 
 ## 0002-007 - FEATURE - UI Presentation & Streaming UX
 - [x] 0002-007-001 - TASK - Layout reorder
