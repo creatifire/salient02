@@ -26,7 +26,7 @@
   </head>
   <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}" data-sse-enabled="{{ sse_enabled }}" data-allow-basic-html="{{ allow_basic_html }}">
     <div class="container">
-      <h1>SalesBot (Baseline)</h1>
+      <h1>Salient (Baseline)</h1>
 
       <!-- Chat History first -->
       <div id="chatPane" class="chat" aria-live="polite"></div>
@@ -131,7 +131,9 @@
             console.log('[SSE message]', ev.data);
           }
           if (!activeBotDiv) return;
+          // Accumulate raw stream preserving whitespace
           accumulated += ev.data;
+          // Show interim as text to avoid partial HTML
           activeBotDiv.textContent = accumulated;
           chatPane.scrollTop = chatPane.scrollHeight;
         };

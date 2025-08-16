@@ -7,6 +7,7 @@ import httpx
 import time
 from loguru import logger
 from .config import get_openrouter_api_key
+import re
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -115,8 +116,11 @@ async def stream_chat_chunks(
             "latency_ms": latency_ms,
         })
 
-    for tok in content.split():
-        yield tok + " "
+    # Preserve whitespace/newlines by splitting and yielding separators
+    for part in re.split(r"(\s+)", content):
+        if not part:
+            continue
+        yield part
 
 
 async def chat_completion_content(
