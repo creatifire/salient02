@@ -115,11 +115,26 @@ async def sse_stream(request: Request):
     async def event_generator():
         try:
             if use_llm and seed:
+                # Build optional headers for OpenRouter (recommended)
+                headers = {}
+                try:
+                    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+                    host = request.headers.get("host")
+                    if host:
+                        headers["HTTP-Referer"] = f"{scheme}://{host}/"
+                except Exception:
+                    pass
+                try:
+                    app_name = (load_config().get("app") or {}).get("name", "SalesBot")
+                    headers["X-Title"] = app_name
+                except Exception:
+                    pass
                 async for tok in stream_chat_chunks(
                     message=seed,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    extra_headers=headers or None,
                 ):
                     if await request.is_disconnected():
                         logger.info({
@@ -196,11 +211,27 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         "max_tokens": max_tokens,
     })
 
+    # Build optional headers for OpenRouter (recommended)
+    headers = {}
+    try:
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("host")
+        if host:
+            headers["HTTP-Referer"] = f"{scheme}://{host}/"
+    except Exception:
+        pass
+    try:
+        app_name = (cfg.get("app") or {}).get("name", "SalesBot")
+        headers["X-Title"] = app_name
+    except Exception:
+        pass
+
     text = await chat_completion_content(
         message=message,
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,
+        extra_headers=headers or None,
     )
     # Return plain text; client will render Markdown + sanitize when allowed
     return PlainTextResponse(text)

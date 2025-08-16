@@ -42,7 +42,7 @@
           <button id="clearBtn" class="btn" type="button">Clear</button>
         </div>
         <div class="right-actions">
-          <span id="streamIndicator" class="stream-indicator">Streaming…</span>
+          <span id="streamIndicator" class="stream-indicator">Receiving…</span>
           <button id="streamBtn" class="btn" type="button">Stream Demo</button>
         </div>
       </div>
@@ -82,14 +82,29 @@
       let activeSSE = null;
       let activeBotDiv = null;
       let accumulated = '';
+      let isActiveRequest = false;
 
-      function setStreaming(active) {
-        if (streamIndicator) {
-          streamIndicator.style.display = active ? 'inline' : 'none';
+      function setStreaming(active, label) {
+        if (!streamIndicator) return;
+        if (active) {
+          streamIndicator.textContent = label || 'Streaming…';
+          streamIndicator.style.display = 'inline';
+        } else {
+          streamIndicator.style.display = 'none';
+        }
+      }
+
+      function setActive(active) {
+        isActiveRequest = active;
+        if (sendBtn) {
+          sendBtn.disabled = active;
+          sendBtn.style.opacity = active ? '0.6' : '1';
+          sendBtn.style.cursor = active ? 'not-allowed' : 'pointer';
         }
       }
 
       function handleSend() {
+        if (isActiveRequest) return;
         const value = input.value;
         if (!value.trim()) return;
         // Append user message
@@ -111,7 +126,8 @@
         // Respect ui.sse_enabled; if false, do a simple non-stream POST fallback
         const sseEnabled = (document.body.dataset.sseEnabled || 'true') === 'true';
         if (!sseEnabled) {
-          setStreaming(true);
+          setActive(true);
+          setStreaming(true, 'Waiting…');
           fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: value }) })
             .then(async r => {
               if (!r.ok) return '[error: non-stream failed]';
@@ -127,7 +143,7 @@
               }
             })
             .catch(() => {})
-            .finally(() => setStreaming(false));
+            .finally(() => { setStreaming(false); setActive(false); });
           return;
         }
 
@@ -137,7 +153,8 @@
         url.searchParams.set('message', value);
         const sse = new EventSource(url.toString());
         activeSSE = sse;
-        setStreaming(true);
+        setActive(true);
+        setStreaming(true, 'Streaming…');
 
         sse.onmessage = (ev) => {
           if (document.body.dataset.frontendDebug === 'true') {
@@ -166,12 +183,14 @@
             }
           }
           setStreaming(false);
+          setActive(false);
         });
         sse.onerror = () => {
           // Ignore onerror if stream ended gracefully
           try { sse.close(); } catch {}
           activeSSE = null;
           setStreaming(false);
+          setActive(false);
         };
       }
 
@@ -200,7 +219,10 @@
           e.preventDefault();
         }
       };
-      input.addEventListener('keydown', keyHandler);
+      input.addEventListener('keydown', (e) => {
+        if (isActiveRequest) return;
+        keyHandler(e);
+      });
 
       // Optional debounce on input (for future live validations)
       const debouncedNoop = debounce(() => {}, cfg.debounceMs);
@@ -216,7 +238,7 @@
         url.searchParams.set('message', 'Streaming hello from SSE endpoint.');
         url.searchParams.set('llm', '0');
         sse = new EventSource(url.toString());
-        setStreaming(true);
+        setStreaming(true, 'Streaming…');
         sse.onmessage = (ev) => {
           if (document.body.dataset.frontendDebug === 'true') {
             console.log('[SSE DEMO message]', ev.data);

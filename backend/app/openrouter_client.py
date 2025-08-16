@@ -8,6 +8,7 @@ import time
 from loguru import logger
 from .config import get_openrouter_api_key
 import re
+import asyncio
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -50,36 +51,50 @@ async def stream_chat_chunks(
     }
 
     async with httpx.AsyncClient(base_url=OPENROUTER_BASE_URL, timeout=60.0) as client:
-        start = time.perf_counter()
-        try:
-            resp = await client.post("/chat/completions", headers=headers, json=payload)
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            status = exc.response.status_code if exc.response is not None else None
-            logger.error({
-                "event": "openrouter_error",
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "status": status,
-                "error": type(exc).__name__,
-                "latency_ms": latency_ms,
-            })
-            yield f"[OpenRouter error: {status}]"
-            return
-        except httpx.HTTPError as exc:
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            logger.error({
-                "event": "openrouter_error",
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "error": type(exc).__name__,
-                "latency_ms": latency_ms,
-            })
-            yield f"[OpenRouter error: {type(exc).__name__}]"
-            return
+        attempt = 0
+        while True:
+            start = time.perf_counter()
+            try:
+                resp = await client.post("/chat/completions", headers=headers, json=payload)
+                resp.raise_for_status()
+                break
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code if exc.response is not None else None
+                body = None
+                try:
+                    body = exc.response.text[:300]
+                except Exception:
+                    body = None
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                logger.error({
+                    "event": "openrouter_error",
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "status": status,
+                    "error": type(exc).__name__,
+                    "latency_ms": latency_ms,
+                    "body": body,
+                })
+                if status == 429 and attempt < 2:
+                    backoff = 0.8 * (2 ** attempt)
+                    attempt += 1
+                    await asyncio.sleep(backoff)
+                    continue
+                yield f"[OpenRouter error: {status}]"
+                return
+            except httpx.HTTPError as exc:
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                logger.error({
+                    "event": "openrouter_error",
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "error": type(exc).__name__,
+                    "latency_ms": latency_ms,
+                })
+                yield f"[OpenRouter error: {type(exc).__name__}]"
+                return
         latency_ms = int((time.perf_counter() - start) * 1000)
 
     data = resp.json()
@@ -153,34 +168,48 @@ async def chat_completion_content(
     }
 
     async with httpx.AsyncClient(base_url=OPENROUTER_BASE_URL, timeout=60.0) as client:
-        start = time.perf_counter()
-        try:
-            resp = await client.post("/chat/completions", headers=headers, json=payload)
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            status = exc.response.status_code if exc.response is not None else None
-            logger.error({
-                "event": "openrouter_error",
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "status": status,
-                "error": type(exc).__name__,
-                "latency_ms": latency_ms,
-            })
-            return f"[OpenRouter error: {status}]"
-        except httpx.HTTPError as exc:
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            logger.error({
-                "event": "openrouter_error",
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "error": type(exc).__name__,
-                "latency_ms": latency_ms,
-            })
-            return f"[OpenRouter error: {type(exc).__name__}]"
+        attempt = 0
+        while True:
+            start = time.perf_counter()
+            try:
+                resp = await client.post("/chat/completions", headers=headers, json=payload)
+                resp.raise_for_status()
+                break
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code if exc.response is not None else None
+                body = None
+                try:
+                    body = exc.response.text[:300]
+                except Exception:
+                    body = None
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                logger.error({
+                    "event": "openrouter_error",
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "status": status,
+                    "error": type(exc).__name__,
+                    "latency_ms": latency_ms,
+                    "body": body,
+                })
+                if status == 429 and attempt < 2:
+                    backoff = 0.8 * (2 ** attempt)
+                    attempt += 1
+                    await asyncio.sleep(backoff)
+                    continue
+                return f"[OpenRouter error: {status}]"
+            except httpx.HTTPError as exc:
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                logger.error({
+                    "event": "openrouter_error",
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "error": type(exc).__name__,
+                    "latency_ms": latency_ms,
+                })
+                return f"[OpenRouter error: {type(exc).__name__}]"
         latency_ms = int((time.perf_counter() - start) * 1000)
 
     data = resp.json()
