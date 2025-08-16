@@ -8,12 +8,22 @@
 - [ ] 0003-001-001 - TASK - Scaffolding & Pages
   - [ ] 0003-001-001-01 - CHUNK - Home page + basic nav
     - SUB-TASKS:
-      - Create simple landing with project summary and "Open Chat" button
-      - Include footer with links to docs (README, project brief)
+      - Create `web/src/pages/index.astro` (landing with value prop + "Open Chat" CTA)
+      - Include shared nav/footer via `web/src/layouts/Layout.astro`
+      - Footer links to README and project brief
   - [ ] 0003-001-001-02 - CHUNK - About/Contact placeholders
     - SUB-TASKS:
-      - Add two placeholder pages to make the site feel real
+      - Add `web/src/pages/about.astro` and `web/src/pages/contact.astro`
       - Ensure consistent header/nav across pages
+  - [ ] 0003-001-001-03 - CHUNK - Shared layout & components
+    - SUB-TASKS:
+      - Create `web/src/layouts/Layout.astro` (imports Basecoat/Tailwind, slots content)
+      - Create components: `web/src/components/Nav.astro`, `Footer.astro`, `OpenChatCta.astro`
+      - `OpenChatCta.astro` links to backend chat (FastAPI `GET /`) for Cycle-1
+  - [ ] 0003-001-001-04 - CHUNK - Page placement & routes
+    - SUB-TASKS:
+      - Place all pages under `web/src/pages/...` per the hierarchy note below
+      - Add `web/src/pages/demo/iframe.astro` with a banner warning (demo-only)
 
 - [ ] 0003-001-004 - TASK - Astro app in `web/` folder
   - [ ] 0003-001-004-01 - CHUNK - Scaffold and scripts
@@ -35,6 +45,16 @@
         index.astro                 # Home
         about.astro                 # About
         contact.astro               # Contact us (static form UI)
+        markets/
+          growers.astro             # Markets → Growers
+        crops/
+          apples.astro              # Crops → Apples
+        solutions/
+          smartfresh.astro          # Solutions → SmartFresh
+        digital/
+          freshcloud.astro          # Digital Solutions → FreshCloud
+        resources/
+          zalar-farms.astro         # Resources → Customer Success Story
         products/
           index.astro               # Product overview
           product-a.astro           # Product detail (example)
@@ -49,6 +69,21 @@
   - [ ] 0003-001-003-02 - CHUNK - Product pages (1–2)
     - SUB-TASKS:
       - Create simple product detail pages with content blocks, CTA to “Open Chat”
+
+- [ ] 0003-001-005 - TASK - Dummy Pages to Retrieve (scrape/summarize content)
+  - [ ] 0003-001-005-01 - CHUNK - Page set and targets
+    - SUB-TASKS:
+      - Home → `web/src/pages/index.astro` (source: [AgroFresh Home](https://www.agrofresh.com/))
+      - Markets → Growers → `web/src/pages/markets/growers.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+      - Crops → Apples → `web/src/pages/crops/apples.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+      - Solutions → SmartFresh → `web/src/pages/solutions/smartfresh.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+      - Digital Solutions → FreshCloud → `web/src/pages/digital/freshcloud.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+      - Resources → Customer Success (Zalar Farms) → `web/src/pages/resources/zalar-farms.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+      - About → `web/src/pages/about.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+      - Contact → `web/src/pages/contact.astro` (source: [AgroFresh](https://www.agrofresh.com/))
+    - Notes:
+      - Content will be summarized/genericized for a brand-neutral demo; no trademarked names reused verbatim
+      - If scope requires fewer pages for v1, prioritize: Home, SmartFresh, FreshCloud, Apples, Contact
 
 - [ ] 0003-001-002 - TASK - Build & Dev Commands
   - [ ] 0003-001-002-01 - CHUNK - Document dev runbook
