@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SalesBot (Baseline)</title>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 1rem; }
       .container { max-width: 800px; margin: 0 auto; }
@@ -22,7 +24,7 @@
       .right-actions { display: flex; gap: .5rem; }
     </style>
   </head>
-  <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}" data-sse-enabled="{{ sse_enabled }}">
+  <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}" data-sse-enabled="{{ sse_enabled }}" data-allow-basic-html="{{ allow_basic_html }}">
     <div class="container">
       <h1>SalesBot (Baseline)</h1>
 
@@ -76,6 +78,7 @@
       // Send handler (baseline: local echo; LLM connectivity added in later chunks)
       let activeSSE = null;
       let activeBotDiv = null;
+      let accumulated = '';
 
       function handleSend() {
         const value = input.value;
@@ -94,6 +97,7 @@
         activeBotDiv.textContent = '';
         chatPane.appendChild(activeBotDiv);
         chatPane.scrollTop = chatPane.scrollHeight;
+        accumulated = '';
 
         // Respect ui.sse_enabled; if false, do a simple non-stream POST fallback (to be implemented later)
         const sseEnabled = (document.body.dataset.sseEnabled || 'true') === 'true';
@@ -123,21 +127,30 @@
         activeSSE = sse;
 
         sse.onmessage = (ev) => {
-          if (ev.type === 'message' && ev.data === 'end') {
-            if (document.body.dataset.frontendDebug === 'true') {
-              console.log('[SSE end]');
-            }
-            try { sse.close(); } catch {}
-            activeSSE = null;
-            return;
-          }
           if (document.body.dataset.frontendDebug === 'true') {
             console.log('[SSE message]', ev.data);
           }
           if (!activeBotDiv) return;
-          activeBotDiv.textContent += ev.data;
+          accumulated += ev.data;
+          activeBotDiv.textContent = accumulated;
           chatPane.scrollTop = chatPane.scrollHeight;
         };
+        sse.addEventListener('end', () => {
+          if (document.body.dataset.frontendDebug === 'true') {
+            console.log('[SSE end]');
+          }
+          try { sse.close(); } catch {}
+          activeSSE = null;
+          // On end, render Markdown (sanitized) if allowed
+          const allowHtml = (document.body.dataset.allowBasicHtml || 'true') === 'true';
+          const md = accumulated.trim();
+          if (activeBotDiv) {
+            if (md) {
+              const html = DOMPurify.sanitize(marked.parse(md));
+              activeBotDiv.innerHTML = allowHtml ? html : activeBotDiv.textContent;
+            }
+          }
+        });
         sse.onerror = () => {
           // Ignore onerror if stream ended gracefully
           try { sse.close(); } catch {}
@@ -187,18 +200,17 @@
         url.searchParams.set('llm', '0');
         sse = new EventSource(url.toString());
         sse.onmessage = (ev) => {
-          if (ev.type === 'message' && ev.data === 'end') {
-            if (document.body.dataset.frontendDebug === 'true') {
-              console.log('[SSE DEMO end]');
-            }
-            try { sse.close(); } catch {}
-            return;
-          }
           if (document.body.dataset.frontendDebug === 'true') {
             console.log('[SSE DEMO message]', ev.data);
           }
           appendMessage('bot', ev.data);
         };
+        sse.addEventListener('end', () => {
+          if (document.body.dataset.frontendDebug === 'true') {
+            console.log('[SSE DEMO end]');
+          }
+          try { sse.close(); } catch {}
+        });
         sse.onerror = () => {
           // Ignore onerror if stream ended gracefully
           try { sse.close(); } catch {}
