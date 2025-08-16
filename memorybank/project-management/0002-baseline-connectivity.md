@@ -104,9 +104,10 @@
   - SUB-TASKS:
     - Disable Send (and Ctrl/Cmd+Enter) on open; re-enable on `end`/error
   - STATUS: Completed — Button disabled and dimmed during active SSE/POST; Ctrl/Cmd+Enter guarded; restored on end/error
-- [ ] 0002-007-005 - TASK - Ensure Clear only clears history, not input
+- [x] 0002-007-005 - TASK - Ensure Clear only clears history, not input
   - SUB-TASKS:
     - Clear pane only; preserve input contents
+  - STATUS: Completed — Clear button wipes chat pane only; input textarea unchanged
 
 ## Definition of Done
 - Multiple back-and-forths with the LLM via SSE (no memory, no DB)
