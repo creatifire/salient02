@@ -68,6 +68,8 @@ async def serve_base_page(request: Request) -> HTMLResponse:
             "enter_inserts_newline": "true" if input_cfg.get("enter_inserts_newline", True) else "false",
             # Frontend debug console toggle
             "frontend_debug": "true" if logging_cfg.get("frontend_debug", False) else "false",
+            # Feature flags
+            "sse_enabled": "true" if (cfg.get("ui") or {}).get("sse_enabled", True) else "false",
         },
     )
 
@@ -85,6 +87,10 @@ async def sse_stream(request: Request):
     - message: seed text to stream back token-by-token (defaults to demo text)
     """
     cfg = load_config()
+    # Gate by ui.sse_enabled
+    if not (cfg.get("ui") or {}).get("sse_enabled", True):
+        return HTMLResponse("SSE disabled", status_code=403)
+
     llm_cfg = cfg.get("llm") or {}
     model = llm_cfg.get("model", "openai/gpt-oss-20b:free")
     temperature = float(llm_cfg.get("temperature", 0.3))

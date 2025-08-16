@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-from dotenv import load_dotenv, find_dotenv
 from typing import AsyncIterator, Dict, Any
 
 import httpx
 import time
 from loguru import logger
+from .config import get_openrouter_api_key
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -24,9 +24,8 @@ async def stream_chat_chunks(
     For baseline simplicity, we request a full completion then split by whitespace to
     simulate incremental streaming to the SSE client.
     """
-    # Ensure .env is loaded (without overriding existing env vars)
-    load_dotenv(find_dotenv(), override=False)
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    # Centralized env access (system env has precedence over .env)
+    api_key = get_openrouter_api_key()
     if not api_key:
         # Surface a clear error chunk
         yield "[OpenRouter: missing OPENROUTER_API_KEY]"

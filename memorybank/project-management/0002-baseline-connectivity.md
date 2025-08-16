@@ -70,11 +70,12 @@
     - STATUS: Completed — Frontend console diagnostics gated by `logging.frontend_debug` and wired for SSE message/end/error
 
 ## 0002-005 - FEATURE - Config
-- [ ] 0002-005-001 - TASK - Load YAML + .env
-  - [ ] 0002-005-001-01 - CHUNK - Config loader
+- [x] 0002-005-001 - TASK - Load YAML + .env
+  - [x] 0002-005-001-01 - CHUNK - Config loader
     - SUB-TASKS:
       - Parse YAML keys: `llm.model`, `llm.temperature`, `llm.max_tokens`, `ui.sse_enabled`, `chat.input.*`
       - Read `.env` for `OPENROUTER_API_KEY`
+    - STATUS: Completed — Centralized `.env` loading; added defaults/validation for `llm.temperature` and `llm.max_tokens`; parsed `ui.sse_enabled` and wired it through backend → template → client; SSE endpoint gated when disabled
 
 ## 0002-006 - FEATURE - Jinja Partials
 - [ ] 0002-006-001 - TASK - Message snippet templates
