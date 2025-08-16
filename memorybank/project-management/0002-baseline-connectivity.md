@@ -1,28 +1,30 @@
 # 0002 - Baseline Connectivity (HTMX → Middle Tier → OpenRouter LLM)
 
 ## 0002-001 - FEATURE - Minimal UI + SSE
-- [ ] 0002-001-001 - TASK - Serve Base Page
+- [x] 0002-001-001 - TASK - Serve Base Page
   - [x] 0002-001-001-01 - CHUNK - Route `GET /` renders minimal Jinja2 page
     - SUB-TASKS:
       - Include HTMX via CDN
       - Message textarea + Submit + Clear buttons
       - Append-only chat pane container
     - STATUS: Completed — Implemented `GET /` rendering `templates/index.html` with HTMX CDN, textarea, Send/Clear buttons, and append-only chat pane
-  - [ ] 0002-001-001-02 - CHUNK - Input UX
+  - [x] 0002-001-001-02 - CHUNK - Input UX
     - SUB-TASKS:
       - Ctrl+Enter submits; Enter inserts newline
       - Debounce per YAML `chat.input.debounce_ms`
       - Clear button wipes pane only
+    - STATUS: Completed — Input UX is configurable via YAML (debounce_ms, submit_shortcut, enter_inserts_newline) and applied on page load
   - Optional (not in baseline): Host Page Link/Embed
     - Dev note: Astro on 4321 can link to the backend chat page on 8000; consider an iframe only for quick demos to avoid CORS. Production approach will use a site-wide widget (see 0001 integration notes).
 
 ## 0002-002 - FEATURE - SSE Streaming Endpoint
-- [ ] 0002-002-001 - TASK - SSE route
-  - [ ] 0002-002-001-01 - CHUNK - `GET /events/stream` emits tokens
+- [x] 0002-002-001 - TASK - SSE route
+  - [x] 0002-002-001-01 - CHUNK - `GET /events/stream` emits tokens
     - SUB-TASKS:
       - Reads model, temperature, max_tokens from YAML
       - Sends server-sent events with incremental text chunks
       - Handles errors/timeouts gracefully
+    - STATUS: Completed — Implemented `GET /events/stream` with incremental token-like chunks; added Stream Demo button on base page to verify SSE
 
 ## 0002-003 - FEATURE - OpenRouter Connectivity
 - [ ] 0002-003-001 - TASK - Chat completion call
