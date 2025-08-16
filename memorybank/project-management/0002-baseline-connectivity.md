@@ -59,10 +59,11 @@
       - Log incoming `GET /` and `GET /events/stream` with query params
       - Log disconnects/errors in SSE generator
     - STATUS: Completed — Added logs for base page, SSE params, disconnects, errors, and completion
-  - [ ] 0002-004-001-03 - CHUNK - LLM call logging (redacted)
+  - [x] 0002-004-001-03 - CHUNK - LLM call logging (redacted)
     - SUB-TASKS:
       - Log model, latency, token counts/cost if available (no secrets/body)
       - Log error responses from OpenRouter succinctly
+    - STATUS: Completed — Added logging in `openrouter_client.py` for model, latency, token usage/cost (when present), and succinct error details; no bodies/secrets logged
   - [ ] 0002-004-001-04 - CHUNK - Client-side console diagnostics
     - SUB-TASKS:
       - Console logs for SSE open/message/error during troubleshooting (toggle via YAML `logging.frontend_debug`)
