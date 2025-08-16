@@ -22,6 +22,26 @@
       - Add minimal layout (`src/layouts/Layout.astro`) and routes (`src/pages/...`)
       - Document dev commands: `pnpm dev` for web, `uvicorn` for backend; note same-origin linking to chat
 
+- Note: Initial Site Hierarchy (Astro)
+  - Orientation only; adjust page mix during implementation.
+  ```text
+  web/
+    src/
+      layouts/
+        Layout.astro
+      components/
+        Nav.astro, Footer.astro, OpenChatCta.astro
+      pages/
+        index.astro                 # Home
+        about.astro                 # About
+        contact.astro               # Contact us (static form UI)
+        products/
+          index.astro               # Product overview
+          product-a.astro           # Product detail (example)
+        demo/
+          iframe.astro              # Optional demo page (iframe warning)
+  ```
+
 - [ ] 0003-001-003 - TASK - Realistic Mock Site (3–5 pages)
   - [ ] 0003-001-003-01 - CHUNK - Company home + contact us
     - SUB-TASKS:
@@ -37,11 +57,22 @@
       - Note ports and same-origin strategy for SSE
 
 ## 0003-002 - FEATURE - Link to Backend Chat
+> Clarification: The chat interface continues to be served by the Python backend (FastAPI) at `GET /`, rendering `backend/templates/index.html`. The website’s role in this epic is to provide clear entry points (CTAs/links) to that backend page. No embedding here (see 0003-003 for non-iframe embed options).
 - [ ] 0003-002-001 - TASK - Same-Origin Link
   - [ ] 0003-002-001-01 - CHUNK - "Open Chat" link to backend `/`
     - SUB-TASKS:
       - Prominent CTA to open chat in same tab/new tab
       - Pass no PII in query strings
+  - [ ] 0003-002-001-02 - CHUNK - Optional `/chat` route in Astro
+    - SUB-TASKS:
+      - Create lightweight `web/src/pages/chat.astro` that redirects or provides a CTA to the backend chat
+      - Keep content minimal; actual chat UI remains in backend
+ - [ ] 0003-002-003 - TASK - Production exposure switch (backend)
+   - [ ] 0003-002-003-01 - CHUNK - Gate backend chat page
+     - SUB-TASKS:
+       - Add/configure a flag (e.g., `ui.expose_backend_chat: true|false`) to hide `GET /` chat UI in production
+       - When disabled, return 404 or redirect to site home; remove any site links to backend chat
+       - Document reverse-proxy alternative (route block) and YAML setting in README
 
 - [ ] 0003-002-002 - TASK - (Demo Only) Inline Embed Option
   - [ ] 0003-002-002-01 - CHUNK - Iframe demo page (optional)
@@ -51,6 +82,8 @@
 
 ## 0003-003 - FEATURE - Embedding Options (non-iframe)
 > Avoid duplication with 0003-002-002 (iframe demo). This feature implements production-preferred, non-iframe integrations.
+
+> Cycle-1 verified path: Astro/Preact component is the supported integration target. Shadow-DOM widget and server-include are planned and may be delivered as docs or alpha prototypes.
 
 - [ ] 0003-003-001 - TASK - Shadow-DOM Widget (floating button + slide-in pane)
   - [ ] 0003-003-001-01 - CHUNK - Minimal loader script
@@ -89,6 +122,18 @@
     - SUB-TASKS:
       - Link to backend `/health`
       - Link to backend logs directory (readme/pointer)
+
+## 0003-006 - FEATURE - Integration Guides (CMS/SSG)
+- [ ] 0003-006-001 - TASK - WordPress integration notes (doc-only)
+  - [ ] 0003-006-001-01 - CHUNK - Snippet + constraints
+    - SUB-TASKS:
+      - Provide guidance for injecting floating-button script or embed include
+      - Note same-origin constraints and security considerations
+- [ ] 0003-006-002 - TASK - Static site generators (generic)
+  - [ ] 0003-006-002-01 - CHUNK - Include patterns
+    - SUB-TASKS:
+      - Document how to include widget/component in common SSGs (e.g., Hugo, Eleventy)
+      - Emphasize production switch to hide backend chat page
 
 ## Definition of Done
 - Host site provides a clean landing with an "Open Chat" entry point
