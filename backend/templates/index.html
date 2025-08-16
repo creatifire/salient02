@@ -8,33 +8,39 @@
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 1rem; }
       .container { max-width: 800px; margin: 0 auto; }
-      .toolbar { display: flex; gap: .5rem; align-items: center; margin-bottom: .75rem; }
       .textarea { width: 100%; min-height: 6rem; padding: .5rem; border: 1px solid #ddd; border-radius: 6px; }
-      .buttons { display: flex; gap: .5rem; }
       .btn { padding: .5rem .75rem; border: 1px solid #ccc; border-radius: 6px; background: #f6f6f6; cursor: pointer; }
       .btn.primary { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
-      .chat { border: 1px solid #eee; border-radius: 8px; padding: .75rem; min-height: 200px; }
-      .msg { padding: .5rem .6rem; margin-bottom: .5rem; border-radius: 6px; }
-      .msg.user { background: #eef6ff; }
-      .msg.bot { background: #f4f4f5; }
+      .chat { border: 1px solid #eee; border-radius: 8px; padding: .75rem; height: 320px; overflow-y: auto; background: #fff; display: flex; flex-direction: column; }
+      .msg { padding: .5rem .75rem; margin-bottom: .5rem; border-radius: 6px; max-width: 85%; word-wrap: break-word; }
+      /* User/request: right aligned, extra left padding to offset */
+      .msg.user { background: #eef6ff; align-self: flex-end; margin-left: auto; padding-left: 1.25rem; }
+      /* Bot/response: left aligned, extra right padding, pale yellow */
+      .msg.bot { background: #fffbe6; align-self: flex-start; margin-right: auto; padding-right: 1.25rem; }
+      .actions-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: .5rem; }
+      .left-actions { display: flex; gap: .5rem; }
+      .right-actions { display: flex; gap: .5rem; }
     </style>
   </head>
   <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}">
     <div class="container">
       <h1>SalesBot (Baseline)</h1>
 
-      <div class="toolbar">
-        <div class="buttons">
+      <!-- Chat History first -->
+      <div id="chatPane" class="chat" aria-live="polite"></div>
+
+      <!-- Input box next -->
+      <textarea id="messageInput" class="textarea" placeholder="Type your message... (Ctrl+Enter to send; Enter inserts newline)"></textarea>
+
+      <!-- Buttons row: Send/Clear left, Stream Demo right -->
+      <div class="actions-row">
+        <div class="left-actions">
           <button id="sendBtn" class="btn primary" type="button">Send</button>
           <button id="clearBtn" class="btn" type="button">Clear</button>
         </div>
-      </div>
-
-      <textarea id="messageInput" class="textarea" placeholder="Type your message... (Ctrl+Enter to send; Enter inserts newline)"></textarea>
-
-      <div id="chatPane" class="chat" aria-live="polite"></div>
-      <div class="buttons" style="margin-top:.5rem;">
-        <button id="streamBtn" class="btn" type="button">Stream Demo</button>
+        <div class="right-actions">
+          <button id="streamBtn" class="btn" type="button">Stream Demo</button>
+        </div>
       </div>
     </div>
 

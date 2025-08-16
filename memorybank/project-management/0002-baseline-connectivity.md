@@ -83,10 +83,11 @@
       - Ensure escaping; allow basic HTML if `ui.allow_basic_html`
 
 ## 0002-007 - FEATURE - UI Presentation & Streaming UX
-- [ ] 0002-007-001 - TASK - Layout reorder
+- [x] 0002-007-001 - TASK - Layout reorder
   - SUB-TASKS:
     - Order: Title → Chat History (scrollable) → Input box → Buttons row
     - Buttons row: left group (Send, Clear), right (Stream Demo)
+  - STATUS: Completed — Reordered layout; user messages right-aligned with extra left padding; bot messages left-aligned with extra right padding and pale yellow background; chat pane scrollable
 - [ ] 0002-007-002 - TASK - Client-side Markdown render with DOMPurify on end
   - SUB-TASKS:
     - Accumulate tokens as plain text
