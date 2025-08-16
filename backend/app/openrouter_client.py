@@ -5,6 +5,8 @@ from dotenv import load_dotenv, find_dotenv
 from typing import AsyncIterator, Dict, Any
 
 import httpx
+import time
+from loguru import logger
 
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
@@ -48,12 +50,37 @@ async def stream_chat_chunks(
     }
 
     async with httpx.AsyncClient(base_url=OPENROUTER_BASE_URL, timeout=60.0) as client:
+        start = time.perf_counter()
         try:
             resp = await client.post("/chat/completions", headers=headers, json=payload)
             resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            status = exc.response.status_code if exc.response is not None else None
+            logger.error({
+                "event": "openrouter_error",
+                "model": model,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "status": status,
+                "error": type(exc).__name__,
+                "latency_ms": latency_ms,
+            })
+            yield f"[OpenRouter error: {status}]"
+            return
         except httpx.HTTPError as exc:
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            logger.error({
+                "event": "openrouter_error",
+                "model": model,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "error": type(exc).__name__,
+                "latency_ms": latency_ms,
+            })
             yield f"[OpenRouter error: {type(exc).__name__}]"
             return
+        latency_ms = int((time.perf_counter() - start) * 1000)
 
     data = resp.json()
     try:
@@ -61,6 +88,33 @@ async def stream_chat_chunks(
     except Exception:
         yield "[OpenRouter: unexpected response format]"
         return
+
+    # Log usage/cost if available (redacted body)
+    usage = data.get("usage") or {}
+    try:
+        prompt_tokens = usage.get("prompt_tokens")
+        completion_tokens = usage.get("completion_tokens")
+        total_tokens = usage.get("total_tokens")
+        cost = usage.get("cost")
+        logger.info({
+            "event": "openrouter_usage",
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "latency_ms": latency_ms,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "cost": cost,
+        })
+    except Exception as _:
+        logger.info({
+            "event": "openrouter_usage",
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "latency_ms": latency_ms,
+        })
 
     for tok in content.split():
         yield tok + " "
