@@ -1,2 +1,36 @@
-# YAML app config placeholder
-# Define keys per 0001-preliminary-design.md (llm, logging, chat.ui, etc.)
+app:
+  name: SalesBot
+  mode: multi-tenant  # single-tenant|multi-tenant
+
+chat:
+  inactivity_minutes: 30
+  input:
+    debounce_ms: 1000
+    submit_shortcut: ctrl+enter
+    enter_inserts_newline: true
+
+email:
+  mock_sales_recipient: sales@example.com
+
+logging:
+  level: INFO           # DEBUG|INFO|WARN|ERROR
+  path: ./backend/logs/app.jsonl
+  rotation: 50 MB
+  retention: 14 days
+
+vector:
+  pinecone:
+    index_name: agrofresh01
+
+embeddings:
+  model: text-embedding-3-small
+
+llm:
+  provider: openrouter
+  model: openai/gpt-oss-20b:free
+  temperature: 0.3
+  max_tokens: 1024
+
+ui:
+  sse_enabled: true
+  allow_basic_html: true

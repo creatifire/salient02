@@ -19,7 +19,7 @@
       .msg.bot { background: #f4f4f5; }
     </style>
   </head>
-  <body>
+  <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}">
     <div class="container">
       <h1>SalesBot (Baseline)</h1>
 
@@ -55,6 +55,15 @@
         chatPane.innerHTML = '';
       });
 
+      // Debounce helper
+      function debounce(fn, ms) {
+        let t;
+        return (...args) => {
+          clearTimeout(t);
+          t = setTimeout(() => fn.apply(null, args), ms);
+        };
+      }
+
       // Send handler (baseline: local echo; LLM connectivity added in later chunks)
       function handleSend() {
         const value = input.value;
@@ -66,13 +75,33 @@
       // Click send
       sendBtn.addEventListener('click', handleSend);
 
-      // Keyboard: Ctrl+Enter submits, Enter inserts newline
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) {
+      // Load input UX config from data attributes injected by backend
+      const cfg = {
+        debounceMs: Number(document.body.dataset.debounceMs || 250),
+        submitShortcut: (document.body.dataset.submitShortcut || 'ctrl+enter').toLowerCase(),
+        enterInsertsNewline: (document.body.dataset.enterInsertsNewline || 'true') === 'true'
+      };
+
+      // Keyboard: Ctrl+Enter submits (configurable), Enter inserts newline
+      const keyHandler = (e) => {
+        const isEnter = e.key === 'Enter';
+        const isCtrl = e.ctrlKey || e.metaKey; // support Cmd on mac
+        const shortcut = cfg.submitShortcut;
+        const shouldSubmit = (shortcut === 'ctrl+enter' && isEnter && isCtrl);
+        if (shouldSubmit) {
           e.preventDefault();
           handleSend();
+          return;
         }
-      });
+        if (!cfg.enterInsertsNewline && isEnter && !isCtrl) {
+          e.preventDefault();
+        }
+      };
+      input.addEventListener('keydown', keyHandler);
+
+      // Optional debounce on input (for future live validations)
+      const debouncedNoop = debounce(() => {}, cfg.debounceMs);
+      input.addEventListener('input', debouncedNoop);
     </script>
   </body>
   </html>
