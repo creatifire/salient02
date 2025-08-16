@@ -100,9 +100,10 @@
   - SUB-TASKS:
     - Show spinner/text during active SSE, hide on `end`/error
   - STATUS: Completed — Added a small "Streaming…" indicator shown during SSE and POST fallback; hides on end/error
-- [ ] 0002-007-004 - TASK - Disable Send while a stream is active
+- [x] 0002-007-004 - TASK - Disable Send while a stream is active
   - SUB-TASKS:
     - Disable Send (and Ctrl/Cmd+Enter) on open; re-enable on `end`/error
+  - STATUS: Completed — Button disabled and dimmed during active SSE/POST; Ctrl/Cmd+Enter guarded; restored on end/error
 - [ ] 0002-007-005 - TASK - Ensure Clear only clears history, not input
   - SUB-TASKS:
     - Clear pane only; preserve input contents
