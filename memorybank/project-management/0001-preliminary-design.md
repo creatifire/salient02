@@ -131,6 +131,20 @@ logger.add(config.logging.path, level=config.logging.level, serialize=True, rota
 - Each persona has a Python file (for prompt scaffolding) and a DB row in `personas` (`system_prompt`).
 - Base prompts from `memorybank/reference/glm_prompts_03c.py` inform initial persona.
 
+## Agents (Multi-Agent / Multi-Tenant roadmap)
+- Short-term (v0): a single Sales Agent (one agent type) running on one server/instance. Do not block future expansion.
+- Medium-term: architecture must allow multiple agents that can be enabled/disabled per tenant, with URL-based routing to select an agent.
+- Scenarios to support later (low priority for baseline):
+  - Same client may access different agents by distinct URLs (e.g., `/a/sales`, `/a/support`, subdomains, or query param).
+  - Multiple customers may share the same agent implementation while isolating data by tenant (separate relational DB/schema and vector index per tenant or per tenant+agent).
+- Suggested primitives (future):
+  - `agents` table: `id`, `code`, `name`, `type` (sales|support|… ), `is_enabled`, `default_model`, `default_persona_id`, `routing_hint` (path/subdomain), timestamps.
+  - `tenant_agents` bridge: which agents are enabled for which tenants, plus overrides (model, persona, rate limits).
+  - Routing: default agent from YAML (e.g., `app.default_agent=\"sales\"`); URLs like `/a/{agent}/chat`, `/a/{agent}/events/stream`.
+  - Isolation: Postgres schema per tenant (or per tenant+agent) and dedicated vector namespaces/indexes keyed by tenant and agent.
+  - Config: per-agent overrides for prompts, retrieval namespaces, model, temperature, max_tokens.
+- First milestone remains: implement the Sales Agent only (single agent), but keep path structure and config names compatible with the above so we can extend without breaking.
+
 ## Security & Compliance
 - Anonymous chat by default. Email-based soft linking via OTP (Mailgun) to associate prior sessions.
 - Data deletion flow: public page → enter email → OTP → delete sessions/messages/summaries for that email and tenant.
