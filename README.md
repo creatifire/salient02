@@ -28,8 +28,8 @@ uvicorn backend.app.main:app --reload
 
 Notes:
 - Baseline shows a minimal HTMX-enabled chat page (no memory/DB yet).
-- YAML config placeholder: backend/config/app.yaml
-- Logs will be configured via YAML in later chunks.
+- YAML config placeholder: `backend/config/app.yaml`.
+- Logs are configured via YAML; see Logging section below.
 
 ### 2) Web (Astro host, optional)
 ```bash
@@ -65,3 +65,30 @@ pnpm dev
 
 ## License
 TBD
+
+## Logging configuration
+- Location: `backend/config/app.yaml` under `logging:`
+- Keys and meanings:
+  - `level`: `DEBUG|INFO|WARN|ERROR` (default `INFO`)
+  - `prefix`: File prefix when `path` is not set. Final file name becomes `<prefix><timestamp>.jsonl` (default `salient-log-`)
+  - `path`: Explicit file path; when set, overrides `prefix` naming (e.g., `./backend/logs/app.jsonl`)
+  - `rotation`: When to rotate logs. Accepts size or time, e.g. `50 MB`, `1 day`, `1 hour`, `00:30` (every 30 minutes)
+  - `retention`: How long/how many to keep (e.g., `14 days`)
+  - `compression`: Optional compression for rotated files (`zip`, `gz`, `bz2`)
+  - `enqueue`: Write logs via a background thread (recommended under concurrency)
+
+Recommended policies:
+- Development: `rotation: 50 MB`, `retention: 7 days`
+- Production: `rotation: 1 day` or `1 hour`; `retention: 14 days`; enable `enqueue: true` and `compression: zip`
+
+Example (30-minute rotation with prefix-based naming):
+```yaml
+logging:
+  level: INFO
+  prefix: salient-log-
+  # path: ./backend/logs/app.jsonl   # uncomment to force a fixed filepath instead
+  rotation: 00:30
+  retention: 14 days
+  compression: zip
+  enqueue: true
+```

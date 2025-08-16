@@ -70,6 +70,17 @@
       - Console logs for SSE open/message/error during troubleshooting (toggle via YAML `logging.frontend_debug`)
     - STATUS: Completed — Frontend console diagnostics gated by `logging.frontend_debug` and wired for SSE message/end/error
 
+- [x] 0002-004-002 - TASK - Log file rotation & naming policy
+  - [x] 0002-004-002-01 - CHUNK - YAML policy keys and guidance
+    - SUB-TASKS:
+      - Add `logging.rotation` (e.g., `1 day`, `1 hour`, `00:30`, or `50 MB`) and `logging.retention` (e.g., `14 days`)
+      - Add `logging.prefix` for filename prefix (default `salient-log-`); final name `<prefix><YYYYMMDD-HHMMSS>.jsonl`
+      - Allow explicit `logging.path` to override prefix naming
+      - Support optional `logging.compression` (zip/gz) and `logging.enqueue` (threaded IO)
+      - Best practices: daily rotation for production; size cap or 30–60 min for verbose dev; keep 7–14 days in prod
+      - Time-based rotation occurs at the mark (top of hour/day). Avoid very small windows (e.g., 15 min) unless required
+    - STATUS: Completed — Implemented directory+prefix+timestamp filenames; `rotation`/`retention`/`compression`/`enqueue` options; README docs; verified JSONL format and rotation behavior
+
 ## 0002-005 - FEATURE - Config
 - [x] 0002-005-001 - TASK - Load YAML + .env
   - [x] 0002-005-001-01 - CHUNK - Config loader

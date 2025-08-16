@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime
 import sys
 
 from fastapi import FastAPI, Request
@@ -23,18 +24,32 @@ def _setup_logger() -> None:
     cfg = load_config()
     logging_cfg = cfg.get("logging") or {}
     level = str(logging_cfg.get("level", "INFO")).upper()
-    path = str(logging_cfg.get("path", "./backend/logs/app.jsonl"))
-    rotation = str(logging_cfg.get("rotation", "50 MB"))
+    log_dir = logging_cfg.get("path") or str(BASE_DIR.parent / "backend" / "logs")
+    prefix = logging_cfg.get("prefix", "salient-log-")
+    rotation = str(logging_cfg.get("rotation", "1 day"))
     retention = str(logging_cfg.get("retention", "14 days"))
+    compression = logging_cfg.get("compression")
+    enqueue = bool(logging_cfg.get("enqueue", False))
 
-    # Ensure log directory exists
-    log_path = Path(path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    # Ensure log directory exists (done below before creating file)
 
     # Configure loguru JSONL sinks
     logger.remove()
-    logger.add(sys.stdout, level=level, serialize=True)
-    logger.add(path, level=level, serialize=True, rotation=rotation, retention=retention)
+    logger.add(sys.stdout, level=level, serialize=True, enqueue=enqueue)
+    # Determine filename: directory + prefix + timestamp
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    file_target = str(Path(log_dir) / f"{prefix}{ts}.jsonl")
+
+    logger.add(
+        file_target,
+        level=level,
+        serialize=True,
+        rotation=rotation,
+        retention=retention,
+        compression=compression,
+        enqueue=enqueue,
+    )
 
 
 @app.on_event("startup")
