@@ -28,12 +28,23 @@
 
 ## 0002-003 - FEATURE - OpenRouter Connectivity
 - [ ] 0002-003-001 - TASK - Chat completion call
-  - [ ] 0002-003-001-01 - CHUNK - Minimal LLM client
+  - [x] 0002-003-001-01 - CHUNK - Minimal LLM client
     - SUB-TASKS:
       - Use `OPENROUTER_API_KEY` from `.env` (Bearer)
       - Model from YAML: `openai/gpt-oss-20b:free`
       - Optional headers: `HTTP-Referer`, `X-Title`
       - Basic system prompt file + user message
+    - STATUS: Completed — Implemented `openrouter_client.py` and integrated with `/events/stream` when `llm=1`
+  - [ ] 0002-003-001-02 - CHUNK - Wire UI to LLM streaming
+    - SUB-TASKS:
+      - From the base page, send textarea content to `/events/stream?llm=1&message=...`
+      - Append streamed tokens into the chat pane incrementally
+      - Handle disconnect/error gracefully; allow re-start
+  - [ ] 0002-003-001-03 - CHUNK - Non-stream fallback (POST /chat)
+    - SUB-TASKS:
+      - Implement `POST /chat` to call OpenRouter and return a rendered snippet
+      - Update the UI to submit non-streaming when streaming is disabled
+      - Render assistant response in the chat pane
 
 ## 0002-004 - FEATURE - Logging Foundation
 - [ ] 0002-004-001 - TASK - Loguru init
