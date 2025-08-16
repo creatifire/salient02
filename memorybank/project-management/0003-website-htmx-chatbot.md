@@ -23,10 +23,11 @@
       - Create components: `web/src/components/Nav.astro`, `Footer.astro`, `OpenChatCta.astro`
       - `OpenChatCta.astro` links to backend chat (FastAPI `GET /`) for Cycle-1
     - STATUS: Completed — Implemented `Nav.astro`, `Footer.astro`, `OpenChatCta.astro`; updated `Layout.astro`
-  - [ ] 0003-001-001-04 - CHUNK - Page placement & routes
+  - [x] 0003-001-001-04 - CHUNK - Page placement & routes
     - SUB-TASKS:
       - Place all pages under `web/src/pages/...` per the hierarchy note below
       - Add `web/src/pages/demo/iframe.astro` with a banner warning (demo-only)
+    - STATUS: Completed — Created `web/src/pages/demo/iframe.astro` with warning banner; pages placed under `web/src/pages/...`
 
 - [ ] 0003-001-004 - TASK - Astro app in `web/` folder
   - [ ] 0003-001-004-01 - CHUNK - Scaffold and scripts
