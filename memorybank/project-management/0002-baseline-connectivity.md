@@ -96,9 +96,10 @@
     - Accumulate tokens as plain text
     - On `end` event, render Markdown to HTML and sanitize
   - STATUS: Completed — Integrated marked.js + DOMPurify; accumulate during stream and render sanitized HTML on end; respects `ui.allow_basic_html`
-- [ ] 0002-007-003 - TASK - Subtle "streaming" indicator while receiving
+- [x] 0002-007-003 - TASK - Subtle "streaming" indicator while receiving
   - SUB-TASKS:
     - Show spinner/text during active SSE, hide on `end`/error
+  - STATUS: Completed — Added a small "Streaming…" indicator shown during SSE and POST fallback; hides on end/error
 - [ ] 0002-007-004 - TASK - Disable Send while a stream is active
   - SUB-TASKS:
     - Disable Send (and Ctrl/Cmd+Enter) on open; re-enable on `end`/error
