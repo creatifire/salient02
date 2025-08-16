@@ -6,20 +6,23 @@
 
 ## 0003-001 - FEATURE - Dummy Website Shell
 - [ ] 0003-001-001 - TASK - Scaffolding & Pages
-  - [ ] 0003-001-001-01 - CHUNK - Home page + basic nav
+  - [x] 0003-001-001-01 - CHUNK - Home page + basic nav
     - SUB-TASKS:
       - Create `web/src/pages/index.astro` (landing with value prop + "Open Chat" CTA)
       - Include shared nav/footer via `web/src/layouts/Layout.astro`
       - Footer links to README and project brief
-  - [ ] 0003-001-001-02 - CHUNK - About/Contact placeholders
+    - STATUS: Completed — Added `index.astro` with CTA; wired `Nav`/`Footer` via `Layout.astro`
+  - [x] 0003-001-001-02 - CHUNK - About/Contact placeholders
     - SUB-TASKS:
       - Add `web/src/pages/about.astro` and `web/src/pages/contact.astro`
       - Ensure consistent header/nav across pages
-  - [ ] 0003-001-001-03 - CHUNK - Shared layout & components
+    - STATUS: Completed — Added `about.astro` and `contact.astro`; both use shared `Layout.astro` (Nav/Footer consistent)
+  - [x] 0003-001-001-03 - CHUNK - Shared layout & components
     - SUB-TASKS:
       - Create `web/src/layouts/Layout.astro` (imports Basecoat/Tailwind, slots content)
       - Create components: `web/src/components/Nav.astro`, `Footer.astro`, `OpenChatCta.astro`
       - `OpenChatCta.astro` links to backend chat (FastAPI `GET /`) for Cycle-1
+    - STATUS: Completed — Implemented `Nav.astro`, `Footer.astro`, `OpenChatCta.astro`; updated `Layout.astro`
   - [ ] 0003-001-001-04 - CHUNK - Page placement & routes
     - SUB-TASKS:
       - Place all pages under `web/src/pages/...` per the hierarchy note below

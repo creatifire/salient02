@@ -1,0 +1,15 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout>
+  <section style="padding:2rem 0;">
+    <h1 style="font-size:2rem;margin:0 0 .5rem;">Contact Us</h1>
+    <p>Use this simple form UI for demo purposes only.</p>
+    <form style="display:grid;gap:.5rem;max-width:480px;">
+      <label>Name<input type="text" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:.375rem;" /></label>
+      <label>Email<input type="email" style="width:100%;padding:.5rem;border:1px solid #ddd;border-radius:.375rem;" /></label>
+      <label>Message<textarea style="width:100%;min-height:6rem;padding:.5rem;border:1px solid #ddd;border-radius:.375rem;"></textarea></label>
+      <button type="button" style="background:#0ea5e9;color:#fff;padding:.6rem 1rem;border-radius:.5rem;border:none;cursor:not-allowed;">Submit (disabled in demo)</button>
+    </form>
+  </section>
+</Layout>
