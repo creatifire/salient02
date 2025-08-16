@@ -33,6 +33,9 @@
       <textarea id="messageInput" class="textarea" placeholder="Type your message... (Ctrl+Enter to send; Enter inserts newline)"></textarea>
 
       <div id="chatPane" class="chat" aria-live="polite"></div>
+      <div class="buttons" style="margin-top:.5rem;">
+        <button id="streamBtn" class="btn" type="button">Stream Demo</button>
+      </div>
     </div>
 
     <script>
@@ -102,6 +105,25 @@
       // Optional debounce on input (for future live validations)
       const debouncedNoop = debounce(() => {}, cfg.debounceMs);
       input.addEventListener('input', debouncedNoop);
+
+      // Simple SSE demo to validate streaming endpoint
+      const streamBtn = document.getElementById('streamBtn');
+      let sse;
+      streamBtn.addEventListener('click', () => {
+        try { if (sse) { sse.close(); } } catch {}
+        appendMessage('bot', '[streaming start] (LLM=off)');
+        const url = new URL('/events/stream', window.location.origin);
+        url.searchParams.set('message', 'Streaming hello from SSE endpoint.');
+        url.searchParams.set('llm', '0');
+        sse = new EventSource(url.toString());
+        sse.onmessage = (ev) => {
+          appendMessage('bot', ev.data);
+        };
+        sse.onerror = () => {
+          appendMessage('bot', '[stream error or closed]');
+          try { sse.close(); } catch {}
+        };
+      });
     </script>
   </body>
   </html>
