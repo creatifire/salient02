@@ -27,7 +27,7 @@
     - STATUS: Completed — Implemented `GET /events/stream` with incremental token-like chunks; added Stream Demo button on base page to verify SSE
 
 ## 0002-003 - FEATURE - OpenRouter Connectivity
-- [ ] 0002-003-001 - TASK - Chat completion call
+- [x] 0002-003-001 - TASK - Chat completion call
   - [x] 0002-003-001-01 - CHUNK - Minimal LLM client
     - SUB-TASKS:
       - Use `OPENROUTER_API_KEY` from `.env` (Bearer)
@@ -83,7 +83,7 @@
   - [x] 0002-006-001-01 - CHUNK - Render inbound/outbound messages
     - SUB-TASKS:
       - Ensure escaping; allow basic HTML if `ui.allow_basic_html`
-    - STATUS: Completed — Added `templates/partials/message.html` and used it in `POST /chat`; client inserts server-rendered snippet
+    - STATUS: Completed — Added `templates/partials/message.html` (kept for reuse/emails). Current flows render Markdown client-side on completion for both SSE and POST.
 
 ## 0002-007 - FEATURE - UI Presentation & Streaming UX
 - [x] 0002-007-001 - TASK - Layout reorder
@@ -91,10 +91,11 @@
     - Order: Title → Chat History (scrollable) → Input box → Buttons row
     - Buttons row: left group (Send, Clear), right (Stream Demo)
   - STATUS: Completed — Reordered layout; user messages right-aligned with extra left padding; bot messages left-aligned with extra right padding and pale yellow background; chat pane scrollable
-- [ ] 0002-007-002 - TASK - Client-side Markdown render with DOMPurify on end
+- [x] 0002-007-002 - TASK - Client-side Markdown render with DOMPurify on end
   - SUB-TASKS:
     - Accumulate tokens as plain text
     - On `end` event, render Markdown to HTML and sanitize
+  - STATUS: Completed — Integrated marked.js + DOMPurify; accumulate during stream and render sanitized HTML on end; respects `ui.allow_basic_html`
 - [ ] 0002-007-003 - TASK - Subtle "streaming" indicator while receiving
   - SUB-TASKS:
     - Show spinner/text during active SSE, hide on `end`/error
