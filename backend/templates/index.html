@@ -19,7 +19,7 @@
       .msg.bot { background: #f4f4f5; }
     </style>
   </head>
-  <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}">
+  <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}">
     <div class="container">
       <h1>SalesBot (Baseline)</h1>
 
@@ -97,11 +97,17 @@
         activeSSE = sse;
 
         sse.onmessage = (ev) => {
+          if (document.body.dataset.frontendDebug === 'true') {
+            console.log('[SSE message]', ev.data);
+          }
           if (!activeBotDiv) return;
           activeBotDiv.textContent += ev.data;
           chatPane.scrollTop = chatPane.scrollHeight;
         };
         sse.onerror = () => {
+          if (document.body.dataset.frontendDebug === 'true') {
+            console.warn('[SSE error] stream closed');
+          }
           try { sse.close(); } catch {}
           activeSSE = null;
         };
@@ -149,9 +155,15 @@
         url.searchParams.set('llm', '0');
         sse = new EventSource(url.toString());
         sse.onmessage = (ev) => {
+          if (document.body.dataset.frontendDebug === 'true') {
+            console.log('[SSE DEMO message]', ev.data);
+          }
           appendMessage('bot', ev.data);
         };
         sse.onerror = () => {
+          if (document.body.dataset.frontendDebug === 'true') {
+            console.warn('[SSE DEMO error] stream closed');
+          }
           appendMessage('bot', '[stream error or closed]');
           try { sse.close(); } catch {}
         };

@@ -57,6 +57,7 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     })
     cfg = load_config()
     input_cfg = (cfg.get("chat") or {}).get("input") or {}
+    logging_cfg = cfg.get("logging") or {}
     return templates.TemplateResponse(
         "index.html",
         {
@@ -65,6 +66,8 @@ async def serve_base_page(request: Request) -> HTMLResponse:
             "debounce_ms": str(input_cfg.get("debounce_ms", 250)),
             "submit_shortcut": str(input_cfg.get("submit_shortcut", "ctrl+enter")),
             "enter_inserts_newline": "true" if input_cfg.get("enter_inserts_newline", True) else "false",
+            # Frontend debug console toggle
+            "frontend_debug": "true" if logging_cfg.get("frontend_debug", False) else "false",
         },
     )
 
