@@ -82,6 +82,25 @@
     - SUB-TASKS:
       - Ensure escaping; allow basic HTML if `ui.allow_basic_html`
 
+## 0002-007 - FEATURE - UI Presentation & Streaming UX
+- [ ] 0002-007-001 - TASK - Layout reorder
+  - SUB-TASKS:
+    - Order: Title → Chat History (scrollable) → Input box → Buttons row
+    - Buttons row: left group (Send, Clear), right (Stream Demo)
+- [ ] 0002-007-002 - TASK - Client-side Markdown render with DOMPurify on end
+  - SUB-TASKS:
+    - Accumulate tokens as plain text
+    - On `end` event, render Markdown to HTML and sanitize
+- [ ] 0002-007-003 - TASK - Subtle "streaming" indicator while receiving
+  - SUB-TASKS:
+    - Show spinner/text during active SSE, hide on `end`/error
+- [ ] 0002-007-004 - TASK - Disable Send while a stream is active
+  - SUB-TASKS:
+    - Disable Send (and Ctrl/Cmd+Enter) on open; re-enable on `end`/error
+- [ ] 0002-007-005 - TASK - Ensure Clear only clears history, not input
+  - SUB-TASKS:
+    - Clear pane only; preserve input contents
+
 ## Definition of Done
 - Multiple back-and-forths with the LLM via SSE (no memory, no DB)
 - Submit and clear buttons work, Ctrl+Enter submits, Enter adds newline
