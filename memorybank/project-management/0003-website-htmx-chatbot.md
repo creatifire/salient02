@@ -29,12 +29,13 @@
       - Add `web/src/pages/demo/iframe.astro` with a banner warning (demo-only)
     - STATUS: Completed — Created `web/src/pages/demo/iframe.astro` with warning banner; pages placed under `web/src/pages/...`
 
-- [ ] 0003-001-004 - TASK - Astro app in `web/` folder
-  - [ ] 0003-001-004-01 - CHUNK - Scaffold and scripts
+- [x] 0003-001-004 - TASK - Astro app in `web/` folder
+  - [x] 0003-001-004-01 - CHUNK - Scaffold and scripts
     - SUB-TASKS:
       - Initialize an Astro project in `web/` (pnpm/Node per tech stack)
       - Add minimal layout (`src/layouts/Layout.astro`) and routes (`src/pages/...`)
       - Document dev commands: `pnpm dev` for web, `uvicorn` for backend; note same-origin linking to chat
+    - STATUS: Completed — `web/` initialized; `Layout.astro` + routes in place; README documents `pnpm dev` and backend `uvicorn` commands
 
 - Note: Initial Site Hierarchy (Astro)
   - Orientation only; adjust page mix during implementation.
