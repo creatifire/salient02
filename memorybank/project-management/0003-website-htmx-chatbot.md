@@ -5,37 +5,43 @@
 > Goal: Ship a simple, same-origin website that links to (or lightly hosts) the existing HTMX chat UI for demos. No memory and no RAG in this epic. Focus on a clean host page, navigation, and a robust demo story.
 
 ## 0003-001 - FEATURE - Dummy Website Shell
-- [ ] 0003-001-001 - TASK - Scaffolding & Pages
-  - [x] 0003-001-001-01 - CHUNK - Home page + basic nav
-    - SUB-TASKS:
-      - Create `web/src/pages/index.astro` (landing with value prop + "Open Chat" CTA)
-      - Include shared nav/footer via `web/src/layouts/Layout.astro`
-      - Footer links to README and project brief
-    - STATUS: Completed — Added `index.astro` with CTA; wired `Nav`/`Footer` via `Layout.astro`
-  - [x] 0003-001-001-02 - CHUNK - About/Contact placeholders
-    - SUB-TASKS:
-      - Add `web/src/pages/about.astro` and `web/src/pages/contact.astro`
-      - Ensure consistent header/nav across pages
-    - STATUS: Completed — Added `about.astro` and `contact.astro`; both use shared `Layout.astro` (Nav/Footer consistent)
-  - [x] 0003-001-001-03 - CHUNK - Shared layout & components
-    - SUB-TASKS:
-      - Create `web/src/layouts/Layout.astro` (imports Basecoat/Tailwind, slots content)
-      - Create components: `web/src/components/Nav.astro`, `Footer.astro`, `OpenChatCta.astro`
-      - `OpenChatCta.astro` links to backend chat (FastAPI `GET /`) for Cycle-1
-    - STATUS: Completed — Implemented `Nav.astro`, `Footer.astro`, `OpenChatCta.astro`; updated `Layout.astro`
-  - [x] 0003-001-001-04 - CHUNK - Page placement & routes
-    - SUB-TASKS:
-      - Place all pages under `web/src/pages/...` per the hierarchy note below
-      - Add `web/src/pages/demo/iframe.astro` with a banner warning (demo-only)
-    - STATUS: Completed — Created `web/src/pages/demo/iframe.astro` with warning banner; pages placed under `web/src/pages/...`
-
-- [x] 0003-001-004 - TASK - Astro app in `web/` folder
-  - [x] 0003-001-004-01 - CHUNK - Scaffold and scripts
+- [x] 0003-001-01 - TASK - Astro scaffolding in `web/`
+  - [x] 0003-001-01-01 - CHUNK - Scaffold and scripts
     - SUB-TASKS:
       - Initialize an Astro project in `web/` (pnpm/Node per tech stack)
       - Add minimal layout (`src/layouts/Layout.astro`) and routes (`src/pages/...`)
       - Document dev commands: `pnpm dev` for web, `uvicorn` for backend; note same-origin linking to chat
     - STATUS: Completed — `web/` initialized; `Layout.astro` + routes in place; README documents `pnpm dev` and backend `uvicorn` commands
+
+- [x] 0003-001-02 - TASK - Shared layout & components
+  - [x] 0003-001-02-01 - CHUNK - Layout.astro; Nav.astro; Footer.astro; OpenChatCta.astro
+    - SUB-TASKS:
+      - Create `web/src/layouts/Layout.astro` (imports Basecoat/Tailwind, slots content)
+      - Create components: `web/src/components/Nav.astro`, `Footer.astro`, `OpenChatCta.astro`
+      - `OpenChatCta.astro` links to backend chat (FastAPI `GET /`) for Cycle-1
+    - STATUS: Completed — Implemented `Nav.astro`, `Footer.astro`, `OpenChatCta.astro`; updated `Layout.astro`
+
+- [x] 0003-001-03 - TASK - Home page
+  - [x] 0003-001-03-01 - CHUNK - index.astro with "Open Chat" CTA
+    - SUB-TASKS:
+      - Create `web/src/pages/index.astro` (landing with value prop + "Open Chat" CTA)
+      - Include shared nav/footer via `web/src/layouts/Layout.astro`
+      - Footer links to README and project brief
+    - STATUS: Completed — Added `index.astro` with CTA; wired `Nav`/`Footer` via `Layout.astro`
+
+- [x] 0003-001-04 - TASK - About/Contact
+  - [x] 0003-001-04-01 - CHUNK - about.astro; contact.astro
+    - SUB-TASKS:
+      - Add `web/src/pages/about.astro` and `web/src/pages/contact.astro`
+      - Ensure consistent header/nav across pages
+    - STATUS: Completed — Added `about.astro` and `contact.astro`; both use shared `Layout.astro` (Nav/Footer consistent)
+
+- [x] 0003-001-05 - TASK - Page placement & routes
+  - [x] 0003-001-05-01 - CHUNK - Place pages under web/src/pages; add demo/iframe (banner)
+    - SUB-TASKS:
+      - Place all pages under `web/src/pages/...` per the hierarchy note below
+      - Add `web/src/pages/demo/iframe.astro` with a banner warning (demo-only)
+    - STATUS: Completed — Created `web/src/pages/demo/iframe.astro` with warning banner; pages placed under `web/src/pages/...`
 
 - Note: Initial Site Hierarchy (Astro)
   - Orientation only; adjust page mix during implementation.
@@ -67,16 +73,16 @@
           iframe.astro              # Optional demo page (iframe warning)
   ```
 
-- [ ] 0003-001-003 - TASK - Realistic Mock Site (3–5 pages)
-  - [ ] 0003-001-003-01 - CHUNK - Company home + contact us
+- [ ] 0003-001-06 - TASK - Realistic Mock Site (3–5 pages)
+  - [ ] 0003-001-06-01 - CHUNK - Company home + contact us
     - SUB-TASKS:
       - Hero + brief value prop, simple contact form (no backend action yet)
-  - [ ] 0003-001-003-02 - CHUNK - Product pages (1–2)
+  - [ ] 0003-001-06-02 - CHUNK - Product pages (1–2)
     - SUB-TASKS:
       - Create simple product detail pages with content blocks, CTA to “Open Chat”
 
-- [ ] 0003-001-005 - TASK - Dummy Pages to Retrieve (scrape/summarize content)
-  - [ ] 0003-001-005-01 - CHUNK - Page set and targets
+- [ ] 0003-001-07 - TASK - Dummy Pages to Retrieve (scrape/summarize content)
+  - [ ] 0003-001-07-01 - CHUNK - Page set and targets
     - SUB-TASKS:
       - Home → `web/src/pages/index.astro` (source: [AgroFresh Home](https://www.agrofresh.com/))
       - Markets → Growers → `web/src/pages/markets/growers.astro` (source: [AgroFresh](https://www.agrofresh.com/))
@@ -90,8 +96,8 @@
       - Content will be summarized/genericized for a brand-neutral demo; no trademarked names reused verbatim
       - If scope requires fewer pages for v1, prioritize: Home, SmartFresh, FreshCloud, Apples, Contact
 
-- [ ] 0003-001-002 - TASK - Build & Dev Commands
-  - [ ] 0003-001-002-01 - CHUNK - Document dev runbook
+- [ ] 0003-001-08 - TASK - Build & Dev Commands
+  - [ ] 0003-001-08-01 - CHUNK - Document dev runbook
     - SUB-TASKS:
       - Document running website + backend concurrently
       - Note ports and same-origin strategy for SSE
@@ -145,20 +151,20 @@
       - HTMX swaps populate pane content; same-origin only
 
 ## 0003-004 - FEATURE - Styling & Accessibility
-- [ ] 0003-003-001 - TASK - Basic Styles
-  - [ ] 0003-003-001-01 - CHUNK - Light layout polish
+- [ ] 0003-004-001 - TASK - Basic Styles
+  - [ ] 0003-004-001-01 - CHUNK - Light layout polish
     - SUB-TASKS:
       - Ensure responsive layout and readable typography
       - Keep styles minimal; no heavy frameworks beyond Basecoat/Tailwind (if present)
 
-- [ ] 0003-003-002 - TASK - A11y Checks
-  - [ ] 0003-003-002-01 - CHUNK - Keyboard and landmarks
+- [ ] 0003-004-002 - TASK - A11y Checks
+  - [ ] 0003-004-002-01 - CHUNK - Keyboard and landmarks
     - SUB-TASKS:
       - Ensure skip-to-content, focus outlines, accessible nav
 
 ## 0003-005 - FEATURE - Ops & Observability (Lite)
-- [ ] 0003-004-001 - TASK - Diagnostics & Links
-  - [ ] 0003-004-001-01 - CHUNK - Footer diagnostics block (dev only)
+- [ ] 0003-005-001 - TASK - Diagnostics & Links
+  - [ ] 0003-005-001-01 - CHUNK - Footer diagnostics block (dev only)
     - SUB-TASKS:
       - Link to backend `/health`
       - Link to backend logs directory (readme/pointer)
