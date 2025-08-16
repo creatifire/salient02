@@ -105,15 +105,15 @@
           fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: value }) })
             .then(async r => {
               if (!r.ok) return '[error: non-stream failed]';
-              // Response is HTML snippet from server partial
-              const html = await r.text();
+              const text = await r.text();
+              const allowHtml = (document.body.dataset.allowBasicHtml || 'true') === 'true';
               if (activeBotDiv) {
-                activeBotDiv.outerHTML = html;
+                if (allowHtml) {
+                  activeBotDiv.innerHTML = DOMPurify.sanitize(marked.parse(text));
+                } else {
+                  activeBotDiv.textContent = text;
+                }
                 activeBotDiv = null;
-              } else {
-                const wrap = document.createElement('div');
-                wrap.innerHTML = html;
-                chatPane.appendChild(wrap.firstElementChild);
               }
             });
           return;

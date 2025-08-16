@@ -58,6 +58,7 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     cfg = load_config()
     input_cfg = (cfg.get("chat") or {}).get("input") or {}
     logging_cfg = cfg.get("logging") or {}
+    ui_cfg = cfg.get("ui") or {}
     return templates.TemplateResponse(
         "index.html",
         {
@@ -69,7 +70,8 @@ async def serve_base_page(request: Request) -> HTMLResponse:
             # Frontend debug console toggle
             "frontend_debug": "true" if logging_cfg.get("frontend_debug", False) else "false",
             # Feature flags
-            "sse_enabled": "true" if (cfg.get("ui") or {}).get("sse_enabled", True) else "false",
+            "sse_enabled": "true" if ui_cfg.get("sse_enabled", True) else "false",
+            "allow_basic_html": "true" if ui_cfg.get("allow_basic_html", True) else "false",
         },
     )
 
@@ -200,12 +202,6 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         temperature=temperature,
         max_tokens=max_tokens,
     )
-    # Render via partial for consistent markup
-    allow_basic_html = (cfg.get("ui") or {}).get("allow_basic_html", True)
-    html = templates.get_template("partials/message.html").render({
-        "role": "bot",
-        "text": text,
-        "allow_basic_html": allow_basic_html,
-    })
-    return HTMLResponse(html)
+    # Return plain text; client will render Markdown + sanitize when allowed
+    return PlainTextResponse(text)
 
