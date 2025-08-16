@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -8,6 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from .config import load_config
 from .openrouter_client import stream_chat_chunks
+from loguru import logger
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,9 +19,42 @@ app = FastAPI(title="SalesBot Backend")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+def _setup_logger() -> None:
+    cfg = load_config()
+    logging_cfg = cfg.get("logging") or {}
+    level = str(logging_cfg.get("level", "INFO")).upper()
+    path = str(logging_cfg.get("path", "./backend/logs/app.jsonl"))
+    rotation = str(logging_cfg.get("rotation", "50 MB"))
+    retention = str(logging_cfg.get("retention", "14 days"))
+
+    # Ensure log directory exists
+    log_path = Path(path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Configure loguru JSONL sinks
+    logger.remove()
+    logger.add(sys.stdout, level=level, serialize=True)
+    logger.add(path, level=level, serialize=True, rotation=rotation, retention=retention)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    _setup_logger()
+    logger.info({
+        "event": "startup",
+        "message": "application started",
+    })
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_base_page(request: Request) -> HTMLResponse:
     """Render the minimal HTMX-enabled chat page."""
+    logger.info({
+        "event": "serve_base_page",
+        "path": "/",
+        "client": request.client.host if request.client else None,
+        "user_agent": request.headers.get("user-agent"),
+    })
     cfg = load_config()
     input_cfg = (cfg.get("chat") or {}).get("input") or {}
     return templates.TemplateResponse(
@@ -55,6 +90,17 @@ async def sse_stream(request: Request):
     seed = request.query_params.get("message")
     use_llm = request.query_params.get("llm") == "1"
 
+    logger.info({
+        "event": "sse_request",
+        "path": "/events/stream",
+        "client": request.client.host if request.client else None,
+        "params": dict(request.query_params),
+        "llm": use_llm,
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    })
+
     async def event_generator():
         try:
             if use_llm and seed:
@@ -65,6 +111,10 @@ async def sse_stream(request: Request):
                     max_tokens=max_tokens,
                 ):
                     if await request.is_disconnected():
+                        logger.info({
+                            "event": "sse_disconnected",
+                            "path": "/events/stream",
+                        })
                         break
                     yield {"data": tok}
                     await asyncio.sleep(0.04)
@@ -76,6 +126,10 @@ async def sse_stream(request: Request):
                 count = 0
                 for tok in tokens:
                     if await request.is_disconnected():
+                        logger.info({
+                            "event": "sse_disconnected",
+                            "path": "/events/stream",
+                        })
                         break
                     if count >= max_tokens:
                         break
@@ -87,8 +141,18 @@ async def sse_stream(request: Request):
                 if not await request.is_disconnected():
                     yield {"data": footer}
         except Exception as exc:
+            logger.error({
+                "event": "sse_error",
+                "path": "/events/stream",
+                "error": type(exc).__name__,
+            })
             if not await request.is_disconnected():
                 yield {"event": "error", "data": f"stream_error: {type(exc).__name__}"}
+        finally:
+            logger.info({
+                "event": "sse_complete",
+                "path": "/events/stream",
+            })
 
     return EventSourceResponse(event_generator())
 
