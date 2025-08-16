@@ -68,11 +68,43 @@
       }
 
       // Send handler (baseline: local echo; LLM connectivity added in later chunks)
+      let activeSSE = null;
+      let activeBotDiv = null;
+
       function handleSend() {
         const value = input.value;
         if (!value.trim()) return;
+        // Append user message
         appendMessage('user', value.trim());
+        // Reset input
         input.value = '';
+
+        // Close previous stream if any
+        try { if (activeSSE) { activeSSE.close(); } } catch {}
+
+        // Create/append a bot message container to accumulate streamed tokens
+        activeBotDiv = document.createElement('div');
+        activeBotDiv.className = 'msg bot';
+        activeBotDiv.textContent = '';
+        chatPane.appendChild(activeBotDiv);
+        chatPane.scrollTop = chatPane.scrollHeight;
+
+        // Start SSE with LLM enabled
+        const url = new URL('/events/stream', window.location.origin);
+        url.searchParams.set('llm', '1');
+        url.searchParams.set('message', value);
+        const sse = new EventSource(url.toString());
+        activeSSE = sse;
+
+        sse.onmessage = (ev) => {
+          if (!activeBotDiv) return;
+          activeBotDiv.textContent += ev.data;
+          chatPane.scrollTop = chatPane.scrollHeight;
+        };
+        sse.onerror = () => {
+          try { sse.close(); } catch {}
+          activeSSE = null;
+        };
       }
 
       // Click send
