@@ -102,6 +102,19 @@ logger.add(config.logging.path, level=config.logging.level, serialize=True, rota
     - `GET /events/stream?session_id=...`: SSE stream for incremental assistant messages.
   - Link citations to Pinecone metadata when available.
 
+### Streaming & transport
+- SSE is adequate for uni-directional model output (server → client streaming).
+- If full-duplex or very large bidirectional payloads are required, move to WebSockets.
+
+### Security for streaming endpoints
+- Do not put PII/prompts in query strings. Use a POST-then-GET pattern:
+  - POST to initialize the stream; store prompt server-side and return a short `stream_id`.
+  - GET `/events/stream?stream_id=...` for SSE.
+- Authenticate the stream (session cookie/JWT) and optionally HMAC-sign the `stream_id` to prevent guessing.
+- Apply rate limiting per IP/session and CSRF protections on the POST initializer.
+- Sanitize logs (no secrets, no raw prompts). JSONL logs should support redaction/filters.
+- CORS: keep same-origin for the app. If embedding, explicitly configure CORS and use a short-lived signed token.
+
 ### Future site-wide integration (not in baseline)
 - Floating button appears on all pages; clicking opens a slide-in chat pane.
 - Non-iframe preferred:
