@@ -64,9 +64,10 @@
       - Log model, latency, token counts/cost if available (no secrets/body)
       - Log error responses from OpenRouter succinctly
     - STATUS: Completed — Added logging in `openrouter_client.py` for model, latency, token usage/cost (when present), and succinct error details; no bodies/secrets logged
-  - [ ] 0002-004-001-04 - CHUNK - Client-side console diagnostics
+  - [x] 0002-004-001-04 - CHUNK - Client-side console diagnostics
     - SUB-TASKS:
       - Console logs for SSE open/message/error during troubleshooting (toggle via YAML `logging.frontend_debug`)
+    - STATUS: Completed — Frontend console diagnostics gated by `logging.frontend_debug` and wired for SSE message/end/error
 
 ## 0002-005 - FEATURE - Config
 - [ ] 0002-005-001 - TASK - Load YAML + .env

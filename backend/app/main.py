@@ -121,6 +121,9 @@ async def sse_stream(request: Request):
                         break
                     yield {"data": tok}
                     await asyncio.sleep(0.04)
+                # Graceful end signal
+                if not await request.is_disconnected():
+                    yield {"event": "end", "data": "end"}
             else:
                 # Simulate tokenization and latency
                 msg = seed or "This is a streaming demo using Server-Sent Events."
@@ -143,6 +146,8 @@ async def sse_stream(request: Request):
                 footer = f"\n[model={model} temp={temperature} max_tokens={max_tokens}]"
                 if not await request.is_disconnected():
                     yield {"data": footer}
+                    # Graceful end signal
+                    yield {"event": "end", "data": "end"}
         except Exception as exc:
             logger.error({
                 "event": "sse_error",

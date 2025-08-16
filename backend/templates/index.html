@@ -97,6 +97,14 @@
         activeSSE = sse;
 
         sse.onmessage = (ev) => {
+          if (ev.type === 'message' && ev.data === 'end') {
+            if (document.body.dataset.frontendDebug === 'true') {
+              console.log('[SSE end]');
+            }
+            try { sse.close(); } catch {}
+            activeSSE = null;
+            return;
+          }
           if (document.body.dataset.frontendDebug === 'true') {
             console.log('[SSE message]', ev.data);
           }
@@ -105,9 +113,7 @@
           chatPane.scrollTop = chatPane.scrollHeight;
         };
         sse.onerror = () => {
-          if (document.body.dataset.frontendDebug === 'true') {
-            console.warn('[SSE error] stream closed');
-          }
+          // Ignore onerror if stream ended gracefully
           try { sse.close(); } catch {}
           activeSSE = null;
         };
@@ -155,16 +161,20 @@
         url.searchParams.set('llm', '0');
         sse = new EventSource(url.toString());
         sse.onmessage = (ev) => {
+          if (ev.type === 'message' && ev.data === 'end') {
+            if (document.body.dataset.frontendDebug === 'true') {
+              console.log('[SSE DEMO end]');
+            }
+            try { sse.close(); } catch {}
+            return;
+          }
           if (document.body.dataset.frontendDebug === 'true') {
             console.log('[SSE DEMO message]', ev.data);
           }
           appendMessage('bot', ev.data);
         };
         sse.onerror = () => {
-          if (document.body.dataset.frontendDebug === 'true') {
-            console.warn('[SSE DEMO error] stream closed');
-          }
-          appendMessage('bot', '[stream error or closed]');
+          // Ignore onerror if stream ended gracefully
           try { sse.close(); } catch {}
         };
       });

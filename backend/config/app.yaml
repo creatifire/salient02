@@ -17,7 +17,7 @@ logging:
   path: ./backend/logs/app.jsonl
   rotation: 50 MB
   retention: 14 days
-  frontend_debug: false
+  frontend_debug: true
 
 vector:
   pinecone:
