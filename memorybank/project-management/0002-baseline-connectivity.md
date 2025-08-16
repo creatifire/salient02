@@ -41,11 +41,12 @@
       - Append streamed tokens into the chat pane incrementally
       - Handle disconnect/error gracefully; allow re-start
     - STATUS: Completed — Send now opens SSE to `/events/stream?llm=1` and appends streamed tokens into a bot message; closes previous streams
-  - [ ] 0002-003-001-03 - CHUNK - Non-stream fallback (POST /chat)
+  - [x] 0002-003-001-03 - CHUNK - Non-stream fallback (POST /chat)
     - SUB-TASKS:
       - Implement `POST /chat` to call OpenRouter and return a rendered snippet
       - Update the UI to submit non-streaming when streaming is disabled
       - Render assistant response in the chat pane
+    - STATUS: Completed — Added `POST /chat` returning plain text; client uses it when `ui.sse_enabled` is false
 
 ## 0002-004 - FEATURE - Logging Foundation
 - [x] 0002-004-001 - TASK - Loguru init

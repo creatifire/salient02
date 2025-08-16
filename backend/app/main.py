@@ -2,13 +2,13 @@ from pathlib import Path
 import sys
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 import asyncio
 from sse_starlette.sse import EventSourceResponse
 
 from .config import load_config
-from .openrouter_client import stream_chat_chunks
+from .openrouter_client import stream_chat_chunks, chat_completion_content
 from loguru import logger
 
 
@@ -170,4 +170,35 @@ async def sse_stream(request: Request):
 
     return EventSourceResponse(event_generator())
 
+
+@app.post("/chat", response_class=PlainTextResponse)
+async def chat_fallback(request: Request) -> PlainTextResponse:
+    """Non-stream fallback: returns full assistant text in one response."""
+    cfg = load_config()
+    body = await request.json()
+    message = str(body.get("message") or "").strip()
+    if not message:
+        return PlainTextResponse("", status_code=400)
+
+    llm_cfg = cfg.get("llm") or {}
+    model = llm_cfg.get("model", "openai/gpt-oss-20b:free")
+    temperature = float(llm_cfg.get("temperature", 0.3))
+    max_tokens = int(llm_cfg.get("max_tokens", 256))
+
+    logger.info({
+        "event": "chat_fallback_request",
+        "path": "/chat",
+        "client": request.client.host if request.client else None,
+        "model": model,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    })
+
+    text = await chat_completion_content(
+        message=message,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return PlainTextResponse(text)
 
