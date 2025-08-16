@@ -35,11 +35,12 @@
       - Optional headers: `HTTP-Referer`, `X-Title`
       - Basic system prompt file + user message
     - STATUS: Completed — Implemented `openrouter_client.py` and integrated with `/events/stream` when `llm=1`
-  - [ ] 0002-003-001-02 - CHUNK - Wire UI to LLM streaming
+  - [x] 0002-003-001-02 - CHUNK - Wire UI to LLM streaming
     - SUB-TASKS:
       - From the base page, send textarea content to `/events/stream?llm=1&message=...`
       - Append streamed tokens into the chat pane incrementally
       - Handle disconnect/error gracefully; allow re-start
+    - STATUS: Completed — Send now opens SSE to `/events/stream?llm=1` and appends streamed tokens into a bot message; closes previous streams
   - [ ] 0002-003-001-03 - CHUNK - Non-stream fallback (POST /chat)
     - SUB-TASKS:
       - Implement `POST /chat` to call OpenRouter and return a rendered snippet
@@ -47,11 +48,24 @@
       - Render assistant response in the chat pane
 
 ## 0002-004 - FEATURE - Logging Foundation
-- [ ] 0002-004-001 - TASK - Loguru init
-  - [ ] 0002-004-001-01 - CHUNK - JSONL to stdout and file
+- [x] 0002-004-001 - TASK - Loguru init
+  - [x] 0002-004-001-01 - CHUNK - JSONL to stdout and file
     - SUB-TASKS:
       - YAML-configured: `logging.level`, `logging.path`, `rotation`, `retention`
       - Log start/end of requests, SSE streaming events, errors
+    - STATUS: Completed — Loguru initialized on startup per YAML; JSONL to stdout and file
+  - [x] 0002-004-001-02 - CHUNK - Backend request logging
+    - SUB-TASKS:
+      - Log incoming `GET /` and `GET /events/stream` with query params
+      - Log disconnects/errors in SSE generator
+    - STATUS: Completed — Added logs for base page, SSE params, disconnects, errors, and completion
+  - [ ] 0002-004-001-03 - CHUNK - LLM call logging (redacted)
+    - SUB-TASKS:
+      - Log model, latency, token counts/cost if available (no secrets/body)
+      - Log error responses from OpenRouter succinctly
+  - [ ] 0002-004-001-04 - CHUNK - Client-side console diagnostics
+    - SUB-TASKS:
+      - Console logs for SSE open/message/error during troubleshooting (toggle via YAML `logging.frontend_debug`)
 
 ## 0002-005 - FEATURE - Config
 - [ ] 0002-005-001 - TASK - Load YAML + .env
