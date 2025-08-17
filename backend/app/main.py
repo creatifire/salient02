@@ -71,9 +71,12 @@ async def serve_base_page(request: Request) -> HTMLResponse:
         "user_agent": request.headers.get("user-agent"),
     })
     cfg = load_config()
+    ui_cfg = cfg.get("ui") or {}
+    # Gate exposure of backend chat UI
+    if not ui_cfg.get("expose_backend_chat", True):
+        return HTMLResponse("Not Found", status_code=404)
     input_cfg = (cfg.get("chat") or {}).get("input") or {}
     logging_cfg = cfg.get("logging") or {}
-    ui_cfg = cfg.get("ui") or {}
     return templates.TemplateResponse(
         "index.html",
         {

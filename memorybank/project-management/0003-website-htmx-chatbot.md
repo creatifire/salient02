@@ -108,22 +108,24 @@
 
 ## 0003-002 - FEATURE - Link to Backend Chat
 > Clarification: The chat interface continues to be served by the Python backend (FastAPI) at `GET /`, rendering `backend/templates/index.html`. The website’s role in this epic is to provide clear entry points (CTAs/links) to that backend page. No embedding here (see 0003-003 for non-iframe embed options).
-- [ ] 0003-002-001 - TASK - Same-Origin Link
-  - [ ] 0003-002-001-01 - CHUNK - "Open Chat" link to backend `/`
+- [x] 0003-002-001 - TASK - Same-Origin Link
+  - [x] 0003-002-001-01 - CHUNK - "Open Chat" link to backend `/`
     - SUB-TASKS:
       - Prominent CTA to open chat in same tab/new tab
       - Pass no PII in query strings
+    - STATUS: Completed — CTAs added site-wide and `/chat` helper route present; links use same-origin target
   - [x] 0003-002-001-02 - CHUNK - Optional `/chat` route in Astro
     - SUB-TASKS:
       - Create lightweight `web/src/pages/chat.astro` that redirects or provides a CTA to the backend chat
       - Keep content minimal; actual chat UI remains in backend
     - STATUS: Completed — Added `web/src/pages/chat.astro` with optional redirect to backend `/` and CTA fallback
- - [ ] 0003-002-003 - TASK - Production exposure switch (backend)
-   - [ ] 0003-002-003-01 - CHUNK - Gate backend chat page
-     - SUB-TASKS:
-       - Add/configure a flag (e.g., `ui.expose_backend_chat: true|false`) to hide `GET /` chat UI in production
-       - When disabled, return 404 or redirect to site home; remove any site links to backend chat
-       - Document reverse-proxy alternative (route block) and YAML setting in README
+ - [x] 0003-002-003 - TASK - Production exposure switch (backend)
+  - [x] 0003-002-003-01 - CHUNK - Gate backend chat page
+    - SUB-TASKS:
+      - Add/configure a flag (e.g., `ui.expose_backend_chat: true|false`) to hide `GET /` chat UI in production
+      - When disabled, return 404 or redirect to site home; remove any site links to backend chat
+      - Document reverse-proxy alternative (route block) and YAML setting in README
+    - STATUS: Completed — Added `ui.expose_backend_chat` in `backend/config/app.yaml`; GET `/` returns 404 when disabled
 
 - [ ] 0003-002-002 - TASK - (Demo Only) Inline Embed Option
   - [ ] 0003-002-002-01 - CHUNK - Iframe demo page (optional)
