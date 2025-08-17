@@ -73,16 +73,18 @@
           iframe.astro              # Optional demo page (iframe warning)
   ```
 
-- [ ] 0003-001-06 - TASK - Realistic Mock Site (3–5 pages)
-  - [ ] 0003-001-06-01 - CHUNK - Company home + contact us
+- [x] 0003-001-06 - TASK - Realistic Mock Site (3–5 pages)
+  - [x] 0003-001-06-01 - CHUNK - Company home + contact us
     - SUB-TASKS:
       - Hero + brief value prop, simple contact form (no backend action yet)
-  - [ ] 0003-001-06-02 - CHUNK - Product pages (1–2)
+    - STATUS: Completed — Home (`index.astro`) and Contact (`contact.astro`) created; CTAs present
+  - [x] 0003-001-06-02 - CHUNK - Product pages (1–2)
     - SUB-TASKS:
       - Create simple product detail pages with content blocks, CTA to “Open Chat”
+    - STATUS: Completed — Added `products/index.astro` and `products/product-a.astro` with CTAs; linked from `products/` index
 
-- [ ] 0003-001-07 - TASK - Dummy Pages to Retrieve (scrape/summarize content)
-  - [ ] 0003-001-07-01 - CHUNK - Page set and targets
+- [x] 0003-001-07 - TASK - Dummy Pages to Retrieve (scrape/summarize content)
+  - [x] 0003-001-07-01 - CHUNK - Page set and targets
     - SUB-TASKS:
       - Home → `web/src/pages/index.astro` (source: [AgroFresh Home](https://www.agrofresh.com/))
       - Markets → Growers → `web/src/pages/markets/growers.astro` (source: [AgroFresh](https://www.agrofresh.com/))
@@ -95,12 +97,14 @@
     - Notes:
       - Content will be summarized/genericized for a brand-neutral demo; no trademarked names reused verbatim
       - If scope requires fewer pages for v1, prioritize: Home, SmartFresh, FreshCloud, Apples, Contact
+    - STATUS: Completed — All listed pages created with brand-neutral summaries and CTAs
 
-- [ ] 0003-001-08 - TASK - Build & Dev Commands
-  - [ ] 0003-001-08-01 - CHUNK - Document dev runbook
+- [x] 0003-001-08 - TASK - Build & Dev Commands
+  - [x] 0003-001-08-01 - CHUNK - Document dev runbook
     - SUB-TASKS:
       - Document running website + backend concurrently
       - Note ports and same-origin strategy for SSE
+    - STATUS: Completed — Basics added to `web/README.md` and root `README.md`
 
 ## 0003-002 - FEATURE - Link to Backend Chat
 > Clarification: The chat interface continues to be served by the Python backend (FastAPI) at `GET /`, rendering `backend/templates/index.html`. The website’s role in this epic is to provide clear entry points (CTAs/links) to that backend page. No embedding here (see 0003-003 for non-iframe embed options).
