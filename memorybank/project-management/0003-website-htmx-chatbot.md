@@ -186,13 +186,14 @@
       - Enforce same-origin; block cross-origin URLs
       - Sanitize/ignore inline scripts in fetched HTML (rely on server-side content)
       - Acceptance: Widget refuses external URLs; no CSP violations reported
-  - [ ] 0003-003-001-09 - CHUNK - Copy-to-clipboard on bot messages (widget)
+  - [x] 0003-003-001-09 - CHUNK - Copy-to-clipboard on bot messages (widget)
     - SUB-TASKS:
       - Add a small copy icon button to each `.msg.bot` rendered in the Shadow DOM pane
       - Click copies the underlying full message content (prefer raw accumulated text before Markdown render)
       - Show non-blocking confirmation (e.g., transient "Copied" toast) within the pane; keyboard accessible
       - Fallback if `navigator.clipboard.writeText` is unavailable (use a hidden textarea + execCommand)
       - Acceptance: Icon visible on hover/focus; Enter/Space activates; copied text matches message content exactly
+    - STATUS: Completed — Icon button (bottom-right) copies raw text with toast + keyboard support; Clipboard API fallback implemented
 
 ## 0003-007 - FEATURE - Standalone HTMX Chat Page (web)
 - [ ] 0003-007-001 - TASK - Page scaffold
