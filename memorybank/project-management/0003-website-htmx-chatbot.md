@@ -139,24 +139,50 @@
 
 > Cycle-1 verified path: Astro/Preact component is the supported integration target. Shadow-DOM widget and server-include are planned and may be delivered as docs or alpha prototypes.
 
-- [ ] 0003-003-001 - TASK - Shadow-DOM Widget (floating button + slide-in pane)
-  - [ ] 0003-003-001-01 - CHUNK - Minimal loader script
+- [x] 0003-003-001 - TASK - Shadow-DOM Widget (floating button + slide-in pane)
+  - [x] 0003-003-001-01 - CHUNK - Floating button + ShadowRoot pane (toggle)
     - SUB-TASKS:
-      - Floating button appears on all pages; toggles a slide-in pane
-      - Mounts a Shadow DOM container; fetches same-origin HTMX partials/HTML
-      - Basic theming variables (colors, radius); no cross-origin calls
-
-- [ ] 0003-003-002 - TASK - Astro/Preact Component (host demo)
-  - [ ] 0003-003-002-01 - CHUNK - Component + props
+      - Inject fixed-position button on all pages (bottom-right)
+      - Create hidden pane inside Shadow DOM; slide-in/out on toggle
+      - Z-index and overlay to ensure visibility above page content
+      - Acceptance: Button visible; click opens/closes pane with animation
+    - STATUS: Completed — `web/public/widget/chat-widget.js` injects floating button + pane (Shadow DOM) with overlay and ESC-to-close; demo at `web/src/pages/demo/widget.astro`
+  - [ ] 0003-003-001-02 - CHUNK - Fetch and inject chat HTML (same-origin)
     - SUB-TASKS:
-      - Provide a `<SalesChatWidget />` that renders the floating button/pane
-      - Same-origin fetch of HTMX content; document install and usage
-
-- [ ] 0003-003-003 - TASK - Layout-level Server Include
-  - [ ] 0003-003-003-01 - CHUNK - Include + partials
+      - Default source: `/` (backend chat page) or configurable partial path
+      - Fetch on first open; cache in widget; re-open is instant
+      - Strict same-origin enforcement; no cross-origin fetches
+      - Acceptance: Chat UI loads and functions inside pane
+  - [ ] 0003-003-001-03 - CHUNK - Basic theming variables
     - SUB-TASKS:
-      - Add layout include that renders a button and hidden pane scaffolding
-      - HTMX swaps populate pane content; same-origin only
+      - Expose CSS variables (e.g., `--widget-accent`, `--widget-bg`, `--widget-radius`)
+      - Apply styles within Shadow DOM; document host overrides
+      - Acceptance: Changing variables updates button/pane look
+  - [ ] 0003-003-001-04 - CHUNK - Accessibility & focus handling
+    - SUB-TASKS:
+      - ARIA labels (`aria-expanded`, `aria-controls`), `role="dialog"` for pane
+      - Trap focus while open; Escape to close; return focus to trigger
+      - Acceptance: Keyboard-only users can open/close/use chat
+  - [ ] 0003-003-001-05 - CHUNK - Config API (init options / data-attrs)
+    - SUB-TASKS:
+      - Options: `sourceUrl`, `position` (br/bl), `openOnLoad` (false), `theme` vars
+      - Provide `window.SalientChatWidget.init({...})` and data-attribute fallback
+      - Acceptance: Options change behavior without code edits
+  - [ ] 0003-003-001-06 - CHUNK - Build & include path
+    - SUB-TASKS:
+      - Ship script at `web/public/widget/chat-widget.js` (no bundler required)
+      - Astro integration snippet added to `web/README.md` and demo layout
+      - Acceptance: Adding one `<script src="/widget/chat-widget.js">` enables widget
+  - [ ] 0003-003-001-07 - CHUNK - Demo/QA page
+    - SUB-TASKS:
+      - Add `web/src/pages/demo/widget.astro` to validate open/close, theme, options
+      - Checklist for manual tests (open, close, ESC, same-origin fetch)
+      - Acceptance: All checks pass on demo page
+  - [ ] 0003-003-001-08 - CHUNK - Safety & constraints
+    - SUB-TASKS:
+      - Enforce same-origin; block cross-origin URLs
+      - Sanitize/ignore inline scripts in fetched HTML (rely on server-side content)
+      - Acceptance: Widget refuses external URLs; no CSP violations reported
 
 ## 0003-004 - FEATURE - Styling & Accessibility
 - [x] 0003-004-001 - TASK - Basic Styles
@@ -178,53 +204,4 @@
     - SUB-TASKS:
       - Link to backend `/health`
       - Link to backend logs directory (readme/pointer)
-    - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health` and logs pointer; backend exposes gated `GET /dev/logs/tail` (controlled by `ui.expose_backend_logs`, `ui.logs_tail_count` default 10) and `web/src/pages/dev/logs.astro` renders last N JSONL entries (pretty-printed)
-
-## 0003-006 - FEATURE - Integration Guides (CMS/SSG)
-- [ ] 0003-006-001 - TASK - WordPress integration notes (doc-only)
-  - [ ] 0003-006-001-01 - CHUNK - Snippet + constraints
-    - SUB-TASKS:
-      - Provide guidance for injecting floating-button script or embed include
-      - Note same-origin constraints and security considerations
-- [ ] 0003-006-002 - TASK - Static site generators (generic)
-  - [ ] 0003-006-002-01 - CHUNK - Include patterns
-    - SUB-TASKS:
-      - Document how to include widget/component in common SSGs (e.g., Hugo, Eleventy)
-      - Emphasize production switch to hide backend chat page
-
-## 0003-007 - FEATURE - Standalone HTMX Chat Page (web)
-- [ ] 0003-007-001 - TASK - Page scaffold
-  - [ ] 0003-007-001-01 - CHUNK - Create `web/src/pages/demo/htmx-chat.astro` (or plain `/public/htmx-chat.html`) with HTMX + minimal CSS
-    - SUB-TASKS:
-      - Load HTMX via CDN
-      - Include message textarea, Send, Clear, chat pane containers
-- [ ] 0003-007-002 - TASK - Wire to backend endpoints (same-origin)
-  - [ ] 0003-007-002-01 - CHUNK - SSE `/events/stream` + POST `/chat` fallback
-    - SUB-TASKS:
-      - Stream tokens into a bot message div; send final `end` handling
-      - Non-stream fallback with Markdown render
-- [ ] 0003-007-003 - TASK - UI/UX parity with backend `index.html`
-  - [ ] 0003-007-003-01 - CHUNK - Controls & behavior
-    - SUB-TASKS:
-      - Keyboard: Ctrl/Cmd+Enter submit; Enter newline
-      - Debounce input; disable Send while active; subtle “Receiving…” indicator
-      - Clear only clears history, not input
-      - Client-side Markdown + DOMPurify when `allow_basic_html=true`
-- [ ] 0003-007-004 - TASK - Config plumbing (targets/flags)
-  - [ ] 0003-007-004-01 - CHUNK - Use `PUBLIC_CHAT_TARGET` (default same-origin) and honor flags
-    - SUB-TASKS:
-      - Respect `ui.sse_enabled`, `ui.allow_basic_html` semantics
-- [ ] 0003-007-005 - TASK - Styling & A11y
-  - [ ] 0003-007-005-01 - CHUNK - Light Basecoat/Tailwind polish + landmarks/skip link
-- [ ] 0003-007-006 - TASK - Exposure controls
-  - [ ] 0003-007-006-01 - CHUNK - Dev-only route or flag guard (no prod exposure by default)
-- [ ] 0003-007-007 - TASK - Documentation
-  - [ ] 0003-007-007-01 - CHUNK - README notes (how to run, flags, caveats)
-
-## Definition of Done
-- Host site provides a clean landing with an "Open Chat" entry point
-- SSE remains same-origin or linked (no cross-origin streaming in this epic)
-- Optional iframe demo page exists with clear "demo-only" warning
-- Basic accessibility and responsive layout are in place
-- Floating button/pane available via at least one non-iframe option (widget or component)
-
+    - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health`
