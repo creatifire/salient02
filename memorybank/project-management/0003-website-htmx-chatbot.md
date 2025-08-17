@@ -215,6 +215,8 @@
       - Debounce input; disable Send while active; subtle “Receiving…” indicator
       - Clear only clears history, not input
       - Client-side Markdown + DOMPurify when `allow_basic_html=true`
+      - Add copy-to-clipboard button with copy icon on each bot message
+    - STATUS: Partially completed — Implemented keyboard submit, disable controls during stream (Send/Clear/Copy), subtle “Receiving…” indicator, Clear only clears history, client-side Markdown render. Remaining: optional input debounce.
 - [ ] 0003-007-004 - TASK - Config plumbing (targets/flags)
   - [ ] 0003-007-004-01 - CHUNK - Use `PUBLIC_CHAT_TARGET` (default same-origin) and honor flags
     - SUB-TASKS:
@@ -225,11 +227,12 @@
   - [ ] 0003-007-006-01 - CHUNK - Dev-only route or flag guard (no prod exposure by default)
 - [ ] 0003-007-007 - TASK - Documentation
   - [ ] 0003-007-007-01 - CHUNK - README notes (how to run, flags, caveats)
-- [ ] 0003-007-008 - TASK - Copy-to-clipboard on messages (standalone page)
-  - [ ] 0003-007-008-01 - CHUNK - Add copy button to `.msg.bot`
+- [x] 0003-007-008 - TASK - Copy-to-clipboard on messages (standalone page)
+  - [x] 0003-007-008-01 - CHUNK - Add copy button to `.msg.bot`
     - SUB-TASKS:
       - Same behavior as widget: icon button, keyboard accessible, toast on success, fallback when clipboard API is unavailable
       - Acceptance: copying matches the message text (raw accumulated or final rendered if raw not retained)
+    - STATUS: Completed — Icon button added on both standalone pages; copies raw accumulated text with fallback.
 
 ## 0003-004 - FEATURE - Styling & Accessibility
 - [x] 0003-004-001 - TASK - Basic Styles

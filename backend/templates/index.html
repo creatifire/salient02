@@ -177,9 +177,15 @@
           const allowHtml = (document.body.dataset.allowBasicHtml || 'true') === 'true';
           const md = accumulated.trim();
           if (activeBotDiv) {
-            if (md) {
-              const html = DOMPurify.sanitize(marked.parse(md));
-              activeBotDiv.innerHTML = allowHtml ? html : activeBotDiv.textContent;
+            const html = md ? DOMPurify.sanitize(marked.parse(md)) : '';
+            if (allowHtml) {
+              if (!html || html.replace(/\s/g,'') === '') {
+                activeBotDiv.textContent = md || '[no response]';
+              } else {
+                activeBotDiv.innerHTML = html;
+              }
+            } else {
+              activeBotDiv.textContent = md || '[no response]';
             }
           }
           setStreaming(false);

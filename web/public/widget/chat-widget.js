@@ -33,10 +33,16 @@
       loadGlobal('https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js', 'DOMPurify')
     ]);
     if (marked && DOMPurify){
-      const html = DOMPurify.sanitize(marked.parse(String(raw || '').trim()));
-      element.innerHTML = html;
+      const trimmed = String(raw || '').trim();
+      const html = DOMPurify.sanitize(marked.parse(trimmed));
+      if (!html || html.replace(/\s/g,'') === ''){
+        element.textContent = trimmed || '[no response]';
+      } else {
+        element.innerHTML = html;
+      }
     } else {
-      element.textContent = raw;
+      const trimmed = String(raw || '').trim();
+      element.textContent = trimmed || '[no response]';
     }
   }
 
