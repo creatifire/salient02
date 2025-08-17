@@ -113,10 +113,11 @@
     - SUB-TASKS:
       - Prominent CTA to open chat in same tab/new tab
       - Pass no PII in query strings
-  - [ ] 0003-002-001-02 - CHUNK - Optional `/chat` route in Astro
+  - [x] 0003-002-001-02 - CHUNK - Optional `/chat` route in Astro
     - SUB-TASKS:
       - Create lightweight `web/src/pages/chat.astro` that redirects or provides a CTA to the backend chat
       - Keep content minimal; actual chat UI remains in backend
+    - STATUS: Completed — Added `web/src/pages/chat.astro` with optional redirect to backend `/` and CTA fallback
  - [ ] 0003-002-003 - TASK - Production exposure switch (backend)
    - [ ] 0003-002-003-01 - CHUNK - Gate backend chat page
      - SUB-TASKS:

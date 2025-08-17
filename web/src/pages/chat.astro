@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+import OpenChatCta from '../components/OpenChatCta.astro';
+import { CHAT_TARGET } from '../lib/chatTarget';
+const redirect = Astro.url.searchParams.get('redirect') !== '0';
+if (redirect) {
+  return Astro.redirect(CHAT_TARGET);
+}
+---
+<Layout>
+  <section style="padding:2rem 0;">
+    <h1 style="font-size:2rem;margin:0 0 .5rem;">Chat</h1>
+    <p style="margin:0 0 1rem;">This page links to the backend chat UI.</p>
+    <OpenChatCta />
+    <p style="margin-top:.75rem;font-size:.9rem;">Append <code>?redirect=0</code> to stay on this page.</p>
+  </section>
+</Layout>
