@@ -40,3 +40,34 @@ All commands are run from the root of the project, from a terminal:
 ## Notes
 - Baseline does not host the chat pane here; it’s served by the backend at `http://localhost:8000/`.
 - For quick demos you can link to the backend chat page; long-term we will provide a site-wide floating button widget.
+
+## Widget (Shadow-DOM) Integration
+
+To show a site-wide floating chat button on every page:
+
+1) Enable via env (recommended)
+- Set `PUBLIC_ENABLE_WIDGET=true` for the demo environment (default false in prod).
+
+2) Include the loader once in your shared layout
+- In `src/layouts/Layout.astro`, add the script just before `</body>`:
+
+```astro
+{import.meta.env.PUBLIC_ENABLE_WIDGET === 'true' && (
+  <script src="/widget/chat-widget.js" is:inline data-chat-path="/chat"></script>
+)}
+```
+
+3) Same-origin in dev and prod
+- Dev: `astro.config.mjs` proxies `/chat`, `/events`, `/health` to the backend (default `http://localhost:8000`). This makes widget fetches same-origin:
+  - Set `BACKEND_ORIGIN=http://localhost:8000` if your backend origin differs.
+- Prod: serve the backend via the same domain (reverse proxy) and keep `data-allow-cross` OFF.
+
+4) Optional configuration via data attributes
+- `data-chat-path` (default `/chat`)
+- `data-backend` (override the origin for special dev cases only)
+- `data-allow-cross="1"` (dev-only; do not use in production)
+
+5) Notes
+- The widget uses a Shadow DOM to isolate styles; it won’t interfere with your site CSS.
+- Accessibility: ESC closes, overlay click closes, focus returns to trigger.
+- Keep `ui.expose_backend_chat: false` in production; the widget posts to `/chat` and does not need to expose GET `/`.

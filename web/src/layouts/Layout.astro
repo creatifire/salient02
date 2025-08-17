@@ -23,6 +23,9 @@ import "../styles/global.css";
   <footer role="contentinfo">
     <Footer />
   </footer>
+  {import.meta.env.PUBLIC_ENABLE_WIDGET === 'true' && (
+    <script src="/widget/chat-widget.js" is:inline data-chat-path="/chat"></script>
+  )}
 </body>
 </html>
 
