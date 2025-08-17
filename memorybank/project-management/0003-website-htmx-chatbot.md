@@ -202,11 +202,12 @@
       - Load HTMX via CDN
       - Include message textarea, Send, Clear, chat pane containers
     - STATUS: Completed — Added `web/src/pages/demo/htmx-chat.astro` and `web/public/htmx-chat.html` scaffolds (UI elements present; wiring follows in 0003-007-002)
-- [ ] 0003-007-002 - TASK - Wire to backend endpoints (same-origin)
-  - [ ] 0003-007-002-01 - CHUNK - SSE `/events/stream` + POST `/chat` fallback
+- [x] 0003-007-002 - TASK - Wire to backend endpoints (same-origin)
+  - [x] 0003-007-002-01 - CHUNK - SSE `/events/stream` + POST `/chat` fallback
     - SUB-TASKS:
       - Stream tokens into a bot message div; send final `end` handling
       - Non-stream fallback with Markdown render
+    - STATUS: Completed — Astro page (`/demo/htmx-chat`) and plain page (`/htmx-chat.html`) use SSE to `/events/stream` with live tokens and POST `/chat` fallback; render Markdown (DOMPurify + marked) on completion
 - [ ] 0003-007-003 - TASK - UI/UX parity with backend `index.html`
   - [ ] 0003-007-003-01 - CHUNK - Controls & behavior
     - SUB-TASKS:

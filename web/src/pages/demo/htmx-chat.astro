@@ -4,30 +4,105 @@ import Layout from '../../layouts/Layout.astro';
 <Layout>
   <section style="padding:2rem 0;">
     <h1 style="font-size:2rem;margin:0 0 .5rem;">Standalone HTMX Chat (Astro Demo)</h1>
-    <p class="hint" style="margin:0 0 1rem;">Scaffold only: UI elements are present; wiring to backend is a later chunk.</p>
     <div class="chat" aria-live="polite"></div>
     <textarea id="msg" class="textarea" placeholder="Type your message… (Ctrl/Cmd+Enter to send)"></textarea>
     <div class="row">
-      <button id="send" class="btn primary" type="button" disabled>Send</button>
+      <button id="send" class="btn primary" type="button">Send</button>
       <button id="clear" class="btn" type="button">Clear</button>
-      <span class="hint">Wiring planned in 0003-007-002.</span>
+      <span id="hint" class="hint" style="display:none;">Receiving…</span>
     </div>
   </section>
   <script src="https://unpkg.com/htmx.org@1.9.12" is:inline></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" is:inline></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js" is:inline></script>
   <style is:inline>
     .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 320px; overflow:auto; background:#fff; display:flex; flex-direction:column; gap:.4rem; }
     .msg{ padding:.4rem .6rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
     .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
     .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
     .row{ display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
-    .btn{ padding:.45rem .7rem; border:1px solid #ccc; border-radius:6px; background:#f6f6f6; cursor:not-allowed; }
+    .btn{ padding:.45rem .7rem; border:1px solid #ccc; border-radius:6px; background:#f6f6f6; }
     .btn.primary{ background:#108D43; color:#fff; border-color:#108D43; }
     .textarea{ width:100%; min-height:6rem; padding:.5rem; border:1px solid #ddd; border-radius:6px; margin-top:.5rem; }
     .hint{ font-size:.85rem; color:#666; }
   </style>
   <script is:inline>
     const chat = document.querySelector('.chat');
+    const msg = document.getElementById('msg');
+    const sendBtn = document.getElementById('send');
     const clearBtn = document.getElementById('clear');
-    clearBtn?.addEventListener('click', ()=>{ chat && (chat.innerHTML=''); });
+    const hint = document.getElementById('hint');
+
+    let activeSSE = null;
+    let activeBotDiv = null;
+    let accumulated = '';
+    let busy = false;
+
+    function appendMessage(role, text){
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+      div.textContent = text || '';
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      return div;
+    }
+    function setBusy(v){ busy = v; sendBtn.disabled = v; hint.style.display = v ? 'inline' : 'none'; }
+
+    clearBtn?.addEventListener('click', ()=>{ chat.innerHTML=''; });
+
+    async function doPost(text){
+      try{
+        const r = await fetch('/chat', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }) });
+        const out = r.ok ? await r.text() : `[http ${r.status}]`;
+        if (activeBotDiv){
+          try{ activeBotDiv.innerHTML = DOMPurify.sanitize(marked.parse(out)); }
+          catch{ activeBotDiv.textContent = out; }
+        }
+      }catch{ if(activeBotDiv) activeBotDiv.textContent='[network error]'; }
+      finally{ setBusy(false); }
+    }
+
+    function send(){
+      if (busy) return;
+      const value = (msg.value||'').trim();
+      if (!value) return;
+      appendMessage('user', value);
+      msg.value = '';
+
+      // Prepare bot container
+      activeBotDiv = appendMessage('bot', '');
+      accumulated = '';
+      setBusy(true);
+
+      // Try SSE first
+      const url = new URL('/events/stream', window.location.origin);
+      url.searchParams.set('llm','1');
+      url.searchParams.set('message', value);
+      try{
+        const es = new EventSource(url.toString());
+        activeSSE = es;
+        es.onmessage = (ev)=>{
+          accumulated += ev.data;
+          if (activeBotDiv){ activeBotDiv.textContent = accumulated; chat.scrollTop = chat.scrollHeight; }
+        };
+        es.addEventListener('end', ()=>{
+          try{ es.close(); }catch{}
+          activeSSE = null;
+          if (activeBotDiv){
+            try{ activeBotDiv.innerHTML = DOMPurify.sanitize(marked.parse(accumulated.trim())); }
+            catch{ activeBotDiv.textContent = accumulated; }
+          }
+          setBusy(false);
+        });
+        es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; doPost(value); };
+      }catch{ doPost(value); }
+    }
+
+    sendBtn?.addEventListener('click', send);
+    msg?.addEventListener('keydown', (e)=>{
+      const isEnter = e.key === 'Enter';
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (isEnter && isCtrl){ e.preventDefault(); send(); }
+    });
   </script>
 </Layout>
