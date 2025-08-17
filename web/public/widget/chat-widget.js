@@ -12,10 +12,33 @@
   const dataBackend = (script && script.getAttribute('data-backend')) || window.location.origin;
   const chatPath = (script && script.getAttribute('data-chat-path')) || '/chat';
   const allowCross = (script && script.getAttribute('data-allow-cross')) === '1';
+  const ssePreferred = (script && script.getAttribute('data-sse')) !== '0'; // default on
   let backend;
   try { backend = new URL(dataSource, dataBackend); } catch { backend = new URL('/', window.location.origin); }
 
   function isSameOrigin(u){ try { return new URL(u).origin === window.location.origin; } catch { return false; } }
+
+  async function loadGlobal(url, globalName){
+    return new Promise((resolve)=>{
+      if (window[globalName]) return resolve(window[globalName]);
+      const s = document.createElement('script');
+      s.src = url; s.async = true; s.onload = ()=> resolve(window[globalName]); s.onerror = ()=> resolve(undefined);
+      // load into document head (outside shadow) so it’s shared
+      document.head.appendChild(s);
+    });
+  }
+  async function renderMarkdownInto(element, raw){
+    const [marked, DOMPurify] = await Promise.all([
+      loadGlobal('https://cdn.jsdelivr.net/npm/marked/marked.min.js', 'marked'),
+      loadGlobal('https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js', 'DOMPurify')
+    ]);
+    if (marked && DOMPurify){
+      const html = DOMPurify.sanitize(marked.parse(String(raw || '').trim()));
+      element.innerHTML = html;
+    } else {
+      element.textContent = raw;
+    }
+  }
 
   function createWidget(){
     const host = document.createElement('div');
@@ -71,7 +94,7 @@
     const body = document.createElement('div');
     body.className = 'body';
 
-    // Minimal chat UI (non-stream POST fallback)
+    // Chat UI
     const chat = document.createElement('div'); chat.className='chat';
     const input = document.createElement('textarea'); input.placeholder = 'Type your message… (Ctrl/Cmd+Enter to send)';
     const row = document.createElement('div'); row.className='row';
@@ -83,32 +106,54 @@
 
     pane.appendChild(header); pane.appendChild(body);
 
-    function append(role, text){ const div=document.createElement('div'); div.className='msg '+role; div.textContent=text; chat.appendChild(div); chat.scrollTop=chat.scrollHeight; }
+    function append(role, text){ const div=document.createElement('div'); div.className='msg '+role; div.textContent=text; chat.appendChild(div); chat.scrollTop=chat.scrollHeight; return div; }
 
-    let busy=false;
+    let busy=false; let activeSSE=null; let activeBotDiv=null; let accumulated='';
     function setBusy(v){ busy=v; send.disabled=v; send.style.opacity=v?'.6':'1'; hint.style.display=v?'inline':'none'; }
 
     async function sendMessage(){
       if (busy) return; const value=(input.value||'').trim(); if(!value) return;
       append('user', value); input.value='';
       setBusy(true);
+      // Create bot container for streaming
+      activeBotDiv = append('bot', '');
+      accumulated = '';
       try{
-        const target = new URL(chatPath, backend);
-        if (!allowCross && target.origin !== window.location.origin){
-          append('bot', 'Configuration requires same-origin for widget.');
-        } else {
-          const url = target.toString();
-          console.debug('[SalientWidget] POST', url, { value });
-          const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: value }) });
-          if (!r.ok){
-            append('bot', `[http ${r.status} ${r.statusText}]`);
-          } else {
-            const txt = await r.text();
-            append('bot', txt);
-          }
+        const sseUrl = new URL('/events/stream', backend); sseUrl.searchParams.set('llm','1'); sseUrl.searchParams.set('message', value);
+        const postUrl = new URL(chatPath, backend);
+        const same = postUrl.origin === window.location.origin;
+        if (!allowCross && !same){ append('bot','Configuration requires same-origin for widget.'); setBusy(false); return; }
+        if (ssePreferred){
+          // Start SSE
+          console.debug('[SalientWidget] SSE', sseUrl.toString());
+          const es = new EventSource(sseUrl.toString());
+          activeSSE = es;
+          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ activeBotDiv.textContent = accumulated; chat.scrollTop=chat.scrollHeight; } };
+          es.addEventListener('end', async()=>{
+            try{ es.close(); }catch{}
+            activeSSE=null;
+            if (activeBotDiv){ await renderMarkdownInto(activeBotDiv, accumulated); }
+            setBusy(false);
+          });
+          es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; // fallback to POST
+            console.debug('[SalientWidget] SSE error, falling back to POST');
+            doPost(postUrl.toString(), value);
+          };
+          return;
         }
-      }catch(e){ append('bot','[network error]'); }
-      finally{ setBusy(false); }
+        // POST fallback
+        await doPost(postUrl.toString(), value);
+      }catch(e){ append('bot','[network error]'); setBusy(false); }
+    }
+
+    async function doPost(url, value){
+      try{
+        console.debug('[SalientWidget] POST', url, { value });
+        const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: value }) });
+        if (!r.ok){ append('bot', `[http ${r.status} ${r.statusText}]`); }
+        else { const txt = await r.text(); if(activeBotDiv){ await renderMarkdownInto(activeBotDiv, txt); } }
+      }catch{ append('bot','[network error]'); }
+      finally { setBusy(false); }
     }
 
     send.addEventListener('click', sendMessage);
@@ -121,25 +166,21 @@
     root.appendChild(fab);
 
     let loaded=false;
-    async function maybeFetch(){
-      if (loaded) return;
-      try{ await fetch(new URL('/health', backend).toString(), { mode: allowCross? 'cors':'same-origin' }); }catch{}
-      loaded=true;
-    }
+    async function maybeFetch(){ if (loaded) return; try{ await fetch(new URL('/health', backend).toString(), { mode: allowCross? 'cors':'same-origin' }); }catch{} loaded=true; }
 
     function open(){ host.setAttribute('data-open', '1'); fab.setAttribute('aria-expanded','true'); pane.setAttribute('aria-hidden','false'); maybeFetch(); }
-    function close(){ host.removeAttribute('data-open'); fab.setAttribute('aria-expanded','false'); pane.setAttribute('aria-hidden','true'); }
+    function close(){ host.removeAttribute('data-open'); fab.setAttribute('aria-expanded','false'); pane.setAttribute('aria-hidden','true'); if(activeSSE){ try{ activeSSE.close(); }catch{} activeSSE=null; setBusy(false);} }
     function toggle(){ host.hasAttribute('data-open') ? close() : open(); }
 
     fab.addEventListener('click', toggle);
     overlay.addEventListener('click', close);
     window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
 
-    window.SalientChatWidget = Object.assign(window.SalientChatWidget || {}, { open, close, toggle, host, root, config:{ backend: backend.toString(), chatPath, allowCross } });
+    window.SalientChatWidget = Object.assign(window.SalientChatWidget || {}, { open, close, toggle, host, root, config:{ backend: backend.toString(), chatPath, allowCross, ssePreferred } });
   }
 
   if (!allowCross && !isSameOrigin(backend.toString())){
-    console.warn('[SalientWidget] Backend origin differs from page origin and allow-cross is not enabled. The Send action will be blocked.');
+    console.warn('[SalientWidget] Backend origin differs from page origin and allow-cross is not enabled. SSE/POST will be blocked.');
   }
 
   if (document.readyState === 'loading') {
