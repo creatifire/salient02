@@ -1,15 +1,17 @@
 ---
+const current = Astro.url.pathname;
+const baseLinkCls = 'font-semibold opacity-80 hover:opacity-100 transition-colors';
 ---
 <nav class="navbar-bg" style="padding:.5rem 1rem;">
   <div style="max-width:960px;margin:0 auto;display:flex;gap:1rem;align-items:center;">
-    <a href="/" style="color:var(--color-secondary-foreground);text-decoration:none;font-weight:600;">Salient</a>
-    <a href="/markets" style="color:var(--color-secondary-foreground);text-decoration:none;">Markets</a>
-    <a href="/products" style="color:var(--color-secondary-foreground);text-decoration:none;">Products</a>
-    <a href="/crops" style="color:var(--color-secondary-foreground);text-decoration:none;">Crops</a>
-    <a href="/solutions" style="color:var(--color-secondary-foreground);text-decoration:none;">Solutions</a>
-    <a href="/digital" style="color:var(--color-secondary-foreground);text-decoration:none;">Digital</a>
-    <a href="/resources" style="color:var(--color-secondary-foreground);text-decoration:none;">Resources</a>
-    <a href="/contact" style="color:var(--color-secondary-foreground);text-decoration:none;">Contact</a>
-    <a href="/about" style="color:var(--color-secondary-foreground);text-decoration:none;">About</a>
+    <a href="/" class={`${baseLinkCls} ${current === '/' ? 'opacity-100' : ''}`} aria-current={current === '/' ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Salient</a>
+    <a href="/markets" class={`${baseLinkCls} ${current.startsWith('/markets') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/markets') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Markets</a>
+    <a href="/products" class={`${baseLinkCls} ${current.startsWith('/products') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/products') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Products</a>
+    <a href="/crops" class={`${baseLinkCls} ${current.startsWith('/crops') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/crops') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Crops</a>
+    <a href="/solutions" class={`${baseLinkCls} ${current.startsWith('/solutions') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/solutions') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Solutions</a>
+    <a href="/digital" class={`${baseLinkCls} ${current.startsWith('/digital') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/digital') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Digital</a>
+    <a href="/resources" class={`${baseLinkCls} ${current.startsWith('/resources') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/resources') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Resources</a>
+    <a href="/contact" class={`${baseLinkCls} ${current.startsWith('/contact') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/contact') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Contact</a>
+    <a href="/about" class={`${baseLinkCls} ${current.startsWith('/about') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/about') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">About</a>
   </div>
 </nav>

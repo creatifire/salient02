@@ -40,7 +40,17 @@
   --color-ring: rgb(var(--ring));
 }
 
-/* Minimal utility helpers to apply new colors where we used inline styles */
+/* Minimal utility helpers */
 .navbar-bg{ background: var(--color-secondary); color: var(--secondary-foreground); }
-.btn-brand{ background: var(--color-primary); color: var(--primary-foreground); }
+.btn-brand{ background: var(--color-primary); }
+.btn.btn-brand{ background: var(--color-primary) !important; color: var(--color-primary-foreground) !important; }
 .banner-accent{ background: var(--color-accent); color: var(--accent-foreground); }
+
+/* Link styles */
+a { color: var(--color-secondary); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { color: var(--color-primary); }
+a:visited { color: var(--color-secondary); }
+a:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+
+/* Do not underline button-style links */
+a.btn, .btn.btn-brand { text-decoration: none !important; }
