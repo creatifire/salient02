@@ -178,7 +178,7 @@
     - SUB-TASKS:
       - Link to backend `/health`
       - Link to backend logs directory (readme/pointer)
-    - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health` and logs pointer
+    - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health` and logs pointer; backend exposes gated `GET /dev/logs/tail` (controlled by `ui.expose_backend_logs`, `ui.logs_tail_count` default 10) and `web/src/pages/dev/logs.astro` renders last N JSONL entries (pretty-printed)
 
 ## 0003-006 - FEATURE - Integration Guides (CMS/SSG)
 - [ ] 0003-006-001 - TASK - WordPress integration notes (doc-only)

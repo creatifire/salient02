@@ -1,6 +1,9 @@
 from pathlib import Path
 from datetime import datetime
 import sys
+from typing import List
+from fastapi.responses import JSONResponse
+import glob
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -253,4 +256,42 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     )
     # Return plain text; client will render Markdown + sanitize when allowed
     return PlainTextResponse(text)
+
+
+@app.get("/dev/logs/tail", response_class=JSONResponse)
+async def tail_logs(request: Request) -> JSONResponse:
+    cfg = load_config()
+    ui_cfg = cfg.get("ui") or {}
+    # Gate: must be enabled and likely only in dev env
+    if not ui_cfg.get("expose_backend_logs", False):
+        return JSONResponse({"error": "disabled"}, status_code=403)
+    # Determine log directory and latest file
+    logging_cfg = cfg.get("logging") or {}
+    log_dir = logging_cfg.get("path") or str(BASE_DIR.parent / "backend" / "logs")
+    prefix = logging_cfg.get("prefix", "salient-log-")
+    pattern = str(Path(log_dir) / f"{prefix}*.jsonl")
+    files: List[str] = sorted(glob.glob(pattern))
+    if not files:
+        return JSONResponse({"entries": []})
+    latest = files[-1]
+    # Tail last N lines safely
+    n = int(ui_cfg.get("logs_tail_count", 10))
+    tail: List[str] = []
+    try:
+        with open(latest, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            block = 1024
+            data = b""
+            while len(tail) <= n and size > 0:
+                step = block if size - block > 0 else size
+                f.seek(size - step)
+                data = f.read(step) + data
+                size -= step
+                tail = data.split(b"\n")
+            lines = [ln.decode("utf-8", errors="ignore") for ln in tail if ln]
+            lines = lines[-n:]
+    except Exception:
+        lines = []
+    return JSONResponse({"file": Path(latest).name, "entries": lines})
 

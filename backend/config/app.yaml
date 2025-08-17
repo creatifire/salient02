@@ -39,3 +39,5 @@ ui:
   sse_enabled: true
   allow_basic_html: true
   expose_backend_chat: true  # when false, hide GET / chat UI in production
+  expose_backend_logs: true  # dev-only log tail endpoint
+  logs_tail_count: 10        # default N lines for /dev/logs/tail
