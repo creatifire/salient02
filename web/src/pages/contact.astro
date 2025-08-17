@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import OpenChatCta from '../components/OpenChatCta.astro';
 ---
 <Layout>
   <section style="padding:2rem 0;">
@@ -11,5 +12,8 @@ import Layout from '../layouts/Layout.astro';
       <label>Message<textarea style="width:100%;min-height:6rem;padding:.5rem;border:1px solid #ddd;border-radius:.375rem;"></textarea></label>
       <button type="button" style="background:#0ea5e9;color:#fff;padding:.6rem 1rem;border-radius:.5rem;border:none;cursor:not-allowed;">Submit (disabled in demo)</button>
     </form>
+    <div style="margin-top:1rem;">
+      <OpenChatCta />
+    </div>
   </section>
 </Layout>
