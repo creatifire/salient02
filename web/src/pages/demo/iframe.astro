@@ -1,12 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-const src = 'http://localhost:8000/';
+import { CHAT_TARGET } from '../../lib/chatTarget';
 ---
 <Layout>
   <section style="padding:2rem 0;">
     <div style="background:#fff3cd;color:#856404;padding:.75rem 1rem;border:1px solid #ffeeba;border-radius:.5rem;margin-bottom:1rem;">
-      <strong>Demo Only:</strong> This iframe is for demonstration purposes. For production, use the non-iframe embedding options (widget/component/include).
+      <strong>Demo Only:</strong> This iframe is for demonstration only. Use non-iframe embedding (widget/component/include) in production.
     </div>
-    <iframe src={src} title="Chat" style="width:100%;min-height:70vh;border:1px solid #ddd;border-radius:.5rem;"></iframe>
+    <iframe src={CHAT_TARGET} title="Chat" style="width:100%;min-height:70vh;border:1px solid #ddd;border-radius:.5rem;"></iframe>
   </section>
 </Layout>

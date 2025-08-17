@@ -127,11 +127,12 @@
       - Document reverse-proxy alternative (route block) and YAML setting in README
     - STATUS: Completed — Added `ui.expose_backend_chat` in `backend/config/app.yaml`; GET `/` returns 404 when disabled
 
-- [ ] 0003-002-002 - TASK - (Demo Only) Inline Embed Option
-  - [ ] 0003-002-002-01 - CHUNK - Iframe demo page (optional)
+- [x] 0003-002-002 - TASK - (Demo Only) Inline Embed Option
+  - [x] 0003-002-002-01 - CHUNK - Iframe demo page (optional)
     - SUB-TASKS:
       - Create a single demo page with an iframe to backend `/`
       - Add banner: "Iframe for demo only; not recommended for production"
+    - STATUS: Completed — `web/src/pages/demo/iframe.astro` uses shared `CHAT_TARGET` and includes a demo-only banner
 
 ## 0003-003 - FEATURE - Embedding Options (non-iframe)
 > Avoid duplication with 0003-002-002 (iframe demo). This feature implements production-preferred, non-iframe integrations.
