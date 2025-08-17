@@ -147,38 +147,41 @@
       - Z-index and overlay to ensure visibility above page content
       - Acceptance: Button visible; click opens/closes pane with animation
     - STATUS: Completed — `web/public/widget/chat-widget.js` injects floating button + pane (Shadow DOM) with overlay and ESC-to-close; demo at `web/src/pages/demo/widget.astro`
-  - [ ] 0003-003-001-02 - CHUNK - Fetch and inject chat HTML (same-origin)
+  - [x] 0003-003-001-02 - CHUNK - Fetch and inject chat HTML (same-origin)
     - SUB-TASKS:
       - Default source: `/` (backend chat page) or configurable partial path
       - Fetch on first open; cache in widget; re-open is instant
       - Strict same-origin enforcement; no cross-origin fetches
       - Acceptance: Chat UI loads and functions inside pane
-  - [ ] 0003-003-001-03 - CHUNK - Basic theming variables
+    - STATUS: Completed — Implemented minimal in-pane chat UI posting to `/chat` (same-origin via dev proxy); configurable via `data-chat-path`, `data-backend`, `data-allow-cross`; verbose error logging; renders Markdown replies
+  - [x] 0003-003-001-03 - CHUNK - Basic theming variables
     - SUB-TASKS:
       - Expose CSS variables (e.g., `--widget-accent`, `--widget-bg`, `--widget-radius`)
       - Apply styles within Shadow DOM; document host overrides
       - Acceptance: Changing variables updates button/pane look
-  - [ ] 0003-003-001-04 - CHUNK - Accessibility & focus handling
+  - [x] 0003-003-001-04 - CHUNK - Accessibility & focus handling
     - SUB-TASKS:
       - ARIA labels (`aria-expanded`, `aria-controls`), `role="dialog"` for pane
       - Trap focus while open; Escape to close; return focus to trigger
       - Acceptance: Keyboard-only users can open/close/use chat
-  - [ ] 0003-003-001-05 - CHUNK - Config API (init options / data-attrs)
+  - [x] 0003-003-001-05 - CHUNK - Config API (init options / data-attrs)
     - SUB-TASKS:
       - Options: `sourceUrl`, `position` (br/bl), `openOnLoad` (false), `theme` vars
       - Provide `window.SalientChatWidget.init({...})` and data-attribute fallback
       - Acceptance: Options change behavior without code edits
-  - [ ] 0003-003-001-06 - CHUNK - Build & include path
+  - [x] 0003-003-001-06 - CHUNK - Build & include path
     - SUB-TASKS:
       - Ship script at `web/public/widget/chat-widget.js` (no bundler required)
       - Astro integration snippet added to `web/README.md` and demo layout
       - Acceptance: Adding one `<script src="/widget/chat-widget.js">` enables widget
-  - [ ] 0003-003-001-07 - CHUNK - Demo/QA page
+    - STATUS: Completed — Loader shipped at `web/public/widget/chat-widget.js`; demo includes `<script src="/widget/chat-widget.js" is:inline>`
+  - [x] 0003-003-001-07 - CHUNK - Demo/QA page
     - SUB-TASKS:
       - Add `web/src/pages/demo/widget.astro` to validate open/close, theme, options
       - Checklist for manual tests (open, close, ESC, same-origin fetch)
       - Acceptance: All checks pass on demo page
-  - [ ] 0003-003-001-08 - CHUNK - Safety & constraints
+    - STATUS: Completed — `/demo/widget` validates toggle, send/clear, error surfacing; ESC/overlay close work
+  - [x] 0003-003-001-08 - CHUNK - Safety & constraints
     - SUB-TASKS:
       - Enforce same-origin; block cross-origin URLs
       - Sanitize/ignore inline scripts in fetched HTML (rely on server-side content)
