@@ -186,6 +186,47 @@
       - Enforce same-origin; block cross-origin URLs
       - Sanitize/ignore inline scripts in fetched HTML (rely on server-side content)
       - Acceptance: Widget refuses external URLs; no CSP violations reported
+  - [ ] 0003-003-001-09 - CHUNK - Copy-to-clipboard on bot messages (widget)
+    - SUB-TASKS:
+      - Add a small copy icon button to each `.msg.bot` rendered in the Shadow DOM pane
+      - Click copies the underlying full message content (prefer raw accumulated text before Markdown render)
+      - Show non-blocking confirmation (e.g., transient "Copied" toast) within the pane; keyboard accessible
+      - Fallback if `navigator.clipboard.writeText` is unavailable (use a hidden textarea + execCommand)
+      - Acceptance: Icon visible on hover/focus; Enter/Space activates; copied text matches message content exactly
+
+## 0003-007 - FEATURE - Standalone HTMX Chat Page (web)
+- [ ] 0003-007-001 - TASK - Page scaffold
+  - [ ] 0003-007-001-01 - CHUNK - Create `web/src/pages/demo/htmx-chat.astro` (or plain `/public/htmx-chat.html`) with HTMX + minimal CSS
+    - SUB-TASKS:
+      - Load HTMX via CDN
+      - Include message textarea, Send, Clear, chat pane containers
+- [ ] 0003-007-002 - TASK - Wire to backend endpoints (same-origin)
+  - [ ] 0003-007-002-01 - CHUNK - SSE `/events/stream` + POST `/chat` fallback
+    - SUB-TASKS:
+      - Stream tokens into a bot message div; send final `end` handling
+      - Non-stream fallback with Markdown render
+- [ ] 0003-007-003 - TASK - UI/UX parity with backend `index.html`
+  - [ ] 0003-007-003-01 - CHUNK - Controls & behavior
+    - SUB-TASKS:
+      - Keyboard: Ctrl/Cmd+Enter submit; Enter newline
+      - Debounce input; disable Send while active; subtle “Receiving…” indicator
+      - Clear only clears history, not input
+      - Client-side Markdown + DOMPurify when `allow_basic_html=true`
+- [ ] 0003-007-004 - TASK - Config plumbing (targets/flags)
+  - [ ] 0003-007-004-01 - CHUNK - Use `PUBLIC_CHAT_TARGET` (default same-origin) and honor flags
+    - SUB-TASKS:
+      - Respect `ui.sse_enabled`, `ui.allow_basic_html` semantics
+- [ ] 0003-007-005 - TASK - Styling & A11y
+  - [ ] 0003-007-005-01 - CHUNK - Light Basecoat/Tailwind polish + landmarks/skip link
+- [ ] 0003-007-006 - TASK - Exposure controls
+  - [ ] 0003-007-006-01 - CHUNK - Dev-only route or flag guard (no prod exposure by default)
+- [ ] 0003-007-007 - TASK - Documentation
+  - [ ] 0003-007-007-01 - CHUNK - README notes (how to run, flags, caveats)
+- [ ] 0003-007-008 - TASK - Copy-to-clipboard on messages (standalone page)
+  - [ ] 0003-007-008-01 - CHUNK - Add copy button to `.msg.bot`
+    - SUB-TASKS:
+      - Same behavior as widget: icon button, keyboard accessible, toast on success, fallback when clipboard API is unavailable
+      - Acceptance: copying matches the message text (raw accumulated or final rendered if raw not retained)
 
 ## 0003-004 - FEATURE - Styling & Accessibility
 - [x] 0003-004-001 - TASK - Basic Styles
