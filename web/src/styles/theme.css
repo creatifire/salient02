@@ -1,0 +1,46 @@
+:root{
+  /* Brand palette approximations based on screenshot */
+  --background: 255 255 255;
+  --foreground: 17 24 39;
+  --muted: 243 244 246;
+  --muted-foreground: 107 114 128;
+
+  /* Primary: green accent used in hero */
+  --primary: 16 141 67; /* #108D43 */
+  --primary-foreground: 255 255 255;
+
+  /* Secondary: teal/cyan navbar */
+  --secondary: 22 156 181; /* ~#169CB5 */
+  --secondary-foreground: 255 255 255;
+
+  /* Accent: golden band */
+  --accent: 228 168 35; /* #E4A823 */
+  --accent-foreground: 17 24 39;
+
+  /* Ring/Border */
+  --border: 229 231 235;
+  --input: 229 231 235;
+  --ring: 16 141 67;
+}
+
+/* Map to Basecoat/Tailwind utility tokens */
+:root{
+  --color-background: rgb(var(--background));
+  --color-foreground: rgb(var(--foreground));
+  --color-muted: rgb(var(--muted));
+  --color-muted-foreground: rgb(var(--muted-foreground));
+  --color-primary: rgb(var(--primary));
+  --color-primary-foreground: rgb(var(--primary-foreground));
+  --color-secondary: rgb(var(--secondary));
+  --color-secondary-foreground: rgb(var(--secondary-foreground));
+  --color-accent: rgb(var(--accent));
+  --color-accent-foreground: rgb(var(--accent-foreground));
+  --color-border: rgb(var(--border));
+  --color-input: rgb(var(--input));
+  --color-ring: rgb(var(--ring));
+}
+
+/* Minimal utility helpers to apply new colors where we used inline styles */
+.navbar-bg{ background: var(--color-secondary); color: var(--secondary-foreground); }
+.btn-brand{ background: var(--color-primary); color: var(--primary-foreground); }
+.banner-accent{ background: var(--color-accent); color: var(--accent-foreground); }
