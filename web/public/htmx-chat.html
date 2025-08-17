@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Standalone HTMX Chat (Plain)</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+      body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; padding:1rem; }
+      .container{ max-width: 960px; margin: 0 auto; }
+      .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 320px; overflow:auto; background:#fff; display:flex; flex-direction:column; gap:.4rem; }
+      .msg{ padding:.4rem .6rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
+      .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
+      .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
+      .row{ display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
+      .btn{ padding:.45rem .7rem; border:1px solid #ccc; border-radius:6px; background:#f6f6f6; cursor:not-allowed; }
+      .btn.primary{ background:#108D43; color:#fff; border-color:#108D43; }
+      .textarea{ width:100%; min-height:6rem; padding:.5rem; border:1px solid #ddd; border-radius:6px; margin-top:.5rem; }
+      .hint{ font-size:.85rem; color:#666; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Standalone HTMX Chat (Plain)</h1>
+      <p class="hint">Scaffold only: UI elements are present; wiring to backend is a later chunk.</p>
+      <div class="chat" aria-live="polite"></div>
+      <textarea id="msg" class="textarea" placeholder="Type your message… (Ctrl/Cmd+Enter to send)"></textarea>
+      <div class="row">
+        <button id="send" class="btn primary" type="button" disabled>Send</button>
+        <button id="clear" class="btn" type="button">Clear</button>
+        <span class="hint">Wiring planned in 0003-007-002.</span>
+      </div>
+    </div>
+    <script>
+      const chat = document.querySelector('.chat');
+      document.getElementById('clear')?.addEventListener('click', ()=>{ chat && (chat.innerHTML=''); });
+    </script>
+  </body>
+</html>

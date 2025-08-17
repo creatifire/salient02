@@ -1,0 +1,33 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout>
+  <section style="padding:2rem 0;">
+    <h1 style="font-size:2rem;margin:0 0 .5rem;">Standalone HTMX Chat (Astro Demo)</h1>
+    <p class="hint" style="margin:0 0 1rem;">Scaffold only: UI elements are present; wiring to backend is a later chunk.</p>
+    <div class="chat" aria-live="polite"></div>
+    <textarea id="msg" class="textarea" placeholder="Type your message… (Ctrl/Cmd+Enter to send)"></textarea>
+    <div class="row">
+      <button id="send" class="btn primary" type="button" disabled>Send</button>
+      <button id="clear" class="btn" type="button">Clear</button>
+      <span class="hint">Wiring planned in 0003-007-002.</span>
+    </div>
+  </section>
+  <script src="https://unpkg.com/htmx.org@1.9.12" is:inline></script>
+  <style is:inline>
+    .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 320px; overflow:auto; background:#fff; display:flex; flex-direction:column; gap:.4rem; }
+    .msg{ padding:.4rem .6rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
+    .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
+    .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
+    .row{ display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
+    .btn{ padding:.45rem .7rem; border:1px solid #ccc; border-radius:6px; background:#f6f6f6; cursor:not-allowed; }
+    .btn.primary{ background:#108D43; color:#fff; border-color:#108D43; }
+    .textarea{ width:100%; min-height:6rem; padding:.5rem; border:1px solid #ddd; border-radius:6px; margin-top:.5rem; }
+    .hint{ font-size:.85rem; color:#666; }
+  </style>
+  <script is:inline>
+    const chat = document.querySelector('.chat');
+    const clearBtn = document.getElementById('clear');
+    clearBtn?.addEventListener('click', ()=>{ chat && (chat.innerHTML=''); });
+  </script>
+</Layout>

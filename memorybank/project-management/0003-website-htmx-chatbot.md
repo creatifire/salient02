@@ -196,11 +196,12 @@
     - STATUS: Completed — Icon button (bottom-right) copies raw text with toast + keyboard support; Clipboard API fallback implemented
 
 ## 0003-007 - FEATURE - Standalone HTMX Chat Page (web)
-- [ ] 0003-007-001 - TASK - Page scaffold
-  - [ ] 0003-007-001-01 - CHUNK - Create `web/src/pages/demo/htmx-chat.astro` (or plain `/public/htmx-chat.html`) with HTMX + minimal CSS
+- [x] 0003-007-001 - TASK - Page scaffold
+  - [x] 0003-007-001-01 - CHUNK - Create `web/src/pages/demo/htmx-chat.astro` (or plain `/public/htmx-chat.html`) with HTMX + minimal CSS
     - SUB-TASKS:
       - Load HTMX via CDN
       - Include message textarea, Send, Clear, chat pane containers
+    - STATUS: Completed — Added `web/src/pages/demo/htmx-chat.astro` and `web/public/htmx-chat.html` scaffolds (UI elements present; wiring follows in 0003-007-002)
 - [ ] 0003-007-002 - TASK - Wire to backend endpoints (same-origin)
   - [ ] 0003-007-002-01 - CHUNK - SSE `/events/stream` + POST `/chat` fallback
     - SUB-TASKS:
