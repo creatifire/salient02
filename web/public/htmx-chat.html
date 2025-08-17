@@ -69,6 +69,11 @@
       function setBusy(v){ busy=v; sendBtn.disabled=v; clearBtn.disabled=v; hint.style.display=v?'inline':'none'; chat.querySelectorAll('.copy').forEach(b=>{ b.disabled = v; }); }
       clearBtn.addEventListener('click', ()=>{ chat.innerHTML=''; });
 
+      // Debounce helper to mirror backend page behavior
+      function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn.apply(null,args), ms); } }
+      const debouncedNoop = debounce(()=>{}, 300);
+      msg.addEventListener('input', debouncedNoop);
+
       function renderMarkdownOrFallback(container, raw){
         const trimmed=(raw||'').trim();
         const c=container.querySelector('.content')||container;

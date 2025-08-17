@@ -87,6 +87,11 @@ import Layout from '../../layouts/Layout.astro';
 
     clearBtn?.addEventListener('click', ()=>{ chat.innerHTML=''; });
 
+    // Debounce helper (parity with backend index.html behavior)
+    function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn.apply(null,args), ms); } }
+    const debouncedNoop = debounce(()=>{}, 300);
+    msg?.addEventListener('input', debouncedNoop);
+
     function renderMarkdownOrFallback(container, raw){
       const trimmed = (raw||'').trim();
       const content = container.querySelector('.content') || container;

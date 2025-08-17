@@ -208,15 +208,15 @@
       - Stream tokens into a bot message div; send final `end` handling
       - Non-stream fallback with Markdown render
     - STATUS: Completed — Astro page (`/demo/htmx-chat`) and plain page (`/htmx-chat.html`) use SSE to `/events/stream` with live tokens and POST `/chat` fallback; render Markdown (DOMPurify + marked) on completion
-- [ ] 0003-007-003 - TASK - UI/UX parity with backend `index.html`
-  - [ ] 0003-007-003-01 - CHUNK - Controls & behavior
+- [x] 0003-007-003 - TASK - UI/UX parity with backend `index.html`
+  - [x] 0003-007-003-01 - CHUNK - Controls & behavior
     - SUB-TASKS:
       - Keyboard: Ctrl/Cmd+Enter submit; Enter newline
       - Debounce input; disable Send while active; subtle “Receiving…” indicator
       - Clear only clears history, not input
       - Client-side Markdown + DOMPurify when `allow_basic_html=true`
       - Add copy-to-clipboard button with copy icon on each bot message
-    - STATUS: Partially completed — Implemented keyboard submit, disable controls during stream (Send/Clear/Copy), subtle “Receiving…” indicator, Clear only clears history, client-side Markdown render. Remaining: optional input debounce.
+    - STATUS: Completed — Keyboard submit, input debounce, disable controls during stream (Send/Clear/Copy), subtle “Receiving…” indicator, Clear only clears history, client-side Markdown render, copy-to-clipboard implemented.
 - [ ] 0003-007-004 - TASK - Config plumbing (targets/flags)
   - [ ] 0003-007-004-01 - CHUNK - Use `PUBLIC_CHAT_TARGET` (default same-origin) and honor flags
     - SUB-TASKS:
