@@ -13,7 +13,7 @@
   const chatPath = (script && script.getAttribute('data-chat-path')) || '/chat';
   const allowCross = (script && script.getAttribute('data-allow-cross')) === '1';
   const ssePreferred = (script && script.getAttribute('data-sse')) !== '0'; // default on
-  const copyIconSrc = (script && script.getAttribute('data-copy-icon')) || '/widget/copy-svgrepo-com.svg';
+  const copyIconSrc = (script && script.getAttribute('data-copy-icon')) || '/widget/chat-copy.svg';
   let backend;
   try { backend = new URL(dataSource, dataBackend); } catch { backend = new URL('/', window.location.origin); }
 
