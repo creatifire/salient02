@@ -1,4 +1,12 @@
 ---
+import { CHAT_TARGET } from '../lib/chatTarget';
+const isDev = import.meta.env.DEV;
+let healthUrl = '';
+try {
+  healthUrl = new URL('health', CHAT_TARGET).toString();
+} catch {
+  healthUrl = CHAT_TARGET.endsWith('/') ? `${CHAT_TARGET}health` : `${CHAT_TARGET}/health`;
+}
 ---
 <footer style="border-top:1px solid #eee;padding:1rem 0;margin-top:2rem;">
   <div style="max-width:960px;margin:0 auto;padding:0 1rem;color:#666;font-size:.9rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
@@ -8,4 +16,11 @@
       <a href="/memorybank/project-brief.md" style="color:var(--color-secondary);">Project Brief</a>
     </span>
   </div>
+  {isDev && (
+    <div style="max-width:960px;margin:0.5rem auto 0;padding:0 1rem;color:#666;font-size:.85rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+      <strong>Diagnostics (dev):</strong>
+      <a href={healthUrl}>Backend /health</a>
+      <span>Logs: backend/logs/</span>
+    </div>
+  )}
 </footer>

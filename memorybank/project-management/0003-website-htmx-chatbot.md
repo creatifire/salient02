@@ -159,23 +159,26 @@
       - HTMX swaps populate pane content; same-origin only
 
 ## 0003-004 - FEATURE - Styling & Accessibility
-- [ ] 0003-004-001 - TASK - Basic Styles
-  - [ ] 0003-004-001-01 - CHUNK - Light layout polish
+- [x] 0003-004-001 - TASK - Basic Styles
+  - [x] 0003-004-001-01 - CHUNK - Light layout polish
     - SUB-TASKS:
       - Ensure responsive layout and readable typography
       - Keep styles minimal; no heavy frameworks beyond Basecoat/Tailwind (if present)
+    - STATUS: Completed — Brand link colors/underline, stable nav hover/active (no shift), themed CTA
 
-- [ ] 0003-004-002 - TASK - A11y Checks
-  - [ ] 0003-004-002-01 - CHUNK - Keyboard and landmarks
+- [x] 0003-004-002 - TASK - A11y Checks
+  - [x] 0003-004-002-01 - CHUNK - Keyboard and landmarks
     - SUB-TASKS:
       - Ensure skip-to-content, focus outlines, accessible nav
+    - STATUS: Completed — Added skip link, header/main/footer landmarks, visible focus for links
 
 ## 0003-005 - FEATURE - Ops & Observability (Lite)
-- [ ] 0003-005-001 - TASK - Diagnostics & Links
-  - [ ] 0003-005-001-01 - CHUNK - Footer diagnostics block (dev only)
+- [x] 0003-005-001 - TASK - Diagnostics & Links
+  - [x] 0003-005-001-01 - CHUNK - Footer diagnostics block (dev only)
     - SUB-TASKS:
       - Link to backend `/health`
       - Link to backend logs directory (readme/pointer)
+    - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health` and logs pointer
 
 ## 0003-006 - FEATURE - Integration Guides (CMS/SSG)
 - [ ] 0003-006-001 - TASK - WordPress integration notes (doc-only)

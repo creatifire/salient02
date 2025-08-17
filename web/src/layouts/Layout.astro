@@ -13,11 +13,16 @@ import "../styles/global.css";
 		<title>Astro Basics</title>
 	</head>
 	<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0;">
-  <Nav />
-  <main style="max-width: 960px; margin: 0 auto; padding: 1rem;">
+  <a href="#main" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Skip to content</a>
+  <header role="banner">
+    <Nav />
+  </header>
+  <main id="main" role="main" style="max-width: 960px; margin: 0 auto; padding: 1rem;">
 		<slot />
 	  </main>
-  <Footer />
+  <footer role="contentinfo">
+    <Footer />
+  </footer>
 </body>
 </html>
 
@@ -28,4 +33,5 @@ import "../styles/global.css";
 		width: 100%;
 		height: 100%;
 	}
+  a[href="#main"]:focus{left:1rem;top:1rem;width:auto;height:auto;background:#fff;padding:.5rem .75rem;border:1px solid #ccc;border-radius:.375rem;z-index:9999}
 </style>
