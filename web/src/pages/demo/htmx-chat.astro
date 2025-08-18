@@ -3,6 +3,13 @@ import Layout from '../../layouts/Layout.astro';
 import { CHAT_TARGET } from '../../lib/chatTarget';
 const SSE_ENABLED = (import.meta.env.PUBLIC_SSE_ENABLED ?? 'true') === 'true';
 const ALLOW_BASIC_HTML = (import.meta.env.PUBLIC_ALLOW_BASIC_HTML ?? 'true') === 'true';
+// Dev-only exposure control: default disabled in prod unless explicitly enabled
+const ENABLE_STANDALONE = (
+  import.meta.env.PUBLIC_ENABLE_STANDALONE_CHAT ?? (import.meta.env.DEV ? 'true' : 'false')
+) === 'true';
+if (!ENABLE_STANDALONE) {
+  return Astro.redirect('/');
+}
 ---
 <Layout>
   <a href="#chat-main" class="skip-link">Skip to chat</a>

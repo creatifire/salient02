@@ -225,8 +225,9 @@
 - [x] 0003-007-005 - TASK - Styling & A11y
   - [x] 0003-007-005-01 - CHUNK - Light Basecoat/Tailwind polish + landmarks/skip link
     - STATUS: Completed — Added skip link, main landmark, focus-visible outlines, and accessible labels to both standalone pages.
-- [ ] 0003-007-006 - TASK - Exposure controls
-  - [ ] 0003-007-006-01 - CHUNK - Dev-only route or flag guard (no prod exposure by default)
+- [x] 0003-007-006 - TASK - Exposure controls
+  - [x] 0003-007-006-01 - CHUNK - Dev-only route or flag guard (no prod exposure by default)
+    - STATUS: Completed — Guarded Astro standalone page with `PUBLIC_ENABLE_STANDALONE_CHAT` (default false in prod, true in dev) and redirects when disabled.
 - [ ] 0003-007-007 - TASK - Documentation
   - [ ] 0003-007-007-01 - CHUNK - README notes (how to run, flags, caveats)
 - [x] 0003-007-008 - TASK - Copy-to-clipboard on messages (standalone page)
@@ -257,3 +258,87 @@
       - Link to backend `/health`
       - Link to backend logs directory (readme/pointer)
     - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health`
+
+## 0003-009 - FEATURE - Refactor Astro HTMX Demo To Proper HTMX 2.0.6 Idioms
+- [ ] 0003-009-001 - TASK - Bump HTMX + load SSE ext (Astro page)
+  - [ ] 0003-009-001-01 - CHUNK - Scripts + integrity
+    - SUB-TASKS:
+      - Replace `unpkg htmx@1.9.12` with `htmx.org@2.0.6` (jsDelivr or unpkg) on `web/src/pages/demo/htmx-chat.astro`
+      - Add SSE extension `htmx-ext-sse@2.2.2` after core; body/wrapper uses `hx-ext="sse"`
+      - Acceptance: Page loads with 2.0.6, no console errors
+
+- [ ] 0003-009-002 - TASK - Non-stream POST flow via `hx-post`
+  - [ ] 0003-009-002-01 - CHUNK - Form wiring
+    - SUB-TASKS:
+      - Wrap input/buttons in a form: `hx-post="/chat" hx-trigger="click from:#send, keydown[key=='Enter' && (ctrlKey || metaKey)] from:#msg"`
+      - Use `hx-include="#msg"` and name textarea `message`
+      - Set `hx-target="#chatPane"` (or `.chat`) and `hx-swap="beforeend"`, `hx-indicator="#hint"`
+      - On `htmx:beforeRequest` append user bubble; server returns bot bubble partial (HTML) appended automatically
+      - Acceptance: Send/Ctrl+Enter posts and appends bot reply without custom JS
+
+- [ ] 0003-009-003 - TASK - Streaming via SSE extension
+  - [ ] 0003-009-003-01 - CHUNK - SSE container
+    - SUB-TASKS:
+      - Add wrapper `hx-ext="sse" sse-connect="/events/stream?llm=1"`
+      - If server uses default `message` event: set `sse-swap="message"` on a target element that renders bot bubble HTML
+      - Close on server `end` event; optionally listen to `htmx:sseClose` for cleanup
+      - Acceptance: Live incremental bot updates render into chat; no console errors
+
+- [ ] 0003-009-004 - TASK - Controls/disabled states & indicators
+  - [ ] 0003-009-004-01 - CHUNK - hx-disabled / hx-on
+    - SUB-TASKS:
+      - Prefer `hx-indicator="#hint"` and `hx-disabled-elt="#send,#clear"` on the form
+      - If needed, use `hx-on` to disable/enable buttons on submit/afterOnLoad
+      - Keep Clear button as a plain control that wipes chat history only
+
+- [ ] 0003-009-005 - TASK - Targeting, swap strategy, a11y & security
+  - [ ] 0003-009-005-01 - CHUNK - Policies
+    - SUB-TASKS:
+      - Keep `aria-live="polite"`, skip link, focus-visible outlines
+      - Use `hx-target` + `hx-swap="beforeend"`; consider morphing swaps later if needed
+      - Prefer server-rendered, sanitized bot bubble HTML for HTMX swaps; retain DOMPurify fallback if server returns text/Markdown
+      - Same-origin enforcement; dev proxy for local
+
+- [ ] 0003-009-006 - TASK - QA & docs
+  - [ ] 0003-009-006-01 - CHUNK - Manual test + notes
+    - SUB-TASKS:
+      - Validate POST + SSE flows, keyboard shortcuts, indicator/disabled states; inspect `htmx:sseOpen/sseMessage/sseClose`
+      - Update README notes for flags, proxy, and extension scripts
+
+## 0003-008 - FEATURE - HTMX 2.0.6 Upgrade & Proper Usage
+- [ ] 0003-008-001 - TASK - Upgrade HTMX to 2.0.6 across demo pages
+  - [ ] 0003-008-001-01 - CHUNK - Version bump + breaking changes audit
+    - SUB-TASKS:
+      - Read htmx 2.x migration notes; extensions moved out of core. SSE requires separate ext v2.x
+      - Update CDN tags: core `https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js` (or unpkg) + SSE ext `https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.2`
+      - Acceptance: All pages load 2.0.6 with no console errors
+
+- [ ] 0003-008-002 - TASK - Rework `web/public/htmx-chat.html` to HTMX idioms
+  - [ ] 0003-008-002-01 - CHUNK - Non-stream POST with `hx-post`
+    - SUB-TASKS:
+      - Use a form: `hx-post="/chat" hx-trigger="click from:#send, keydown[key=='Enter' && (ctrlKey || metaKey)] from:#msg" hx-include="#msg" hx-target="#chat" hx-swap="beforeend" hx-indicator="#hint"`
+      - Name textarea `message` or set `hx-vals` to include `{ message: value }`
+      - On `htmx:beforeRequest`, append user bubble; server returns a bot bubble partial (HTML) appended via `beforeend`
+      - Acceptance: Send/Ctrl+Enter append user + bot bubbles, indicator toggles
+  - [ ] 0003-008-002-02 - CHUNK - Streaming via SSE extension
+    - SUB-TASKS:
+      - Add on a wrapper: `hx-ext="sse" sse-connect="/events/stream?llm=1"`
+      - If server emits named events, set `sse-swap="message"` (or specific event name); emit HTML chunks (bot bubble partials) from server
+      - Close on server `end` event; optionally listen to `htmx:sseClose` for cleanup
+      - Acceptance: Live bot updates appear incrementally; no console errors
+  - [ ] 0003-008-002-03 - CHUNK - Controls/disabled & indicators
+    - SUB-TASKS:
+      - Prefer `hx-indicator="#hint"` + `hx-disabled-elt="#send,#clear"` (or `hx-on` to disable/enable on submit/afterOnLoad)
+      - Keep Clear as a plain button that wipes the history container only
+  - [ ] 0003-008-002-04 - CHUNK - Targeting, swap, a11y & security
+    - SUB-TASKS:
+      - Use `hx-target="#chat"` and `hx-swap="beforeend"`; consider morphing swaps in future if needed
+      - Retain `aria-live="polite"`, skip link, and focus-visible outlines
+      - Sanitize markdown-rendered HTML (DOMPurify) or sanitize server-side before emit
+      - Enforce same-origin; document CORS; use dev proxy for local
+
+- [ ] 0003-008-003 - TASK - Test plan
+  - [ ] 0003-008-003-01 - CHUNK - Manual QA matrix
+    - SUB-TASKS:
+      - Verify POST + SSE flows; keyboard shortcuts; indicator/disabled states; recovery on SSE close
+      - Inspect headers (HX-*) and events (`htmx:sseOpen`, `htmx:sseMessage`, `htmx:sseClose`); update docs as needed
