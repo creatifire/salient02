@@ -8,6 +8,7 @@
     - [Preact](https://preactjs.com/) (optional interactive components via Astro integration)
     - [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
     - [Typescript](https://www.typescriptlang.org/)
+    - [Astro](https://astro.build/)
 
 - Back End
     - Python

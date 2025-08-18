@@ -4,6 +4,14 @@
 >
 > Goal: Ship a simple, same-origin website that links to (or lightly hosts) the existing HTMX chat UI for demos. No memory and no RAG in this epic. Focus on a clean host page, navigation, and a robust demo story.
 
+## Open Items - Develop and prepare demos of widgets native to different frameworks & CMS
+- 0003-003-002 - TASK - Preact Chat Widget Component (in addition to Shadow DOM widget)
+- 0003-003-003 - TASK - React Chat Widget Component (Astro integration)
+- 0003-009 - FEATURE - Refactor Astro HTMX Demo To Proper HTMX 2.0.6 Idioms (htmx-chat.astro)
+- 0003-008 - FEATURE - HTMX 2.0.6 Upgrade & Proper Usage (htmx-chat.html)
+- (TBD) - Wordpress Integration
+Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
+
 ## 0003-001 - FEATURE - Dummy Website Shell
 - [x] 0003-001-01 - TASK - Astro scaffolding in `web/`
   - [x] 0003-001-01-01 - CHUNK - Scaffold and scripts
@@ -195,6 +203,69 @@
       - Acceptance: Icon visible on hover/focus; Enter/Space activates; copied text matches message content exactly
     - STATUS: Completed — Icon button (bottom-right) copies raw text with toast + keyboard support; Clipboard API fallback implemented
 
+- [ ] 0003-003-002 - TASK - Preact Chat Widget Component (in addition to Shadow DOM widget)
+  - [ ] 0003-003-002-01 - CHUNK - Component scaffold + props
+    - SUB-TASKS:
+      - Create `SalesChatWidget.tsx` (Preact) exporting a floating button + slide-in pane
+      - Props: `backend` (URL), `chatPath` (default `/chat`), `ssePath` (default `/events/stream`), `ssePreferred` (bool), `allowHtml` (bool), `position` (br/bl), `openOnLoad` (bool)
+      - Acceptance: Component renders button/pane; toggles open/close
+  - [ ] 0003-003-002-02 - CHUNK - Streaming (SSE) and POST fallback
+    - SUB-TASKS:
+      - Implement SSE using `EventSource` to stream tokens into a bot message; render Markdown on end
+      - Fallback to POST `/chat` when SSE is disabled/errors
+      - Acceptance: Both paths produce replies; no console errors
+  - [ ] 0003-003-002-03 - CHUNK - Markdown + sanitization
+    - SUB-TASKS:
+      - Use `marked` + `DOMPurify` (or server-sanitized HTML) to render bot replies
+      - Fallback to raw text with `[no response]` when empty/sanitized-out
+  - [ ] 0003-003-002-04 - CHUNK - Copy-to-clipboard
+    - SUB-TASKS:
+      - Add copy icon button on each bot message; Clipboard API with textarea fallback
+      - Toast confirmation within component
+  - [ ] 0003-003-002-05 - CHUNK - Theming & layout
+    - SUB-TASKS:
+      - Support CSS variables for accent/bg/radius; allow className override
+      - Respect `position` prop for bottom-right/left placement
+  - [ ] 0003-003-002-06 - CHUNK - Accessibility & focus handling
+    - SUB-TASKS:
+      - `role="dialog"`, `aria-modal`, `aria-expanded`, focus trap while open, ESC to close, return focus to trigger
+      - Keyboard: Enter/Ctrl+Enter behavior; disable controls during active request
+  - [ ] 0003-003-002-07 - CHUNK - Build & integration
+    - SUB-TASKS:
+      - Export as ESM for Astro/Preact; document usage in `web/README.md`
+      - Add demo page `web/src/pages/demo/preact-widget.astro`
+      - Acceptance: Import and render component in an Astro page with working config
+
+- [ ] 0003-003-003 - TASK - React Chat Widget Component (Astro integration)
+  - [ ] 0003-003-003-01 - CHUNK - Component scaffold + props
+    - SUB-TASKS:
+      - Create `SalesChatWidgetReact.tsx` exporting a floating button + slide-in pane (parity with Preact widget)
+      - Props: `backend`, `chatPath` (`/chat`), `ssePath` (`/events/stream`), `ssePreferred`, `allowHtml`, `position`, `openOnLoad`
+      - Acceptance: Renders button/pane; toggles open/close
+  - [ ] 0003-003-003-02 - CHUNK - Streaming (SSE) and POST fallback
+    - SUB-TASKS:
+      - Use `EventSource` for streaming; fallback to POST `/chat` on error/disabled
+      - Render Markdown on stream end; preserve raw text while streaming
+  - [ ] 0003-003-003-03 - CHUNK - Markdown + sanitization
+    - SUB-TASKS:
+      - `marked` + `DOMPurify` (or sanitized server HTML); `[no response]` fallback on empty/sanitized-out
+  - [ ] 0003-003-003-04 - CHUNK - Copy-to-clipboard
+    - SUB-TASKS:
+      - Icon button on each bot message; Clipboard API + textarea fallback; toast confirm
+  - [ ] 0003-003-003-05 - CHUNK - Theming & layout
+    - SUB-TASKS:
+      - Support CSS vars for accent/bg/radius; optional `className`
+      - Respect `position` prop (br/bl)
+  - [ ] 0003-003-003-06 - CHUNK - Accessibility & focus handling
+    - SUB-TASKS:
+      - `role="dialog"`, `aria-modal`, `aria-expanded`; focus trap, ESC to close, return focus
+      - Keyboard: Enter/Ctrl+Enter; disable controls during active request
+  - [ ] 0003-003-003-07 - CHUNK - Astro integration
+    - SUB-TASKS:
+      - Add `@astrojs/react`; create demo page `web/src/pages/demo/react-widget.astro`
+      - Render component with props sourced from `web/src/lib/chatTarget.ts` and env flags
+      - Acceptance: Demo route renders and functions same-origin via dev proxy
+
 ## 0003-007 - FEATURE - Standalone HTMX Chat Page (web)
 - [x] 0003-007-001 - TASK - Page scaffold
   - [x] 0003-007-001-01 - CHUNK - Create `web/src/pages/demo/htmx-chat.astro` (or plain `/public/htmx-chat.html`) with HTMX + minimal CSS
@@ -259,7 +330,7 @@
       - Link to backend logs directory (readme/pointer)
     - STATUS: Completed — Footer shows dev-only diagnostics with link to backend `/health`
 
-## 0003-009 - FEATURE - Refactor Astro HTMX Demo To Proper HTMX 2.0.6 Idioms
+## 0003-009 - FEATURE - Refactor Astro HTMX Demo To Proper HTMX 2.0.6 Idioms (htmx-chat.astro)
 - [ ] 0003-009-001 - TASK - Bump HTMX + load SSE ext (Astro page)
   - [ ] 0003-009-001-01 - CHUNK - Scripts + integrity
     - SUB-TASKS:
@@ -305,7 +376,7 @@
       - Validate POST + SSE flows, keyboard shortcuts, indicator/disabled states; inspect `htmx:sseOpen/sseMessage/sseClose`
       - Update README notes for flags, proxy, and extension scripts
 
-## 0003-008 - FEATURE - HTMX 2.0.6 Upgrade & Proper Usage
+## 0003-008 - FEATURE - HTMX 2.0.6 Upgrade & Proper Usage (htmx-chat.html)
 - [ ] 0003-008-001 - TASK - Upgrade HTMX to 2.0.6 across demo pages
   - [ ] 0003-008-001-01 - CHUNK - Version bump + breaking changes audit
     - SUB-TASKS:
