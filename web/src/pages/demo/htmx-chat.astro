@@ -1,5 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { CHAT_TARGET } from '../../lib/chatTarget';
+const SSE_ENABLED = (import.meta.env.PUBLIC_SSE_ENABLED ?? 'true') === 'true';
+const ALLOW_BASIC_HTML = (import.meta.env.PUBLIC_ALLOW_BASIC_HTML ?? 'true') === 'true';
 ---
 <Layout>
   <section style="padding:2rem 0;">
@@ -34,6 +37,9 @@ import Layout from '../../layouts/Layout.astro';
     .hint{ font-size:.85rem; color:#666; }
   </style>
   <script is:inline>
+    const CHAT_BASE = new URL({JSON.stringify(CHAT_TARGET)});
+    const SSE_ENABLED = {JSON.stringify(SSE_ENABLED)};
+    const ALLOW_BASIC_HTML = {JSON.stringify(ALLOW_BASIC_HTML)};
     const chat = document.querySelector('.chat');
     const msg = document.getElementById('msg');
     const sendBtn = document.getElementById('send');
@@ -96,11 +102,15 @@ import Layout from '../../layouts/Layout.astro';
       const trimmed = (raw||'').trim();
       const content = container.querySelector('.content') || container;
       try{
-        const html = DOMPurify.sanitize(marked.parse(trimmed));
-        if (!html || html.replace(/\s/g,'') === ''){
-          content.textContent = trimmed || '[no response]';
+        if (ALLOW_BASIC_HTML){
+          const html = DOMPurify.sanitize(marked.parse(trimmed));
+          if (!html || html.replace(/\s/g,'') === ''){
+            content.textContent = trimmed || '[no response]';
+          } else {
+            content.innerHTML = html;
+          }
         } else {
-          content.innerHTML = html;
+          content.textContent = trimmed || '[no response]';
         }
       } catch {
         content.textContent = trimmed || '[no response]';
@@ -109,7 +119,7 @@ import Layout from '../../layouts/Layout.astro';
 
     async function doPost(text){
       try{
-        const r = await fetch('/chat', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }) });
+        const r = await fetch(new URL('/chat', CHAT_BASE).toString(), { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }) });
         const out = r.ok ? await r.text() : `[http ${r.status}]`;
         if (activeBotDiv){
           activeBotDiv.dataset.raw = out;
@@ -130,7 +140,11 @@ import Layout from '../../layouts/Layout.astro';
       accumulated = '';
       setBusy(true);
 
-      const url = new URL('/events/stream', window.location.origin);
+      if (!SSE_ENABLED){
+        doPost(value);
+        return;
+      }
+      const url = new URL('/events/stream', CHAT_BASE);
       url.searchParams.set('llm','1');
       url.searchParams.set('message', value);
       try{

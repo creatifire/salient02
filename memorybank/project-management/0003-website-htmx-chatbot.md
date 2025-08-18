@@ -217,10 +217,11 @@
       - Client-side Markdown + DOMPurify when `allow_basic_html=true`
       - Add copy-to-clipboard button with copy icon on each bot message
     - STATUS: Completed — Keyboard submit, input debounce, disable controls during stream (Send/Clear/Copy), subtle “Receiving…” indicator, Clear only clears history, client-side Markdown render, copy-to-clipboard implemented.
-- [ ] 0003-007-004 - TASK - Config plumbing (targets/flags)
-  - [ ] 0003-007-004-01 - CHUNK - Use `PUBLIC_CHAT_TARGET` (default same-origin) and honor flags
+- [x] 0003-007-004 - TASK - Config plumbing (targets/flags)
+  - [x] 0003-007-004-01 - CHUNK - Use `PUBLIC_CHAT_TARGET` (default same-origin) and honor flags
     - SUB-TASKS:
       - Respect `ui.sse_enabled`, `ui.allow_basic_html` semantics
+    - STATUS: Completed — Astro standalone page reads `PUBLIC_CHAT_TARGET`, `PUBLIC_SSE_ENABLED`, and `PUBLIC_ALLOW_BASIC_HTML`; plain page defaults to same-origin.
 - [ ] 0003-007-005 - TASK - Styling & A11y
   - [ ] 0003-007-005-01 - CHUNK - Light Basecoat/Tailwind polish + landmarks/skip link
 - [ ] 0003-007-006 - TASK - Exposure controls
