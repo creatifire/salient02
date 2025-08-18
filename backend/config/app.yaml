@@ -31,7 +31,7 @@ embeddings:
 
 llm:
   provider: openrouter
-  model: openai/gpt-oss-20b:free
+  model: openai/gpt-oss-120b
   temperature: 0.3
   max_tokens: 1024
 

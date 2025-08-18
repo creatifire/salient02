@@ -10,6 +10,8 @@
     <style>
       body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; padding:1rem; }
       .container{ max-width: 960px; margin: 0 auto; }
+      .skip-link{ position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+      .skip-link:focus{ position:static; width:auto; height:auto; padding:.25rem .5rem; background:#111; color:#fff; border-radius:6px; }
       .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 320px; overflow:auto; background:#fff; display:flex; flex-direction:column; gap:.4rem; }
       .msg{ position:relative; padding:.6rem .8rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
       .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
@@ -23,16 +25,22 @@
       .row{ display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
       .btn{ padding:.45rem .7rem; border:1px solid #ccc; border-radius:6px; background:#f6f6f6; }
       .btn.primary{ background:#108D43; color:#fff; border-color:#108D43; }
+      .btn:focus-visible, .copy:focus-visible, .textarea:focus-visible{ outline:2px solid #0ea5e9; outline-offset:2px; }
       .btn:disabled{ opacity:.6; cursor:not-allowed; }
       .textarea{ width:100%; min-height:6rem; padding:.5rem; border:1px solid #ddd; border-radius:6px; margin-top:.5rem; }
       .hint{ font-size:.85rem; color:#666; display:none; }
+      .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Standalone HTMX Chat (Plain)</h1>
-      <div class="chat" aria-live="polite"></div>
-      <textarea id="msg" class="textarea" placeholder="Type your message… (Ctrl/Cmd+Enter to send)"></textarea>
+      <a href="#chat-main" class="skip-link">Skip to chat</a>
+      <main id="chat-main" role="main">
+        <h1>Standalone HTMX Chat (Plain)</h1>
+        <div class="chat" aria-live="polite"></div>
+        <label for="msg" class="sr-only">Message</label>
+        <textarea id="msg" class="textarea" placeholder="Type your message… (Ctrl/Cmd+Enter to send)" aria-label="Message input"></textarea>
+      </main>
       <div class="row">
         <button id="send" class="btn primary" type="button">Send</button>
         <button id="clear" class="btn" type="button">Clear</button>

@@ -222,8 +222,9 @@
     - SUB-TASKS:
       - Respect `ui.sse_enabled`, `ui.allow_basic_html` semantics
     - STATUS: Completed — Astro standalone page reads `PUBLIC_CHAT_TARGET`, `PUBLIC_SSE_ENABLED`, and `PUBLIC_ALLOW_BASIC_HTML`; plain page defaults to same-origin.
-- [ ] 0003-007-005 - TASK - Styling & A11y
-  - [ ] 0003-007-005-01 - CHUNK - Light Basecoat/Tailwind polish + landmarks/skip link
+- [x] 0003-007-005 - TASK - Styling & A11y
+  - [x] 0003-007-005-01 - CHUNK - Light Basecoat/Tailwind polish + landmarks/skip link
+    - STATUS: Completed — Added skip link, main landmark, focus-visible outlines, and accessible labels to both standalone pages.
 - [ ] 0003-007-006 - TASK - Exposure controls
   - [ ] 0003-007-006-01 - CHUNK - Dev-only route or flag guard (no prod exposure by default)
 - [ ] 0003-007-007 - TASK - Documentation
