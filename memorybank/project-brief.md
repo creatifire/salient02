@@ -54,11 +54,16 @@
 - [Technology Stack](./architecture/technology-stack.md)
 - [Technical Constraints](./architecture/technical-constraints.md)
 - [Code Organization](./architecture/code-organization.md)
+- [Data Model & ER Diagram](./architecture/datamodel.md)
+- [SalesBot Integration Options](./architecture/salesbot-integration.md)
+- [Demo Integration Strategy](./architecture/demo-integrations.md)
 
 ## Planning
 - [Plans](./project-management/0000-epics.md) contains the high level plans, with each file getting its own epic file
     - [Preliminary Design](./project-management/0001-preliminary-design.md)
     - [Baseline Connectivity](./project-management/0002-baseline-connectivity.md)
+    - [Website & HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
+    - [Chat Memory & Persistence](./project-management/0004-chat-memory.md)
 
 ## Project Standards
 - [Commit Message Conventions](./commit-messages.md)
