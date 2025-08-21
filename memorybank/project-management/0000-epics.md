@@ -74,29 +74,50 @@
 
 - 1014 – CRM Integrations
   - Direct API integrations with popular CRM systems for customer data sync
-  - Support: Salesforce, HubSpot, Zoho CRM, Pipedrive, Freshsales, LessAnnoyingCRM, OnePageCRM, Groundhogg
+  - Support: 
+    - Salesforce
+    - HubSpot
+    - Zoho CRM
+    - Pipedrive
+    - Freshsales
+    - LessAnnoyingCRM
+    - OnePageCRM
+    - Groundhogg
   - Lead creation, contact updates, opportunity tracking, activity logging
   - OAuth authentication, webhook handling, real-time data synchronization
   - DoD: Sales bot creates leads in CRM; syncs conversation data; updates contact records
 
+- 1014a - Static Site Generators
+  - Astro
+  - Hugo
+
 - 1015 – CMS Integrations  
   - Native integrations with popular Content Management Systems
-  - Support: WordPress, Drupal, Joomla, Webflow, Contentful, Strapi, Ghost
+  - Support: 
+    - WordPress
+    - Drupal
+    - Joomla
+    - Webflow
+    - Contentful
+    - Strapi
+    - Ghost
   - Plugin/module development, REST API connections, content synchronization
   - Chat widget embedding, lead capture forms, content-aware responses
   - DoD: Chat widgets deploy to CMS sites; capture leads; sync with backend
 
 - 1016 - Order Management Systems
   - Shopify
+  - WooCommerce
 
 - 1017 - Data as MCP Service
   - Cross-Sell
   - Up-Sell
   - Competitive Selling
   - Product Catalog
+  - Sales Rep Terriory
 
 - 1018 - Automation Tools
-https://encharge.io/zapier-alternatives/
+  https://encharge.io/zapier-alternatives/
   - Zapier 
   - Make 
   - Encharge.io
@@ -110,6 +131,13 @@ https://encharge.io/zapier-alternatives/
   - Microsoft Power Automate
   - Tray.io
   - Appy Pie Automate
+
+- 1019 - Nylas Integration/White Labeling
+  - Email API
+  - Calendar API
+  - Contacts API
+  - Scheduler API
+  - NoteTaker API
 
 - 1020 - Deployment Option: Netlify/Vercel - Variation 1: 
     - Astro
