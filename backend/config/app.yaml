@@ -2,6 +2,24 @@ app:
   name: SalesBot
   mode: multi-tenant  # single-tenant|multi-tenant
 
+database:
+  url: "postgresql+asyncpg://salient_user:salient_pass@localhost:5432/salient_dev"
+  pool_size: 20
+  max_overflow: 0
+  pool_timeout: 30
+
+session:
+  cookie_name: "salient_session"
+  cookie_max_age: 604800  # 7 days
+  cookie_secure: false    # true in production
+  cookie_httponly: true
+  cookie_samesite: "lax"
+
+redis:
+  url: "redis://localhost:6379/0"
+  session_db: 1
+  cache_db: 2
+
 chat:
   inactivity_minutes: 30
   input:

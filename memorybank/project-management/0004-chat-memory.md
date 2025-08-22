@@ -108,7 +108,7 @@ CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
 ## 0004-002 - FEATURE - Database Setup & Migrations
 
 ### [ ] 0004-002-001 - TASK - SQLAlchemy Models & Alembic Setup
-- [ ] 0004-002-001-01 - CHUNK - Install and configure Alembic
+- [x] 0004-002-001-01 - CHUNK - Install and configure Alembic
   - SUB-TASKS:
     - Add `alembic` to requirements.txt if not already present
     - Initialize Alembic in `backend/migrations/`
