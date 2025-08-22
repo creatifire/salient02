@@ -166,4 +166,8 @@
 
 - 1024 - Deployment Option - GCP
 
-These build cleanly on what’s done, and each epic yields a demoable slice.
+- 1025 - Deploy to Render.com
+    - Use Docker?
+    - Astro on their CDN
+    - Use their instances of Postgres
+    - Spin up the infrastructure for Marc to do his customization

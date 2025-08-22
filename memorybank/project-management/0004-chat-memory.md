@@ -77,10 +77,10 @@ CREATE INDEX idx_profiles_session_id ON profiles(session_id);
 CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
 ```
 
-## 0004-001 - FEATURE - Development Environment & Database Setup
+## [x] 0004-001 - FEATURE - Development Environment & Database Setup
 
-### [ ] 0004-001-001 - TASK - Docker Development Environment
-- [ ] 0004-001-001-01 - CHUNK - Docker Compose setup
+### [x] 0004-001-001 - TASK - Docker Development Environment
+- [x] 0004-001-001-01 - CHUNK - Docker Compose setup
   - SUB-TASKS:
     - Create `docker-compose.dev.yml` for local development services
     - Configure PostgreSQL container with persistent volume
@@ -89,7 +89,7 @@ CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
     - Configure environment variables and networking
     - Acceptance: `docker-compose up -d` starts all services; DB accessible
 
-- [ ] 0004-001-001-02 - CHUNK - Database initialization scripts
+- [x] 0004-001-001-02 - CHUNK - Database initialization scripts
   - SUB-TASKS:
     - Create `docker/postgres/init.sql` for initial database setup
     - Add development user creation and permissions
@@ -97,7 +97,7 @@ CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
     - Add sample data script for testing
     - Acceptance: Fresh container starts with configured database
 
-- [ ] 0004-001-001-03 - CHUNK - Development scripts and documentation
+- [x] 0004-001-001-03 - CHUNK - Development scripts and documentation
   - SUB-TASKS:
     - Create `scripts/dev-setup.sh` for one-command environment setup
     - Add `scripts/dev-reset.sh` to reset database with fresh data
