@@ -1,0 +1,77 @@
+"""
+Message model for complete chat history with role-based messages.
+
+Based on datamodel specification in memorybank/architecture/datamodel.md
+"""
+
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from . import Base
+
+
+class Message(Base):
+    """
+    Complete chat history with support for future RAG citations.
+    
+    Key Features:
+    - role: Support for human|assistant|system|tool|developer message types
+    - content: Message text content
+    - metadata: Citations, doc_ids, scores, tool call information  
+    - session_id: Links to browser session for conversation context
+    
+    Usage:
+    - Chat history: Retrieve conversation flow for session
+    - Context building: Provide recent messages to LLM
+    - Analytics: Track conversation patterns and effectiveness
+    - RAG support: Store citation metadata for retrieval augmentation
+    """
+    
+    __tablename__ = "messages"
+    
+    # Primary key - GUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Foreign key to sessions table
+    session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, index=True)
+    
+    # Message role - supports OpenAI/Anthropic message patterns
+    # Valid values: human, assistant, system, tool, developer
+    role = Column(String(20), nullable=False)
+    
+    # Message text content
+    content = Column(Text, nullable=False)
+    
+    # Extensible metadata for citations, document IDs, confidence scores, tool information
+    # Examples:
+    # - RAG citations: {"citations": [{"doc_id": "123", "score": 0.85, "snippet": "..."}]}
+    # - Tool calls: {"tool_calls": [{"name": "search", "args": {...}, "result": {...}}]}
+    # - Developer notes: {"debug_info": "...", "model_version": "gpt-4"}
+    meta = Column(JSONB, nullable=True)
+    
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    
+    # Relationship back to session
+    session = relationship("Session", back_populates="messages")
+    
+    def __repr__(self) -> str:
+        content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
+        return f"<Message(id={self.id}, session_id={self.session_id}, role={self.role}, content='{content_preview}')>"
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "id": str(self.id),
+            "session_id": str(self.session_id),
+            "role": self.role,
+            "content": self.content,
+            "meta": self.meta,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

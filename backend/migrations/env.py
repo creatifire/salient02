@@ -31,8 +31,8 @@ if not config.get_main_option("sqlalchemy.url"):
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# This will be updated when we create our models
-target_metadata = None
+from app.models import Base
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

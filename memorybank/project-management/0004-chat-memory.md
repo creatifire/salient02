@@ -116,7 +116,7 @@ CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
     - Set up `backend/app/models/` module structure
     - Acceptance: `alembic init` complete, can connect to DB
 
-- [ ] 0004-002-001-02 - CHUNK - Define SQLAlchemy models
+- [x] 0004-002-001-02 - CHUNK - Define SQLAlchemy models
   - SUB-TASKS:
     - Create `backend/app/models/__init__.py`
     - Create `backend/app/models/session.py` (Session model)
