@@ -66,6 +66,13 @@
     - [Chat Memory & Persistence](./project-management/0004-chat-memory.md)
 
 ## Project Standards
-- [Commit Message Conventions](./commit-messages.md)
-- [Python Code Commenting Best Practices](./code-comments-py.md)
-- [JavaScript/TypeScript Code Commenting Best Practices](./code-comments-ts.md)
+
+### Coding Standards
+- [Python Coding Standards](./standards/coding-standards-py.md)
+- [JavaScript Coding Standards](./standards/coding-standards-js.md)
+- [TypeScript Coding Standards](./standards/coding-standards-ts.md)
+
+### Documentation Standards
+- [Commit Message Conventions](./standards/commit-messages.md)
+- [Python Code Commenting Best Practices](./standards/code-comments-py.md)
+- [JavaScript/TypeScript Code Commenting Best Practices](./standards/code-comments-ts.md)
