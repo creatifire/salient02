@@ -4,11 +4,13 @@
 
 ## Scope & Approach
 - **Single-tenant mode**: No `tenants` table for now; simplify schema
+- **Multiple concurrent sessions**: Full support for multiple users having separate, distinct conversations simultaneously. Each browser/user gets unique session_key, ensuring complete conversation isolation
 - **Modify existing endpoints**: Enhance current `POST /chat` and `GET /events/stream` to use database
 - **Session resumption**: Automatic based on browser session cookie/ID matching database
 - **Incremental profiles**: Collect profile data (name, email, preferences) as it comes during conversations
 - **Email linking**: Only when same email provided in different sessions (post-cache-clear scenario)
 - **Code organization**: Separate related functionality into maintainable modules
+- **No Pydantic AI needed**: This epic focuses on persistence/sessions; Pydantic AI reserved for future structured output (email extraction, routing, citations) in RAG/automation epics
 
 ## Database Schema
 
@@ -77,6 +79,32 @@ CREATE INDEX idx_profiles_session_id ON profiles(session_id);
 CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
 ```
 
+## Concurrent Session Architecture
+
+### Multi-User Support Design
+The schema and session management fully supports multiple concurrent users:
+
+**🔀 Session Isolation**:
+- Each browser generates unique `session_key` (stored in HTTP-only cookie)
+- Database enforces `sessions.session_key` uniqueness via index
+- All tables link via `session_id` FK, ensuring complete data isolation
+
+**👥 Concurrent User Scenarios**:
+- **User A** (Chrome, laptop): Gets session_key `abc123`, all messages/requests/profile linked to session ID `uuid-A`
+- **User B** (Firefox, phone): Gets session_key `def456`, all data linked to session ID `uuid-B` 
+- **User A** (new tab): Same session_key cookie, resumes existing conversation
+- **User A** (incognito): New session_key `ghi789`, starts fresh conversation
+
+**⚡ Performance & Concurrency**:
+- PostgreSQL connection pooling handles concurrent database access
+- Session middleware runs per-request, no shared state between users
+- Each HTTP request includes session context, enabling full parallel processing
+
+**🔒 Data Security**:
+- No cross-session data leakage possible due to FK constraints
+- Session cookies are HTTP-only, secure, and SameSite protected
+- Profile data accumulates per-session, never mixed between users
+
 ## [x] 0004-001 - FEATURE - Development Environment & Database Setup
 
 ### [x] 0004-001-001 - TASK - Docker Development Environment
@@ -107,7 +135,7 @@ CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
 
 ## 0004-002 - FEATURE - Database Setup & Migrations
 
-### [ ] 0004-002-001 - TASK - SQLAlchemy Models & Alembic Setup
+### [x] 0004-002-001 - TASK - SQLAlchemy Models & Alembic Setup
 - [x] 0004-002-001-01 - CHUNK - Install and configure Alembic
   - SUB-TASKS:
     - Add `alembic` to requirements.txt if not already present
@@ -126,7 +154,7 @@ CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
     - Use GUID primary keys, proper relationships, nullable fields
     - Acceptance: Models import cleanly, relationships defined
 
-- [ ] 0004-002-001-03 - CHUNK - Initial migration
+- [x] 0004-002-001-03 - CHUNK - Initial migration
   - SUB-TASKS:
     - Generate migration: `alembic revision --autogenerate -m "Initial chat memory schema"`
     - Review and adjust migration file
