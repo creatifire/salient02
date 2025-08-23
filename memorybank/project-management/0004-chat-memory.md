@@ -163,7 +163,7 @@ The schema and session management fully supports multiple concurrent users:
     - Acceptance: Tables created successfully in Postgres
 
 ### [ ] 0004-002-002 - TASK - Database Connection & Configuration
-- [ ] 0004-002-002-01 - CHUNK - Database configuration
+- [x] 0004-002-002-01 - CHUNK - Database configuration
   - SUB-TASKS:
     - Add database settings to `backend/config/app.yaml`
     - Add `DATABASE_URL` to `.env` template
@@ -381,7 +381,8 @@ volumes:
 ### Database Configuration (app.yaml)
 ```yaml
 database:
-  url: "postgresql+asyncpg://salient_user:salient_pass@localhost:5432/salient_dev"
+  # Database URL is loaded from DATABASE_URL environment variable for security
+  # Example: DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/dbname
   pool_size: 20
   max_overflow: 0
   pool_timeout: 30
@@ -394,7 +395,8 @@ session:
   cookie_samesite: "lax"
 
 redis:
-  url: "redis://localhost:6379/0"
+  # Redis URL is loaded from REDIS_URL environment variable for security
+  # Example: REDIS_URL=redis://localhost:6379/0
   session_db: 1
   cache_db: 2
 ```
