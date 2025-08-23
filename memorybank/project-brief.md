@@ -67,3 +67,4 @@
 
 ## Project Standards
 - [Commit Message Conventions](./commit-messages.md)
+- [Code Commenting Best Practices](./code-comments.md)
