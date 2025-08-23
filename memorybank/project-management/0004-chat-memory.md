@@ -133,7 +133,7 @@ The schema and session management fully supports multiple concurrent users:
     - Document database connection strings and admin URLs
     - Acceptance: New developer can start working with single script
 
-## 0004-002 - FEATURE - Database Setup & Migrations
+## [x] 0004-002 - FEATURE - Database Setup & Migrations
 
 ### [x] 0004-002-001 - TASK - SQLAlchemy Models & Alembic Setup
 - [x] 0004-002-001-01 - CHUNK - Install and configure Alembic
@@ -162,7 +162,7 @@ The schema and session management fully supports multiple concurrent users:
     - Add sample data insertion for testing
     - Acceptance: Tables created successfully in Postgres
 
-### [ ] 0004-002-002 - TASK - Database Connection & Configuration
+### [x] 0004-002-002 - TASK - Database Connection & Configuration
 - [x] 0004-002-002-01 - CHUNK - Database configuration
   - SUB-TASKS:
     - Add database settings to `backend/config/app.yaml`
@@ -171,7 +171,7 @@ The schema and session management fully supports multiple concurrent users:
     - Create connection pooling setup
     - Acceptance: DB config loads correctly, connection successful
 
-- [ ] 0004-002-002-02 - CHUNK - Database service module
+- [x] 0004-002-002-02 - CHUNK - Database service module
   - SUB-TASKS:
     - Create `backend/app/database.py` with async session management
     - Implement connection pool, session lifecycle

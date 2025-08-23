@@ -10,16 +10,44 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 import asyncio
 from sse_starlette.sse import EventSourceResponse
+from contextlib import asynccontextmanager
 
 from .config import load_config
 from .openrouter_client import stream_chat_chunks, chat_completion_content
+from .database import initialize_database, shutdown_database, get_database_service
 from loguru import logger
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 
-app = FastAPI(title="SalesBot Backend")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management for startup/shutdown."""
+    # Startup
+    _setup_logger()
+    logger.info("Starting application...")
+    
+    try:
+        await initialize_database()
+        logger.info("Database service initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down application...")
+    try:
+        await shutdown_database()
+        logger.info("Database service shut down")
+    except Exception as e:
+        logger.error(f"Error during database shutdown: {e}")
+
+
+app = FastAPI(title="SalesBot Backend", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
@@ -55,15 +83,6 @@ def _setup_logger() -> None:
     )
 
 
-@app.on_event("startup")
-def on_startup() -> None:
-    _setup_logger()
-    logger.info({
-        "event": "startup",
-        "message": "application started",
-    })
-
-
 @app.get("/", response_class=HTMLResponse)
 async def serve_base_page(request: Request) -> HTMLResponse:
     """Render the minimal HTMX-enabled chat page."""
@@ -97,9 +116,46 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     )
 
 
-@app.get("/health", response_class=HTMLResponse)
-async def health() -> str:
-    return "ok"
+@app.get("/health")
+async def health() -> dict:
+    """Enhanced health check including database connectivity."""
+    try:
+        # Get database health status
+        db_service = get_database_service()
+        db_health = await db_service.health_check()
+        
+        # Overall health based on database status
+        overall_status = "healthy" if db_health.get("connected") else "unhealthy"
+        
+        return {
+            "status": overall_status,
+            "timestamp": datetime.now().isoformat(),
+            "services": {
+                "database": db_health,
+                "application": {
+                    "status": "healthy",
+                    "message": "Application running normally"
+                }
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e),
+            "services": {
+                "database": {
+                    "status": "unknown",
+                    "message": "Database health check failed"
+                },
+                "application": {
+                    "status": "healthy",
+                    "message": "Application running normally"
+                }
+            }
+        }
 
 
 @app.get("/events/stream")
