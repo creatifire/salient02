@@ -67,4 +67,5 @@
 
 ## Project Standards
 - [Commit Message Conventions](./commit-messages.md)
-- [Code Commenting Best Practices](./code-comments.md)
+- [Python Code Commenting Best Practices](./code-comments-py.md)
+- [JavaScript/TypeScript Code Commenting Best Practices](./code-comments-ts.md)
