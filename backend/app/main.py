@@ -1,3 +1,27 @@
+"""
+Salient Sales Bot FastAPI backend application.
+
+This is the main FastAPI application providing:
+- Chat UI with HTMX frontend
+- Server-Sent Events for streaming LLM responses  
+- Database persistence for chat history and sessions
+- Health monitoring and logging
+- Configuration management with security best practices
+
+Key Features:
+- Async database service with connection pooling
+- OpenRouter LLM integration with cost tracking
+- Session management for conversation continuity
+- Comprehensive logging with rotation and structured output
+- Production-ready health checks and graceful shutdown
+
+Security:
+- HTTP-only session cookies
+- Environment-based configuration for sensitive data
+- Input sanitization and error handling
+- Configurable CORS and rate limiting (future)
+"""
+
 from pathlib import Path
 from datetime import datetime
 import sys
@@ -24,25 +48,36 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan management for startup/shutdown."""
-    # Startup
+    """
+    FastAPI application lifespan management for graceful startup/shutdown.
+    
+    Handles:
+    - Logger configuration and initialization
+    - Database service startup with connection pooling
+    - Graceful database shutdown on application exit
+    - Error handling and logging for service lifecycle
+    
+    This replaces the deprecated @app.on_event("startup"/"shutdown") pattern
+    with the modern FastAPI lifespan approach for better resource management.
+    """
+    # Startup sequence
     _setup_logger()
-    logger.info("Starting application...")
+    logger.info("Starting Salient Sales Bot application...")
     
     try:
         await initialize_database()
-        logger.info("Database service initialized")
+        logger.info("Database service initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise
     
-    yield
+    yield  # Application runs here
     
-    # Shutdown
+    # Shutdown sequence
     logger.info("Shutting down application...")
     try:
         await shutdown_database()
-        logger.info("Database service shut down")
+        logger.info("Database service shut down cleanly")
     except Exception as e:
         logger.error(f"Error during database shutdown: {e}")
 
@@ -52,6 +87,19 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def _setup_logger() -> None:
+    """
+    Configure structured logging with file rotation and console output.
+    
+    Sets up Loguru with:
+    - JSONL format for structured logging and parsing
+    - File rotation based on size or time intervals
+    - Configurable retention for log cleanup
+    - Console output for development visibility
+    - Timestamped log files for easy identification
+    
+    Configuration loaded from app.yaml logging section with sensible defaults.
+    Log files are created in the configured directory with timestamped names.
+    """
     cfg = load_config()
     logging_cfg = cfg.get("logging") or {}
     level = str(logging_cfg.get("level", "INFO")).upper()
@@ -62,12 +110,11 @@ def _setup_logger() -> None:
     compression = logging_cfg.get("compression")
     enqueue = bool(logging_cfg.get("enqueue", False))
 
-    # Ensure log directory exists (done below before creating file)
-
-    # Configure loguru JSONL sinks
+    # Remove default logger and configure JSONL structured logging
     logger.remove()
     logger.add(sys.stdout, level=level, serialize=True, enqueue=enqueue)
-    # Determine filename: directory + prefix + timestamp
+    
+    # Create timestamped log file with rotation and retention
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     Path(log_dir).mkdir(parents=True, exist_ok=True)
     file_target = str(Path(log_dir) / f"{prefix}{ts}.jsonl")

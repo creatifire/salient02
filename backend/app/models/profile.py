@@ -1,6 +1,17 @@
 """
 Profile model for incremental customer profile data collection.
 
+This model accumulates customer information gradually during chat interactions
+without requiring upfront registration. Supports progressive profiling for
+better user experience and sales qualification.
+
+Key Capabilities:
+- Contact information capture (name, email, phone, address)
+- Interest tracking for products and services  
+- Flexible preferences storage for custom attributes
+- Automatic timestamp tracking for data freshness
+- One-to-one relationship with chat sessions
+
 Based on datamodel specification in memorybank/architecture/datamodel.md
 """
 

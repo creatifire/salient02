@@ -1,3 +1,23 @@
+"""
+OpenRouter API client for LLM chat completions with cost tracking.
+
+This module provides async HTTP client functionality for OpenRouter's API,
+including streaming simulation, error handling, and comprehensive logging
+for cost tracking and debugging.
+
+Key Features:
+- Streaming and non-streaming chat completions
+- Automatic retry with exponential backoff for rate limits
+- Token count and cost extraction from responses
+- Request/response logging with sanitization
+- Error handling with user-friendly fallbacks
+
+Security:
+- API key loaded from environment variables only
+- Request/response logging excludes sensitive data
+- HTTP headers include referer/title for rate limit improvements
+"""
+
 from __future__ import annotations
 
 import os
@@ -11,6 +31,7 @@ import re
 import asyncio
 
 
+# OpenRouter API base URL for all requests
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 
@@ -21,15 +42,32 @@ async def stream_chat_chunks(
     max_tokens: int = 256,
     extra_headers: Dict[str, str] | None = None,
 ) -> AsyncIterator[str]:
-    """Call OpenRouter Chat Completions (non-stream), then yield token-like chunks.
-
-    For baseline simplicity, we request a full completion then split by whitespace to
-    simulate incremental streaming to the SSE client.
     """
-    # Centralized env access (system env has precedence over .env)
+    Generate streaming chat completion chunks for SSE delivery.
+
+    Requests a complete chat completion from OpenRouter, then simulates
+    streaming by yielding whitespace-separated tokens with realistic timing.
+    This approach provides baseline functionality while maintaining simplicity.
+
+    Args:
+        message: User's chat message content
+        model: OpenRouter model identifier (e.g., "openai/gpt-3.5-turbo")
+        temperature: Response randomness (0.0-2.0, lower = more focused)
+        max_tokens: Maximum tokens in response
+        extra_headers: Additional HTTP headers (for referer, tracking)
+
+    Yields:
+        Individual token strings with preserved whitespace and newlines
+
+    Example:
+        >>> async for chunk in stream_chat_chunks("Hello", "openai/gpt-3.5-turbo"):
+        ...     print(chunk, end='', flush=True)
+        Hello! How can I help you today?
+    """
+    # Get API key from environment (required for all requests)
     api_key = get_openrouter_api_key()
     if not api_key:
-        # Surface a clear error chunk
+        # Return user-friendly error message instead of crashing
         yield "[OpenRouter: missing OPENROUTER_API_KEY]"
         return
 

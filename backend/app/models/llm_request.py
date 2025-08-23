@@ -1,5 +1,12 @@
 """
-LLMRequest model for LLM usage tracking and cost analysis.
+LLMRequest model for comprehensive LLM usage tracking and cost analysis.
+
+This model captures detailed information about every LLM API call for:
+- Cost tracking and budget management across sessions
+- Performance monitoring and latency analysis
+- Debugging failed requests and response quality issues
+- Usage analytics and reporting for optimization
+- Token consumption patterns and efficiency metrics
 
 Based on datamodel specification in memorybank/architecture/datamodel.md
 """
