@@ -9,6 +9,7 @@
 - 0003-003-003 - TASK - React Chat Widget Component (Astro integration)
 - 0003-009 - FEATURE - Refactor Astro HTMX Demo To Proper HTMX 2.0.6 Idioms (htmx-chat.astro)
 - 0003-008 - FEATURE - HTMX 2.0.6 Upgrade & Proper Usage (htmx-chat.html)
+- 0003-010 - FEATURE - Chat Widget Maximize/Minimize Toggle
 - (TBD) - Wordpress Integration
 Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
 
@@ -413,3 +414,132 @@ Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
     - SUB-TASKS:
       - Verify POST + SSE flows; keyboard shortcuts; indicator/disabled states; recovery on SSE close
       - Inspect headers (HX-*) and events (`htmx:sseOpen`, `htmx:sseMessage`, `htmx:sseClose`); update docs as needed
+
+## 0003-010 - FEATURE - Chat Widget Maximize/Minimize Toggle
+> Goal: Add maximize/minimize functionality to the Shadow DOM chat widget for better user experience. Widget should support two states: minimized (current size) and maximized (larger overlay) with smooth transitions.
+
+- [ ] 0003-010-001 - TASK - Toggle Button & Icon States
+  - [ ] 0003-010-001-01 - CHUNK - Maximize/minimize button with icon toggle
+    - SUB-TASKS:
+      - Add maximize/minimize toggle button to widget header (next to close button)
+      - Use appropriate icons: expand/maximize icon for minimized state, compress/minimize icon for maximized state
+      - Ensure button is keyboard accessible with proper ARIA labels (`aria-label="Maximize chat"` / `aria-label="Minimize chat"`)
+      - Acceptance: Toggle button visible, icons change state, keyboard accessible
+
+- [ ] 0003-010-002 - TASK - Layout & Positioning Logic
+  - [ ] 0003-010-002-01 - CHUNK - Minimized state (current behavior)
+    - SUB-TASKS:
+      - Maintain current widget dimensions and bottom-right positioning
+      - Floating button and slide-in pane behavior unchanged
+      - Acceptance: No regression in current minimized behavior
+  - [ ] 0003-010-002-02 - CHUNK - Maximized state positioning
+    - SUB-TASKS:
+      - Position chat window with top-left corner at approximately:
+        * Top: 25px from viewport top
+        * Left: 50px from viewport left edge
+      - Bottom-right corner anchor point remains unchanged (maintains button position)
+      - Calculate dimensions to fill most of viewport while respecting margins
+      - Acceptance: Maximized window positioned correctly, bottom-right anchor preserved
+
+- [ ] 0003-010-003 - TASK - Responsive Sizing & Constraints
+  - [ ] 0003-010-003-01 - CHUNK - Maximized dimensions calculation
+    - SUB-TASKS:
+      - Calculate width: `viewport width - 50px (left margin) - [bottom-right anchor space]`
+      - Calculate height: `viewport height - 25px (top margin) - [bottom margin for anchor]`
+      - Set minimum and maximum dimensions for usability
+      - Handle viewport resize events while maximized
+      - Acceptance: Widget scales appropriately, maintains anchor point, handles resize
+  - [ ] 0003-010-003-02 - CHUNK - Mobile/small screen considerations
+    - SUB-TASKS:
+      - Define behavior for small screens (< 768px): consider full-screen overlay
+      - Adjust margins for mobile devices (smaller top/left margins if needed)
+      - Ensure touch-friendly close/minimize buttons
+      - Acceptance: Widget usable on mobile devices in both states
+
+- [ ] 0003-010-004 - TASK - Smooth Transitions & Animation
+  - [ ] 0003-010-004-01 - CHUNK - CSS transitions between states
+    - SUB-TASKS:
+      - Implement smooth CSS transitions for position, width, height changes
+      - Duration: ~300ms with easing function (ease-in-out)
+      - Transition properties: `transform`, `width`, `height`, `top`, `left`
+      - Prevent content jumping during transition
+      - Acceptance: Smooth animation between minimize/maximize states
+  - [ ] 0003-010-004-02 - CHUNK - Z-index and overlay management
+    - SUB-TASKS:
+      - Ensure maximized state has higher z-index for proper layering
+      - Consider backdrop/overlay for maximized state (optional)
+      - Manage focus trapping for maximized state
+      - Acceptance: Widget appears above all content when maximized
+
+- [ ] 0003-010-005 - TASK - State Persistence & Memory
+  - [ ] 0003-010-005-01 - CHUNK - Remember user preference
+    - SUB-TASKS:
+      - Store maximize/minimize preference in localStorage
+      - Restore previous state on page reload/widget re-initialization
+      - Provide configuration option to override default state
+      - Acceptance: User preference persists across sessions
+  - [ ] 0003-010-005-02 - CHUNK - Configuration API updates
+    - SUB-TASKS:
+      - Add `defaultMaximized` option to widget initialization
+      - Add `enableMaximize` option to disable feature if needed
+      - Update data-attribute configuration support
+      - Document new options in README
+      - Acceptance: Configuration options work as expected
+
+- [ ] 0003-010-006 - TASK - Accessibility & Keyboard Support
+  - [ ] 0003-010-006-01 - CHUNK - Enhanced keyboard navigation
+    - SUB-TASKS:
+      - Ensure maximize/minimize button is in tab order
+      - Support keyboard shortcuts (e.g., F11 or Alt+M for maximize toggle)
+      - Update ARIA attributes for expanded/collapsed states
+      - Announce state changes to screen readers
+      - Acceptance: Full keyboard accessibility, screen reader compatible
+  - [ ] 0003-010-006-02 - CHUNK - Focus management improvements
+    - SUB-TASKS:
+      - Maintain focus within maximized widget (enhanced focus trap)
+      - Return focus to toggle button after state change
+      - Handle ESC key: minimize if maximized, then close if minimized
+      - Acceptance: Focus behavior is intuitive and accessible
+
+- [ ] 0003-010-007 - TASK - Cross-Framework Implementation
+  - [ ] 0003-010-007-01 - CHUNK - Shadow DOM widget updates
+    - SUB-TASKS:
+      - Implement maximize/minimize in existing `web/public/widget/chat-widget.js`
+      - Update CSS variables for theming maximized state
+      - Test with existing demo pages
+      - Acceptance: Shadow DOM widget supports maximize/minimize
+  - [ ] 0003-010-007-02 - CHUNK - Preact component updates (when 0003-003-002 completed)
+    - SUB-TASKS:
+      - Add maximize/minimize to Preact component
+      - Implement React hooks for state management
+      - Ensure props support for configuration
+      - Acceptance: Preact component has feature parity
+  - [ ] 0003-010-007-03 - CHUNK - React component updates (when 0003-003-003 completed)
+    - SUB-TASKS:
+      - Add maximize/minimize to React component
+      - Implement React hooks for state management
+      - Ensure props support for configuration
+      - Acceptance: React component has feature parity
+
+- [ ] 0003-010-008 - TASK - Testing & Documentation
+  - [ ] 0003-010-008-01 - CHUNK - Manual testing checklist
+    - SUB-TASKS:
+      - Test toggle functionality on various screen sizes
+      - Verify positioning calculations on different viewports
+      - Test keyboard navigation and accessibility
+      - Verify state persistence across page reloads
+      - Test integration with existing chat functionality
+      - Acceptance: All test cases pass without regressions
+  - [ ] 0003-010-008-02 - CHUNK - Documentation updates
+    - SUB-TASKS:
+      - Update widget README with new configuration options
+      - Document maximize/minimize behavior and keyboard shortcuts
+      - Add screenshots/GIFs demonstrating the feature
+      - Update demo pages to showcase the functionality
+      - Acceptance: Documentation is complete and accurate
+
+## Technical Notes for 0003-010
+- **Bottom-right anchor preservation**: The widget's bottom-right positioning should remain constant to maintain visual continuity
+- **Viewport calculations**: Use `window.innerWidth` and `window.innerHeight` for accurate viewport dimensions
+- **Performance**: Ensure transitions don't impact chat functionality or cause layout thrashing
+- **Fallback**: Graceful degradation if CSS transforms or localStorage are unavailable
