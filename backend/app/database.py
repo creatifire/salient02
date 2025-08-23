@@ -22,8 +22,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
 from loguru import logger
 
-from app.config import get_database_config, get_database_url
-from app.models import Base
+from .config import get_database_config, get_database_url
+from .models import Base
 
 
 class DatabaseService:
