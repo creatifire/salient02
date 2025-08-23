@@ -377,28 +377,405 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
 ```
 
 ### Astro Components
+Document Astro-specific patterns including frontmatter, props, and hydration:
+
 ```astro
 ---
 /**
- * Astro component for embedding chat widget in static sites.
+ * Astro layout component with conditional widget loading.
  * 
- * Hydrates on client-side for interactivity while maintaining
- * SEO benefits of server-side rendering.
+ * Features:
+ * - Server-side rendering for SEO benefits
+ * - Conditional client-side hydration based on environment
+ * - Semantic HTML structure with accessibility considerations
+ * - Integration with Preact components via client:load directive
+ * 
+ * @param title - Page title for SEO
+ * @param description - Meta description for search engines
  */
 
-interface Props {
-    backendUrl?: string;
-    theme?: 'light' | 'dark';
+export interface Props {
+    title: string;
+    description?: string;
 }
 
-const { backendUrl = '/api/chat', theme = 'light' } = Astro.props;
+const { title, description } = Astro.props;
+
+// Environment-based widget loading for security
+const enableWidget = import.meta.env.PUBLIC_ENABLE_WIDGET === 'true';
+const isDevelopment = import.meta.env.DEV;
 ---
 
-<div class="chat-widget" data-theme={theme}>
-    <!-- Widget rendered server-side for SEO -->
-    <ChatInterface client:load backend={backendUrl} />
-</div>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+  </head>
+  <body>
+    <!-- Skip link for accessibility -->
+    <a href="#main" class="skip-link">Skip to content</a>
+    
+    <header role="banner">
+      <nav><!-- Navigation --></nav>
+    </header>
+    
+    <main id="main" role="main">
+      <slot />
+    </main>
+    
+    <!-- Conditional widget loading with security considerations -->
+    {enableWidget && (
+      <script 
+        src="/widget/chat-widget.js" 
+        is:inline 
+        data-chat-path="/chat"
+        data-backend={isDevelopment ? 'http://localhost:8000' : ''}
+      ></script>
+    )}
+  </body>
+</html>
+
+<style>
+  /* Accessibility: Hidden skip link that appears on focus */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    width: auto;
+    height: auto;
+    background: #fff;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 0.375rem;
+    z-index: 9999;
+  }
+</style>
 ```
+
+**Astro-Specific Commenting Guidelines:**
+- **Frontmatter comments**: Use JSDoc in the `---` section for component documentation
+- **Props interface**: Always document component props with descriptions
+- **Environment variables**: Comment security implications of public env vars
+- **Hydration directives**: Explain why `client:load`, `client:visible`, etc. are chosen
+- **Slot usage**: Document expected content and structure for slots
+- **CSS scope**: Comment on scoped vs global styles
+
+### Preact Components (Astro Integration)
+Document Preact components for Astro with proper TypeScript integration:
+
+```typescript
+/**
+ * Preact chat widget component with streaming support.
+ * 
+ * Designed for Astro integration with client-side hydration.
+ * Handles real-time chat streaming, message history, and error recovery.
+ * 
+ * Features:
+ * - SSE streaming with fallback to polling
+ * - Markdown rendering with XSS protection
+ * - Keyboard shortcuts (Ctrl+Enter to send)
+ * - Copy-to-clipboard functionality
+ * - Responsive design with accessibility
+ * 
+ * @param backendUrl - Chat API base URL (defaults to same origin)
+ * @param theme - Visual theme ('light' | 'dark' | 'auto')
+ * @param initialMessage - Pre-populate input with message
+ */
+
+import { useState, useEffect, useRef } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
+
+interface ChatMessage {
+  id: string;
+  content: string;
+  role: 'human' | 'assistant' | 'system';
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+interface ChatWidgetProps {
+  backendUrl?: string;
+  theme?: 'light' | 'dark' | 'auto';
+  initialMessage?: string;
+  maxMessages?: number;
+}
+
+export function PreactChatWidget({
+  backendUrl = '',
+  theme = 'auto',
+  initialMessage = '',
+  maxMessages = 100
+}: ChatWidgetProps) {
+  // State management with proper typing
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState(initialMessage);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected');
+  
+  // Refs for DOM manipulation and cleanup
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  /**
+   * Send message with optimistic updates and error handling.
+   * 
+   * Implements streaming pattern:
+   * 1. Add user message immediately for responsive UX
+   * 2. Start SSE stream for assistant response
+   * 3. Accumulate response chunks with live updates
+   * 4. Handle connection errors with graceful fallback
+   */
+  const sendMessage = async (content: string) => {
+    if (!content.trim() || isStreaming) return;
+
+    // Optimistic user message update
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      content: content.trim(),
+      role: 'human',
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev.slice(-maxMessages + 1), userMessage]);
+    setInputValue('');
+    setIsStreaming(true);
+
+    try {
+      // Stream assistant response with abort signal for cleanup
+      await streamAssistantResponse(content, abortControllerRef.current?.signal);
+    } catch (error) {
+      // Error handling with user feedback
+      console.error('Chat error:', error);
+      addErrorMessage('Sorry, there was a problem sending your message. Please try again.');
+    } finally {
+      setIsStreaming(false);
+    }
+  };
+
+  // Keyboard shortcut handler with accessibility considerations
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+    
+    if (isCtrlOrCmd && event.key === 'Enter') {
+      // Submit on Ctrl/Cmd+Enter (common UX pattern)
+      event.preventDefault();
+      sendMessage(inputValue);
+    } else if (event.key === 'Escape') {
+      // Clear input on Escape (another common pattern)
+      setInputValue('');
+    }
+  };
+
+  // Auto-scroll to latest message for better UX
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Cleanup streams on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  return (
+    <div className={`chat-widget theme-${theme}`} role="application" aria-label="Chat interface">
+      {/* Message history with semantic markup */}
+      <div className="messages" role="log" aria-live="polite" aria-label="Chat messages">
+        {messages.map((message) => (
+          <ChatMessageComponent 
+            key={message.id} 
+            message={message}
+            onCopy={() => copyToClipboard(message.content)}
+          />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input area with accessibility and keyboard support */}
+      <div className="input-area">
+        <textarea
+          value={inputValue}
+          onChange={(e) => setInputValue((e.target as HTMLTextAreaElement).value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your message..."
+          disabled={isStreaming}
+          rows={2}
+          aria-label="Type your message"
+          aria-describedby="send-instructions"
+        />
+        
+        <div id="send-instructions" className="sr-only">
+          Press Ctrl+Enter to send message, Escape to clear
+        </div>
+
+        <button
+          onClick={() => sendMessage(inputValue)}
+          disabled={!inputValue.trim() || isStreaming}
+          aria-label={isStreaming ? 'Sending message...' : 'Send message'}
+        >
+          {isStreaming ? 'Sending...' : 'Send'}
+        </button>
+      </div>
+
+      {/* Connection status indicator for debugging */}
+      <div className="status-indicator" aria-live="polite">
+        <span className={`status-dot ${connectionStatus}`} />
+        <span className="sr-only">Connection status: {connectionStatus}</span>
+      </div>
+    </div>
+  );
+}
+```
+
+**Preact-Specific Guidelines:**
+- **Hook documentation**: Document useState/useEffect patterns and cleanup
+- **Props interface**: Always provide complete TypeScript interfaces
+- **Accessibility**: Include ARIA attributes and semantic HTML
+- **Performance**: Comment on optimization patterns (useCallback, useMemo)
+- **Error boundaries**: Document error handling and fallback states
+- **Astro integration**: Comment on hydration directives and SSR considerations
+
+### Vanilla JavaScript (Widget/Utilities)
+Document standalone JavaScript for widgets and utilities:
+
+```javascript
+/**
+ * Standalone chat widget with Shadow DOM isolation.
+ * 
+ * Self-contained widget that can be embedded on any website without
+ * framework dependencies. Uses Shadow DOM for style isolation and
+ * provides fallback patterns for older browsers.
+ * 
+ * Security Considerations:
+ * - Same-origin policy enforced by default
+ * - Cross-origin requests require explicit data-allow-cross="1"
+ * - Input sanitization via DOMPurify for markdown rendering
+ * - CSP-friendly: no inline event handlers or eval()
+ * 
+ * Browser Support:
+ * - Modern browsers: Full Shadow DOM support
+ * - Legacy browsers: Graceful degradation without Shadow DOM
+ * - Mobile: Touch-friendly interface with proper viewport handling
+ */
+(function() {
+  'use strict';
+  
+  // Prevent multiple widget instances
+  if (typeof window === 'undefined' || window.__salientWidgetLoaded) return;
+  window.__salientWidgetLoaded = true;
+
+  /**
+   * Extract configuration from script tag data attributes.
+   * 
+   * Supports:
+   * - data-backend: Custom backend URL (security: same-origin preferred)
+   * - data-chat-path: Chat endpoint path (default: /chat)
+   * - data-allow-cross: Enable cross-origin requests (security risk)
+   * - data-sse: Enable/disable SSE streaming (default: enabled)
+   * - data-copy-icon: Custom copy icon URL
+   */
+  const script = getCurrentScript();
+  const config = {
+    backend: getDataAttribute(script, 'data-backend', window.location.origin),
+    chatPath: getDataAttribute(script, 'data-chat-path', '/chat'),
+    allowCross: getDataAttribute(script, 'data-allow-cross') === '1',
+    sseEnabled: getDataAttribute(script, 'data-sse', '1') !== '0',
+    copyIcon: getDataAttribute(script, 'data-copy-icon', '/widget/chat-copy.svg')
+  };
+
+  /**
+   * Safely get current script element with fallback.
+   * 
+   * Handles edge cases:
+   * - document.currentScript not supported (IE)
+   * - Script loaded asynchronously
+   * - Multiple scripts with same name
+   */
+  function getCurrentScript() {
+    if (document.currentScript) {
+      return document.currentScript;
+    }
+    
+    // Fallback: find script by filename
+    const scripts = document.querySelectorAll('script');
+    for (let i = scripts.length - 1; i >= 0; i--) {
+      const src = scripts[i].src || '';
+      if (src.includes('chat-widget.js')) {
+        return scripts[i];
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Create Shadow DOM widget with style isolation.
+   * 
+   * Benefits:
+   * - Complete CSS isolation from host page
+   * - Prevents host styles from breaking widget
+   * - Prevents widget styles from affecting host
+   * - Better encapsulation and maintainability
+   */
+  function createShadowWidget() {
+    const container = document.createElement('div');
+    container.id = 'salient-chat-widget';
+    
+    // Create Shadow DOM with style isolation
+    const shadow = container.attachShadow({ mode: 'closed' });
+    
+    // Inject widget styles (scoped to shadow root)
+    const styles = createWidgetStyles();
+    shadow.appendChild(styles);
+    
+    // Create widget DOM structure
+    const widgetHTML = createWidgetDOM();
+    shadow.appendChild(widgetHTML);
+    
+    // Position widget and add to page
+    Object.assign(container.style, {
+      position: 'fixed',
+      bottom: '20px',
+      right: '20px',
+      zIndex: '2147483647', // Maximum z-index for top layer
+      pointerEvents: 'none'   // Allow clicks through container
+    });
+    
+    document.body.appendChild(container);
+    
+    // Initialize event handlers within shadow context
+    initializeWidgetEvents(shadow);
+    
+    return { container, shadow };
+  }
+
+  // Initialize widget when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createShadowWidget);
+  } else {
+    createShadowWidget();
+  }
+})();
+```
+
+**Vanilla JavaScript Guidelines:**
+- **IIFE pattern**: Wrap in immediately invoked function for scope isolation
+- **Feature detection**: Check for browser support before using features
+- **Progressive enhancement**: Provide fallbacks for older browsers
+- **Security comments**: Document same-origin policy and XSS prevention
+- **Error handling**: Graceful degradation when APIs are unavailable
+- **Performance**: Comment on DOM manipulation and event delegation patterns
 
 ### Vue.js Components
 ```vue
