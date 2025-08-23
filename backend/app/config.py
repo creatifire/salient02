@@ -157,6 +157,15 @@ def load_config() -> Dict[str, Any]:
     session_cfg.setdefault("cookie_secure", False)  # True in production
     session_cfg.setdefault("cookie_httponly", True)
     session_cfg.setdefault("cookie_samesite", "lax")
+    
+    # Session timeout configuration
+    try:
+        inactivity_minutes = int(session_cfg.get("inactivity_minutes", 30))
+        if inactivity_minutes <= 0:
+            inactivity_minutes = 30
+        session_cfg["inactivity_minutes"] = inactivity_minutes
+    except Exception:
+        session_cfg["inactivity_minutes"] = 30
 
     # Redis configuration with security-enforced environment variables  
     # Redis URL must come from environment for security (never in YAML)

@@ -171,3 +171,17 @@
     - Astro on their CDN
     - Use their instances of Postgres
     - Spin up the infrastructure for Marc to do his customization
+
+- 1026 - CRM Lite Back End
+    - Have some basic CRM capability in the back end to verify interactions with other backkend systems, like:
+        - CRM
+        - Customer Profile
+        - Appointments Scheduled
+        - Daily Site Traffic
+
+- 1027 - Analytics Dashboard
+    - Ability to see basic statistics on the dashboard
+        - Num appointments made
+        - Cross-Sells
+        - Up-Sells
+        - New Profiles Added
