@@ -185,3 +185,5 @@
         - Cross-Sells
         - Up-Sells
         - New Profiles Added
+
+- 1028 - SDK for Developing Applications with Salient

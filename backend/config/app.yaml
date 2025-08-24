@@ -1,5 +1,5 @@
 app:
-  name: SalesBot
+  name: Salient
   mode: multi-tenant  # single-tenant|multi-tenant
 
 database:
@@ -52,7 +52,7 @@ embeddings:
 
 llm:
   provider: openrouter
-  model: openai/gpt-oss-120b
+  model: deepseek/deepseek-chat-v3.1
   temperature: 0.3
   max_tokens: 1024
 
