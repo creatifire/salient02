@@ -527,6 +527,94 @@ echo "Database reset complete!"
     - Fix any issues identified by quality tools
     - Acceptance: All Python code passes quality tool checks
 
+## 0004-010 - FEATURE - Chat UI Copy Functionality
+
+### [ ] 0004-010-001 - TASK - Add Copy Functionality to Main Chat Interface
+- [ ] 0004-010-001-01 - CHUNK - Copy button implementation
+  - SUB-TASKS:
+    - Copy chat-copy.svg icon from web/public/widget/ to backend/static/
+    - Add copy button HTML structure to bot messages in index.html
+    - Implement copy button CSS styling (hover states, positioning, transitions)
+    - Add JavaScript copy functionality with clipboard API and fallback
+    - Include visual feedback (toast notification or temporary indicator)
+    - Acceptance: Copy buttons appear on bot messages with proper styling
+  
+- [ ] 0004-010-001-02 - CHUNK - Copy functionality integration
+  - SUB-TASKS:
+    - Integrate copy buttons with existing message rendering system
+    - Handle both streaming and non-streaming message copying
+    - Store raw message content for accurate copying (preserve markdown)
+    - Ensure copy functionality works with markdown-rendered content
+    - Add error handling for copy failures with user feedback
+    - Acceptance: Users can copy bot responses to clipboard successfully
+
+- [ ] 0004-010-001-03 - CHUNK - UI polish and accessibility
+  - SUB-TASKS:
+    - Add hover states and visual feedback for copy buttons
+    - Implement ARIA labels and accessibility attributes
+    - Add keyboard navigation support for copy functionality
+    - Ensure consistent styling with existing chat interface
+    - Test copy functionality across different browsers
+    - Acceptance: Copy feature is fully accessible and polished
+
+### Technical Implementation Notes
+
+**📋 Copy Button Design Pattern (from widget analysis):**
+- **Icon**: Uses `chat-copy.svg` - clean clipboard icon with CC Attribution-ShareAlike license
+- **Positioning**: Absolute positioned bottom-right of bot messages
+- **Styling**: Semi-transparent background, subtle border, opacity transitions
+- **Behavior**: Low opacity by default, full opacity on message hover or button focus
+- **Feedback**: Toast notification showing "Copied" or "Copy failed"
+
+**🔧 Technical Architecture:**
+- **Raw Content Storage**: Store original text in `data-raw` attribute on message containers
+- **Clipboard API**: Primary method using `navigator.clipboard.writeText()`
+- **Fallback Method**: Temporary textarea selection with `document.execCommand('copy')`
+- **Integration Points**: 
+  - `appendMessage()` function for adding copy buttons
+  - Stream completion handler for finalizing copyable content
+  - Markdown rendering system for preserving source text
+
+**📱 Browser Compatibility:**
+- **Modern Browsers**: Clipboard API with async/await
+- **Legacy Support**: Document.execCommand fallback for older browsers
+- **Security Context**: HTTPS required for Clipboard API (development localhost exemption)
+- **Error Handling**: Graceful degradation with user-visible error messages
+
+**🎨 Visual Design Specifications:**
+```css
+.copy-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px;
+  width: 22px;
+  height: 22px;
+  opacity: 0.2;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+
+.msg.bot:hover .copy-btn,
+.copy-btn:focus {
+  opacity: 1;
+}
+
+.copy-btn:active {
+  transform: scale(0.96);
+}
+```
+
+**🚀 Implementation Benefits:**
+- **User Experience**: Quick access to copy AI responses for external use
+- **Accessibility**: Keyboard navigation and screen reader support
+- **Consistency**: Matches existing widget functionality and styling
+- **Performance**: Lightweight implementation with minimal JavaScript overhead
+- **Maintainability**: Reuses existing patterns from chat widget codebase
+
 ## Success Criteria
 1. **Restart-safe chats**: Browser refresh loads previous conversation
 2. **Session continuity**: Same browser session resumes automatically
