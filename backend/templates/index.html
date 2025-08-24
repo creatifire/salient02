@@ -44,7 +44,14 @@
         <div class="right-actions">
           <span id="streamIndicator" class="stream-indicator">Receiving…</span>
           <button id="streamBtn" class="btn" type="button">Stream Demo</button>
+          <button id="sessionBtn" class="btn" type="button" style="font-size: 0.8rem;">Session Info</button>
         </div>
+      </div>
+      
+      <!-- Session Status Display (dev diagnostics) -->
+      <div id="sessionStatus" style="display: none; margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 0.85rem;">
+        <h4 style="margin: 0 0 0.5rem 0; color: #495057;">Session Diagnostics</h4>
+        <div id="sessionData">Loading session info...</div>
       </div>
     </div>
 
@@ -52,8 +59,11 @@
       const input = document.getElementById('messageInput');
       const sendBtn = document.getElementById('sendBtn');
       const clearBtn = document.getElementById('clearBtn');
+      const sessionBtn = document.getElementById('sessionBtn');
       const chatPane = document.getElementById('chatPane');
       const streamIndicator = document.getElementById('streamIndicator');
+      const sessionStatus = document.getElementById('sessionStatus');
+      const sessionData = document.getElementById('sessionData');
 
       // Append-only helper
       function appendMessage(role, text) {
@@ -67,6 +77,38 @@
       // Clear chat pane only
       clearBtn.addEventListener('click', () => {
         chatPane.innerHTML = '';
+      });
+
+      // Session info toggle
+      sessionBtn.addEventListener('click', async () => {
+        if (sessionStatus.style.display === 'none') {
+          sessionStatus.style.display = 'block';
+          sessionBtn.textContent = 'Hide Session';
+          
+          try {
+            const response = await fetch('/api/session');
+            const data = await response.json();
+            
+            if (data.error) {
+              sessionData.innerHTML = `<span style="color: #dc3545;">Error: ${data.error}</span>`;
+            } else {
+              sessionData.innerHTML = `
+                <strong>Session ID:</strong> ${data.session_id}<br>
+                <strong>Session Key:</strong> ${data.session_key}<br>
+                <strong>Anonymous:</strong> ${data.is_anonymous ? 'Yes' : 'No'}<br>
+                <strong>Email:</strong> ${data.email || 'Not provided'}<br>
+                <strong>Created:</strong> ${new Date(data.created_at).toLocaleString()}<br>
+                <strong>Last Activity:</strong> ${new Date(data.last_activity_at).toLocaleString()}<br>
+                <strong>Cookie Set:</strong> ${document.cookie.includes('salient_session') ? 'Yes' : 'No'}
+              `;
+            }
+          } catch (error) {
+            sessionData.innerHTML = `<span style="color: #dc3545;">Failed to load session info: ${error.message}</span>`;
+          }
+        } else {
+          sessionStatus.style.display = 'none';
+          sessionBtn.textContent = 'Session Info';
+        }
       });
 
       // Debounce helper

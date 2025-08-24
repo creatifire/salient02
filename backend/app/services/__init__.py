@@ -11,6 +11,6 @@ Services follow dependency injection patterns and use async/await
 for database operations.
 """
 
-from .session_service import SessionService
+from .session_service import SessionService, SessionError
 
-__all__ = ["SessionService"]
+__all__ = ["SessionService", "SessionError"]

@@ -12,7 +12,7 @@ Based on the session management requirements from Epic 0004-003-001-01.
 
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from uuid import UUID
 
@@ -73,8 +73,8 @@ class SessionService:
                 session_key=session_key,
                 email=email,
                 is_anonymous=is_anonymous,
-                created_at=datetime.utcnow(),
-                last_activity_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
+                last_activity_at=datetime.now(timezone.utc),
                 meta=metadata or {}
             )
             
@@ -173,7 +173,7 @@ class SessionService:
         """
         try:
             if activity_time is None:
-                activity_time = datetime.utcnow()
+                activity_time = datetime.now(timezone.utc)
             
             # Update last activity timestamp
             stmt = (
@@ -234,10 +234,10 @@ class SessionService:
             stmt = (
                 update(Session)
                 .where(Session.id == session_id)
-                .values(
+                .                values(
                     email=email,
                     is_anonymous=False,
-                    last_activity_at=datetime.utcnow()
+                    last_activity_at=datetime.now(timezone.utc)
                 )
             )
             
@@ -295,7 +295,7 @@ class SessionService:
         
         # Calculate expiry time
         expiry_time = session.last_activity_at + timedelta(minutes=inactivity_minutes)
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         
         is_active = current_time < expiry_time
         

@@ -39,6 +39,7 @@ from contextlib import asynccontextmanager
 from .config import load_config
 from .openrouter_client import stream_chat_chunks, chat_completion_content
 from .database import initialize_database, shutdown_database, get_database_service
+from .middleware.simple_session_middleware import SimpleSessionMiddleware, get_current_session
 from loguru import logger
 
 
@@ -83,6 +84,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="SalesBot Backend", lifespan=lifespan)
+
+# Add session middleware for automatic session management
+app.add_middleware(
+    SimpleSessionMiddleware,
+    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail"]
+)
+
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
@@ -133,11 +141,15 @@ def _setup_logger() -> None:
 @app.get("/", response_class=HTMLResponse)
 async def serve_base_page(request: Request) -> HTMLResponse:
     """Render the minimal HTMX-enabled chat page."""
+    # Get session information for logging
+    session = get_current_session(request)
     logger.info({
         "event": "serve_base_page",
         "path": "/",
         "client": request.client.host if request.client else None,
         "user_agent": request.headers.get("user-agent"),
+        "session_id": str(session.id) if session else None,
+        "session_key": session.session_key[:8] + "..." if session else None,
     })
     cfg = load_config()
     ui_cfg = cfg.get("ui") or {}
@@ -212,6 +224,8 @@ async def sse_stream(request: Request):
     Query params (optional):
     - message: seed text to stream back token-by-token (defaults to demo text)
     """
+    # Get session information for context
+    session = get_current_session(request)
     cfg = load_config()
     # Gate by ui.sse_enabled
     if not (cfg.get("ui") or {}).get("sse_enabled", True):
@@ -234,6 +248,7 @@ async def sse_stream(request: Request):
         "model": model,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "session_id": str(session.id) if session else None,
     })
 
     async def event_generator():
@@ -315,6 +330,8 @@ async def sse_stream(request: Request):
 @app.post("/chat", response_class=PlainTextResponse)
 async def chat_fallback(request: Request) -> PlainTextResponse:
     """Non-stream fallback: returns full assistant text in one response."""
+    # Get session information for context  
+    session = get_current_session(request)
     cfg = load_config()
     body = await request.json()
     message = str(body.get("message") or "").strip()
@@ -333,6 +350,7 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         "model": model,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "session_id": str(session.id) if session else None,
     })
 
     # Build optional headers for OpenRouter (recommended)
@@ -359,6 +377,24 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     )
     # Return plain text; client will render Markdown + sanitize when allowed
     return PlainTextResponse(text)
+
+
+@app.get("/api/session", response_class=JSONResponse)
+async def get_session_info(request: Request) -> JSONResponse:
+    """Get current session information for debugging/development."""
+    session = get_current_session(request)
+    if not session:
+        return JSONResponse({"error": "No active session"}, status_code=404)
+    
+    return JSONResponse({
+        "session_id": str(session.id),
+        "session_key": session.session_key[:8] + "...",  # Partial key for privacy
+        "email": session.email,
+        "is_anonymous": session.is_anonymous,
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "last_activity_at": session.last_activity_at.isoformat() if session.last_activity_at else None,
+        "metadata": session.meta
+    })
 
 
 @app.get("/dev/logs/tail", response_class=JSONResponse)
