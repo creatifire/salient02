@@ -36,7 +36,7 @@ email:
 logging:
   level: INFO           # DEBUG|INFO|WARN|ERROR
   prefix: salient-log-             # File prefix; final name will be '<prefix><timestamp>.jsonl'
-  path: ./backend/logs/            # Directory for logs; combined with prefix and timestamp
+  path: ./backend/logs/            # Directory for logs (relative to project root)
   rotation: 00:30                  # Options: '50 MB', '1 day', '1 hour', '00:30', '00:15'
   retention: 14 days               # How many old logs to keep (or time span)
   compression: zip                 # Optional: zip, gz, bz2

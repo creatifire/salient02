@@ -3,6 +3,21 @@
 Structure created per memorybank/architecture/code-organization.md.
 Populate templates in backend/templates/ and config in backend/config/.
 
+## 🚀 Quick Start
+
+**TL;DR: Always run from PROJECT ROOT, never from backend directory!**
+
+```bash
+# Navigate to project root
+cd /path/to/salient02
+
+# Activate virtual environment  
+source .venv/bin/activate
+
+# Start backend server
+uvicorn backend.app.main:app --reload
+```
+
 ## Development Environment
 
 ### Docker Development Setup (Recommended)
@@ -27,71 +42,94 @@ docker-compose -f docker-compose.dev.yml down
 
 ### Virtual Environment Setup
 
-Before starting the backend, ensure you have a Python virtual environment:
+The project uses a virtual environment at the **PROJECT ROOT** level:
 
 ```bash
-# Create virtual environment (if not exists)
-cd backend
-python -m venv venv
+# From project root (salient02/)
+cd /path/to/salient02
+
+# Create virtual environment at root level (if not exists)
+python -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
 
 # Install dependencies
-source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+**Important**: Use `.venv` at the project root, NOT `backend/venv`.
+
 ### Manual Backend Startup
 
-Once Docker services are running, start the FastAPI backend:
+**⚠️ IMPORTANT: Always start the backend from the PROJECT ROOT directory, NOT the backend directory!**
 
-#### From Backend Directory (Recommended)
+Once Docker services are running, start the FastAPI backend **FROM THE PROJECT ROOT**:
+
+#### From Project Root (Correct Method)
 ```bash
-# IMPORTANT: Navigate to the backend directory (not backend/backend!)
-# From project root:
-cd backend
-source venv/bin/activate
+# Navigate to project root (salient02/)
+cd /path/to/salient02
 
-# Verify you're in the right place (should see 'app' directory)
-ls -la | grep app
+# Activate the main virtual environment
+source .venv/bin/activate
 
-# Start with auto-reload (basic)
-uvicorn app.main:app --reload
+# Verify you're in the right place
+ls -la | grep backend  # Should see backend/ directory
+ls backend/app/        # Should see main.py
 
-# With YAML config auto-reload (watches config changes)
-uvicorn app.main:app \
+# Start the backend server
+uvicorn backend.app.main:app --reload
+
+# With config watching (optional)
+uvicorn backend.app.main:app \
   --reload \
-  --reload-dir . \
   --reload-include '*.py' \
-  --reload-include 'config/*.yaml' \
-  --reload-include 'config/*.yml'
+  --reload-include 'backend/config/*.yaml'
 
-# Production mode (no auto-reload)
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Production mode
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-#### Alternative: One-liner from Project Root
+#### Alternative: Python Module Syntax
 ```bash
-# Start backend from project root directory
-cd backend && source venv/bin/activate && uvicorn app.main:app --reload
+# From project root with .venv activated
+python -m uvicorn backend.app.main:app --reload
 ```
 
-#### Quick Development Restart
+#### Quick One-liner (From Anywhere)
 ```bash
-# If already in backend directory with venv activated
-uvicorn app.main:app --reload
+# Complete command from any directory
+cd /path/to/salient02 && source .venv/bin/activate && uvicorn backend.app.main:app --reload
 ```
+
+#### ❌ DO NOT Run From Backend Directory
+```bash
+# DON'T DO THIS - will cause ModuleNotFoundError:
+cd backend                    # ❌ Wrong directory
+source venv/bin/activate      # ❌ Wrong virtual environment
+uvicorn app.main:app --reload # ❌ Wrong module path
+```
+
+**Why this fails:**
+- Wrong virtual environment (`backend/venv` instead of `.venv` at root)
+- Wrong module path (`app.main:app` instead of `backend.app.main:app`)  
+- Wrong working directory for config file paths
 
 ### Troubleshooting
 
 **Common Issues:**
 
-1. **ModuleNotFoundError: No module named 'app'**: 
-   - You're in the wrong directory! 
-   - Make sure you're in `/salient02/backend/` (should see `app` folder)
-   - NOT in `/salient02/backend/backend/`
+1. **ModuleNotFoundError: No module named 'backend'**: 
+   - **YOU'RE RUNNING FROM THE WRONG DIRECTORY!** 
+   - Must be in project root `/path/to/salient02/` (should see `backend/` folder)
+   - Use `uvicorn backend.app.main:app --reload` from project root
    
-2. **Import errors**: Make sure you're in the `backend` directory and virtual environment is activated
+2. **ModuleNotFoundError: No module named 'app'**: 
+   - You're using the wrong module path
+   - From project root, use `backend.app.main:app` not `app.main:app`
 
-3. **Config reload errors**: Use `--reload-dir .` instead of `--reload-dir config` 
+3. **Import errors**: Make sure you're using the `.venv` at project root, not `backend/venv`
 
 4. **Port already in use**: Add `--port 8001` or kill existing uvicorn processes
 
@@ -99,18 +137,35 @@ uvicorn app.main:app --reload
 
 **Directory Verification:**
 ```bash
-# You should be here:
+# You should be here (PROJECT ROOT):
 pwd
-# Output: /path/to/salient02/backend
+# Output: /path/to/salient02
 
 # You should see these directories:
-ls -la | grep -E "(app|config|venv)"
-# Output should show: app, config, venv directories
+ls -la | grep -E "(backend|\.venv|requirements\.txt)"
+# Output should show: backend/, .venv/, requirements.txt
+
+# Verify logs directory is in the correct location:
+ls backend/logs/
+# Should show log files (not backend/backend/logs/)
 ```
 
-**Quick Health Check:**
+**Module Path Verification:**
 ```bash
-cd backend && source venv/bin/activate && python -c "import app.main; print('✅ Backend ready')"
+# From project root with .venv activated
+python -c "import backend.app.main; print('✅ Correct module path')"
+```
+
+**Working Commands (From Project Root):**
+```bash
+# Method 1: Standard uvicorn (recommended)
+uvicorn backend.app.main:app --reload
+
+# Method 2: Python module syntax
+python -m uvicorn backend.app.main:app --reload
+
+# Method 3: One-liner from anywhere
+cd /path/to/salient02 && source .venv/bin/activate && uvicorn backend.app.main:app --reload
 ```
 
 ## Environment Variables
@@ -135,10 +190,11 @@ Required environment variables (set in `.env` at repo root):
 Alembic is configured for database schema management:
 
 ```bash
-# Activate virtual environment first
-source backend/venv/bin/activate
+# From project root, activate virtual environment
+cd /path/to/salient02
+source .venv/bin/activate
 
-# From project root
+# Navigate to backend for alembic operations
 cd backend
 
 # Create a new migration
@@ -157,5 +213,6 @@ alembic current
 ### Quick Database Reset
 ```bash
 # Reset database to clean state (from project root)
+cd /path/to/salient02
 ./scripts/dev-reset.sh
 ```
