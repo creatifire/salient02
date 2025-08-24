@@ -25,27 +25,92 @@ docker-compose -f docker-compose.dev.yml down
 - Redis: `localhost:6379`
 - Adminer (DB Admin): `http://localhost:8080`
 
+### Virtual Environment Setup
+
+Before starting the backend, ensure you have a Python virtual environment:
+
+```bash
+# Create virtual environment (if not exists)
+cd backend
+python -m venv venv
+
+# Install dependencies
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
 ### Manual Backend Startup
 
 Once Docker services are running, start the FastAPI backend:
 
-#### Without auto-reload
+#### From Backend Directory (Recommended)
 ```bash
-uvicorn backend.app.main:app
-```
+# IMPORTANT: Navigate to the backend directory (not backend/backend!)
+# From project root:
+cd backend
+source venv/bin/activate
 
-#### With auto-reload (code only)
-```bash
-uvicorn backend.app.main:app --reload
-```
+# Verify you're in the right place (should see 'app' directory)
+ls -la | grep app
 
-#### With auto-reload including YAML config
-```bash
-uvicorn backend.app.main:app \
+# Start with auto-reload (basic)
+uvicorn app.main:app --reload
+
+# With YAML config auto-reload (watches config changes)
+uvicorn app.main:app \
   --reload \
-  --reload-dir backend/config \
-  --reload-include '*.yaml' \
-  --reload-include '*.yml'
+  --reload-dir . \
+  --reload-include '*.py' \
+  --reload-include 'config/*.yaml' \
+  --reload-include 'config/*.yml'
+
+# Production mode (no auto-reload)
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+#### Alternative: One-liner from Project Root
+```bash
+# Start backend from project root directory
+cd backend && source venv/bin/activate && uvicorn app.main:app --reload
+```
+
+#### Quick Development Restart
+```bash
+# If already in backend directory with venv activated
+uvicorn app.main:app --reload
+```
+
+### Troubleshooting
+
+**Common Issues:**
+
+1. **ModuleNotFoundError: No module named 'app'**: 
+   - You're in the wrong directory! 
+   - Make sure you're in `/salient02/backend/` (should see `app` folder)
+   - NOT in `/salient02/backend/backend/`
+   
+2. **Import errors**: Make sure you're in the `backend` directory and virtual environment is activated
+
+3. **Config reload errors**: Use `--reload-dir .` instead of `--reload-dir config` 
+
+4. **Port already in use**: Add `--port 8001` or kill existing uvicorn processes
+
+5. **Database connection errors**: Ensure Docker services are running (`docker-compose -f docker-compose.dev.yml up -d`)
+
+**Directory Verification:**
+```bash
+# You should be here:
+pwd
+# Output: /path/to/salient02/backend
+
+# You should see these directories:
+ls -la | grep -E "(app|config|venv)"
+# Output should show: app, config, venv directories
+```
+
+**Quick Health Check:**
+```bash
+cd backend && source venv/bin/activate && python -c "import app.main; print('✅ Backend ready')"
 ```
 
 ## Environment Variables
@@ -67,15 +132,30 @@ Required environment variables (set in `.env` at repo root):
 
 ## Database Migrations (Epic 0004)
 
-When Alembic is configured:
+Alembic is configured for database schema management:
 
 ```bash
+# Activate virtual environment first
+source backend/venv/bin/activate
+
+# From project root
+cd backend
+
 # Create a new migration
-cd backend && alembic revision --autogenerate -m "Description"
+alembic revision --autogenerate -m "Description"
 
 # Apply migrations
-cd backend && alembic upgrade head
+alembic upgrade head
 
 # View migration history
-cd backend && alembic history
+alembic history
+
+# Check current migration status
+alembic current
+```
+
+### Quick Database Reset
+```bash
+# Reset database to clean state (from project root)
+./scripts/dev-reset.sh
 ```
