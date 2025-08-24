@@ -97,6 +97,7 @@ from typing import List
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 from sse_starlette.sse import EventSourceResponse
@@ -110,8 +111,10 @@ from .openrouter_client import chat_completion_content, stream_chat_chunks
 # Application directory structure for template and static file serving
 # BASE_DIR: Points to the backend/ directory for accessing templates and config
 # TEMPLATES_DIR: Jinja2 template directory for HTML rendering
+# STATIC_DIR: Static assets directory for serving images, CSS, JS files
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
 
 
 @asynccontextmanager
@@ -194,8 +197,12 @@ app = FastAPI(title="SalesBot Backend", lifespan=lifespan)
 # Excluded paths are optimized for performance (health checks, static assets, dev tools)
 app.add_middleware(
     SimpleSessionMiddleware,
-    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail"]
+    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static"]
 )
+
+# Static file serving configuration for assets (images, CSS, JS)
+# Mount static files directory for serving SVG icons and other assets
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Template engine configuration for server-side rendering
 # Jinja2Templates provides HTML template rendering with context injection for dynamic content

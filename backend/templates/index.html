@@ -23,6 +23,105 @@
       .left-actions { display: flex; gap: .5rem; }
       .right-actions { display: flex; gap: .5rem; }
       .stream-indicator { font-size: .85rem; color: #666; display: none; align-self: center; }
+      
+      /* Copy button styles */
+      .msg.bot { position: relative; }
+      .copy-btn { 
+        position: absolute; 
+        bottom: 6px; 
+        right: 6px; 
+        background: rgba(255,255,255,0.9); 
+        border: 1px solid #ddd; 
+        border-radius: 6px; 
+        padding: 4px; 
+        width: 22px; 
+        height: 22px; 
+        opacity: 0.2; 
+        transition: all 0.15s ease; 
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        outline: none;
+      }
+      .copy-btn img { 
+        width: 14px; 
+        height: 14px; 
+        display: block; 
+        transition: filter 0.15s ease;
+      }
+      .msg.bot:hover .copy-btn:not(:disabled), 
+      .copy-btn:focus:not(:disabled) { 
+        opacity: 1; 
+        background: rgba(255,255,255,0.95);
+        border-color: #bbb;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .copy-btn:focus:not(:disabled) {
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 2px rgba(14,165,233,0.2);
+      }
+      .copy-btn:active { 
+        transform: scale(0.96); 
+        background: rgba(255,255,255,1);
+      }
+      .copy-btn:hover img {
+        filter: brightness(0.8);
+      }
+      .copy-btn:disabled {
+        opacity: 0.1;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+      .copy-btn:disabled:hover {
+        opacity: 0.1;
+        background: rgba(255,255,255,0.9);
+        border-color: #ddd;
+        box-shadow: none;
+      }
+      
+      /* Toast notification styles */
+      #copyToast { 
+        position: fixed; 
+        top: 20px; 
+        right: 20px; 
+        background: #111; 
+        color: #fff; 
+        padding: 8px 12px; 
+        border-radius: 6px; 
+        font-size: 12px; 
+        font-weight: 500;
+        opacity: 0; 
+        transition: all 0.2s ease; 
+        transform: translateY(-10px);
+        z-index: 1000; 
+        pointer-events: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        min-width: 80px;
+        text-align: center;
+      }
+      #copyToast.show { 
+        opacity: 0.95; 
+        transform: translateY(0);
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 480px) {
+        #copyToast {
+          top: 10px;
+          left: 10px;
+          right: 10px;
+          text-align: center;
+        }
+        .copy-btn {
+          width: 24px;
+          height: 24px;
+        }
+        .copy-btn img {
+          width: 16px;
+          height: 16px;
+        }
+      }
     </style>
   </head>
   <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}" data-sse-enabled="{{ sse_enabled }}" data-allow-basic-html="{{ allow_basic_html }}">
@@ -55,6 +154,9 @@
       </div>
     </div>
 
+    <!-- Copy Toast Notification -->
+    <div id="copyToast">Copied</div>
+
     <script>
       const input = document.getElementById('messageInput');
       const sendBtn = document.getElementById('sendBtn');
@@ -69,9 +171,117 @@
       function appendMessage(role, text) {
         const div = document.createElement('div');
         div.className = `msg ${role}`;
-        div.textContent = text;
+        
+        if (role === 'bot') {
+          // Create content wrapper for bot messages to preserve copy button
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'msg-content';
+          contentDiv.textContent = text;
+          div.appendChild(contentDiv);
+          addCopyButton(div, text);
+        } else {
+          div.textContent = text;
+        }
+        
         chatPane.appendChild(div);
         chatPane.scrollTop = chatPane.scrollHeight;
+      }
+
+      // Copy functionality
+      function addCopyButton(container, rawText, isStreaming = false) {
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.type = 'button';
+        copyBtn.setAttribute('aria-label', 'Copy message to clipboard');
+        copyBtn.setAttribute('tabindex', '0');
+        copyBtn.title = 'Copy to clipboard';
+        
+        // Disable button during streaming
+        if (isStreaming) {
+          copyBtn.disabled = true;
+          copyBtn.title = 'Wait for message to complete...';
+        }
+        
+        const img = document.createElement('img');
+        img.src = '/static/chat-copy.svg';
+        img.alt = '';
+        img.setAttribute('aria-hidden', 'true');
+        copyBtn.appendChild(img);
+        
+        // Store raw text for copying
+        container.dataset.raw = rawText || container.textContent || '';
+        
+        // Enhanced copy function with better error handling
+        async function performCopy() {
+          // Don't copy if button is disabled (streaming in progress)
+          if (copyBtn.disabled) {
+            showCopyToast('Please wait...');
+            return;
+          }
+          
+          const textToCopy = container.dataset.raw || container.textContent || '';
+          if (!textToCopy.trim()) {
+            showCopyToast('Nothing to copy');
+            return;
+          }
+          
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(textToCopy);
+            } else {
+              // Fallback for older browsers
+              const textarea = document.createElement('textarea');
+              textarea.value = textToCopy;
+              textarea.style.position = 'fixed';
+              textarea.style.left = '-9999px';
+              textarea.style.opacity = '0';
+              document.body.appendChild(textarea);
+              textarea.select();
+              textarea.setSelectionRange(0, 99999); // For mobile devices
+              const successful = document.execCommand && document.execCommand('copy');
+              textarea.remove();
+              if (!successful) throw new Error('execCommand failed');
+            }
+            showCopyToast('Copied to clipboard');
+          } catch (error) {
+            console.warn('Copy failed:', error);
+            showCopyToast('Copy failed');
+          }
+        }
+        
+        // Click handler
+        copyBtn.addEventListener('click', performCopy);
+        
+        // Keyboard navigation support
+        copyBtn.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            performCopy();
+          }
+        });
+        
+        container.appendChild(copyBtn);
+        
+        // Store reference to copy button for enabling later
+        container._copyBtn = copyBtn;
+      }
+
+      // Enable copy button after streaming completes
+      function enableCopyButton(container) {
+        if (container && container._copyBtn) {
+          container._copyBtn.disabled = false;
+          container._copyBtn.title = 'Copy to clipboard';
+        }
+      }
+
+      // Toast notification helper
+      function showCopyToast(message) {
+        const toast = document.getElementById('copyToast');
+        toast.textContent = message || 'Copied';
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 1000);
       }
 
       // Clear chat pane only
@@ -160,7 +370,15 @@
         // Create/append a bot message container to accumulate streamed tokens
         activeBotDiv = document.createElement('div');
         activeBotDiv.className = 'msg bot';
-        activeBotDiv.textContent = '';
+        
+        // Create content wrapper for streaming messages
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'msg-content';
+        contentDiv.textContent = '';
+        activeBotDiv.appendChild(contentDiv);
+        
+        // Add copy button for streaming bot messages (disabled during streaming)
+        addCopyButton(activeBotDiv, '', true);
         chatPane.appendChild(activeBotDiv);
         chatPane.scrollTop = chatPane.scrollHeight;
         accumulated = '';
@@ -176,11 +394,18 @@
               const text = await r.text();
               const allowHtml = (document.body.dataset.allowBasicHtml || 'true') === 'true';
               if (activeBotDiv) {
-                if (allowHtml) {
-                  activeBotDiv.innerHTML = DOMPurify.sanitize(marked.parse(text));
-                } else {
-                  activeBotDiv.textContent = text;
+                // Store raw text for copying
+                activeBotDiv.dataset.raw = text;
+                const contentDiv = activeBotDiv.querySelector('.msg-content');
+                if (contentDiv) {
+                  if (allowHtml) {
+                    contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(text));
+                  } else {
+                    contentDiv.textContent = text;
+                  }
                 }
+                // Enable copy button now that response is complete
+                enableCopyButton(activeBotDiv);
                 activeBotDiv = null;
               }
             })
@@ -205,8 +430,13 @@
           if (!activeBotDiv) return;
           // Accumulate raw stream preserving whitespace
           accumulated += ev.data;
-          // Show interim as text to avoid partial HTML
-          activeBotDiv.textContent = accumulated;
+          // Show interim as text to avoid partial HTML - update content div only
+          const contentDiv = activeBotDiv.querySelector('.msg-content');
+          if (contentDiv) {
+            contentDiv.textContent = accumulated;
+          }
+          // Update raw data for copying
+          activeBotDiv.dataset.raw = accumulated;
           chatPane.scrollTop = chatPane.scrollHeight;
         };
         sse.addEventListener('end', () => {
@@ -219,16 +449,23 @@
           const allowHtml = (document.body.dataset.allowBasicHtml || 'true') === 'true';
           const md = accumulated.trim();
           if (activeBotDiv) {
-            const html = md ? DOMPurify.sanitize(marked.parse(md)) : '';
-            if (allowHtml) {
-              if (!html || html.replace(/\s/g,'') === '') {
-                activeBotDiv.textContent = md || '[no response]';
+            // Always store raw markdown for copying
+            activeBotDiv.dataset.raw = md || '[no response]';
+            const contentDiv = activeBotDiv.querySelector('.msg-content');
+            if (contentDiv) {
+              const html = md ? DOMPurify.sanitize(marked.parse(md)) : '';
+              if (allowHtml) {
+                if (!html || html.replace(/\s/g,'') === '') {
+                  contentDiv.textContent = md || '[no response]';
+                } else {
+                  contentDiv.innerHTML = html;
+                }
               } else {
-                activeBotDiv.innerHTML = html;
+                contentDiv.textContent = md || '[no response]';
               }
-            } else {
-              activeBotDiv.textContent = md || '[no response]';
             }
+            // Enable copy button now that streaming is complete
+            enableCopyButton(activeBotDiv);
           }
           setStreaming(false);
           setActive(false);
