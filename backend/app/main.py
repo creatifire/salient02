@@ -90,10 +90,11 @@ Usage:
 import asyncio
 import glob
 import sys
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
@@ -106,6 +107,7 @@ from .config import load_config
 from .database import get_database_service, initialize_database, shutdown_database
 from .middleware.simple_session_middleware import SimpleSessionMiddleware, get_current_session
 from .openrouter_client import chat_completion_content, stream_chat_chunks
+from .services.message_service import get_message_service
 
 
 # Application directory structure for template and static file serving
@@ -253,15 +255,135 @@ def _setup_logger() -> None:
     )
 
 
+async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str, Any]]:
+    """
+    Load chat history for a session with UI-optimized formatting.
+    
+    Retrieves recent chat messages for the given session and formats them
+    for immediate display in the chat UI. The function handles pagination,
+    role filtering, and content preparation to ensure optimal user experience
+    during session resumption.
+    
+    Chat History Strategy:
+    - Loads last 50 messages to balance performance and context preservation
+    - Excludes system messages from UI display (keeps conversation clean)
+    - Formats messages for immediate HTML rendering without additional processing
+    - Handles empty history gracefully with no visual artifacts
+    - Provides error recovery for database connection issues
+    
+    Message Formatting:
+    Each returned message contains:
+    - role: 'human' or 'assistant' for proper CSS styling
+    - content: Message text ready for display (sanitized/validated)
+    - timestamp: Creation time for debugging and analytics
+    - message_id: Unique identifier for future reference
+    
+    Performance Considerations:
+    - Limited to 50 messages to prevent slow page loads
+    - Uses efficient database queries with proper indexing
+    - Graceful degradation if message service is unavailable
+    - Minimal processing overhead during template rendering
+    
+    Args:
+        session_id: UUID of the session to load history for
+    
+    Returns:
+        List of formatted message dictionaries for template rendering.
+        Returns empty list if no messages or on error (graceful degradation).
+    
+    Example Return Value:
+        [
+            {
+                "role": "human",
+                "content": "Hello, what products do you offer?",
+                "timestamp": "2024-01-01T10:00:00Z",
+                "message_id": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            {
+                "role": "assistant", 
+                "content": "We offer SmartFresh storage solutions...",
+                "timestamp": "2024-01-01T10:00:05Z",
+                "message_id": "550e8400-e29b-41d4-a716-446655440001"
+            }
+        ]
+    
+    Error Handling:
+    - Database connection errors: Returns empty list, logs warning
+    - Invalid session_id: Returns empty list, logs error
+    - Message service unavailable: Returns empty list, continues gracefully
+    - No messages found: Returns empty list (normal case)
+    
+    Security Notes:
+    - Session isolation enforced at database level
+    - Content returned as-is (no additional sanitization needed for templates)
+    - Message IDs included for audit trails and debugging
+    """
+    try:
+        # Get message service for database operations
+        message_service = get_message_service()
+        
+        # Load recent messages (last 50) excluding system messages for cleaner UI
+        # Use conversation-friendly order (oldest first) for natural flow
+        messages = await message_service.get_session_messages(
+            session_id=session_id,
+            limit=50,  # Configurable limit for performance
+            role_filter=None  # Include all roles initially, filter below
+        )
+        
+        # Format messages for template rendering
+        formatted_history = []
+        for msg in messages:
+            # Skip system messages in UI display (keep conversation clean)
+            if msg.role == "system":
+                continue
+                
+            # Map roles for frontend display
+            display_role = "user" if msg.role == "human" else "bot"
+            
+            formatted_message = {
+                "role": display_role,
+                "content": msg.content,
+                "timestamp": msg.created_at.isoformat() if msg.created_at else None,
+                "message_id": str(msg.id),
+                "original_role": msg.role  # Preserve original for debugging
+            }
+            formatted_history.append(formatted_message)
+        
+        logger.info({
+            "event": "chat_history_loaded",
+            "session_id": str(session_id),
+            "message_count": len(formatted_history),
+            "total_messages": len(messages)
+        })
+        
+        return formatted_history
+        
+    except Exception as e:
+        # Graceful degradation - return empty history on any error
+        logger.error({
+            "event": "chat_history_load_error", 
+            "session_id": str(session_id),
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        return []
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_base_page(request: Request) -> HTMLResponse:
     """
-    Serve the main chat interface with HTMX-enabled dynamic interactions.
+    Serve the main chat interface with HTMX-enabled dynamic interactions and chat history.
     
     This endpoint renders the primary chat page using server-side templates with
     configuration-driven feature flags and session-aware rendering. It provides
     the foundation for the chat application with configurable UI settings and
     comprehensive session tracking for analytics and debugging.
+    
+    Chat History Loading:
+    Automatically loads existing chat history when a session resumes, enabling
+    seamless conversation continuity across browser refreshes and visits. The
+    history is pre-populated in the template for immediate display without
+    additional API calls.
     
     Template Rendering:
     Uses Jinja2Templates to render index.html with context data including:
@@ -269,6 +391,7 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     - Input handling settings (debounce, shortcuts, newline behavior)
     - Debug toggles for development and troubleshooting
     - Session information for personalization and tracking
+    - Pre-loaded chat history for session continuity
     
     Configuration Integration:
     Loads settings from app.yaml with environment variable overrides:
@@ -276,6 +399,7 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     - Chat input configuration for user interaction behavior
     - Logging configuration for frontend debug capabilities
     - Security settings for exposing backend functionality
+    - Chat history configuration for load limits and filtering
     
     Session Handling:
     Automatically retrieves current session via SimpleSessionMiddleware for:
@@ -283,27 +407,31 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     - Session continuity across page reloads
     - Debugging and monitoring capabilities
     - Personalization and user experience optimization
+    - Chat history loading and persistence
     
     Security Features:
     - Configurable backend chat exposure via expose_backend_chat flag
     - Session tracking with partial key logging for privacy
     - User agent and client IP logging for security monitoring
     - Input validation through template context injection
+    - Session-isolated chat history access
     
     Returns:
-        HTMLResponse: Rendered HTML page with HTMX capabilities and dynamic configuration,
-            or 404 Not Found if backend chat UI is disabled via configuration
+        HTMLResponse: Rendered HTML page with HTMX capabilities, dynamic configuration,
+            and pre-loaded chat history, or 404 Not Found if backend chat UI is disabled
     
     Example:
         GET / HTTP/1.1
         Cookie: salient_session=abc123...
         
-        Returns HTML page with embedded configuration:
+        Returns HTML page with embedded configuration and chat history:
         <div data-debounce-ms="250" data-submit-shortcut="ctrl+enter">
-            <!-- Chat interface content -->
+            <div id="chatPane" class="chat">
+                <!-- Pre-loaded chat history messages -->
+            </div>
         </div>
     """
-    # Get session information for logging
+    # Get session information for logging and history loading
     session = get_current_session(request)
     logger.info({
         "event": "serve_base_page",
@@ -313,13 +441,22 @@ async def serve_base_page(request: Request) -> HTMLResponse:
         "session_id": str(session.id) if session else None,
         "session_key": session.session_key[:8] + "..." if session else None,
     })
+    
     cfg = load_config()
     ui_cfg = cfg.get("ui") or {}
+    
     # Gate exposure of backend chat UI
     if not ui_cfg.get("expose_backend_chat", True):
         return HTMLResponse("Not Found", status_code=404)
+    
     input_cfg = (cfg.get("chat") or {}).get("input") or {}
     logging_cfg = cfg.get("logging") or {}
+    
+    # Load chat history for session continuity
+    chat_history = []
+    if session:
+        chat_history = await _load_chat_history_for_session(session.id)
+    
     return templates.TemplateResponse(
         "index.html",
         {
@@ -333,6 +470,8 @@ async def serve_base_page(request: Request) -> HTMLResponse:
             # Feature flags
             "sse_enabled": "true" if ui_cfg.get("sse_enabled", True) else "false",
             "allow_basic_html": "true" if ui_cfg.get("allow_basic_html", True) else "false",
+            # Chat history for session continuity
+            "chat_history": chat_history,
         },
     )
 

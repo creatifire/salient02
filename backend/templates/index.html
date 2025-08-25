@@ -129,7 +129,22 @@
       <h1>Salient (Baseline)</h1>
 
       <!-- Chat History first -->
-      <div id="chatPane" class="chat" aria-live="polite"></div>
+      <div id="chatPane" class="chat" aria-live="polite">
+        {% if chat_history %}
+          {% for message in chat_history %}
+            <div class="msg {{ message.role }}" data-message-id="{{ message.message_id }}" data-timestamp="{{ message.timestamp }}">
+              {% if message.role == 'bot' %}
+                <div class="msg-content">{{ message.content }}</div>
+                <button class="copy-btn" type="button" aria-label="Copy message to clipboard" tabindex="0" title="Copy to clipboard">
+                  <img src="/static/chat-copy.svg" alt="" aria-hidden="true">
+                </button>
+              {% else %}
+                {{ message.content }}
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
 
       <!-- Input box next -->
       <textarea id="messageInput" class="textarea" placeholder="Type your message... (Ctrl+Enter to send; Enter inserts newline)"></textarea>
@@ -543,6 +558,33 @@
           setStreaming(false);
         };
       });
+
+      // Initialize pre-loaded chat history
+      function initializeChatHistory() {
+        // Enable copy functionality for pre-loaded bot messages
+        const preloadedBotMessages = chatPane.querySelectorAll('.msg.bot');
+        preloadedBotMessages.forEach(msgDiv => {
+          enableCopyButton(msgDiv);
+          
+          // Store the raw content for copying
+          const contentDiv = msgDiv.querySelector('.msg-content');
+          if (contentDiv) {
+            msgDiv.dataset.raw = contentDiv.textContent || contentDiv.innerText || '';
+          }
+        });
+        
+        // Scroll to bottom to show most recent messages
+        chatPane.scrollTop = chatPane.scrollHeight;
+        
+        // Log history load for debugging
+        if (document.body.dataset.frontendDebug === 'true') {
+          const messageCount = chatPane.querySelectorAll('.msg').length;
+          console.log(`[Chat History] Loaded ${messageCount} messages`);
+        }
+      }
+      
+      // Initialize on page load
+      document.addEventListener('DOMContentLoaded', initializeChatHistory);
     </script>
   </body>
   </html>

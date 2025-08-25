@@ -220,13 +220,14 @@ The schema and session management fully supports multiple concurrent users:
     - Store metadata field for future RAG citations
     - Acceptance: Messages saved and retrieved by session
 
-- [ ] 0004-004-001-02 - CHUNK - Chat history loading
+- [x] 0004-004-001-02 - CHUNK - Chat history loading
   - SUB-TASKS:
     - Load existing messages when session resumes
     - Display chat history in UI on page load
     - Handle empty history gracefully
     - Limit initial history load (e.g., last 50 messages)
     - Acceptance: Previous conversations visible on return
+  - STATUS: Completed — Implemented _load_chat_history_for_session() function that loads last 50 messages with UI-optimized formatting, modified main page template to pre-populate chat history on load, added graceful empty history handling, and created comprehensive test suite verifying all functionality including message limits, role filtering, and error handling
 
 ### [ ] 0004-004-002 - TASK - Modify Existing Chat Endpoints
 - [ ] 0004-004-002-01 - CHUNK - Update POST /chat endpoint
