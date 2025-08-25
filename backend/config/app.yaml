@@ -12,10 +12,13 @@ database:
 session:
   cookie_name: "salient_session"
   cookie_max_age: 604800  # 7 days
-  cookie_secure: false    # true in production
+  cookie_secure: false    # true in production (set via environment)
   cookie_httponly: true
-  cookie_samesite: "lax"
+  cookie_samesite: "lax"  # "none" for cross-origin production (set via environment)
+  cookie_domain: null     # Set via environment for production (e.g., ".yourcompany.com")
   inactivity_minutes: 30  # Session timeout after 30 minutes of inactivity
+  # Cross-origin settings for production deployment
+  production_cross_origin: false  # Enable cross-origin session sharing for production
 
 redis:
   # Redis URL is loaded from REDIS_URL environment variable for security

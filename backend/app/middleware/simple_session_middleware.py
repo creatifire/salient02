@@ -394,14 +394,52 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
                 
                 # Set session cookie with comprehensive security settings
                 # These settings provide defense against XSS, CSRF, and session hijacking
-                response.set_cookie(
-                    key=session_config.get("cookie_name", "salient_session"),  # Cookie name
-                    value=session.session_key,  # Session identifier value
-                    max_age=session_config.get("cookie_max_age", 604800),  # 7 days default
-                    secure=session_config.get("cookie_secure", False),  # HTTPS only (production)
-                    httponly=session_config.get("cookie_httponly", True),  # XSS protection
-                    samesite=session_config.get("cookie_samesite", "lax")  # CSRF protection
-                )
+                # Production cross-origin detection
+                production_cross_origin = session_config.get("production_cross_origin", False)
+                cookie_secure = session_config.get("cookie_secure", False)
+                cookie_domain = session_config.get("cookie_domain")
+                
+                # Override from environment variables for production deployment
+                import os
+                if os.getenv("PRODUCTION_CROSS_ORIGIN") == "true":
+                    production_cross_origin = True
+                if os.getenv("COOKIE_SECURE") == "true":
+                    cookie_secure = True
+                if os.getenv("COOKIE_DOMAIN"):
+                    cookie_domain = os.getenv("COOKIE_DOMAIN")
+                
+                # Determine cookie settings based on deployment mode
+                if production_cross_origin and cookie_secure:
+                    # Production cross-origin: SameSite=None with Secure=True
+                    cookie_samesite = "none"
+                    logger.debug(f"Using production cross-origin cookie settings (SameSite=none, Secure=true, Domain={cookie_domain})")
+                elif production_cross_origin and not cookie_secure:
+                    # Development cross-origin: No SameSite restriction with HTTP
+                    cookie_samesite = None
+                    logger.debug("Using development cross-origin cookie settings (no SameSite restriction)")
+                else:
+                    # Standard same-origin settings
+                    cookie_samesite = session_config.get("cookie_samesite", "lax")
+                    logger.debug(f"Using standard same-origin cookie settings (SameSite={cookie_samesite})")
+                
+                # Build cookie parameters, omitting samesite when None for maximum cross-origin compatibility
+                cookie_params = {
+                    "key": session_config.get("cookie_name", "salient_session"),
+                    "value": session.session_key,
+                    "max_age": session_config.get("cookie_max_age", 604800),
+                    "secure": cookie_secure,
+                    "httponly": session_config.get("cookie_httponly", True),
+                }
+                
+                # Add domain if specified for cross-origin sharing
+                if cookie_domain:
+                    cookie_params["domain"] = cookie_domain
+                
+                # Only add samesite parameter if we have a specific value (omit for None)
+                if cookie_samesite is not None:
+                    cookie_params["samesite"] = cookie_samesite
+                
+                response.set_cookie(**cookie_params)
             except Exception as e:
                 # Cookie setting errors should not break the response
                 # Log error but continue with response delivery

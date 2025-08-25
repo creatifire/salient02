@@ -867,6 +867,53 @@ async def get_session_info(request: Request) -> JSONResponse:
     })
 
 
+@app.get("/api/chat/history", response_class=JSONResponse)
+async def get_chat_history(request: Request) -> JSONResponse:
+    """
+    Get chat history for the current session.
+    
+    This endpoint retrieves the chat message history for the current user session,
+    formatted for frontend consumption. It provides the same history loading logic
+    as the main page but through a dedicated API endpoint for dynamic loading.
+    
+    Returns:
+        JSONResponse: Chat history with messages array formatted for UI display
+        
+    Example Response:
+        {
+            "session_id": "123e4567-e89b-12d3-a456-426614174000",
+            "messages": [
+                {
+                    "message_id": "msg-uuid",
+                    "role": "human", 
+                    "content": "Hello",
+                    "timestamp": "2023-01-01T12:00:00Z"
+                },
+                {
+                    "message_id": "msg-uuid-2",
+                    "role": "assistant",
+                    "content": "Hi there!",
+                    "timestamp": "2023-01-01T12:00:01Z"
+                }
+            ]
+        }
+    """
+    session = get_current_session(request)
+    if not session:
+        logger.warning("Chat history requested but no session found")
+        return JSONResponse({"error": "Unauthorized", "messages": []}, status_code=401)
+    
+    try:
+        chat_history = await _load_chat_history_for_session(session.id)
+        return JSONResponse({
+            "session_id": str(session.id),
+            "messages": chat_history
+        })
+    except Exception as e:
+        logger.error(f"Failed to load chat history for session {session.id}: {e}")
+        return JSONResponse({"error": "Failed to load chat history", "messages": []}, status_code=500)
+
+
 @app.get("/dev/logs/tail", response_class=JSONResponse)
 async def tail_logs(request: Request) -> JSONResponse:
     cfg = load_config()

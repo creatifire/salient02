@@ -325,13 +325,89 @@ The schema and session management fully supports multiple concurrent users:
     - Update documentation to reflect single source of truth approach
     - Acceptance: All frontend components use consistent configuration source
 
-- [ ] 0004-004-002-04 - CHUNK - Cross-origin session handling
+- [x] 0004-004-002-04 - CHUNK - Cross-origin session handling
   - SUB-TASKS:
     - Document session cookie behavior across different ports (localhost:8000 vs localhost:4321)
     - Add development mode detection for relaxed cookie settings during demo testing
     - Implement session bridging mechanism for demo pages or document workarounds
     - Add clear documentation about demo page limitations and testing approaches
     - Acceptance: Demo pages work correctly or limitations are clearly documented
+  - STATUS: Completed — Implemented production-ready cross-origin session management with environment-based configuration (PRODUCTION_CROSS_ORIGIN, COOKIE_SECURE, COOKIE_DOMAIN), added comprehensive production deployment documentation, created proper CORS configuration for FastAPI backend, added session and chat history API endpoints for frontend integration, documented complete production architecture with Docker deployment and Nginx configuration, and provided deployment checklist for cross-origin Astro + FastAPI applications
+
+- [ ] 0004-004-002-05 - CHUNK - Frontend chat history loading for demo pages
+  - SUB-TASKS:
+    - Add JavaScript function to load chat history via `/api/chat/history` endpoint
+    - Implement history rendering in HTMX demo page (`web/src/pages/demo/htmx-chat.astro`)
+    - Handle empty history gracefully in frontend components
+    - Add proper error handling for history loading failures
+    - Ensure history loads on page refresh and maintains proper message ordering
+    - Style historical messages consistently with new messages
+    - Add loading indicators during history fetch
+    - Acceptance: Demo pages reload chat history on page refresh, displaying previous conversation seamlessly
+
+#### Implementation Details for CHUNK 0004-004-002-04
+
+**Files Modified:**
+- `backend/config/app.yaml`: Updated session configuration for production cross-origin support
+- `backend/app/middleware/simple_session_middleware.py`: Enhanced with environment-based cookie configuration
+- `backend/app/main.py`: Added `/api/chat/history` endpoint for frontend integration
+- `memorybank/architecture/cross-origin-session-handling.md`: Comprehensive development documentation
+- `memorybank/architecture/production-cross-origin-plan.md`: Complete production deployment guide
+- `memorybank/architecture/production-deployment-config.md`: Environment configuration and Docker setup
+
+**Backend Configuration Enhancements:**
+```yaml
+# backend/config/app.yaml - Updated session section
+session:
+  cookie_name: "salient_session"
+  cookie_max_age: 604800  # 7 days
+  cookie_secure: false    # true in production (set via environment)
+  cookie_httponly: true
+  cookie_samesite: "lax"  # "none" for cross-origin production (set via environment)
+  cookie_domain: null     # Set via environment for production (e.g., ".yourcompany.com")
+  inactivity_minutes: 30  # Session timeout after 30 minutes of inactivity
+  # Cross-origin settings for production deployment
+  production_cross_origin: false  # Enable cross-origin session sharing for production
+```
+
+**Session Middleware Updates:**
+- Environment variable detection: `PRODUCTION_CROSS_ORIGIN`, `COOKIE_SECURE`, `COOKIE_DOMAIN`
+- Dynamic cookie configuration based on deployment mode
+- Production cross-origin: `SameSite=none` with `Secure=true`
+- Development cross-origin: No SameSite restriction with HTTP support
+- Comprehensive logging for configuration decisions
+
+**New API Endpoints:**
+```python
+# Added to backend/app/main.py
+@app.get("/api/chat/history", response_class=JSONResponse)
+async def get_chat_history(request: Request) -> JSONResponse:
+    # Returns chat history for current session in JSON format
+    # Enables frontend components to load chat history dynamically
+```
+
+**Production Architecture Documentation:**
+- Complete Astro + FastAPI cross-origin deployment pattern
+- Docker containerization with multi-service setup
+- Nginx reverse proxy configuration for HTTPS termination
+- CORS configuration for FastAPI backend
+- Environment variable management for production security
+- Session cookie sharing across subdomains
+- Frontend API integration patterns with credentials
+
+**Security Considerations:**
+- HTTPS-only cookies in production with `Secure=true`
+- Cross-origin compatibility with `SameSite=none`
+- Domain-wide session sharing with `Domain=.yourcompany.com`
+- Comprehensive CORS allowlist configuration
+- Environment-driven security flag management
+
+**Deployment Checklist:**
+- Frontend: Static Astro deployment with environment configuration
+- Backend: Dockerized FastAPI with production-grade session handling
+- Database: PostgreSQL with proper connection pooling
+- Monitoring: Health checks and session activity logging
+- Testing: Cross-origin request validation and session persistence verification
 
 ### [ ] 0004-004-003 - TASK - Enhanced Session Information Display
 - [ ] 0004-004-003-01 - CHUNK - Session info API enhancement

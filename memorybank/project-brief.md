@@ -57,6 +57,9 @@
 - [Data Model & ER Diagram](./architecture/datamodel.md)
 - [SalesBot Integration Options](./architecture/salesbot-integration.md)
 - [Demo Integration Strategy](./architecture/demo-integrations.md)
+- [Cross-Origin Session Handling](./architecture/cross-origin-session-handling.md)
+- [Production Cross-Origin Plan](./architecture/production-cross-origin-plan.md)
+- [Production Deployment Configuration](./architecture/production-deployment-config.md)
 
 ## Planning
 - [Plans](./project-management/0000-epics.md) contains the high level plans, with each file getting its own epic file
