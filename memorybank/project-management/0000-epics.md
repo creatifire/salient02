@@ -187,3 +187,12 @@
         - New Profiles Added
 
 - 1028 - SDK for Developing Applications with Salient
+
+- 1030 - Something like: https://www.delphi.ai/
+  - Digital You
+  - Digital Expert in a domain
+  - Web, Phone, SMS
+
+- 1031 - Something like: https://www.dumplingai.com/
+  - Turn one Video, Podcast, Webinar into 20 pieces of content
+  - INtegrate via MCP Server
