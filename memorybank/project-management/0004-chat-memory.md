@@ -212,7 +212,7 @@ The schema and session management fully supports multiple concurrent users:
 ## 0004-004 - FEATURE - Message Persistence & Chat History
 
 ### [ ] 0004-004-001 - TASK - Message Storage
-- [ ] 0004-004-001-01 - CHUNK - Message service module
+- [x] 0004-004-001-01 - CHUNK - Message service module
   - SUB-TASKS:
     - Create `backend/app/services/message_service.py`
     - Implement `save_message()`, `get_session_messages()`, `get_recent_context()`
