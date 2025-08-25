@@ -230,13 +230,61 @@ The schema and session management fully supports multiple concurrent users:
   - STATUS: Completed — Implemented _load_chat_history_for_session() function that loads last 50 messages with UI-optimized formatting, modified main page template to pre-populate chat history on load, added graceful empty history handling, and created comprehensive test suite verifying all functionality including message limits, role filtering, and error handling
 
 ### [ ] 0004-004-002 - TASK - Modify Existing Chat Endpoints
-- [ ] 0004-004-002-01 - CHUNK - Update POST /chat endpoint
+
+#### Configuration Architecture Analysis & Recommendation
+
+**Problem Identified:** During testing, discovered configuration inconsistency between backend and frontend for endpoint selection, leading to messages not persisting when using demo pages.
+
+**Current Architecture:**
+- **Backend:** Uses `sse_enabled` setting in `app.yaml` under `ui` section
+- **Frontend Demo Pages:** Use separate `PUBLIC_SSE_ENABLED` environment variable
+- **Chat Endpoints:** 
+  - `GET /events/stream` (SSE streaming, primary)
+  - `POST /chat` (non-streaming fallback)
+
+**Analysis - app.yaml vs .env:**
+
+**app.yaml Advantages:**
+- ✅ Version controlled and consistent across environments
+- ✅ Structured configuration with logical organization
+- ✅ Backend-centric (server knows its own capabilities)
+- ✅ Production ready with deployment templating support
+- ✅ Single source of truth for application configuration
+- ✅ Type validation possible at startup
+
+**app.yaml Disadvantages:**
+- ❌ Requires application restart for changes
+- ❌ Less flexible for environment-specific overrides
+
+**.env Advantages:**
+- ✅ Runtime flexibility without rebuild
+- ✅ Environment-specific configuration
+- ✅ Conventional location for secrets
+- ✅ Developer-friendly modification
+
+**.env Disadvantages:**
+- ❌ Not version controlled (environment drift risk)
+- ❌ Frontend/backend configuration duplication
+- ❌ Type unsafe (all values are strings)
+
+**Recommendation:**
+- **Single setting:** `sse_enabled` in `app.yaml` under `ui` section
+- **Rationale:** This controls implementation strategy, not separate protocols. Both endpoints provide same functionality with different UX (streaming vs complete response)
+- **Implementation:** Backend passes setting to frontend templates, eliminating duplication
+- **Environment variables:** Reserved for secrets only (DATABASE_URL, API keys)
+
+**Root Cause:** The configuration location isn't the issue - the SSE endpoint lacks message persistence. Solution is implementing CHUNK 0004-004-002-02 rather than configuration changes.
+
+**Implementation Chunks:**
+
+- [x] 0004-004-002-01 - CHUNK - Update POST /chat endpoint
   - SUB-TASKS:
     - Save human message to database before LLM call
     - Save assistant response after LLM completion
     - Include session context in request logging
     - Maintain existing response format/behavior
     - Acceptance: Chat persists without UI changes
+  - STATUS: Completed — Enhanced POST /chat endpoint with comprehensive message persistence, saving user messages before LLM calls and assistant responses after completion, added detailed session context logging with message previews and metadata, maintained existing response format/behavior for compatibility, implemented graceful error handling for database failures, and verified functionality through testing
 
 - [ ] 0004-004-002-02 - CHUNK - Update GET /events/stream endpoint  
   - SUB-TASKS:
@@ -245,6 +293,49 @@ The schema and session management fully supports multiple concurrent users:
     - Ensure message completeness on stream end
     - Link to session properly
     - Acceptance: Streamed messages persist correctly
+
+- [ ] 0004-004-002-03 - CHUNK - Configuration consistency cleanup
+  - SUB-TASKS:
+    - Remove PUBLIC_SSE_ENABLED from Astro demo pages
+    - Update demo pages to read sse_enabled from backend API or build-time injection
+    - Verify frontend templates receive sse_enabled from app.yaml consistently
+    - Remove environment variable duplication for configuration settings
+    - Update documentation to reflect single source of truth approach
+    - Acceptance: All frontend components use consistent configuration source
+
+- [ ] 0004-004-002-04 - CHUNK - Cross-origin session handling
+  - SUB-TASKS:
+    - Document session cookie behavior across different ports (localhost:8000 vs localhost:4321)
+    - Add development mode detection for relaxed cookie settings during demo testing
+    - Implement session bridging mechanism for demo pages or document workarounds
+    - Add clear documentation about demo page limitations and testing approaches
+    - Acceptance: Demo pages work correctly or limitations are clearly documented
+
+### [ ] 0004-004-003 - TASK - Enhanced Session Information Display
+- [ ] 0004-004-003-01 - CHUNK - Session info API enhancement
+  - SUB-TASKS:
+    - Extend GET /api/session endpoint to include LLM configuration
+    - Add current model, provider, temperature, and max_tokens to response
+    - Include configuration source information (YAML vs environment)
+    - Add last LLM usage statistics (if available)
+    - Acceptance: Session API returns comprehensive configuration data
+
+- [ ] 0004-004-003-02 - CHUNK - Frontend session info UI enhancement
+  - SUB-TASKS:
+    - Update session info button display to include LLM model information
+    - Add formatted display for model configuration (provider/model)
+    - Include temperature and max_tokens settings with user-friendly labels
+    - Add visual indicators for configuration source (config file vs environment)
+    - Style LLM configuration section distinctly from session data
+    - Acceptance: Session info shows current LLM model and settings clearly
+
+- [ ] 0004-004-003-03 - CHUNK - Configuration change detection
+  - SUB-TASKS:
+    - Add configuration version/timestamp to session info
+    - Detect when configuration differs from what was used for last request
+    - Add warning indicators for configuration mismatches
+    - Include configuration reload timestamp in display
+    - Acceptance: Users can see if configuration has changed since last interaction
 
 ## 0004-005 - FEATURE - LLM Request Tracking
 

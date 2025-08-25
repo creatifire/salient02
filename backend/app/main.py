@@ -696,9 +696,39 @@ async def sse_stream(request: Request):
 
 @app.post("/chat", response_class=PlainTextResponse)
 async def chat_fallback(request: Request) -> PlainTextResponse:
-    """Non-stream fallback: returns full assistant text in one response."""
-    # Get session information for context  
+    """
+    Non-stream fallback chat endpoint with comprehensive message persistence.
+    
+    This endpoint provides a synchronous alternative to the SSE streaming endpoint,
+    returning complete assistant responses in a single HTTP response. It includes
+    full message persistence, session tracking, and maintains compatibility with
+    existing frontend implementations.
+    
+    Message Persistence Flow:
+    1. Save user message to database before LLM call
+    2. Process LLM request with OpenRouter integration
+    3. Save assistant response to database after completion
+    4. Return response while maintaining existing format
+    
+    Session Integration:
+    - Automatically links messages to current browser session
+    - Enables conversation history and continuity
+    - Supports session-based analytics and tracking
+    
+    Error Handling:
+    - Database persistence failures don't block LLM responses
+    - Graceful degradation ensures chat functionality continues
+    - Comprehensive logging for debugging and monitoring
+    
+    Returns:
+        PlainTextResponse: Assistant response text for client rendering
+    """
+    # Get session information for context and message persistence
     session = get_current_session(request)
+    if not session:
+        logger.error("No session available for chat request")
+        return PlainTextResponse("Session error", status_code=500)
+    
     cfg = load_config()
     body = await request.json()
     message = str(body.get("message") or "").strip()
@@ -717,8 +747,36 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         "model": model,
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "session_id": str(session.id) if session else None,
+        "session_id": str(session.id),
+        "session_key": session.session_key[:8] + "..." if session.session_key else None,
+        "message_preview": message[:100] + "..." if len(message) > 100 else message,
     })
+
+    # Save user message to database before LLM call
+    message_service = get_message_service()
+    user_message_id = None
+    
+    try:
+        user_message_id = await message_service.save_message(
+            session_id=session.id,
+            role="human",
+            content=message,
+            metadata={"source": "chat_fallback", "model": model}
+        )
+        logger.info({
+            "event": "user_message_saved",
+            "session_id": str(session.id),
+            "message_id": str(user_message_id),
+            "content_length": len(message)
+        })
+    except Exception as e:
+        # Log error but continue with chat functionality
+        logger.error({
+            "event": "user_message_save_failed",
+            "session_id": str(session.id),
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
 
     # Build optional headers for OpenRouter (recommended)
     headers = {}
@@ -735,15 +793,60 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     except Exception:
         pass
 
-    text = await chat_completion_content(
-        message=message,
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        extra_headers=headers or None,
-    )
-    # Return plain text; client will render Markdown + sanitize when allowed
-    return PlainTextResponse(text)
+    # Get LLM response
+    try:
+        text = await chat_completion_content(
+            message=message,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            extra_headers=headers or None,
+        )
+        
+        # Save assistant response to database after LLM completion
+        try:
+            assistant_message_id = await message_service.save_message(
+                session_id=session.id,
+                role="assistant",
+                content=text,
+                metadata={
+                    "source": "chat_fallback",
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "user_message_id": str(user_message_id) if user_message_id else None
+                }
+            )
+            logger.info({
+                "event": "assistant_message_saved",
+                "session_id": str(session.id),
+                "message_id": str(assistant_message_id),
+                "user_message_id": str(user_message_id) if user_message_id else None,
+                "content_length": len(text),
+                "model": model
+            })
+        except Exception as e:
+            # Log error but don't block response
+            logger.error({
+                "event": "assistant_message_save_failed",
+                "session_id": str(session.id),
+                "user_message_id": str(user_message_id) if user_message_id else None,
+                "error": str(e),
+                "error_type": type(e).__name__
+            })
+        
+        # Return plain text; client will render Markdown + sanitize when allowed
+        return PlainTextResponse(text)
+        
+    except Exception as e:
+        logger.error({
+            "event": "llm_request_failed",
+            "session_id": str(session.id),
+            "user_message_id": str(user_message_id) if user_message_id else None,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        return PlainTextResponse("Sorry, I'm having trouble responding right now.", status_code=500)
 
 
 @app.get("/api/session", response_class=JSONResponse)
