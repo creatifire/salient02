@@ -275,6 +275,28 @@ The schema and session management fully supports multiple concurrent users:
 
 **Root Cause:** The configuration location isn't the issue - the SSE endpoint lacks message persistence. Solution is implementing CHUNK 0004-004-002-02 rather than configuration changes.
 
+#### Chat Interface Endpoint Usage Matrix
+
+| **Page/Widget** | **Location** | **Primary Endpoint** | **Fallback Endpoint** | **Configuration Source** | **Notes** |
+|---|---|---|---|---|---|
+| **Backend Main Chat** | `backend/templates/index.html` | `GET /events/stream` | `POST /chat` | `app.yaml: ui.sse_enabled` | Production chat interface, session-aware |
+| **HTMX Demo (Astro)** | `web/src/pages/demo/htmx-chat.astro` | `POST /chat` | `GET /events/stream` | `SSE_ENABLED = false` (hardcoded) | Modified for persistence testing |
+| **HTMX Demo (Plain)** | `web/public/htmx-chat.html` | `GET /events/stream` | `POST /chat` | SSE with POST fallback on error | Standalone HTML file |
+| **Shadow DOM Widget** | `web/public/widget/chat-widget.js` | `GET /events/stream` | `POST /chat` | `data-sse="0"` attribute | Embeddable widget, configurable |
+| **Widget Demo Page** | `web/src/pages/demo/widget.astro` | Inherits from widget | Inherits from widget | Widget configuration | Demonstrates widget integration |
+| **Iframe Demo** | `web/src/pages/demo/iframe.astro` | Inherits from backend | Inherits from backend | Backend configuration | Embeds backend main chat |
+
+**Test Coverage Requirements:**
+- ✅ **POST /chat persistence** - Verified via HTMX Demo (Astro) and direct API testing
+- ❌ **GET /events/stream persistence** - Not yet implemented (CHUNK 0004-004-002-02)
+- ⚠️ **Cross-origin session handling** - Known limitation for demo pages on different ports
+- ✅ **Configuration consistency** - Backend controls behavior, frontend respects settings
+
+**Endpoint Decision Logic:**
+1. **SSE-first interfaces**: Check `sse_enabled` setting, fall back to POST on errors
+2. **POST-first interfaces**: Use POST directly (current testing configuration)
+3. **Widget**: Configurable via `data-sse` attribute (default: SSE enabled)
+
 **Implementation Chunks:**
 
 - [x] 0004-004-002-01 - CHUNK - Update POST /chat endpoint
