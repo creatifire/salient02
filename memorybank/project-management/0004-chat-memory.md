@@ -288,9 +288,11 @@ The schema and session management fully supports multiple concurrent users:
 
 **Test Coverage Requirements:**
 - ✅ **POST /chat persistence** - Verified via HTMX Demo (Astro) and direct API testing
-- ❌ **GET /events/stream persistence** - Not yet implemented (CHUNK 0004-004-002-02)
-- ⚠️ **Cross-origin session handling** - Known limitation for demo pages on different ports
+- ✅ **GET /events/stream persistence** - Completed in CHUNK 0004-004-002-02
+- ✅ **Cross-origin session handling** - Completed in CHUNK 0004-004-002-04
 - ✅ **Configuration consistency** - Backend controls behavior, frontend respects settings
+- ✅ **Backend markdown formatting** - Tables, line breaks, copy buttons working
+- ❌ **Frontend markdown consistency** - Need to apply fixes to demo pages and widget (CHUNK 0004-004-002-06)
 
 **Endpoint Decision Logic:**
 1. **SSE-first interfaces**: Check `sse_enabled` setting, fall back to POST on errors
@@ -345,6 +347,59 @@ The schema and session management fully supports multiple concurrent users:
     - Style historical messages consistently with new messages
     - Add loading indicators during history fetch
     - Acceptance: Demo pages reload chat history on page refresh, displaying previous conversation seamlessly
+
+- [ ] 0004-004-002-06 - CHUNK - Markdown formatting for HTMX-Based Chat Integration (Astro Framework)
+  - SUB-TASKS:
+    - Fix HTMX Demo (Astro) at `web/src/pages/demo/htmx-chat.astro`
+    - Add `{ breaks: true }` to markdown processing in Astro HTMX implementation
+    - Implement interim line break preservation (`\n` → `<br>`) during streaming
+    - Add table styling CSS to Astro demo page
+    - Test poetry, tables, and copy functionality in Astro environment
+    - Acceptance: Astro HTMX demo renders markdown consistently with backend
+  - PRIORITY: High - Server-side rendered Astro page with HTMX for dynamic chat
+  - DEPENDENCIES: Requires completed backend markdown processing (already done)
+
+- [ ] 0004-004-002-07 - CHUNK - Markdown formatting for Standalone HTMX Integration (Plain HTML)
+  - SUB-TASKS:
+    - Fix Plain HTMX Demo at `web/public/htmx-chat.html`
+    - Update standalone HTML file with proper markdown configuration
+    - Ensure table rendering and line break handling match backend behavior
+    - Add table styling CSS to standalone HTML implementation
+    - Verify cross-origin functionality and session handling
+    - Acceptance: Standalone HTML demo renders markdown consistently with backend
+  - PRIORITY: High - Self-contained HTML file with HTMX, no framework dependencies
+  - DEPENDENCIES: Requires completed backend markdown processing (already done)
+
+- [ ] 0004-004-002-08 - CHUNK - Markdown formatting for Embeddable Widget Integration (Shadow DOM)
+  - SUB-TASKS:
+    - Update Shadow DOM Widget (`web/public/widget/chat-widget.js`) markdown processing
+    - Fix line 37: Add `{ breaks: true }` to `marked.parse()` calls
+    - Fix line 180: Add interim line break preservation during streaming
+    - Add table styling CSS within shadow DOM styles
+    - Ensure copy button functionality works within shadow DOM
+    - Test widget embedding across different domains and contexts
+    - Acceptance: Widget renders markdown consistently with backend in all embedding scenarios
+  - PRIORITY: High - Encapsulated widget for embedding in third-party sites
+  - DEPENDENCIES: Requires completed backend markdown processing (already done)
+
+- [ ] 0004-004-002-09 - CHUNK - Cross-Strategy Markdown Validation (All 5 Integration Strategies)
+  - SUB-TASKS:
+    - Verify markdown consistency across all FIVE integration strategies:
+      1. **Backend FastAPI Template** (`backend/templates/index.html`) - ✅ Already working
+      2. **HTMX-Based Chat (Astro Framework)** (`web/src/pages/demo/htmx-chat.astro`) - Needs fixes
+      3. **Standalone HTMX (Plain HTML)** (`web/public/htmx-chat.html`) - Needs fixes  
+      4. **Embeddable Widget (Shadow DOM)** (`web/public/widget/chat-widget.js`) - Needs fixes
+      5. **iFrame Integration** (`web/src/pages/demo/iframe.astro`) - ✅ Already working (uses backend template)
+    - Test identical content (tables, poetry, formatting) renders the same way across all 5 strategies
+    - Ensure copy functionality preserves original markdown in all strategies
+    - Validate streaming behavior consistency across SSE and POST endpoints for all interfaces
+    - Document integration-specific considerations and limitations for each strategy
+    - Create comprehensive test matrix for markdown rendering across all 5 chat interfaces
+    - Verify cross-origin functionality works correctly for strategies 2, 3, 4, and 5
+    - Ensure session handling consistency across all integration approaches
+    - Acceptance: All 5 chat integration strategies provide identical markdown rendering experience
+  - PRIORITY: Medium - Quality assurance across all integration approaches
+  - DEPENDENCIES: Requires completion of chunks 0004-004-002-06, 0004-004-002-07, 0004-004-002-08
 
 #### Implementation Details for CHUNK 0004-004-002-04
 
