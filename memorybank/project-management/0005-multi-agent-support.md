@@ -10,105 +10,129 @@
 - **Tool Integration**: Agent-specific tool calling and workflow orchestration
 - **Context Preservation**: Maintain conversation context across agent handoffs
 
-## Core Architectural Question: Agent Endpoint Strategy
+## Core Architectural Questions
 
-### The Challenge
-When implementing multiple agents with different:
-- **Workflows**: Customer service vs. technical support vs. sales
-- **Tool Access**: Database queries vs. API calls vs. file operations
-- **Knowledge Domains**: Product docs vs. support tickets vs. company policies
-- **Response Patterns**: Structured data vs. conversational vs. analytical
+### Multi-Dimensional Agent Architecture
+The system must handle two distinct dimensions:
 
-**How should we structure the API endpoints?**
+#### 1. **Agent Types (Agentic Workflows)**
+Different agent workflows implemented in pydantic.ai:
+- **Sales Agent**: CRM integration, lead qualification, pricing
+- **Digital Expert**: Content ingestion, persona modeling, knowledge extraction
+- **Support Agent**: Ticket management, knowledge base queries
+- **Research Agent**: Document analysis, competitive intelligence
 
-### Option 1: Single Unified Endpoint with Agent Routing
+#### 2. **Agent Instances (Configuration Variants)**
+Same workflow configured differently for specific use cases:
+- **Vector Database**: Different Pinecone namespaces or dedicated indexes
+- **MCP Servers**: Different tools and API access levels
+- **Tool Restrictions**: Account-specific permissions and capabilities
+- **Pricing Tiers**: Different feature sets and usage limits
+
+### Multi-Tenant Account Architecture
 ```
-POST /chat
-{
-  "message": "What's the status of order #12345?",
-  "agent": "customer-service",  // Optional: explicit agent selection
-  "context": {...}
-}
-
-// System automatically routes to appropriate agent based on:
-// - Explicit agent parameter
-// - Intent classification of message
-// - Conversation history and context
-// - User permissions and role
+Account → Agent Template Selection → Instance Configuration → Deployed Agent
+├── account-123/sales-agent-enterprise    (Dedicated Pinecone index)
+├── account-123/digital-expert-ceo        (Specialized content corpus)
+└── account-456/sales-agent-startup       (Shared Pinecone namespace)
 ```
 
-**Pros:**
-- ✅ Consistent API interface for all chat interactions
-- ✅ Transparent agent switching within conversations
-- ✅ Simplified frontend integration (same endpoint for all)
-- ✅ Intelligent routing can optimize agent selection
-- ✅ Easy A/B testing of routing algorithms
+### Primary Architectural Question: Endpoint Strategy
+**How should we structure API endpoints for multi-tenant, multi-agent, multi-instance architecture?**
 
-**Cons:**
-- ❌ Complex routing logic in single endpoint
-- ❌ Harder to implement agent-specific rate limiting
-- ❌ Difficult to version individual agent capabilities
-- ❌ All agents must share same request/response schema
-
-### Option 2: Dedicated Endpoints per Agent
+### Option 1: Account-Scoped Agent Endpoints (Recommended)
 ```
-POST /agents/customer-service/chat
-POST /agents/technical-support/chat  
-POST /agents/sales-assistant/chat
-POST /agents/document-analyst/chat
+POST /accounts/{account-id}/agents/{agent-id}/chat
+POST /accounts/123/agents/sales-agent-enterprise/chat
+POST /accounts/456/agents/digital-expert-startup/chat
 
-// Each endpoint optimized for specific agent:
-// - Agent-specific request/response schemas
-// - Specialized validation and preprocessing
-// - Agent-specific rate limiting and monitoring
+// Agent discovery per account
+GET /accounts/{account-id}/agents
+GET /accounts/{account-id}/agentic-workflows  // Admin-level templates
+
+// Agent instance management
+POST /accounts/{account-id}/agents            // Create from template
+PUT /accounts/{account-id}/agents/{agent-id}  // Update configuration
+DELETE /accounts/{account-id}/agents/{agent-id}
 ```
 
 **Pros:**
-- ✅ Clear separation of concerns and responsibilities
-- ✅ Agent-specific optimizations and configurations
-- ✅ Independent versioning and deployment per agent
-- ✅ Granular monitoring and rate limiting
-- ✅ Easy to add new agents without affecting existing ones
+- ✅ **Perfect tenant isolation**: Account-based resource boundaries
+- ✅ **Clear billing model**: Easy to track usage per account
+- ✅ **Scalable architecture**: Aligns with Render's multi-service scaling
+- ✅ **Agent-specific optimization**: Each agent can have custom configurations
+- ✅ **Security**: Account-level permissions and access control
 
 **Cons:**
-- ❌ Frontend must know which agent to call
-- ❌ Complex conversation handoffs between agents
-- ❌ Potential inconsistencies across agent interfaces
-- ❌ More complex routing at application layer
+- ❌ **More complex frontend**: Must manage account context
+- ❌ **Agent discovery overhead**: Requires separate calls to list agents
+- ❌ **Cross-agent workflows**: Harder to implement agent handoffs
 
-### Option 3: Hybrid Approach with Smart Routing
+### Option 2: Template-Based Configuration Management
 ```
-// Primary unified endpoint with intelligent routing
-POST /chat
-{
-  "message": "Help me with my order",
-  "preferred_agent": "customer-service",  // Optional hint
-  "allow_handoff": true                   // Allow agent switching
-}
+// Database-stored agent templates
+agent_templates:
+  sales_agent:
+    workflow_class: "SalesAgentWorkflow"
+    pricing_tiers:
+      startup: { tools: ["basic_crm"], vector_db: "pgvector" }
+      enterprise: { tools: ["advanced_crm", "pricing"], vector_db: "pinecone_dedicated" }
+  
+  digital_expert:
+    workflow_class: "DigitalExpertWorkflow"
+    pricing_tiers:
+      standard: { vector_db: "pinecone_namespace" }
+      premium: { vector_db: "pinecone_dedicated", tools: ["advanced_nlp"] }
 
-// Specialized endpoints for direct agent access
-POST /agents/{agent-id}/chat
+// Account agent instance creation
+POST /accounts/{account-id}/agents
 {
-  "message": "Run SQL query on orders table",
-  "tools": ["database", "analytics"],
-  "force_agent": true  // Prevent automatic routing away
+  "template": "sales_agent",
+  "tier": "enterprise",
+  "config_overrides": {
+    "crm_integration": "salesforce",
+    "vector_namespace": "account-123-sales"
+  }
 }
-
-// Agent discovery and capabilities
-GET /agents
-GET /agents/{agent-id}/capabilities
 ```
 
 **Pros:**
-- ✅ Best of both worlds: unified interface + specialized access
-- ✅ Flexibility for different client use cases
-- ✅ Progressive enhancement (start simple, add specialized later)
-- ✅ Clear agent boundaries while maintaining routing intelligence
+- ✅ **Template reusability**: Same workflow, different configurations
+- ✅ **Tiered pricing**: Easy to implement different feature levels
+- ✅ **Database configuration**: Hot-reloadable, admin-friendly
+- ✅ **Account isolation**: Complete data and resource separation
 
 **Cons:**
-- ❌ More complex API surface to maintain
-- ❌ Potential confusion about which endpoint to use
-- ❌ Risk of feature duplication between endpoints
+- ❌ **Configuration complexity**: More moving parts to manage
+- ❌ **Template versioning**: Need to handle template updates gracefully
+
+### Option 3: Vector Database Strategy (Critical Decision)
+```
+// Multi-tier vector database architecture
+
+Entry Tier (Cost-optimized):
+├── PostgreSQL + pgvector
+├── Shared infrastructure
+└── Basic agent templates
+
+Standard Tier (Namespace isolation):
+├── Pinecone with namespaces
+├── account-123-sales-agent
+├── account-123-digital-expert
+└── Shared Pinecone index
+
+Premium Tier (Dedicated resources):
+├── Dedicated Pinecone indexes
+├── Custom MCP server instances
+├── Enhanced tool access
+└── Dedicated Render services
+```
+
+**Multi-Tenant Vector DB Options:**
+- **Pinecone Namespaces**: Perfect for shared hosting with complete data isolation
+- **Dedicated Indexes**: Premium accounts get their own Pinecone indexes
+- **pgvector**: Entry-level PostgreSQL extension for smaller workloads
+- **Hybrid**: Mix of pgvector (entry) → Pinecone namespace (standard) → Dedicated index (premium)
 
 ## Questions for Architectural Decision
 
@@ -213,4 +237,160 @@ Start with **Option 3 (Hybrid)** for these reasons:
 3. **Database Access**: Should agents have direct database access or go through APIs?
 4. **Event Streaming**: Should agent actions generate events for analytics and monitoring?
 
-This epic will establish the foundation for sophisticated AI-powered workflows while maintaining system simplicity and developer experience.
+## Recommended Technical Architecture
+
+### Database Schema (PostgreSQL Primary)
+```sql
+-- Account management
+accounts:
+  id (GUID, PK)
+  name (VARCHAR)
+  tier (VARCHAR) -- entry, standard, premium
+  created_at (TIMESTAMP)
+  billing_settings (JSONB)
+
+-- Agent template definitions
+agent_templates:
+  id (GUID, PK)
+  name (VARCHAR) -- sales_agent, digital_expert
+  workflow_class (VARCHAR) -- pydantic.ai class reference
+  description (TEXT)
+  version (VARCHAR)
+  config_schema (JSONB) -- JSON schema for validation
+  pricing_tiers (JSONB) -- tier-specific configurations
+
+-- Account-specific agent instances
+agent_instances:
+  id (GUID, PK)
+  account_id (GUID, FK → accounts.id)
+  template_id (GUID, FK → agent_templates.id)
+  name (VARCHAR) -- user-friendly name
+  tier (VARCHAR)
+  configuration (JSONB) -- instance-specific config
+  vector_db_config (JSONB) -- Pinecone namespace or pgvector settings
+  mcp_server_configs (JSONB) -- MCP server assignments and tokens
+  status (VARCHAR) -- active, suspended, configuring
+  created_at (TIMESTAMP)
+  updated_at (TIMESTAMP)
+
+-- MCP server registrations
+mcp_servers:
+  id (GUID, PK)
+  name (VARCHAR)
+  type (VARCHAR) -- crm, pricing, content_analysis
+  endpoint_url (VARCHAR)
+  is_stateless (BOOLEAN)
+  supported_tools (VARCHAR[])
+  account_restrictions (JSONB) -- which accounts can access
+
+-- Vector database configurations
+vector_db_configs:
+  id (GUID, PK)
+  account_id (GUID, FK → accounts.id)
+  agent_instance_id (GUID, FK → agent_instances.id)
+  type (VARCHAR) -- pinecone_namespace, pinecone_dedicated, pgvector
+  connection_details (JSONB, encrypted)
+  namespace (VARCHAR) -- for Pinecone
+  index_name (VARCHAR) -- for dedicated indexes
+```
+
+### Infrastructure Strategy (Render-Based)
+```yaml
+# render.yaml for multi-tenant agent platform
+services:
+  - type: web
+    name: agent-platform-api
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    scaling:
+      minInstances: 2
+      maxInstances: 20
+      targetCPUPercent: 70
+    envVars:
+      - key: DATABASE_URL
+        from: render-postgres:platform-db
+      - key: PINECONE_API_KEY
+        from: render-secret:pinecone-key
+
+  - type: backgroundWorker
+    name: agent-orchestrator
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python -m app.workers.agent_orchestrator"
+    instances: 3
+
+  - type: postgres
+    name: platform-db
+    plan: standard-2gb
+    
+  - type: redis
+    name: platform-cache
+    plan: starter
+```
+
+### Configuration Management Strategy
+**Database-Stored Configuration** with caching:
+- **Agent Templates**: Stored in `agent_templates` table
+- **Instance Configs**: Stored in `agent_instances` table  
+- **Runtime Caching**: Redis cache for frequently accessed configs
+- **Hot Reloading**: Configuration changes take effect immediately
+- **Version Control**: Template versioning for backward compatibility
+
+### Vector Database Multi-Tenancy
+```python
+# Pinecone namespace strategy
+def get_vector_config(account_id: str, agent_instance_id: str):
+    config = db.get_vector_config(account_id, agent_instance_id)
+    
+    if config.type == "pinecone_namespace":
+        # Shared index with namespace isolation
+        namespace = f"account-{account_id}-{agent_instance_id}"
+        return PineconeConfig(
+            index_name="shared-multi-tenant",
+            namespace=namespace
+        )
+    elif config.type == "pinecone_dedicated":
+        # Dedicated index for premium accounts
+        return PineconeConfig(
+            index_name=f"dedicated-{account_id}",
+            namespace="default"
+        )
+    elif config.type == "pgvector":
+        # Entry-tier PostgreSQL vector storage
+        return PgVectorConfig(
+            table_name=f"vectors_account_{account_id}_{agent_instance_id}"
+        )
+```
+
+### MCP Server Integration
+```python
+# Stateless MCP servers can be shared
+async def call_mcp_server(
+    server_config: MCPServerConfig,
+    account_id: str,
+    agent_instance_id: str,
+    action: str,
+    **kwargs
+):
+    headers = {"Authorization": f"Bearer {server_config.api_token}"}
+    
+    if not server_config.is_stateless:
+        # Add account context for stateful servers
+        headers["X-Account-ID"] = account_id
+        headers["X-Agent-Instance-ID"] = agent_instance_id
+    
+    response = await httpx.post(
+        f"{server_config.endpoint_url}/{action}",
+        headers=headers,
+        json=kwargs
+    )
+    return response.json()
+```
+
+### Scaling Strategy
+- **Entry/Standard Tiers**: Shared Render services with database-level tenant isolation
+- **Premium Tiers**: Dedicated Render services for complete infrastructure isolation
+- **Auto-scaling**: Render's built-in scaling based on CPU/memory usage
+- **Database Scaling**: PostgreSQL read replicas for improved performance
+- **Cache Layer**: Redis for configuration and session caching
+
+This epic will establish the foundation for a sophisticated, scalable, multi-tenant AI agent platform that can serve diverse customer segments while maintaining cost-effectiveness and operational simplicity.
