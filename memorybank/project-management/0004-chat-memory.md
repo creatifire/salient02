@@ -1042,6 +1042,251 @@ class SessionSecurityMonitor:
 - **Compliance Ready**: Meets regulatory and audit requirements
 - **Future-Proof**: Aligned with evolving security standards
 
+## 0004-012 - FEATURE - Conversation Hierarchy & Management
+
+### Scope & Architecture
+
+**Problem Statement**: Current system stores all messages in a flat session structure, making it difficult to organize extended interactions, provide conversation summaries, or manage long-term chat history. Users need the ability to organize their interactions into discrete conversations with proper archival and summary capabilities.
+
+**Solution Overview**: Introduce a conversation layer between sessions and messages, providing hierarchical organization with automated summarization and lifecycle management.
+
+### Database Schema Extensions
+
+#### New Table: Conversations
+```sql
+conversations:
+  id (GUID, PK)
+  session_id (GUID, FK → sessions.id)
+  title (VARCHAR, nullable)          -- User-edited or LLM-generated title
+  default_title (VARCHAR)            -- Auto-generated default title (e.g., "New Conversation")
+  summary (TEXT, nullable)           -- AI-generated conversation summary
+  status (VARCHAR)                   -- 'active', 'archived'
+  message_count (INTEGER)            -- Cached count for UI performance
+  created_at (TIMESTAMP)
+  updated_at (TIMESTAMP)             -- Last message or activity
+  last_visited_at (TIMESTAMP)        -- Last time user accessed this conversation
+  archived_at (TIMESTAMP, nullable)  -- When conversation was archived
+  metadata (JSONB)                   -- Topics, tags, summary metadata
+```
+
+#### Updated Messages Table
+```sql
+-- Add conversation_id foreign key to existing messages table
+ALTER TABLE messages ADD COLUMN conversation_id (GUID, FK → conversations.id);
+-- Update existing messages to belong to default conversations
+-- Add index for conversation-based message retrieval
+CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at);
+```
+
+#### Configuration Schema (app.yaml)
+```yaml
+conversations:
+  auto_summary_threshold: 10         # Number of messages before generating summary
+  archive_unvisited_after_days: 30   # Days before auto-archiving unvisited conversations
+  delete_archived_after_days: 365    # Days before deleting archived conversations
+  max_title_length: 100              # Maximum characters for conversation titles
+  enable_user_titles: true           # Allow users to edit conversation titles
+  enable_llm_title_revision: true    # Allow LLM to revise conversation titles
+  summary_provider: "openai"         # LLM provider for generating summaries
+  summary_model: "gpt-4o-mini"       # Cost-effective model for summaries
+  title_revision_model: "gpt-4o-mini" # Model for conversation title generation/revision
+```
+
+### [ ] 0004-012-001 - TASK - Database Schema & Model Updates
+
+- [ ] 0004-012-001-01 - CHUNK - Conversation model implementation
+  - SUB-TASKS:
+    - Create `backend/app/models/conversation.py` with full SQLAlchemy model
+    - Add relationships: `session → conversations → messages`
+    - Implement status enum: active, completed, archived
+    - Add indexes for performance: session_id, status, updated_at
+    - Create migration: `alembic revision --autogenerate -m "Add conversations hierarchy"`
+    - Acceptance: Conversation model complete with proper relationships
+
+- [ ] 0004-012-001-02 - CHUNK - Data migration for existing messages
+  - SUB-TASKS:
+    - Create migration script to assign existing messages to default conversations
+    - Group messages by session and time gaps to create logical conversations
+    - Generate initial conversation titles based on first message content
+    - Update message foreign keys to reference conversations
+    - Add data validation and rollback procedures
+    - Acceptance: All existing messages properly organized into conversations
+
+### [ ] 0004-012-002 - TASK - Conversation Service Layer
+
+- [ ] 0004-012-002-01 - CHUNK - Conversation management service
+  - SUB-TASKS:
+    - Create `backend/app/services/conversation_service.py`
+    - Implement `create_conversation()`, `get_session_conversations()`, `update_conversation()`
+    - Add conversation lifecycle management (active → archived)
+    - Implement auto-conversation creation on first site visit
+    - Add conversation title management (user editing and LLM revision)
+    - Implement auto-archival based on `last_visited_at` and configuration
+    - Add `update_last_visited()` tracking for conversation access
+    - Acceptance: Complete conversation CRUD operations with visit-based lifecycle management
+
+- [ ] 0004-012-002-02 - CHUNK - Message service integration
+  - SUB-TASKS:
+    - Update `message_service.py` to work with conversation hierarchy
+    - Modify `save_message()` to assign messages to active conversation
+    - Update `get_session_messages()` to retrieve by conversation
+    - Add `get_conversation_messages()` for conversation-specific retrieval
+    - Implement conversation switching and message context management
+    - Acceptance: Message operations seamlessly work with conversation structure
+
+### [ ] 0004-012-003 - TASK - Conversation Summarization
+
+- [ ] 0004-012-003-01 - CHUNK - AI-powered conversation summarization and title management
+  - SUB-TASKS:
+    - Create `backend/app/services/summary_service.py`
+    - Implement conversation summarization using configured LLM (triggered by message count from app.yaml)
+    - Add conversation title generation and revision using LLM
+    - Create title revision API endpoint for user-requested title updates
+    - Create summary templates for different conversation types
+    - Add cost tracking for summarization and title generation requests
+    - Acceptance: Conversations automatically generate summaries and support title revision
+
+- [ ] 0004-012-003-02 - CHUNK - Summary optimization and caching
+  - SUB-TASKS:
+    - Implement incremental summarization for long conversations
+    - Add summary caching to avoid redundant LLM calls
+    - Create summary quality validation and fallback logic
+    - Add manual summary regeneration capability
+    - Implement summary versioning for audit trails
+    - Acceptance: Efficient, high-quality summarization with cost optimization
+
+### [ ] 0004-012-004 - TASK - Archive & Lifecycle Management
+
+- [ ] 0004-012-004-01 - CHUNK - Conversation archival system
+  - SUB-TASKS:
+    - Implement automatic archival based on `last_visited_at` and app.yaml `archive_unvisited_after_days`
+    - Add manual archival controls for users
+    - Create archived conversation storage optimization
+    - Implement archive restoration functionality (move back to active)
+    - Add archive notification and confirmation workflows
+    - Track conversation visits to update `last_visited_at` timestamp
+    - Acceptance: Conversations automatically archived based on visit patterns with user control options
+
+- [ ] 0004-012-004-02 - CHUNK - Data retention and cleanup
+  - SUB-TASKS:
+    - Implement scheduled cleanup of archived conversations
+    - Add configurable retention policies per conversation type
+    - Create data export functionality before deletion
+    - Implement soft delete with recovery period
+    - Add compliance reporting for data retention
+    - Acceptance: Automated cleanup with compliance and recovery features
+
+### [ ] 0004-012-005 - TASK - Frontend UI Updates
+
+- [ ] 0004-012-005-01 - CHUNK - Conversation list sidebar
+  - SUB-TASKS:
+    - Add conversation list panel to main chat interface
+    - Implement collapsible conversation history with titles and summaries
+    - Add conversation status indicators (active, completed, archived)
+    - Create conversation search and filtering capabilities
+    - Add conversation creation and switching functionality
+    - Acceptance: Users can navigate and manage conversations intuitively
+
+- [ ] 0004-012-005-02 - CHUNK - Conversation management controls
+  - SUB-TASKS:
+    - Add conversation title editing functionality (click to edit)
+    - Add "Ask AI to revise title" button for LLM-powered title generation
+    - Implement manual conversation archival
+    - Create conversation sharing and export features
+    - Add conversation deletion with confirmation
+    - Implement conversation restore from archive
+    - Add visit tracking when user switches between conversations
+    - Acceptance: Complete conversation management with intuitive title editing and AI assistance
+
+### [ ] 0004-012-006 - TASK - API Updates & Integration
+
+- [ ] 0004-012-006-01 - CHUNK - Conversation API endpoints
+  - SUB-TASKS:
+    - Add `GET /api/conversations` for session conversation list
+    - Add `POST /api/conversations` for manual conversation creation
+    - Add `PUT /api/conversations/{id}` for conversation updates (title, status)
+    - Add `PUT /api/conversations/{id}/title` for user title editing
+    - Add `POST /api/conversations/{id}/revise-title` for LLM title revision
+    - Add `POST /api/conversations/{id}/archive` for manual archival
+    - Add `POST /api/conversations/{id}/restore` for archive restoration
+    - Add `DELETE /api/conversations/{id}` for conversation deletion
+    - Add `POST /api/conversations/{id}/summary` for manual summarization
+    - Add visit tracking on conversation access
+    - Acceptance: Complete REST API for conversation management with title revision
+
+- [ ] 0004-012-006-02 - CHUNK - Chat endpoint updates
+  - SUB-TASKS:
+    - Update `POST /chat` to work with active conversation context
+    - Update `GET /events/stream` to maintain conversation continuity
+    - Auto-create first conversation when new user visits site
+    - Add conversation switching without losing context
+    - Update chat history loading to respect conversation boundaries
+    - Update `last_visited_at` timestamp when conversation is accessed
+    - Add conversation metadata to all chat responses
+    - Acceptance: Chat functionality seamlessly integrated with conversations and visit tracking
+
+### Technical Architecture
+
+**🏗️ Hierarchy Structure:**
+```
+Session (User Browser Instance)
+├── Conversation 1 (Topic: Product Inquiry)
+│   ├── Message 1 (Human: "Tell me about your apples")
+│   ├── Message 2 (Assistant: "We grow premium organic apples...")
+│   └── Summary: "Customer inquiring about apple varieties and pricing"
+├── Conversation 2 (Topic: Order Placement)
+│   ├── Message 3 (Human: "I'd like to place an order")
+│   └── Message 4 (Assistant: "I'd be happy to help with your order...")
+└── Conversation 3 (Topic: Support Request - Archived)
+```
+
+**📊 Conversation Lifecycle:**
+1. **Active**: Currently receiving messages or recently visited, displayed prominently
+2. **Archived**: Unvisited conversations (auto-archived after configurable days) or manually archived, collapsed view, scheduled for cleanup
+3. **Deleted**: Permanently removed after retention period in archive
+
+**🎯 UI Organization Strategy:**
+- **Primary View**: Active conversation with full message history
+- **Sidebar**: Collapsible list of conversations (active → archived)
+- **Title Management**: Click to edit titles or "Ask AI to revise title" button
+- **Search**: Conversation titles, summaries, and message content
+- **Archive View**: Separate section for archived conversations with restore options
+- **Auto-Creation**: New conversation automatically created on first site visit
+
+**⚡ Performance Optimizations:**
+- **Lazy Loading**: Load conversation messages on demand
+- **Summary Caching**: Cache conversation summaries for quick display
+- **Pagination**: Paginate conversation lists for sessions with many conversations
+- **Indexing**: Optimize database queries for conversation retrieval
+
+**🔒 Security & Privacy:**
+- **Session Isolation**: Conversations scoped to sessions, no cross-session access
+- **Archive Encryption**: Archived conversations encrypted at rest
+- **Deletion Compliance**: GDPR-compliant deletion with audit trails
+- **Access Logging**: Track conversation access for security monitoring
+
+### Business Benefits
+
+**👥 User Experience:**
+- **Organization**: Easy navigation through conversation history
+- **Context**: Clear conversation boundaries and summaries
+- **Search**: Find specific conversations quickly
+- **Clean Interface**: Reduced clutter with archived conversations
+
+**📈 Business Value:**
+- **Customer Insights**: Conversation summaries reveal customer needs
+- **Data Management**: Organized data for analytics and reporting
+- **Cost Control**: Automated archival reduces storage costs
+- **Compliance**: Proper data retention and deletion policies
+
+**🔧 Development Benefits:**
+- **Scalability**: Hierarchical structure supports growth
+- **Performance**: Optimized queries and data organization
+- **Maintainability**: Clear separation of concerns
+- **Extensibility**: Foundation for advanced features (topics, tags, analytics)
+
+This feature transforms the chat system from a simple message log into a sophisticated conversation management platform while maintaining backward compatibility and excellent performance.
+
 ## Success Criteria
 1. **Restart-safe chats**: Browser refresh loads previous conversation
 2. **Session continuity**: Same browser session resumes automatically
@@ -1049,3 +1294,7 @@ class SessionSecurityMonitor:
 4. **Profile growth**: Customer information builds up over conversation
 5. **Clean codebase**: Services separated, endpoints maintainable
 6. **Code Quality**: All Python code complies with project standards
+7. **Conversation Organization**: Users can navigate multiple conversations per session
+8. **Automatic Summaries**: Conversations generate meaningful AI summaries
+9. **Archive Management**: Old conversations automatically archived and cleaned up
+10. **UI Navigation**: Intuitive conversation switching and management interface
