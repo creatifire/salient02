@@ -120,8 +120,8 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 # Initialize markdown renderer for processing assistant messages
-# Configure with safe defaults for HTML output in chat interface
-markdown_renderer = MarkdownIt("commonmark", {"breaks": True, "html": False})
+# Configure with GFM-like features including tables for comprehensive markdown support
+markdown_renderer = MarkdownIt("default", {"breaks": True, "html": False}).enable(['table'])
 
 
 @asynccontextmanager

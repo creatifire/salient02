@@ -24,6 +24,30 @@
       .right-actions { display: flex; gap: .5rem; }
       .stream-indicator { font-size: .85rem; color: #666; display: none; align-self: center; }
       
+      /* Table styles for markdown tables */
+      .msg.bot table { 
+        border-collapse: collapse; 
+        width: 100%; 
+        margin: 0.5rem 0; 
+        font-size: 0.9rem;
+      }
+      .msg.bot th, .msg.bot td { 
+        border: 1px solid #ddd; 
+        padding: 0.5rem 0.75rem; 
+        text-align: left; 
+      }
+      .msg.bot th { 
+        background-color: #f8f9fa; 
+        font-weight: 600; 
+        border-bottom: 2px solid #ccc;
+      }
+      .msg.bot tr:nth-child(even) { 
+        background-color: #f9f9f9; 
+      }
+      .msg.bot tr:hover { 
+        background-color: #f0f8ff; 
+      }
+      
       /* Copy button styles */
       .msg.bot { position: relative; }
       .copy-btn { 
@@ -414,7 +438,7 @@
                 const contentDiv = activeBotDiv.querySelector('.msg-content');
                 if (contentDiv) {
                   if (allowHtml) {
-                    contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(text));
+                    contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(text, { breaks: true }));
                   } else {
                     contentDiv.textContent = text;
                   }
@@ -445,10 +469,13 @@
           if (!activeBotDiv) return;
           // Accumulate raw stream preserving whitespace
           accumulated += ev.data;
-          // Show interim as text to avoid partial HTML - update content div only
+          // Show interim with basic line break preservation
           const contentDiv = activeBotDiv.querySelector('.msg-content');
           if (contentDiv) {
-            contentDiv.textContent = accumulated;
+            // Convert line breaks to <br> tags for better display during streaming
+            // This provides better interim formatting while still showing plain text structure
+            const textWithBreaks = accumulated.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+            contentDiv.innerHTML = textWithBreaks;
           }
           // Update raw data for copying
           activeBotDiv.dataset.raw = accumulated;
@@ -468,7 +495,8 @@
             activeBotDiv.dataset.raw = md || '[no response]';
             const contentDiv = activeBotDiv.querySelector('.msg-content');
             if (contentDiv) {
-              const html = md ? DOMPurify.sanitize(marked.parse(md)) : '';
+              // Configure marked with breaks option to match server-side markdown-it behavior
+              const html = md ? DOMPurify.sanitize(marked.parse(md, { breaks: true })) : '';
               if (allowHtml) {
                 if (!html || html.replace(/\s/g,'') === '') {
                   contentDiv.textContent = md || '[no response]';
@@ -570,11 +598,64 @@
         
         const preloadedBotMessages = chatPane.querySelectorAll('.msg.bot');
         
-        // Enable copy functionality for pre-loaded bot messages
+        // Initialize copy functionality for pre-loaded bot messages
         preloadedBotMessages.forEach(msgDiv => {
-          // Raw content for copying is already stored in data-raw attribute
-          // No additional processing needed since markdown is rendered server-side
-          enableCopyButton(msgDiv);
+          // Find the existing copy button in the template
+          const copyBtn = msgDiv.querySelector('.copy-btn');
+          if (copyBtn) {
+            // Set up the copy button reference for compatibility with enableCopyButton
+            msgDiv._copyBtn = copyBtn;
+            
+            // Raw content for copying is already stored in data-raw attribute
+            const rawContent = msgDiv.dataset.raw || '';
+            
+            // Enhanced copy function with better error handling
+            async function performCopy() {
+              const textToCopy = rawContent || msgDiv.textContent || '';
+              if (!textToCopy.trim()) {
+                showCopyToast('Nothing to copy');
+                return;
+              }
+              
+              try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  await navigator.clipboard.writeText(textToCopy);
+                } else {
+                  // Fallback for older browsers
+                  const textarea = document.createElement('textarea');
+                  textarea.value = textToCopy;
+                  textarea.style.position = 'fixed';
+                  textarea.style.left = '-9999px';
+                  textarea.style.opacity = '0';
+                  document.body.appendChild(textarea);
+                  textarea.select();
+                  textarea.setSelectionRange(0, 99999); // For mobile devices
+                  const successful = document.execCommand && document.execCommand('copy');
+                  textarea.remove();
+                  if (!successful) throw new Error('execCommand failed');
+                }
+                showCopyToast('Copied to clipboard');
+              } catch (error) {
+                console.warn('Copy failed:', error);
+                showCopyToast('Copy failed');
+              }
+            }
+            
+            // Click handler
+            copyBtn.addEventListener('click', performCopy);
+            
+            // Keyboard navigation support
+            copyBtn.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                performCopy();
+              }
+            });
+            
+            // Ensure button is enabled
+            copyBtn.disabled = false;
+            copyBtn.title = 'Copy to clipboard';
+          }
         });
         
         // Scroll to bottom to show most recent messages
