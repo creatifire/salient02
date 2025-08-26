@@ -132,9 +132,9 @@
       <div id="chatPane" class="chat" aria-live="polite">
         {% if chat_history %}
           {% for message in chat_history %}
-            <div class="msg {{ message.role }}" data-message-id="{{ message.message_id }}" data-timestamp="{{ message.timestamp }}">
+            <div class="msg {{ message.role }}" data-message-id="{{ message.message_id }}" data-timestamp="{{ message.timestamp }}" {% if message.role == 'bot' %}data-raw="{{ message.raw_content }}"{% endif %}>
               {% if message.role == 'bot' %}
-                <div class="msg-content">{{ message.content }}</div>
+                <div class="msg-content">{{ message.content | safe }}</div>
                 <button class="copy-btn" type="button" aria-label="Copy message to clipboard" tabindex="0" title="Copy to clipboard">
                   <img src="/static/chat-copy.svg" alt="" aria-hidden="true">
                 </button>
@@ -561,16 +561,20 @@
 
       // Initialize pre-loaded chat history
       function initializeChatHistory() {
-        // Enable copy functionality for pre-loaded bot messages
+        // Process pre-loaded bot messages (markdown already rendered server-side)
+        const chatPane = document.getElementById('chatPane');
+        if (!chatPane) {
+          console.warn('[Chat History] Chat pane not found');
+          return;
+        }
+        
         const preloadedBotMessages = chatPane.querySelectorAll('.msg.bot');
+        
+        // Enable copy functionality for pre-loaded bot messages
         preloadedBotMessages.forEach(msgDiv => {
+          // Raw content for copying is already stored in data-raw attribute
+          // No additional processing needed since markdown is rendered server-side
           enableCopyButton(msgDiv);
-          
-          // Store the raw content for copying
-          const contentDiv = msgDiv.querySelector('.msg-content');
-          if (contentDiv) {
-            msgDiv.dataset.raw = contentDiv.textContent || contentDiv.innerText || '';
-          }
         });
         
         // Scroll to bottom to show most recent messages

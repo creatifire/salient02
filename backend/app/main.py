@@ -101,6 +101,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger
+from markdown_it import MarkdownIt
 from sse_starlette.sse import EventSourceResponse
 
 from .config import load_config
@@ -117,6 +118,10 @@ from .services.message_service import get_message_service
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+
+# Initialize markdown renderer for processing assistant messages
+# Configure with safe defaults for HTML output in chat interface
+markdown_renderer = MarkdownIt("commonmark", {"breaks": True, "html": False})
 
 
 @asynccontextmanager
@@ -340,9 +345,32 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
             # Map roles for frontend display
             display_role = "user" if msg.role == "human" else "bot"
             
+            # Process content based on configuration and role
+            processed_content = msg.content
+            if display_role == "bot":
+                # Get configuration for HTML processing
+                cfg = load_config()
+                ui_cfg = cfg.get("ui") or {}
+                allow_basic_html = ui_cfg.get("allow_basic_html", True)
+                
+                # Render markdown for assistant messages if HTML is allowed
+                if allow_basic_html and processed_content:
+                    try:
+                        processed_content = markdown_renderer.render(processed_content)
+                    except Exception as e:
+                        logger.warning({
+                            "event": "markdown_render_failed",
+                            "session_id": str(session_id),
+                            "message_id": str(msg.id),
+                            "error": str(e)
+                        })
+                        # Fallback to original content if markdown rendering fails
+                        processed_content = msg.content
+            
             formatted_message = {
                 "role": display_role,
-                "content": msg.content,
+                "content": processed_content,
+                "raw_content": msg.content,  # Store original for copying
                 "timestamp": msg.created_at.isoformat() if msg.created_at else None,
                 "message_id": str(msg.id),
                 "original_role": msg.role  # Preserve original for debugging
@@ -586,13 +614,32 @@ async def health() -> dict:
 
 @app.get("/events/stream")
 async def sse_stream(request: Request):
-    """SSE endpoint that streams incremental text chunks.
+    """
+    SSE endpoint that streams incremental text chunks with message persistence.
+
+    This endpoint provides Server-Sent Events streaming for LLM responses while
+    maintaining complete message persistence and session tracking. It accumulates
+    streaming chunks and saves both user and assistant messages to the database.
 
     Query params (optional):
     - message: seed text to stream back token-by-token (defaults to demo text)
+    - llm: "1" to use actual LLM, otherwise demo mode
+
+    Persistence Flow:
+    1. Save user message to database before streaming starts
+    2. Accumulate assistant message chunks during streaming
+    3. Save complete assistant message when streaming ends
+    4. Maintain session continuity and chat history
+
+    Returns:
+        EventSourceResponse: Streaming SSE response with message persistence
     """
-    # Get session information for context
+    # Get session information for context and message persistence
     session = get_current_session(request)
+    if not session:
+        logger.error("No session available for SSE request")
+        return HTMLResponse("Session error", status_code=500)
+    
     cfg = load_config()
     # Gate by ui.sse_enabled
     if not (cfg.get("ui") or {}).get("sse_enabled", True):
@@ -615,10 +662,42 @@ async def sse_stream(request: Request):
         "model": model,
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "session_id": str(session.id) if session else None,
+        "session_id": str(session.id),
+        "session_key": session.session_key[:8] + "..." if session.session_key else None,
+        "message_preview": seed[:100] + "..." if seed and len(seed) > 100 else seed,
     })
 
+    # Save user message to database before streaming starts (if provided)
+    message_service = get_message_service()
+    user_message_id = None
+    
+    if seed and seed.strip():
+        try:
+            user_message_id = await message_service.save_message(
+                session_id=session.id,
+                role="human",
+                content=seed.strip(),
+                metadata={"source": "sse_stream", "model": model}
+            )
+            logger.info({
+                "event": "user_message_saved",
+                "session_id": str(session.id),
+                "message_id": str(user_message_id),
+                "content_length": len(seed.strip())
+            })
+        except Exception as e:
+            # Log error but continue with streaming functionality
+            logger.error({
+                "event": "user_message_save_failed",
+                "session_id": str(session.id),
+                "error": str(e),
+                "error_type": type(e).__name__
+            })
+
     async def event_generator():
+        # Accumulate assistant message chunks for persistence
+        assistant_chunks = []
+        
         try:
             if use_llm and seed:
                 # Build optional headers for OpenRouter (recommended)
@@ -635,6 +714,8 @@ async def sse_stream(request: Request):
                     headers["X-Title"] = app_name
                 except Exception:
                     pass
+                
+                # Stream LLM response while accumulating chunks
                 async for tok in stream_chat_chunks(
                     message=seed,
                     model=model,
@@ -648,13 +729,53 @@ async def sse_stream(request: Request):
                             "path": "/events/stream",
                         })
                         break
+                    
+                    # Accumulate chunk for persistence
+                    assistant_chunks.append(tok)
+                    
+                    # Stream chunk to client
                     yield {"data": tok}
                     await asyncio.sleep(0.04)
+                
+                # Save complete assistant message to database
+                if assistant_chunks and not await request.is_disconnected():
+                    complete_response = "".join(assistant_chunks)
+                    try:
+                        assistant_message_id = await message_service.save_message(
+                            session_id=session.id,
+                            role="assistant",
+                            content=complete_response,
+                            metadata={
+                                "source": "sse_stream",
+                                "model": model,
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                                "user_message_id": str(user_message_id) if user_message_id else None,
+                                "streaming": True
+                            }
+                        )
+                        logger.info({
+                            "event": "assistant_message_saved",
+                            "session_id": str(session.id),
+                            "message_id": str(assistant_message_id),
+                            "content_length": len(complete_response),
+                            "chunks_count": len(assistant_chunks)
+                        })
+                    except Exception as e:
+                        # Log error but don't interrupt streaming
+                        logger.error({
+                            "event": "assistant_message_save_failed",
+                            "session_id": str(session.id),
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "content_length": len(complete_response)
+                        })
+                
                 # Graceful end signal
                 if not await request.is_disconnected():
                     yield {"event": "end", "data": "end"}
             else:
-                # Simulate tokenization and latency
+                # Demo mode: simulate tokenization and latency
                 msg = seed or "This is a streaming demo using Server-Sent Events."
                 tokens = msg.split()
                 # Honor a rough max_tokens cap
@@ -668,13 +789,58 @@ async def sse_stream(request: Request):
                         break
                     if count >= max_tokens:
                         break
+                    
+                    # Accumulate chunk for persistence
+                    assistant_chunks.append(tok + " ")
+                    
+                    # Stream chunk to client
                     yield {"data": tok + " "}
                     count += 1
                     await asyncio.sleep(0.12)
+                
                 # Include a short footer with config context
                 footer = f"\n[model={model} temp={temperature} max_tokens={max_tokens}]"
+                assistant_chunks.append(footer)
+                
                 if not await request.is_disconnected():
                     yield {"data": footer}
+                    
+                    # Save demo response to database
+                    complete_response = "".join(assistant_chunks)
+                    try:
+                        assistant_message_id = await message_service.save_message(
+                            session_id=session.id,
+                            role="assistant",
+                            content=complete_response,
+                            metadata={
+                                "source": "sse_stream_demo",
+                                "model": model,
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                                "user_message_id": str(user_message_id) if user_message_id else None,
+                                "streaming": True,
+                                "demo_mode": True
+                            }
+                        )
+                        logger.info({
+                            "event": "assistant_message_saved",
+                            "session_id": str(session.id),
+                            "message_id": str(assistant_message_id),
+                            "content_length": len(complete_response),
+                            "chunks_count": len(assistant_chunks),
+                            "demo_mode": True
+                        })
+                    except Exception as e:
+                        # Log error but don't interrupt streaming
+                        logger.error({
+                            "event": "assistant_message_save_failed",
+                            "session_id": str(session.id),
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "content_length": len(complete_response),
+                            "demo_mode": True
+                        })
+                    
                     # Graceful end signal
                     yield {"event": "end", "data": "end"}
         except Exception as exc:

@@ -308,13 +308,14 @@ The schema and session management fully supports multiple concurrent users:
     - Acceptance: Chat persists without UI changes
   - STATUS: Completed — Enhanced POST /chat endpoint with comprehensive message persistence, saving user messages before LLM calls and assistant responses after completion, added detailed session context logging with message previews and metadata, maintained existing response format/behavior for compatibility, implemented graceful error handling for database failures, and verified functionality through testing
 
-- [ ] 0004-004-002-02 - CHUNK - Update GET /events/stream endpoint  
+- [x] 0004-004-002-02 - CHUNK - Update GET /events/stream endpoint  
   - SUB-TASKS:
     - Save assistant message chunks during streaming
     - Handle streaming vs non-streaming message persistence
     - Ensure message completeness on stream end
     - Link to session properly
     - Acceptance: Streamed messages persist correctly
+  - STATUS: Completed — Enhanced SSE endpoint with comprehensive message persistence, saving user messages before streaming starts and accumulating assistant response chunks during streaming, implemented complete message saving on stream end for both LLM and demo modes, added proper session linking and metadata tracking, maintained existing streaming functionality while adding full database persistence, and verified functionality through testing with both demo and real LLM responses
 
 - [ ] 0004-004-002-03 - CHUNK - Configuration consistency cleanup
   - SUB-TASKS:
