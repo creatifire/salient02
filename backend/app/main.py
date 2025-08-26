@@ -504,6 +504,35 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/api/config", response_class=JSONResponse)
+async def get_frontend_config(request: Request) -> JSONResponse:
+    """
+    Get frontend configuration settings from app.yaml.
+    
+    Provides a centralized API endpoint for frontend components to retrieve
+    configuration settings, ensuring consistent behavior across all chat
+    integration strategies. This eliminates the need for environment variable
+    duplication and hardcoded settings in frontend code.
+    
+    Returns:
+        JSONResponse: Frontend configuration object with ui and chat settings
+    """
+    cfg = load_config()
+    
+    # Extract only frontend-relevant configuration
+    frontend_config = {
+        "ui": {
+            "sse_enabled": cfg.get("ui", {}).get("sse_enabled", True),
+            "allow_basic_html": cfg.get("ui", {}).get("allow_basic_html", True),
+        },
+        "chat": {
+            "input": cfg.get("chat", {}).get("input", {})
+        }
+    }
+    
+    return JSONResponse(frontend_config)
+
+
 @app.get("/health")
 async def health() -> dict:
     """

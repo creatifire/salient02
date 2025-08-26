@@ -104,10 +104,31 @@
         finally{ setBusy(false); }
       }
 
-      function send(){
+      let configCache = null;
+      async function getConfig(){
+        if (configCache) return configCache;
+        try{
+          const r = await fetch('/api/config');
+          configCache = r.ok ? await r.json() : { ui: { sse_enabled: true, allow_basic_html: true } };
+        }catch{
+          configCache = { ui: { sse_enabled: true, allow_basic_html: true } };
+        }
+        return configCache;
+      }
+
+      async function send(){
         if (busy) return; const value=(msg.value||'').trim(); if(!value) return;
         append('user', value); msg.value='';
         activeBotDiv = append('bot',''); accumulated=''; setBusy(true);
+        
+        const config = await getConfig();
+        const sseEnabled = config.ui.sse_enabled;
+        
+        if (!sseEnabled) {
+          doPost(value);
+          return;
+        }
+        
         const url = new URL('/events/stream', window.location.origin); url.searchParams.set('llm','1'); url.searchParams.set('message', value);
         try{
           const es = new EventSource(url.toString()); activeSSE=es;

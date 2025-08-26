@@ -319,14 +319,22 @@ The schema and session management fully supports multiple concurrent users:
     - Acceptance: Streamed messages persist correctly
   - STATUS: Completed — Enhanced SSE endpoint with comprehensive message persistence, saving user messages before streaming starts and accumulating assistant response chunks during streaming, implemented complete message saving on stream end for both LLM and demo modes, added proper session linking and metadata tracking, maintained existing streaming functionality while adding full database persistence, and verified functionality through testing with both demo and real LLM responses
 
-- [ ] 0004-004-002-03 - CHUNK - Configuration consistency cleanup
-  - SUB-TASKS:
-    - Remove PUBLIC_SSE_ENABLED from Astro demo pages
-    - Update demo pages to read sse_enabled from backend API or build-time injection
-    - Verify frontend templates receive sse_enabled from app.yaml consistently
-    - Remove environment variable duplication for configuration settings
-    - Update documentation to reflect single source of truth approach
-    - Acceptance: All frontend components use consistent configuration source
+- [x] 0004-004-002-03 - CHUNK - Configuration consistency cleanup ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Remove PUBLIC_SSE_ENABLED from Astro demo pages
+    - ✅ Update demo pages to read sse_enabled from backend API or build-time injection
+    - ✅ Verify frontend templates receive sse_enabled from app.yaml consistently
+    - ✅ Remove environment variable duplication for configuration settings
+    - ✅ Update documentation to reflect single source of truth approach
+    - Acceptance: ✅ All frontend components use consistent configuration source
+  
+  **Implementation Details:**
+  - **Added `/api/config` endpoint**: Provides centralized configuration API for frontend components
+  - **Updated Astro demo**: Now fetches backend configuration at build time instead of hardcoded values
+  - **Updated standalone HTML**: Added configuration fetching with graceful fallbacks
+  - **Updated widget**: Respects backend `sse_enabled` setting in addition to client preferences
+  - **Maintained environment variables**: Only kept appropriate env vars for feature enablement and deployment targets
+  - **Single source of truth**: All UI behavior settings now flow from `app.yaml` → backend API → frontend components
 
 - [x] 0004-004-002-04 - CHUNK - Cross-origin session handling
   - SUB-TASKS:

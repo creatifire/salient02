@@ -1,8 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { CHAT_TARGET } from '../../lib/chatTarget';
-const SSE_ENABLED = false; // Force POST endpoint for testing message persistence
-const ALLOW_BASIC_HTML = (import.meta.env.PUBLIC_ALLOW_BASIC_HTML ?? 'true') === 'true';
+
 // Dev-only exposure control: default disabled in prod unless explicitly enabled
 const ENABLE_STANDALONE = (
   import.meta.env.PUBLIC_ENABLE_STANDALONE_CHAT ?? (import.meta.env.DEV ? 'true' : 'false')
@@ -10,6 +9,25 @@ const ENABLE_STANDALONE = (
 if (!ENABLE_STANDALONE) {
   return Astro.redirect('/');
 }
+
+// Load configuration from backend API at build time
+let config = { ui: { sse_enabled: true, allow_basic_html: true } }; // fallback defaults
+try {
+  // In development, use the dev server; in production, use the configured target
+  const configUrl = import.meta.env.DEV 
+    ? 'http://localhost:8000/api/config'
+    : `${new URL(CHAT_TARGET).origin}/api/config`;
+  
+  const response = await fetch(configUrl);
+  if (response.ok) {
+    config = await response.json();
+  }
+} catch (error) {
+  console.warn('Failed to load backend config, using defaults:', error);
+}
+
+const SSE_ENABLED = config.ui.sse_enabled;
+const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
 ---
 <Layout>
   <a href="#chat-main" class="skip-link">Skip to chat</a>

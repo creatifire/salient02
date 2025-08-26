@@ -158,6 +158,20 @@
     function setMessage(container, raw){ const content = container.querySelector('.content') || container; content.textContent = raw; container.dataset.raw = raw; chat.scrollTop = chat.scrollHeight; }
 
     let busy=false; let activeSSE=null; let activeBotDiv=null; let accumulated='';
+    let configCache = null;
+    
+    async function getBackendConfig(){
+      if (configCache) return configCache;
+      try{
+        const configUrl = new URL('/api/config', backend);
+        const r = await fetch(configUrl.toString(), { mode: allowCross ? 'cors' : 'same-origin' });
+        configCache = r.ok ? await r.json() : { ui: { sse_enabled: true, allow_basic_html: true } };
+      }catch{
+        configCache = { ui: { sse_enabled: true, allow_basic_html: true } };
+      }
+      return configCache;
+    }
+    
     function setBusy(v){ busy=v; send.disabled=v; send.style.opacity=v?'.6':'1'; hint.style.display=v?'inline':'none'; }
 
     async function sendMessage(){
@@ -167,12 +181,19 @@
       // Create bot container for streaming
       activeBotDiv = createMessage('bot', '');
       accumulated = '';
+      
+      // Get backend configuration to respect sse_enabled setting
+      const config = await getBackendConfig();
+      const backendSseEnabled = config.ui.sse_enabled;
+      
       try{
         const sseUrl = new URL('/events/stream', backend); sseUrl.searchParams.set('llm','1'); sseUrl.searchParams.set('message', value);
         const postUrl = new URL(chatPath, backend);
         const same = postUrl.origin === window.location.origin;
         if (!allowCross && !same){ setMessage(activeBotDiv, 'Configuration requires same-origin for widget.'); setBusy(false); return; }
-        if (ssePreferred){
+        
+        // Use SSE only if both ssePreferred (client) and backendSseEnabled (server) are true
+        if (ssePreferred && backendSseEnabled){
           // Start SSE
           console.debug('[SalientWidget] SSE', sseUrl.toString());
           const es = new EventSource(sseUrl.toString());
