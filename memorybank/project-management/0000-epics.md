@@ -4,8 +4,12 @@
 02. [Baseline Connectivity](./0002-baseline-connectivity.md)
 03. [Website & HTMX Chatbot](./0003-website-htmx-chatbot.md)
 04. [Chat Memory & Persistence](./0004-chat-memory.md)
-05. [Agent Infrastructure & Sales Agent]
-06. [Advanced Persistence Features]
+05. [Multi-Agent Support](./0005-multi-agent-support.md)
+06. [Public Chat](./0006-public-chat.md)
+07. [Enterprise Chat](./0007-enterprise-chat.md)
+08. [Sales Agent](./0008-sales-agent.md)
+09. [Digital Concierge](./0009-digital-concierge.md)
+10. [Advanced Persistence Features]
 
 ## Epic Backlog
 
