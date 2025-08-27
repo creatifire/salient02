@@ -13,18 +13,15 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 ### 🔥 **Critical Fixes - Week 1**
 1. **0004-004-002-05** - Frontend chat history loading for demo pages
    - **Impact**: Demo pages currently broken without history persistence
-   - **Effort**: 1-2 days
    - **Blocker**: Prevents effective demo and testing
 
 2. **0004-004-002-06/07/08** - Markdown formatting consistency
    - **Impact**: User experience inconsistency across chat interfaces
-   - **Effort**: 3-4 days
    - **Critical**: Affects all 5 integration strategies
 
 ### 📋 **Documentation Cleanup - Week 2**
 3. **0003-007-007** - Complete standalone chat documentation
    - **Impact**: Developer onboarding and maintenance
-   - **Effort**: 1 day
    - **Low Risk**: Documentation only
 
 ## Short-Term Strategy (Sprints 2-3)
@@ -33,7 +30,6 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 1. **0004-012 - Conversation Hierarchy & Management** (Priority #1)
    - **Business Value**: Transforms chat from simple log to conversation management platform
    - **Scope**: 6 tasks, 12 chunks
-   - **Timeline**: 2-3 sprints
    - **Dependencies**: Database migration, service layer updates, UI redesign
    - **Risk**: Complex schema changes require careful migration planning
 
@@ -41,20 +37,17 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 2. **0003-003-002 - Preact Chat Widget Component** (Priority #2)
    - **Business Value**: Enables modern React ecosystem integration
    - **Scope**: 7 chunks
-   - **Timeline**: 1.5 sprints
    - **Dependencies**: Shadow DOM widget completion (already done)
 
 3. **0003-003-003 - React Chat Widget Component** (Priority #3)
    - **Business Value**: Completes widget trio (Shadow DOM, Preact, React)
    - **Scope**: 7 chunks
-   - **Timeline**: 1 sprint (after Preact completion)
    - **Dependencies**: Preact widget patterns established
 
 ### 💰 **Business Intelligence**
 4. **0004-005 - LLM Request Tracking** (Priority #4)
    - **Business Value**: Cost monitoring and usage analytics
    - **Scope**: 2 tasks, 2 chunks
-   - **Timeline**: 0.5 sprint
    - **Low Risk**: Additive feature, no breaking changes
 
 ## Medium-Term Objectives (Sprints 4-6)
@@ -63,21 +56,18 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 1. **0003-009/008 - HTMX 2.0.6 Upgrade**
    - **Technical Debt**: Currently using HTMX 1.9.12
    - **Scope**: 9 tasks, 10 chunks combined
-   - **Timeline**: 1.5 sprints
    - **Risk**: Breaking changes require careful testing
 
 ### 🛡️ **Production Readiness**
 2. **0004-011 - Session Security Hardening**
    - **Compliance**: Production security requirements
    - **Scope**: 3 tasks, 6 chunks  
-   - **Timeline**: 1 sprint
    - **Critical**: Required before production deployment
 
 ### ✨ **User Experience Enhancement**
 3. **0003-010 - Chat Widget Maximize/Minimize Toggle**
    - **UX Value**: Improved widget usability
    - **Scope**: 8 tasks, 16 chunks
-   - **Timeline**: 2 sprints
    - **Enhancement**: Can be deferred if needed
 
 ## Long-Term Roadmap (Sprints 7+)
@@ -98,7 +88,7 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 ### **Core Capabilities**
 - **Lead Qualification**: Intelligent scoring and routing based on conversation patterns
 - **Product Knowledge**: Deep catalog integration with recommendation engine
-- **CRM Integration**: Salesforce, HubSpot, Dynamics connectivity with bidirectional sync
+- **CRM Integration**: Zoho CRM and Salesforce connectivity with bidirectional sync
 - **Quote Generation**: Dynamic pricing with approval workflows
 - **Follow-up Automation**: Personalized email sequences and appointment scheduling
 
