@@ -1,129 +1,109 @@
-# Epic 0008 - Sales Agent
+# Epic 0008 - Sales Agent (Milestone 1)
 
-> Goal: Implement a specialized sales agent with CRM integration, lead qualification, product knowledge, pricing assistance, and sales process automation to enhance sales team productivity and customer conversion rates.
+> Goal: Implement Milestone 1 sales agent with essential CRM integration, customer profile capture, conversation summaries, and appointment scheduling to establish the foundation for a complete sales automation system.
 
 ## Scope & Approach
 
-### Sales Agent Capabilities
-- **Lead Qualification**: Intelligent lead scoring and qualification based on conversation patterns
-- **Product Knowledge**: Deep integration with product catalogs and technical specifications
-- **Pricing & Quotes**: Dynamic pricing assistance and quote generation
-- **CRM Integration**: Seamless integration with popular CRM systems for lead management
-- **Sales Process Automation**: Automated follow-ups, appointment scheduling, and pipeline management
+### Milestone 1 Core Capabilities
+- **Page Source Tracking**: Track which website page initiated each conversation
+- **Customer Profile Capture**: Collect and store customer information during conversations
+- **Conversation Summaries**: Generate and send summaries to customers and sales team
+- **Appointment Scheduling**: Enable booking of sales appointments
+- **CRM Integration**: Log leads and conversations into Zoho, Salesforce, and HubSpot
+- **RAG-Powered Responses**: Use ingested website content to provide accurate product information
 
 ### Target Workflows
-- **Initial Lead Engagement**: Capture and qualify inbound leads from website visitors
-- **Product Discovery**: Help prospects understand product fit and technical requirements
-- **Pricing & Proposals**: Generate accurate quotes and proposals based on requirements
-- **Follow-up Automation**: Automated nurturing sequences and appointment scheduling
-- **Sales Team Handoff**: Seamless transition from bot to human sales representatives
+- **Lead Capture**: Track page source and capture customer details during conversation
+- **Content-Informed Responses**: Use website content from vector database for accurate answers
+- **Summary Generation**: Create conversation summaries for follow-up
+- **Appointment Booking**: Schedule sales meetings directly from chat
+- **CRM Sync**: Automatically log leads and conversations to CRM systems
 
 ## Features & Requirements
 
-### [ ] 0008-001 - FEATURE - Lead Qualification & Scoring
+### [ ] 0008-001 - FEATURE - Page Source & Lead Tracking
 
-#### [ ] 0008-001-001 - TASK - Intelligent Lead Qualification
-- [ ] 0008-001-001-01 - CHUNK - Qualification framework
+#### [ ] 0008-001-001 - TASK - Request Source Tracking
+- [ ] 0008-001-001-01 - CHUNK - Page referrer capture
   - SUB-TASKS:
-    - Implement conversational lead qualification workflows
-    - Create dynamic qualification questions based on industry and use case
-    - Add lead scoring algorithm based on engagement and qualification criteria
-    - Integrate with marketing automation platforms for lead scoring enhancement
-    - Create qualification templates for different product lines
-    - Acceptance: Leads automatically qualified and scored based on conversation content
+    - Add `referrer_page` field to sessions table
+    - Track `document.referrer` and custom page parameters in chat widgets
+    - Store page source in session metadata for all chat integration strategies
+    - Add API endpoints to retrieve lead source analytics
+    - Acceptance: Every conversation tracks the originating website page
 
-- [ ] 0008-001-001-02 - CHUNK - Lead routing and prioritization
+#### [ ] 0008-001-002 - TASK - Customer Profile Integration
+- [ ] 0008-001-002-01 - CHUNK - Enhanced profile capture
   - SUB-TASKS:
-    - Implement intelligent lead routing based on territory, product expertise, and availability
-    - Add lead prioritization based on score, company size, and urgency indicators
-    - Create automated lead assignment workflows
-    - Add escalation rules for high-value prospects
-    - Implement round-robin and skill-based routing options
-    - Acceptance: Qualified leads automatically routed to appropriate sales representatives
+    - Extend existing `profiles` table with company and industry fields
+    - Build on 0004-006 Profile Data Collection functionality
+    - Add real-time profile extraction during conversations
+    - Create profile completion prompts and validation
+    - Acceptance: Customer profiles captured and linked to conversations
+    - Dependencies: Requires 0004-006 completion
 
-### [ ] 0008-002 - FEATURE - Product Knowledge & Recommendations
+### [ ] 0008-002 - FEATURE - RAG-Powered Sales Responses
 
-#### [ ] 0008-002-001 - TASK - Product Catalog Integration
-- [ ] 0008-002-001-01 - CHUNK - Product knowledge base
+#### [ ] 0008-002-001 - TASK - Vector Database Integration
+- [ ] 0008-002-001-01 - CHUNK - Pinecone sales knowledge base
   - SUB-TASKS:
-    - Integrate with product information management (PIM) systems
-    - Create searchable product knowledge base with specifications and features
-    - Implement product recommendation engine based on customer requirements
-    - Add competitive analysis and differentiation talking points
-    - Create product configuration and compatibility checking
-    - Acceptance: Agent provides accurate product information and relevant recommendations
+    - Configure Pinecone namespace for sales agent content
+    - Integrate retrieval into chat endpoints for contextual responses
+    - Add citation tracking for website source attribution
+    - Implement relevance scoring and content ranking
+    - Acceptance: Sales agent provides accurate, website-sourced responses
+    - Dependencies: Requires 0010 Website Content Ingestion completion
 
-- [ ] 0008-002-001-02 - CHUNK - Technical specification assistance
+### [ ] 0008-003 - FEATURE - Conversation Summaries & Communication
+
+#### [ ] 0008-003-001 - TASK - Summary Generation & Distribution
+- [ ] 0008-003-001-01 - CHUNK - Conversation summarization
   - SUB-TASKS:
-    - Implement technical requirements gathering and analysis
-    - Add compatibility checking between products and customer systems
-    - Create technical documentation and specification generation
-    - Add integration guidance and implementation support
-    - Implement custom solution design and recommendation
-    - Acceptance: Agent handles complex technical discussions and provides accurate specifications
+    - Build on 0004-012-003 Conversation Summarization functionality
+    - Create sales-specific summary templates (lead info, interests, next steps)
+    - Add email delivery capability for summary distribution
+    - Implement summary customization for customer vs. sales team
+    - Acceptance: Automated conversation summaries sent to relevant parties
+    - Dependencies: Requires 0004-012 Conversation Hierarchy completion
 
-### [ ] 0008-003 - FEATURE - Pricing & Quote Generation
+### [ ] 0008-004 - FEATURE - Appointment Scheduling
 
-#### [ ] 0008-003-001 - TASK - Dynamic Pricing Engine
-- [ ] 0008-003-001-01 - CHUNK - Pricing calculation and quotes
+#### [ ] 0008-004-001 - TASK - Calendar Integration
+- [ ] 0008-004-001-01 - CHUNK - Scheduling system implementation
   - SUB-TASKS:
-    - Integrate with pricing systems and discount matrices
-    - Implement dynamic pricing based on volume, terms, and customer segments
-    - Add quote generation with line items and pricing breakdowns
-    - Create approval workflows for special pricing and discounts
-    - Add contract term configuration and pricing optimization
-    - Acceptance: Agent generates accurate quotes with current pricing and available discounts
+    - Integrate with Google Calendar API for availability checking
+    - Add Calendly integration for seamless booking flow
+    - Create appointment booking interface within chat
+    - Add timezone handling and confirmation emails
+    - Implement appointment modification and cancellation
+    - Acceptance: Customers can book sales appointments directly from chat
 
-- [ ] 0008-003-001-02 - CHUNK - Proposal automation
+### [ ] 0008-005 - FEATURE - CRM Integration
+
+#### [ ] 0008-005-001 - TASK - Core CRM Connectivity
+- [ ] 0008-005-001-01 - CHUNK - Zoho CRM integration
   - SUB-TASKS:
-    - Create automated proposal generation based on customer requirements
-    - Add customizable proposal templates for different solutions
-    - Implement ROI calculators and business case generators
-    - Add competitive comparison and value proposition statements
-    - Create proposal tracking and follow-up automation
-    - Acceptance: Complete proposals generated automatically with professional formatting
+    - Implement Zoho CRM API integration for lead creation
+    - Add contact and opportunity logging functionality
+    - Create conversation history sync to CRM activities
+    - Add custom field mapping for profile data
+    - Acceptance: Leads and conversations automatically logged to Zoho CRM
 
-### [ ] 0008-004 - FEATURE - CRM Integration & Pipeline Management
-
-#### [ ] 0008-004-001 - TASK - CRM System Integration
-- [ ] 0008-004-001-01 - CHUNK - Multi-CRM connectivity
+- [ ] 0008-005-001-02 - CHUNK - Salesforce integration
   - SUB-TASKS:
-    - Integrate with Salesforce for lead, contact, and opportunity management
-    - Add HubSpot integration for marketing and sales pipeline automation
-    - Implement Microsoft Dynamics 365 connectivity
-    - Add Pipedrive integration for small and medium businesses
-    - Create generic CRM API adapter for custom integrations
-    - Acceptance: Seamless bidirectional sync with major CRM platforms
+    - Implement Salesforce API integration for lead management
+    - Add opportunity creation and activity logging
+    - Create conversation attachment and note sync
+    - Add profile data mapping to Salesforce fields
+    - Acceptance: Complete lead lifecycle tracked in Salesforce
 
-- [ ] 0008-004-001-02 - CHUNK - Pipeline automation and tracking
+- [ ] 0008-005-001-03 - CHUNK - HubSpot integration
   - SUB-TASKS:
-    - Implement opportunity creation and stage progression automation
-    - Add activity logging and conversation history sync to CRM
-    - Create automated follow-up sequences based on pipeline stage
-    - Add deal forecasting and probability scoring
-    - Implement sales performance analytics and reporting
-    - Acceptance: Complete sales pipeline visibility and automation through CRM integration
-
-### [ ] 0008-005 - FEATURE - Sales Process Automation
-
-#### [ ] 0008-005-001 - TASK - Automated Sales Workflows
-- [ ] 0008-005-001-01 - CHUNK - Follow-up automation
-  - SUB-TASKS:
-    - Create intelligent follow-up sequences based on prospect behavior
-    - Implement email automation with personalized content generation
-    - Add appointment scheduling integration with calendar systems
-    - Create reminder systems for sales representatives
-    - Add conversion tracking and optimization analytics
-    - Acceptance: Automated nurturing increases conversion rates and reduces manual work
-
-- [ ] 0008-005-001-02 - CHUNK - Sales team collaboration
-  - SUB-TASKS:
-    - Implement seamless handoff from bot to human sales representatives
-    - Add internal notifications and alerts for high-value prospects
-    - Create conversation summaries and briefing documents for sales teams
-    - Add collaborative notes and customer context sharing
-    - Implement sales coaching and best practice recommendations
-    - Acceptance: Sales teams have complete context and optimized workflows for prospect engagement
+    - Implement HubSpot API integration for contact and deal creation
+    - Add conversation history as HubSpot activities
+    - Create custom property mapping for captured profile data
+    - Add deal pipeline automation based on conversation outcomes
+    - Acceptance: Leads and conversations fully integrated with HubSpot
 
 ## Technical Architecture
 
@@ -177,65 +157,82 @@ product_interactions:
 ### Configuration Schema (app.yaml)
 ```yaml
 sales_agent:
-  lead_qualification:
-    scoring_model: "advanced"  # simple, advanced, custom
-    qualification_threshold: 70
-    auto_route_threshold: 85
-    required_fields:
-      - company_size
-      - budget_range
-      - timeline
-      - decision_authority
+  page_tracking:
+    enabled: true
+    track_utm_parameters: true
+    track_referrer_domain: true
   
-  product_knowledge:
-    catalog_source: "api"  # api, file, database
-    recommendation_engine: "ml"  # rule_based, ml, hybrid
-    include_competitors: true
-    pricing_transparency: "qualified_leads"  # always, qualified_leads, never
+  profile_capture:
+    required_fields:
+      - customer_name
+      - email
+    optional_fields:
+      - phone
+      - company
+      - industry
+  
+  vector_database:
+    provider: "pinecone"  # pinecone, pgvector
+    namespace: "sales_content"
+    similarity_threshold: 0.7
+    max_results: 5
+  
+  conversation_summaries:
+    auto_generate: true
+    email_enabled: true
+    send_to_customer: true
+    send_to_sales_team: true
+    template_style: "professional"  # professional, casual, detailed
+  
+  appointment_scheduling:
+    enabled: true
+    calendar_provider: "google"  # google, calendly, outlook
+    default_duration: 30  # minutes
+    advance_booking_days: 14
+    timezone_handling: "auto_detect"
   
   crm_integration:
-    primary_system: "salesforce"
-    sync_frequency: "real_time"  # real_time, hourly, daily
-    create_leads: true
-    create_opportunities: true
-    sync_activities: true
-  
-  automation:
-    follow_up_sequences:
-      immediate: true
-      day_1: true
-      day_3: true
-      day_7: true
-      day_14: true
-    appointment_scheduling:
-      enabled: true
-      calendar_integration: "calendly"  # calendly, google, outlook
-    quote_generation:
-      auto_generate: true
-      require_approval: false  # for standard pricing
-      approval_threshold: 10000  # dollar amount requiring approval
+    zoho:
+      enabled: false
+      api_domain: "www.zohoapis.com"
+    salesforce:
+      enabled: false
+      sandbox_mode: true
+    hubspot:
+      enabled: false
+      portal_id: null
 ```
 
 ### Integration Points
-- **Product Catalogs**: PIM systems, e-commerce platforms, custom databases
-- **Pricing Systems**: ERP systems, CPQ (Configure-Price-Quote) platforms
-- **CRM Platforms**: Salesforce, HubSpot, Microsoft Dynamics, Pipedrive
-- **Marketing Automation**: Marketo, Pardot, HubSpot Marketing, Mailchimp
-- **Calendar Systems**: Google Calendar, Outlook, Calendly, Acuity Scheduling
-- **Communication**: Email automation, SMS, Slack notifications
+- **Vector Database**: Pinecone for website content retrieval and response generation
+- **CRM Platforms**: Zoho CRM, Salesforce, HubSpot for lead and opportunity management
+- **Calendar Systems**: Google Calendar, Calendly for appointment scheduling
+- **Email Services**: SMTP, SendGrid, or Mailgun for summary distribution
+- **Content Sources**: WordPress XML dumps and Astro websites via Epic 0010
+
+### Dependencies
+- **0004-006**: Profile Data Collection (foundation for customer capture)
+- **0004-012**: Conversation Hierarchy & Management (required for summaries)
+- **0010**: Website Content Ingestion (provides content for RAG)
+- **0011**: Vector Database Integration (required for RAG responses)
+- **0012**: Outbound Email Integration (required for summary distribution)
+- **0013**: Scheduling Integration (required for appointment booking)
+- **Multi-Agent Infrastructure**: Basic agent routing from Epic 0005
 
 ### Performance & Analytics
-- **Conversion Metrics**: Lead-to-opportunity, opportunity-to-close rates
-- **Engagement Analytics**: Conversation duration, qualification completion rates
-- **Sales Effectiveness**: Time to qualification, quote accuracy, follow-up response rates
-- **Revenue Attribution**: Revenue directly attributable to sales agent interactions
+- **Lead Source Tracking**: Conversion rates by website page
+- **Profile Completion**: Percentage of conversations with complete customer data
+- **Summary Delivery**: Success rates for email distribution
+- **Appointment Booking**: Conversion from chat to scheduled meetings
+- **CRM Sync Health**: Success rates and error tracking for CRM integrations
 
-## Success Criteria
-1. **Lead Quality**: Improved lead qualification scores and conversion rates
-2. **Sales Efficiency**: Reduced time from initial contact to qualified opportunity
-3. **Revenue Impact**: Measurable increase in sales pipeline and closed deals
-4. **User Adoption**: High adoption rate among sales teams and positive feedback
-5. **CRM Integration**: Seamless data flow and reduced manual data entry
-6. **Automation ROI**: Demonstrable time savings and process improvements
+## Success Criteria (Milestone 1)
+1. **Page Source Tracking**: 100% of conversations track originating website page
+2. **Profile Capture**: 80% of qualified conversations capture customer contact information
+3. **RAG Responses**: Sales agent provides accurate, website-sourced answers
+4. **Summary Generation**: Automated summaries sent to customers and sales team
+5. **Appointment Booking**: Customers can schedule meetings directly from chat
+6. **CRM Integration**: At least one CRM system (Zoho, Salesforce, or HubSpot) fully operational
+7. **Response Quality**: Agent responses are contextually relevant using ingested website content
 
-This epic creates a powerful sales automation system that enhances human sales capabilities while providing measurable business value through improved lead qualification, process automation, and CRM integration.
+This milestone establishes the foundation for a complete sales automation system by implementing core lead capture, content-aware responses, and essential CRM integration.

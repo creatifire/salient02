@@ -9,7 +9,12 @@
 07. [Enterprise Chat](./0007-enterprise-chat.md)
 08. [Sales Agent](./0008-sales-agent.md)
 09. [Digital Expert](./0009-digital-expert.md)
-10. [Advanced Persistence Features]
+10. [Website Content Ingestion](./0010-website-content-ingestion.md)
+11. [Vector Database Integration](./0011-vector-db-integration.md)
+12. [Outbound Email Integration](./0012-outbound-email.md)
+13. [Scheduling Integration](./0013-scheduling-integration.md)
+14. [CrossFeed MCP Server](./0014-crossfeed.md)
+15. [Advanced Persistence Features]
 
 ## Epic Backlog
 

@@ -63,7 +63,7 @@
 
 - Affiliate Link Providers
     - Given the context of a conversation provides affiliate links
-- CrossFeed (Metadata Drivent MCP Server front ending)
+- CrossFeed (Metadata Driven MCP Server front ending)
     - Cross-Sell
     - Up-Sell
     - Competitive Selling
