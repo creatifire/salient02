@@ -229,7 +229,7 @@ The schema and session management fully supports multiple concurrent users:
     - Acceptance: Previous conversations visible on return
   - STATUS: Completed — Implemented _load_chat_history_for_session() function that loads last 50 messages with UI-optimized formatting, modified main page template to pre-populate chat history on load, added graceful empty history handling, and created comprehensive test suite verifying all functionality including message limits, role filtering, and error handling
 
-### [ ] 0004-004-002 - TASK - Modify Existing Chat Endpoints
+### [ ] e - TASK - Modify Existing Chat Endpoints
 
 #### Configuration Architecture Analysis & Recommendation
 
@@ -345,16 +345,26 @@ The schema and session management fully supports multiple concurrent users:
     - Acceptance: Demo pages work correctly or limitations are clearly documented
   - STATUS: Completed — Implemented production-ready cross-origin session management with environment-based configuration (PRODUCTION_CROSS_ORIGIN, COOKIE_SECURE, COOKIE_DOMAIN), added comprehensive production deployment documentation, created proper CORS configuration for FastAPI backend, added session and chat history API endpoints for frontend integration, documented complete production architecture with Docker deployment and Nginx configuration, and provided deployment checklist for cross-origin Astro + FastAPI applications
 
-- [ ] 0004-004-002-05 - CHUNK - Frontend chat history loading for demo pages
-  - SUB-TASKS:
-    - Add JavaScript function to load chat history via `/api/chat/history` endpoint
-    - Implement history rendering in HTMX demo page (`web/src/pages/demo/htmx-chat.astro`)
-    - Handle empty history gracefully in frontend components
-    - Add proper error handling for history loading failures
-    - Ensure history loads on page refresh and maintains proper message ordering
-    - Style historical messages consistently with new messages
-    - Add loading indicators during history fetch
-    - Acceptance: Demo pages reload chat history on page refresh, displaying previous conversation seamlessly
+- [x] 0004-004-002-05 - CHUNK - Frontend chat history loading for demo pages ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Add JavaScript function to load chat history via `/api/chat/history` endpoint
+    - ✅ Implement history rendering in HTMX demo page (`web/src/pages/demo/htmx-chat.astro`)
+    - ✅ Handle empty history gracefully in frontend components
+    - ✅ Add proper error handling for history loading failures
+    - ✅ Ensure history loads on page refresh and maintains proper message ordering
+    - ✅ Style historical messages consistently with new messages
+    - ✅ Add loading indicators during history fetch
+    - Acceptance: ✅ Demo pages reload chat history on page refresh, displaying previous conversation seamlessly
+  
+  **Implementation Details:**
+  - **Added `/api/chat/history` endpoint integration**: Both demo pages now fetch chat history dynamically on page load using the backend API
+  - **Fixed Vite proxy configuration**: Added `/api` route to `web/astro.config.mjs` for proper API routing in development
+  - **Implemented consistent message rendering**: Bot messages use pre-rendered HTML from API, user messages display as plain text
+  - **Fixed CSS formatting issue**: Changed `.content{ white-space:pre-wrap; }` to `.msg.user .content{ white-space:pre-wrap; }` to prevent extra line spacing in bot messages
+  - **Added table and paragraph styling**: Applied backend CSS styles for proper markdown table and paragraph rendering
+  - **Comprehensive error handling**: Graceful degradation for empty history, network errors, and session issues
+  - **Loading indicators**: Visual feedback during history fetch with proper show/hide logic
+  - **Session compatibility**: Works correctly with existing session management and cross-origin scenarios
 
 - [ ] 0004-004-002-06 - CHUNK - Markdown formatting for HTMX-Based Chat Integration (Astro Framework)
   - SUB-TASKS:

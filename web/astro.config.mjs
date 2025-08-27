@@ -16,6 +16,7 @@ export default defineConfig({
         '/chat': { target: BACKEND, changeOrigin: true },
         '/events': { target: BACKEND, changeOrigin: true },
         '/health': { target: BACKEND, changeOrigin: true },
+        '/api': { target: BACKEND, changeOrigin: true },
       }
     }
   },

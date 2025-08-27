@@ -33,7 +33,11 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
   <a href="#chat-main" class="skip-link">Skip to chat</a>
   <main id="chat-main" style="padding:2rem 0;" role="main">
     <h1 style="font-size:2rem;margin:0 0 .5rem;">Standalone HTMX Chat (Astro Demo)</h1>
-    <div class="chat" aria-live="polite"></div>
+    <div class="chat" aria-live="polite">
+      <div id="history-loading" class="loading-indicator" style="display:none;">
+        <span class="loading-text">Loading chat history...</span>
+      </div>
+    </div>
     <label for="msg" class="sr-only">Message</label>
     <textarea id="msg" class="textarea" placeholder="Type your message… (Ctrl/Cmd+Enter to send)" aria-label="Message input"></textarea>
     <div class="row">
@@ -52,7 +56,43 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     .msg{ position:relative; padding:.4rem .6rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
     .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
     .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
-    .content{ white-space:pre-wrap; }
+    .msg.user .content{ white-space:pre-wrap; } /* Only preserve whitespace for user messages */
+    
+    /* Table styles for markdown tables */
+    .msg.bot table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      margin: 0.5rem 0; 
+      font-size: 0.9rem;
+    }
+    .msg.bot th, .msg.bot td { 
+      border: 1px solid #ddd; 
+      padding: 0.5rem 0.75rem; 
+      text-align: left; 
+    }
+    .msg.bot th { 
+      background-color: #f8f9fa; 
+      font-weight: 600; 
+      border-bottom: 2px solid #ccc;
+    }
+    .msg.bot tr:nth-child(even) { 
+      background-color: #f9f9f9; 
+    }
+    .msg.bot tr:hover { 
+      background-color: #f0f8ff; 
+    }
+    
+    /* Proper paragraph spacing for bot messages */
+    .msg.bot p {
+      margin: 0.5rem 0;
+      line-height: 1.5;
+    }
+    .msg.bot p:first-child {
+      margin-top: 0;
+    }
+    .msg.bot p:last-child {
+      margin-bottom: 0;
+    }
     .copy{ position:absolute; bottom:6px; right:6px; background:rgba(255,255,255,.9); border:1px solid #ddd; border-radius:6px; padding:4px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; opacity:.2; transition:opacity .15s ease, transform .1s ease; cursor:pointer; }
     .copy img{ width:14px; height:14px; display:block; }
     .msg.bot:hover .copy, .copy:focus{ opacity:1; }
@@ -65,6 +105,8 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     .btn:disabled{ opacity:.6; cursor:not-allowed; }
     .textarea{ width:100%; min-height:6rem; padding:.5rem; border:1px solid #ddd; border-radius:6px; margin-top:.5rem; }
     .hint{ font-size:.85rem; color:#666; }
+    .loading-indicator{ display:flex; align-items:center; justify-content:center; padding:1rem; color:#666; font-style:italic; }
+    .loading-text{ font-size:.9rem; }
     .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   </style>
   <script is:inline define:vars={{ CHAT_TARGET, SSE_ENABLED, ALLOW_BASIC_HTML }}>
@@ -86,6 +128,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     let activeBotDiv = null;
     let accumulated = '';
     let busy = false;
+    let historyLoaded = false;
 
     function addCopyButton(container){
       const btn = document.createElement('button');
@@ -127,7 +170,86 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       chat.querySelectorAll('.copy').forEach(b=>{ b.disabled = v; });
     }
 
-    clearBtn?.addEventListener('click', ()=>{ chat.innerHTML=''; });
+    async function loadChatHistory(){
+      if (historyLoaded) return; // Prevent duplicate loading
+      
+      const loadingIndicator = document.getElementById('history-loading');
+      
+      try {
+        // Show loading indicator
+        if (loadingIndicator) {
+          loadingIndicator.style.display = 'flex';
+        }
+        
+        const url = new URL('/api/chat/history', CHAT_BASE);
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          credentials: 'same-origin' // Include session cookies
+        });
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log('No session found, starting fresh conversation');
+            return; // No session yet, normal for first visit
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const messages = data.messages || [];
+        
+        if (messages.length === 0) {
+          console.log('No chat history found');
+          return; // Empty history, normal for new sessions
+        }
+        
+        // Render historical messages
+        messages.forEach(message => {
+          // API already maps roles: 'human' -> 'user', 'assistant' -> 'bot'
+          const role = message.role; // Use role as-is from API
+          const div = appendMessage(role, '');
+          
+          // Set raw content for copy functionality
+          div.dataset.raw = message.raw_content || message.content || '';
+          
+          // Handle content based on role - bot messages are pre-rendered HTML, user messages are raw text
+          if (role === 'bot') {
+            // Bot messages come pre-rendered as HTML from backend API
+            const content = div.querySelector('.content') || div;
+            content.innerHTML = message.content || '';  // message.content is already rendered HTML
+          } else {
+            // User messages are raw text that need no processing for display
+            const content = div.querySelector('.content') || div;
+            content.textContent = message.content || '';  // Just display as plain text
+          }
+        });
+        
+        console.log(`Loaded ${messages.length} historical messages`);
+        historyLoaded = true;
+        
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+        // Graceful degradation - continue without history
+      } finally {
+        // Hide loading indicator
+        if (loadingIndicator) {
+          loadingIndicator.style.display = 'none';
+        }
+      }
+    }
+
+    clearBtn?.addEventListener('click', ()=>{ 
+      chat.innerHTML=''; 
+      // Add back the loading indicator after clearing
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = 'history-loading';
+      loadingDiv.className = 'loading-indicator';
+      loadingDiv.style.display = 'none';
+      loadingDiv.innerHTML = '<span class="loading-text">Loading chat history...</span>';
+      chat.appendChild(loadingDiv);
+      // Reset history loaded flag to allow reloading
+      historyLoaded = false;
+    });
 
     // Debounce helper (parity with backend index.html behavior)
     function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn.apply(null,args), ms); } }
@@ -213,5 +335,16 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       const isCtrl = e.ctrlKey || e.metaKey;
       if (isEnter && isCtrl){ e.preventDefault(); send(); }
     });
+
+    // Load chat history when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      loadChatHistory();
+    });
+    
+    // Also load immediately if DOM is already ready
+    if (document.readyState !== 'loading') {
+      // DOM is already ready, load immediately
+      loadChatHistory();
+    }
   </script>
 </Layout>
