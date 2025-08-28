@@ -8,7 +8,7 @@
 06. [Public Chat](./0006-public-chat.md)
 07. [Enterprise Chat](./0007-enterprise-chat.md)
 08. [Sales Agent](./0008-sales-agent.md)
-09. [Digital Expert](./0009-digital-expert.md)
+09. [Digital Expert Agent](./0009-digital-expert-agent.md)
 10. [Website Content Ingestion](./0010-website-content-ingestion.md)
 11. [Vector Database Integration](./0011-vector-db-integration.md)
 12. [Outbound Email Integration](./0012-outbound-email.md)
