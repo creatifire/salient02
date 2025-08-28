@@ -10,6 +10,15 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 
 ## Milestone 1 Implementation Plan
 
+## API Endpoint Evolution Summary
+
+| Phase | Primary Endpoints | Agent Types | Strategy |
+|-------|------------------|-------------|----------|
+| **Phase 1** | `POST /agents/simple-chat/chat`<br/>`POST /chat` (legacy) | Simple Chat | Parallel development |
+| **Phase 2** | `POST /agents/simple-chat/chat`<br/>`POST /agents/sales/chat`<br/>`POST /chat` (legacy) | Simple Chat<br/>Sales | Two agent types |
+| **Phase 3** | `POST /accounts/{slug}/agents/{type}/chat`<br/>`POST /agents/{type}/chat` (compat) | Simple Chat<br/>Sales | Multi-account |
+| **Phase 4** | `POST /accounts/{slug}/chat` (router)<br/>`POST /accounts/{slug}/agents/{type}/chat` | Simple Chat<br/>Sales<br/>Digital Expert | Multi-agent routing |
+
 ## Milestone 1: Sales Agent with RAG & CRM Integration
 
 **Objective**: Deliver a working sales agent with one CRM integration, website content knowledge, and full chat memory functionality.
@@ -39,12 +48,24 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 ### **Phase 1: Complete Simple Chat Agent (Single Instance)**
 *Deliver a fully functional simple chat agent with multi-tool capabilities using config file-based setup*
 
-#### **Endpoint Transition Strategy**
-- **Parallel Endpoints**: New agent endpoints (`/agents/simple-chat/chat`) alongside existing legacy endpoints (`/chat`)
-- **Zero Disruption**: Existing chat functionality continues working during agent development
-- **Session Compatibility**: Shared session management and chat history between legacy and agent endpoints
-- **Gradual Migration**: Demo pages migrate to agent endpoints while legacy remains as fallback
-- **Future-Ready**: Agent endpoint structure naturally extends to multi-account architecture
+#### **API Endpoints (Phase 1)**
+**Active Endpoints:**
+```
+# Legacy (Continue Working)
+POST /chat                           # Existing chat functionality
+GET /events/stream                   # Existing SSE streaming
+GET /                               # Main chat page
+
+# New Agent Endpoints (Phase 1)
+POST /agents/simple-chat/chat        # Simple chat agent
+GET /agents/simple-chat/stream       # Agent-specific SSE
+```
+
+**Strategy:**
+- **Parallel Development**: Both legacy and agent endpoints active simultaneously
+- **Zero Disruption**: Existing `/chat` continues working unchanged during development
+- **Session Compatibility**: Shared session management and chat history between endpoints
+- **Testing**: Demo pages gradually migrate to `/agents/simple-chat/chat` for validation
 - **Detailed Plan**: See [agent-endpoint-transition.md](../design/agent-endpoint-transition.md)
 
 #### **Infrastructure (Completed)**
@@ -76,6 +97,27 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 ### **Phase 2: Complete Sales Agent (Two Agent Types)**
 *Build specialized sales agent with RAG capabilities, business tools, and complete sales workflow*
 
+#### **API Endpoints (Phase 2)**
+**Active Endpoints:**
+```
+# Legacy (Continue Working)
+POST /chat                           # Existing chat functionality
+GET /events/stream                   # Existing SSE streaming
+
+# Agent Endpoints (Both Active)
+POST /agents/simple-chat/chat        # Simple chat agent (from Phase 1)
+GET /agents/simple-chat/stream       # Simple chat agent SSE
+
+POST /agents/sales/chat              # Sales agent (new in Phase 2)
+GET /agents/sales/stream             # Sales agent SSE
+```
+
+**Strategy:**
+- **Two Agent Types**: Simple chat and sales agents both available
+- **Agent Selection**: Frontend specifies which agent to use in endpoint URL
+- **Backward Compatibility**: Legacy `/chat` continues as fallback option
+- **Demo Migration**: Demo pages updated to use appropriate agent endpoints
+
 #### **Sales-Specific Infrastructure**
 - ❌ **0010** (Website Content Ingestion) **NOT STARTED** - *Astro content pipeline feeding Pinecone*
 - ❌ **0004-006** (Profile Data Collection) **NOT STARTED** - *Customer profile capture for sales agent*
@@ -93,6 +135,29 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 ### **Phase 3: Multi-Account Architecture**
 *Implement database-driven multi-account support with agent instances*
 
+#### **API Endpoints (Phase 3)**
+**Active Endpoints:**
+```
+# Legacy (Deprecated)
+POST /chat                           # Redirects to /accounts/default/chat
+GET /events/stream                   # Redirects to default account
+
+# Agent Endpoints (Backward Compatible)
+POST /agents/simple-chat/chat        # Maps to /accounts/default/agents/simple-chat/chat
+POST /agents/sales/chat              # Maps to /accounts/default/agents/sales/chat
+
+# Multi-Account Endpoints (New)
+POST /accounts/{account-slug}/agents/{agent-type}/chat
+GET /accounts/{account-slug}/agents/{agent-type}/stream
+GET /accounts/{account-slug}/agents  # Agent discovery per account
+```
+
+**Strategy:**
+- **Account Isolation**: Complete data separation between accounts
+- **Backward Compatibility**: Phase 1-2 endpoints redirect to default account
+- **Database-Driven**: Agent instances configured per account in database
+- **Subscription Tiers**: Account-based resource limits and feature access
+
 #### **Multi-Account Infrastructure**
 - ❌ **0005-002** (Account-Scoped Agent Endpoints) **NOT STARTED** - *Account isolation and routing*
 - ❌ **Agent Factory & Instance Management** **NOT STARTED** - *Database-driven agent instances*
@@ -100,6 +165,29 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 
 ### **Phase 4: Multi-Agent Routing & Intelligence**
 *Implement router agent and intelligent delegation between agent types*
+
+#### **API Endpoints (Phase 4)**
+**Active Endpoints:**
+```
+# Multi-Account with Router (Primary)
+POST /accounts/{account-slug}/chat   # Router selects best agent automatically
+GET /accounts/{account-slug}/stream  # Unified streaming with agent handoffs
+
+# Multi-Account Agent-Specific (Available)
+POST /accounts/{account-slug}/agents/{agent-type}/chat
+GET /accounts/{account-slug}/agents/{agent-type}/stream
+GET /accounts/{account-slug}/agents  # Agent discovery and capabilities
+
+# Legacy (Redirected)
+POST /chat                           # → /accounts/default/chat (router)
+POST /agents/{type}/chat             # → /accounts/default/agents/{type}/chat
+```
+
+**Strategy:**
+- **Intelligent Routing**: Router agent automatically selects optimal agent type
+- **Transparent Handoffs**: Context preserved when switching between agents
+- **Client Choice**: Clients can still specify agent type or let router decide
+- **Complete Compatibility**: All previous endpoint patterns supported via redirects
 
 #### **Multi-Agent Routing**
 - ❌ **0005-003** (Router Agent & Intent Classification) **NOT STARTED** - *Intelligent routing between simple chat and sales agents*
