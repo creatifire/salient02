@@ -14,7 +14,9 @@
 12. [Outbound Email Integration](./0012-outbound-email.md)
 13. [Scheduling Integration](./0013-scheduling-integration.md)
 14. [CrossFeed MCP Server](./0014-crossfeed.md)
-15. [Advanced Persistence Features]
+15. [Simple Research Agent](./0015-simple-research-agent.md)
+16. [Deep Research Agent](./0016-deep-research-agent.md)
+17. [RAG Agent (Document Intelligence)](./0017-rag-agent.md)
 
 ## Epic Backlog
 

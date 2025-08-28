@@ -4,6 +4,52 @@
 
 **Framework**: Built on Pydantic AI with structured tools for CRM, email, scheduling, and vector search capabilities.
 
+## Agent Flow Diagram
+
+```mermaid
+flowchart TD
+    A[Website Visitor] --> B[Chat Interaction Starts]
+    B --> C[Page Source Tracking]
+    C --> D[Initial Qualification]
+    
+    D --> E[Customer Profile Extraction]
+    E --> F{Profile Complete?}
+    F -->|No| G[Gather Missing Info]
+    G --> E
+    F -->|Yes| H[Lead Qualification Scoring]
+    
+    H --> I[Product Knowledge Search]
+    I --> J[RAG-Enhanced Response]
+    J --> K[Product Recommendations]
+    K --> L[Pricing & Competitive Analysis]
+    
+    L --> M{Customer Interest Level?}
+    M -->|High| N[Schedule Appointment]
+    M -->|Medium| O[Send Follow-up Email]
+    M -->|Low| P[Nurture Sequence]
+    
+    N --> Q[Calendar Integration]
+    Q --> R[Appointment Confirmation]
+    
+    O --> S[Conversation Summary]
+    P --> S
+    R --> S
+    
+    S --> T[CRM Lead Creation]
+    T --> U[Customer Email Summary]
+    U --> V[Sales Team Notification]
+    V --> W[Pipeline Update]
+    
+    W --> X{Continue Conversation?}
+    X -->|Yes| Y[Context Retrieval]
+    Y --> I
+    X -->|No| Z[Conversation Archive]
+    
+    Z --> AA[Performance Analytics]
+    AA --> BB[Lead Source Attribution]
+    BB --> CC[Conversion Tracking]
+```
+
 ## Scope & Approach
 
 ### Milestone 1 Core Capabilities
