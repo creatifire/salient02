@@ -1,6 +1,8 @@
 # Epic 0005 - Multi-Agent Support
 
-> Goal: Implement multi-agent infrastructure with intelligent routing, tool calling, and specialized agent endpoints to support different agent types with distinct capabilities and workflows.
+> Goal: Implement Pydantic AI-based multi-agent infrastructure with intelligent routing, tool calling, and specialized agent endpoints to support different agent types with distinct capabilities and workflows.
+
+**Framework**: Built on Pydantic AI for type-safe agent development with dependency injection, structured output, and tool orchestration.
 
 ## Scope & Approach
 
@@ -394,3 +396,210 @@ async def call_mcp_server(
 - **Cache Layer**: Redis for configuration and session caching
 
 This epic will establish the foundation for a sophisticated, scalable, multi-tenant AI agent platform that can serve diverse customer segments while maintaining cost-effectiveness and operational simplicity.
+
+---
+
+## Implementation Plan
+
+### FEATURE 0005-001 - Pydantic AI Framework Setup
+> Establish core Pydantic AI infrastructure and base agent classes
+
+#### TASK 0005-001-001 - Core Framework Installation & Configuration
+- [ ] 0005-001-001-01 - CHUNK - Install Pydantic AI dependencies
+  - Install `pydantic-ai` package and core dependencies
+  - Configure project requirements and version constraints
+  - Verify compatibility with existing FastAPI infrastructure
+  - **Acceptance**: Pydantic AI imports successfully, no dependency conflicts
+
+- [ ] 0005-001-001-02 - CHUNK - Base agent module structure
+  - Create `backend/app/agents/` module hierarchy
+  - Implement base agent class with common functionality
+  - Define shared types and dependency injection patterns
+  - **Acceptance**: Base agent class available for inheritance
+
+- [ ] 0005-001-001-03 - CHUNK - Configuration integration
+  - Extend `app.yaml` with agent configuration section
+  - Implement agent configuration loading and validation
+  - Add environment variable overrides for agent settings
+  - **Acceptance**: Agent configurations load from YAML with env overrides
+
+#### TASK 0005-001-002 - Agent Dependency Injection System
+- [ ] 0005-001-002-01 - CHUNK - Core dependency classes
+  - Implement `AgentDependencies` base class with account context
+  - Add database connection, session, and configuration dependencies
+  - Create dependency factory for agent instantiation
+  - **Acceptance**: Agents receive properly injected dependencies
+
+- [ ] 0005-001-002-02 - CHUNK - Vector database dependency integration
+  - Implement vector database configuration dependency
+  - Add Pinecone namespace/dedicated index routing
+  - Create pgvector fallback for entry-tier accounts
+  - **Acceptance**: Agents access appropriate vector database per account tier
+
+- [ ] 0005-001-002-03 - CHUNK - MCP server dependency integration
+  - Implement MCP server configuration dependency injection
+  - Add account-specific MCP server routing and authentication
+  - Create MCP client wrapper for agent tool integration
+  - **Acceptance**: Agents access account-specific MCP servers
+
+### FEATURE 0005-002 - Agent Template System
+> Implement agent template management and instantiation
+
+#### TASK 0005-002-001 - Agent Template Database Schema
+- [ ] 0005-002-001-01 - CHUNK - Agent template database tables
+  - Create `agent_templates` table with workflow definitions
+  - Add `agent_instances` table for account-specific configurations
+  - Implement `agent_tools` table for tool registry
+  - **Acceptance**: Database schema supports agent templates and instances
+
+- [ ] 0005-002-001-02 - CHUNK - Agent configuration models
+  - Define Pydantic models for agent template configuration
+  - Implement configuration validation and schema enforcement
+  - Add pricing tier and feature flag support
+  - **Acceptance**: Agent configurations validate correctly
+
+#### TASK 0005-002-002 - Template Management API
+- [ ] 0005-002-002-01 - CHUNK - Template CRUD operations
+  - Implement template creation, reading, updating, deletion
+  - Add template versioning and backward compatibility
+  - Create template validation and testing framework
+  - **Acceptance**: Agent templates managed through API
+
+- [ ] 0005-002-002-02 - CHUNK - Instance provisioning system
+  - Implement agent instance creation from templates
+  - Add account-specific configuration override handling
+  - Create instance lifecycle management (activate, suspend, delete)
+  - **Acceptance**: Agent instances provisioned correctly per account
+
+### FEATURE 0005-003 - Multi-Agent Routing & Delegation
+> Implement intelligent agent routing and delegation capabilities
+
+#### TASK 0005-003-001 - Router Agent Implementation
+- [ ] 0005-003-001-01 - CHUNK - Intent classification router
+  - Implement Pydantic AI router agent for intent detection
+  - Add query classification and agent selection logic
+  - Create fallback handling for ambiguous queries
+  - **Acceptance**: Router correctly identifies appropriate specialist agents
+
+- [ ] 0005-003-001-02 - CHUNK - Agent delegation framework
+  - Implement agent-to-agent delegation using Pydantic AI
+  - Add context preservation across agent handoffs
+  - Create delegation tracking and conversation continuity
+  - **Acceptance**: Agents delegate successfully with context preservation
+
+#### TASK 0005-003-002 - Account-Scoped Agent Endpoints
+- [ ] 0005-003-002-01 - CHUNK - Account-based routing
+  - Implement `/accounts/{account-id}/agents/{agent-id}/chat` endpoints
+  - Add account authentication and authorization middleware
+  - Create agent discovery endpoints per account
+  - **Acceptance**: Account-scoped agent endpoints functional
+
+- [ ] 0005-003-002-02 - CHUNK - Agent session management
+  - Implement agent-specific session handling
+  - Add conversation tracking per agent instance
+  - Create cross-agent conversation linking
+  - **Acceptance**: Agent sessions managed independently with linking
+
+### FEATURE 0005-004 - Tool Integration Framework
+> Establish tool integration patterns for Pydantic AI agents
+
+#### TASK 0005-004-001 - Base Tool Classes
+- [ ] 0005-004-001-01 - CHUNK - Tool base class implementation
+  - Create base tool class with common functionality
+  - Implement tool authentication and error handling
+  - Add tool usage tracking and rate limiting
+  - **Acceptance**: Tools inherit common functionality consistently
+
+- [ ] 0005-004-001-02 - CHUNK - MCP server tool integration
+  - Implement MCP server tool wrapper for Pydantic AI
+  - Add dynamic tool discovery from MCP servers
+  - Create tool authentication and session management
+  - **Acceptance**: MCP server tools available to agents
+
+#### TASK 0005-004-002 - Tool Registry & Discovery
+- [ ] 0005-004-002-01 - CHUNK - Dynamic tool registration
+  - Implement runtime tool registration system
+  - Add tool capability detection and metadata
+  - Create tool availability checking per account/agent
+  - **Acceptance**: Tools registered and discoverable dynamically
+
+- [ ] 0005-004-002-02 - CHUNK - Tool security and permissions
+  - Implement tool access control per account tier
+  - Add tool usage auditing and logging
+  - Create tool rate limiting and quota management
+  - **Acceptance**: Tool access properly controlled and audited
+
+---
+
+## Technical Architecture
+
+### Agent Module Structure
+```
+backend/app/agents/
+├── __init__.py
+├── base/
+│   ├── __init__.py
+│   ├── agent_base.py          # Base Pydantic AI agent class
+│   ├── dependencies.py        # Common dependency injection
+│   ├── tools_base.py          # Base tool classes
+│   └── types.py              # Shared types and models
+├── router/
+│   ├── __init__.py
+│   ├── intent_router.py       # Router agent implementation
+│   └── delegation.py          # Agent delegation logic
+├── sales/                     # Sales agent (Epic 0008)
+├── digital_expert/            # Digital expert agent (Epic 0009)
+└── shared/
+    ├── __init__.py
+    ├── mcp_client.py          # MCP server integration
+    ├── vector_tools.py        # Vector database tools
+    └── config_manager.py      # Agent configuration management
+```
+
+### Pydantic AI Integration Patterns
+```python
+# Base agent with dependency injection
+@dataclass
+class AgentDependencies:
+    account_id: str
+    db: DatabaseConn
+    vector_config: VectorDBConfig
+    mcp_servers: Dict[str, MCPServerConfig]
+    pricing_tier: str
+
+base_agent = Agent[AgentDependencies, BaseOutput](
+    'openai:gpt-4o',
+    deps_type=AgentDependencies,
+    system_prompt="Base agent system prompt"
+)
+
+# Tool integration pattern
+@base_agent.tool
+async def vector_search(ctx: RunContext[AgentDependencies], query: str) -> List[str]:
+    config = ctx.deps.vector_config
+    # Route to appropriate vector database based on tier
+    if ctx.deps.pricing_tier == "premium":
+        return await pinecone_dedicated_search(config, query)
+    else:
+        return await pinecone_namespace_search(config, query)
+```
+
+## Success Criteria
+
+### Phase 1: Foundation (Milestone 1)
+- [ ] Base Pydantic AI agent framework operational
+- [ ] Agent dependency injection system functional
+- [ ] Basic agent template system implemented
+- [ ] MCP server tool integration working
+
+### Phase 2: Multi-Agent Capabilities
+- [ ] Router agent with intent classification functional
+- [ ] Agent delegation with context preservation working
+- [ ] Account-scoped agent endpoints operational
+- [ ] Tool registry and discovery system complete
+
+### Phase 3: Production Readiness
+- [ ] Agent security and access control implemented
+- [ ] Performance monitoring and optimization complete
+- [ ] Comprehensive testing and validation passed
+- [ ] Documentation and deployment guides ready

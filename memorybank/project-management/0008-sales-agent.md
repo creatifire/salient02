@@ -1,6 +1,8 @@
 # Epic 0008 - Sales Agent (Milestone 1)
 
-> Goal: Implement Milestone 1 sales agent with essential CRM integration, customer profile capture, conversation summaries, and appointment scheduling to establish the foundation for a complete sales automation system.
+> Goal: Implement Pydantic AI-powered sales agent with essential CRM integration, customer profile capture, conversation summaries, and appointment scheduling to establish the foundation for a complete sales automation system.
+
+**Framework**: Built on Pydantic AI with structured tools for CRM, email, scheduling, and vector search capabilities.
 
 ## Scope & Approach
 
@@ -19,9 +21,180 @@
 - **Appointment Booking**: Schedule sales meetings directly from chat
 - **CRM Sync**: Automatically log leads and conversations to CRM systems
 
-## Features & Requirements
+## Pydantic AI Implementation Plan
 
-### [ ] 0008-001 - FEATURE - Page Source & Lead Tracking
+### FEATURE 0008-001 - Sales Agent Framework
+> Establish Pydantic AI-powered sales agent with core functionality
+
+#### TASK 0008-001-001 - Basic Sales Agent Setup
+- [ ] 0008-001-001-01 - CHUNK - Sales agent class implementation
+  - Create `SalesAgent` class inheriting from base agent
+  - Define sales-specific dependencies and configuration
+  - Implement basic sales conversation system prompt
+  - **Acceptance**: Sales agent responds to basic inquiries
+  - **Dependencies**: Requires 0005-001 (Pydantic AI Framework Setup)
+
+- [ ] 0008-001-001-02 - CHUNK - Sales agent dependencies
+  - Implement `SalesDependencies` with CRM configs and vector access
+  - Add customer profile and conversation tracking dependencies
+  - Create sales agent dependency factory
+  - **Acceptance**: Sales agent receives all required dependencies
+
+- [ ] 0008-001-001-03 - CHUNK - Sales agent output models
+  - Define Pydantic models for lead qualification output
+  - Create structured models for product recommendations
+  - Implement conversation summary output models
+  - **Acceptance**: Sales agent returns structured, validated outputs
+
+#### TASK 0008-001-002 - Sales Agent Tools Integration
+- [ ] 0008-001-002-01 - CHUNK - Profile capture tools
+  - Implement `@sales_agent.tool` for customer profile extraction
+  - Add profile validation and completion tools
+  - Create profile scoring and qualification tools
+  - **Acceptance**: Agent captures customer profiles during conversation
+
+- [ ] 0008-001-002-02 - CHUNK - Page tracking tools
+  - Implement referrer and page source tracking tools
+  - Add lead source attribution and analytics tools
+  - Create conversion funnel tracking tools
+  - **Acceptance**: Agent tracks conversation sources accurately
+
+### FEATURE 0008-002 - Sales Agent Intelligence (RAG)
+> Enhance sales agent with vector search and knowledge capabilities
+
+#### TASK 0008-002-001 - Vector Search Integration
+- [ ] 0008-002-001-01 - CHUNK - Product knowledge tools
+  - Implement `@sales_agent.tool` for vector product search
+  - Add product comparison and recommendation tools
+  - Create pricing and feature lookup tools
+  - **Acceptance**: Agent provides accurate product information
+
+- [ ] 0008-002-001-02 - CHUNK - Content citation tools
+  - Implement source attribution and citation tools
+  - Add content validation and fact-checking tools
+  - Create knowledge base updating tools
+  - **Acceptance**: Agent provides cited, accurate responses
+
+#### TASK 0008-002-002 - Conversation Context Management
+- [ ] 0008-002-002-01 - CHUNK - Conversation memory integration
+  - Implement conversation history context for agent
+  - Add customer interaction tracking across sessions
+  - Create conversation state management tools
+  - **Acceptance**: Agent maintains context across conversations
+  - **Dependencies**: Requires 0004-004-001-03 (LLM Conversation Context)
+
+### FEATURE 0008-003 - Sales Agent Business Tools
+> Equip sales agent with CRM, email, and scheduling capabilities
+
+#### TASK 0008-003-001 - CRM Integration Tools
+- [ ] 0008-003-001-01 - CHUNK - Zoho CRM tools
+  - Implement `@sales_agent.tool` for Zoho lead creation
+  - Add contact and opportunity management tools
+  - Create activity logging and note-taking tools
+  - **Acceptance**: Agent creates and manages Zoho CRM records
+
+- [ ] 0008-003-001-02 - CHUNK - Lead qualification tools
+  - Implement lead scoring and qualification tools
+  - Add pipeline stage management tools
+  - Create follow-up scheduling and reminder tools
+  - **Acceptance**: Agent qualifies leads and manages pipeline
+
+#### TASK 0008-003-002 - Communication Tools
+- [ ] 0008-003-002-01 - CHUNK - Email integration tools
+  - Implement `@sales_agent.tool` for email sending
+  - Add conversation summary email tools
+  - Create follow-up email sequence tools
+  - **Acceptance**: Agent sends emails with summaries and follow-ups
+
+- [ ] 0008-003-002-02 - CHUNK - Scheduling tools
+  - Implement `@sales_agent.tool` for appointment booking
+  - Add calendar availability checking tools
+  - Create meeting confirmation and reminder tools
+  - **Acceptance**: Agent books appointments and manages calendar
+
+### FEATURE 0008-004 - Sales Agent Optimization
+> Optimize sales agent performance and capabilities
+
+#### TASK 0008-004-001 - Performance Optimization
+- [ ] 0008-004-001-01 - CHUNK - Response optimization
+  - Implement sales conversation flow optimization
+  - Add response personalization based on customer profile
+  - Create conversion rate tracking and improvement
+  - **Acceptance**: Agent optimizes for conversion metrics
+
+- [ ] 0008-004-001-02 - CHUNK - Tool usage optimization
+  - Implement intelligent tool selection and routing
+  - Add tool performance monitoring and improvement
+  - Create tool usage analytics and insights
+  - **Acceptance**: Agent uses tools efficiently and effectively
+
+---
+
+## Technical Architecture - Pydantic AI Implementation
+
+### Sales Agent Structure
+```python
+@dataclass
+class SalesDependencies:
+    account_id: str
+    db: DatabaseConn
+    vector_config: VectorDBConfig
+    crm_configs: Dict[str, CRMConfig]
+    email_config: EmailConfig
+    calendar_config: CalendarConfig
+    customer_profile: Optional[CustomerProfile]
+
+class LeadQualificationOutput(BaseModel):
+    qualification_score: int = Field(ge=0, le=100)
+    lead_source: str
+    company_size: Optional[str]
+    budget_range: Optional[str]
+    timeline: Optional[str]
+    next_steps: List[str]
+
+sales_agent = Agent[SalesDependencies, LeadQualificationOutput](
+    'openai:gpt-4o',
+    deps_type=SalesDependencies,
+    output_type=LeadQualificationOutput,
+    system_prompt="You are a sales agent specialized in lead qualification..."
+)
+
+@sales_agent.tool
+async def search_products(ctx: RunContext[SalesDependencies], query: str) -> List[ProductInfo]:
+    """Search product knowledge base for relevant information."""
+    vector_results = await vector_search(ctx.deps.vector_config, query)
+    return parse_products(vector_results)
+
+@sales_agent.tool  
+async def create_crm_lead(ctx: RunContext[SalesDependencies], lead_data: LeadData) -> str:
+    """Create a new lead in the CRM system."""
+    crm_config = ctx.deps.crm_configs["zoho"]
+    lead_id = await crm_client.create_lead(crm_config, lead_data)
+    return f"Lead created with ID: {lead_id}"
+```
+
+### Agent Module Structure
+```
+backend/app/agents/sales/
+├── __init__.py
+├── agent.py                  # Main SalesAgent class
+├── models.py                 # Sales-specific Pydantic models
+├── dependencies.py           # SalesDependencies class
+├── config.py                 # Sales agent configuration
+└── tools/
+    ├── __init__.py
+    ├── crm_tools.py          # CRM integration tools
+    ├── email_tools.py        # Email and communication tools
+    ├── scheduling_tools.py   # Calendar and appointment tools
+    ├── product_tools.py      # Product search and recommendation tools
+    └── profile_tools.py      # Customer profile tools
+```
+
+---
+
+## Legacy Requirements (Updated for Pydantic AI)
+
+### [ ] 0008-005 - FEATURE - Page Source & Lead Tracking
 
 #### [ ] 0008-001-001 - TASK - Request Source Tracking
 - [ ] 0008-001-001-01 - CHUNK - Page referrer capture

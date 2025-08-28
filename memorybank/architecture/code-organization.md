@@ -11,12 +11,60 @@
 salient02/
   backend/                     # Python FastAPI app
     app/                       # Python modules (routers, services)
+      agents/                  # Pydantic AI agents module (NEW)
+        __init__.py
+        base/                  # Base agent classes and shared functionality
+          __init__.py
+          agent_base.py        # Base agent class with common dependencies
+          dependencies.py      # Common dependency injection classes
+          tools_base.py        # Base tool classes and utilities
+          types.py            # Shared types and Pydantic models
+        router/                # Router agent for intent classification
+          __init__.py
+          intent_router.py     # Main router agent implementation
+          delegation.py        # Agent delegation and handoff logic
+        sales/                 # Sales agent implementation (Epic 0008)
+          __init__.py
+          agent.py            # Main SalesAgent class
+          dependencies.py     # SalesDependencies class
+          models.py           # Sales-specific Pydantic models
+          config.py           # Sales agent configuration
+          tools/              # Sales-specific tools
+            __init__.py
+            crm_tools.py      # CRM integration tools (Zoho, Salesforce, HubSpot)
+            email_tools.py    # Email and communication tools
+            scheduling_tools.py # Calendar and appointment tools
+            product_tools.py  # Product search and recommendation tools
+            profile_tools.py  # Customer profile capture and qualification
+        digital_expert/        # Digital expert agent (Epic 0009)
+          __init__.py
+          agent.py            # Main DigitalExpertAgent class
+          dependencies.py     # Expert-specific dependencies
+          models.py           # Expert-specific Pydantic models
+          tools/              # Expert-specific tools
+            __init__.py
+            content_tools.py  # Content analysis and ingestion tools
+            persona_tools.py  # Digital persona modeling tools
+            knowledge_tools.py # Knowledge extraction and management
+        shared/                # Shared agent resources
+          __init__.py
+          mcp_client.py       # MCP server integration client
+          vector_tools.py     # Vector database tools (Pinecone/pgvector)
+          config_manager.py   # Agent configuration management
+          auth_tools.py       # Authentication and authorization tools
     templates/                 # Jinja2 templates (HTMX partials/snippets)
     static/                    # Static assets served by backend (if any)
     config/                    # YAML app config, schema, examples
       app.yaml
+      agents/                  # Agent-specific configurations (NEW)
+        sales.yaml            # Sales agent configuration
+        digital_expert.yaml  # Digital expert agent configuration
     logs/                      # Loguru JSONL output path (from YAML)
     tests/                     # Backend tests (pytest)
+      agents/                  # Agent-specific tests (NEW)
+        test_sales_agent.py
+        test_digital_expert.py
+        test_router_agent.py
     pyproject.toml             # Python project metadata (or requirements.txt)
     README.md
 
@@ -69,12 +117,36 @@ Notes:
    }
    ```
 
-## Backend: Python FastAPI + Jinja + HTMX + SSE
+## Backend: Python FastAPI + Jinja + HTMX + SSE + Pydantic AI Agents
 - Keep all Python server code in `backend/`.
 - Jinja templates (HTMX partials/snippets) under `backend/templates/`.
 - SSE endpoint exposed by backend (e.g., `GET /events/stream`).
 - YAML config under `backend/config/app.yaml` with keys already defined in the design docs.
+- **NEW**: Agent-specific configurations under `backend/config/agents/` for modular agent settings.
 - Loguru configured from YAML to write JSONL to `backend/logs/` (path in YAML).
+
+### Agent Development Patterns
+- **Base Agent Classes**: Common functionality in `backend/app/agents/base/`
+  - `agent_base.py`: Base Pydantic AI agent class with shared dependencies
+  - `dependencies.py`: Common dependency injection patterns (database, vector DB, MCP servers)
+  - `tools_base.py`: Base tool classes with authentication, error handling, usage tracking
+  - `types.py`: Shared Pydantic models and type definitions
+
+- **Specialized Agents**: Agent-specific implementations in dedicated modules
+  - Each agent has its own module (e.g., `sales/`, `digital_expert/`)
+  - Agent-specific dependencies, models, and tools in separate files
+  - Tools organized in `tools/` subdirectory for each agent
+
+- **Shared Resources**: Common agent utilities in `backend/app/agents/shared/`
+  - MCP server integration client for external tool calling
+  - Vector database tools (Pinecone/pgvector routing based on account tier)
+  - Configuration management for hot-reloadable agent settings
+  - Authentication and authorization tools for secure agent operations
+
+- **Router Agent**: Intent classification and delegation in `backend/app/agents/router/`
+  - Route incoming queries to appropriate specialist agents
+  - Maintain conversation context across agent handoffs
+  - Handle fallback scenarios for ambiguous queries
 
 ## Integration between web and backend
 - The Astro host page (`web/src/pages/index.astro`) can:
@@ -85,7 +157,9 @@ Notes:
 ## Environment & config
 - `.env` at repo root for secrets (e.g., `OPENROUTER_API_KEY`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `PINECONE_API_KEY`, `OPENAI_API_KEY`).
 - App runtime config in `backend/config/app.yaml` (model, temperature, max_tokens, logging, UI flags, debounce, etc.).
-- Keep model IDs out of code paths (refer to YAML `llm.model`).
+- **NEW**: Agent-specific configs in `backend/config/agents/` (e.g., `sales.yaml`, `digital_expert.yaml`).
+- **NEW**: Agent configuration includes system prompts, tool configurations, pricing tiers, and feature flags.
+- Keep model IDs out of code paths (refer to YAML `llm.model` or agent-specific model overrides).
 
 ## Local development flow
 - Backend:

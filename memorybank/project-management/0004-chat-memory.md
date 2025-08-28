@@ -579,13 +579,24 @@ async def get_chat_history(request: Request) -> JSONResponse:
   - **Error handling**: Graceful degradation when LLM configuration is unavailable
   - **Accessibility**: Clear headings and semantic structure for screen readers
 
-- [ ] 0004-004-003-03 - CHUNK - Configuration change detection
-  - SUB-TASKS:
-    - Add configuration version/timestamp to session info
-    - Detect when configuration differs from what was used for last request
-    - Add warning indicators for configuration mismatches
-    - Include configuration reload timestamp in display
-    - Acceptance: Users can see if configuration has changed since last interaction
+- [x] 0004-004-003-03 - CHUNK - Configuration change detection ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Add configuration version/timestamp to session info
+    - ✅ Detect when configuration differs from what was used for last request
+    - ✅ Add warning indicators for configuration mismatches
+    - ✅ Include configuration reload timestamp in display
+    - Acceptance: ✅ Users can see if configuration has changed since last interaction
+
+  **Implementation Details:**
+  - **Configuration metadata tracking**: Added versioning system with timestamps, hashes, and file modification tracking
+  - **Backend enhancements**: Extended config.py with `_generate_config_metadata()` and `get_config_metadata()` functions
+  - **API enhancement**: Added `configuration_metadata` section to `/api/session` endpoint with version, timestamps, and hashes
+  - **Change detection logic**: Implemented automatic detection of stale configurations (>24 hours) and YAML file modifications
+  - **Warning system**: Added visual warning indicators for configuration mismatches with emoji icons and color coding
+  - **Metadata display**: Shows configuration version, load timestamp, YAML modification time, and hash values
+  - **Hash-based versioning**: Uses MD5 hashes of configuration and environment variables for change detection
+  - **Timestamp formatting**: Human-readable UTC timestamps for operational clarity
+  - **Visual styling**: Distinct metadata section with blue background and comprehensive warning indicators
 
 ## 0004-005 - FEATURE - LLM Request Tracking
 
@@ -1376,6 +1387,167 @@ Session (User Browser Instance)
 - **Extensibility**: Foundation for advanced features (topics, tags, analytics)
 
 This feature transforms the chat system from a simple message log into a sophisticated conversation management platform while maintaining backward compatibility and excellent performance.
+
+---
+
+## Agent Context Management (Pydantic AI Integration)
+
+### [ ] 0004-013 - FEATURE - Agent Context Management
+> Enhance chat memory system to support Pydantic AI agent context and conversation management
+
+#### [ ] 0004-013-001 - TASK - Agent Conversation Context
+- [ ] 0004-013-001-01 - CHUNK - LLM conversation context for agents
+  - Extend conversation history to include agent-specific context windows
+  - Implement context filtering and formatting for different agent types
+  - Add configurable context window sizes per agent
+  - Create context relevance scoring and truncation algorithms
+  - **Acceptance**: Agents receive appropriately sized, relevant conversation context
+  - **Dependencies**: Requires 0005-001 (Pydantic AI Framework Setup)
+
+- [ ] 0004-013-001-02 - CHUNK - Agent memory persistence
+  - Implement agent-specific memory storage and retrieval
+  - Add conversation state tracking across agent interactions
+  - Create agent context serialization and deserialization
+  - Implement context restoration after agent restarts
+  - **Acceptance**: Agents maintain context across conversations and sessions
+
+- [ ] 0004-013-001-03 - CHUNK - Multi-agent context coordination
+  - Implement context sharing and handoff between agents
+  - Add agent delegation tracking and context preservation
+  - Create context conflict resolution for overlapping agents
+  - Implement context isolation for agent-specific interactions
+  - **Acceptance**: Context preserved during agent handoffs and delegation
+
+#### [ ] 0004-013-002 - TASK - Agent Session Integration
+- [ ] 0004-013-002-01 - CHUNK - Agent-aware session management
+  - Extend session model to track active agents and their states
+  - Implement agent assignment and lifecycle management per session
+  - Add agent preference and configuration storage
+  - Create agent session analytics and usage tracking
+  - **Acceptance**: Sessions properly track agent interactions and states
+
+- [ ] 0004-013-002-02 - CHUNK - Agent conversation linking
+  - Implement agent-specific conversation categorization
+  - Add conversation routing based on agent capabilities
+  - Create conversation summary generation with agent context
+  - Implement agent-specific conversation archival rules
+  - **Acceptance**: Conversations properly linked to appropriate agents
+
+#### [ ] 0004-013-003 - TASK - Agent Configuration Management
+- [ ] 0004-013-003-01 - CHUNK - Dynamic agent configuration
+  - Implement runtime agent configuration loading from database
+  - Add agent configuration versioning and rollback support
+  - Create agent feature flag and A/B testing framework
+  - Implement agent configuration hot-reloading without restarts
+  - **Acceptance**: Agent configurations updated dynamically
+
+- [ ] 0004-013-003-02 - CHUNK - Agent performance tracking
+  - Implement agent response time and quality metrics
+  - Add agent conversation success rate tracking
+  - Create agent usage analytics and cost attribution
+  - Implement agent performance optimization recommendations
+  - **Acceptance**: Agent performance properly monitored and optimized
+
+### Technical Architecture - Agent Context Integration
+
+#### Database Schema Extensions for Agents
+```sql
+-- Agent instance tracking per session
+agent_sessions:
+  id (GUID, PK)
+  session_id (GUID, FK → sessions.id)
+  agent_type (VARCHAR)           -- sales, digital_expert, support
+  agent_config (JSONB)           -- agent-specific configuration
+  context_window_size (INTEGER)  -- max context tokens for this agent
+  active_since (TIMESTAMP)
+  last_interaction (TIMESTAMP)
+  performance_metrics (JSONB)
+
+-- Agent conversation context management  
+agent_contexts:
+  id (GUID, PK)
+  session_id (GUID, FK → sessions.id)
+  conversation_id (GUID, FK → conversations.id)
+  agent_type (VARCHAR)
+  context_data (JSONB)           -- agent-specific context
+  context_version (INTEGER)      -- for context evolution tracking
+  created_at (TIMESTAMP)
+  expires_at (TIMESTAMP)
+
+-- Agent handoff and delegation tracking
+agent_handoffs:
+  id (GUID, PK)
+  session_id (GUID, FK → sessions.id)
+  from_agent_type (VARCHAR)
+  to_agent_type (VARCHAR)
+  handoff_reason (VARCHAR)
+  context_transferred (JSONB)
+  handoff_timestamp (TIMESTAMP)
+  success_score (FLOAT)          -- quality of handoff
+```
+
+#### Agent Context Management Service
+```python
+class AgentContextService:
+    async def get_conversation_context(
+        self, 
+        session_id: UUID, 
+        agent_type: str,
+        max_tokens: int = 4000
+    ) -> AgentContext:
+        """Retrieve and format conversation context for specific agent."""
+        # Filter messages based on agent relevance
+        # Apply context window size limits
+        # Format context for agent consumption
+        pass
+    
+    async def store_agent_interaction(
+        self,
+        session_id: UUID,
+        agent_type: str,
+        interaction_data: dict
+    ) -> None:
+        """Store agent-specific interaction data for future context."""
+        pass
+    
+    async def handle_agent_handoff(
+        self,
+        session_id: UUID,
+        from_agent: str,
+        to_agent: str,
+        handoff_context: dict
+    ) -> HandoffResult:
+        """Manage context transfer between agents."""
+        pass
+```
+
+#### Integration with Pydantic AI Agents
+```python
+@dataclass
+class AgentDependencies:
+    session_id: UUID
+    conversation_context: ConversationContext
+    agent_memory: AgentMemory
+    performance_tracker: PerformanceTracker
+
+# Context retrieval for agent dependency injection
+async def get_agent_dependencies(session_id: UUID, agent_type: str) -> AgentDependencies:
+    context_service = AgentContextService()
+    context = await context_service.get_conversation_context(session_id, agent_type)
+    memory = await context_service.get_agent_memory(session_id, agent_type)
+    tracker = PerformanceTracker(session_id, agent_type)
+    
+    return AgentDependencies(
+        session_id=session_id,
+        conversation_context=context,
+        agent_memory=memory,
+        performance_tracker=tracker
+    )
+```
+
+This agent context management feature provides the foundational infrastructure for Pydantic AI agents to maintain sophisticated conversation context, memory, and multi-agent coordination while building on the existing chat memory and persistence system.
+
+---
 
 ## Success Criteria
 1. **Restart-safe chats**: Browser refresh loads previous conversation

@@ -50,17 +50,19 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - 🔄 **0004-004** (Message Persistence & Chat History) **MOSTLY COMPLETED** - few remaining chunks
 
 #### **Basic Sales Agent Framework (Next Priority)**
-- ❌ **0008-001** (Pydantic AI Sales Agent Setup) **READY TO START** - *Basic agent with simple chat*
+- ❌ **0005-001** (Pydantic AI Framework Setup) **READY TO START** - *Core framework and base agent classes*
+- ❌ **0008-001** (Sales Agent Framework) **READY TO START** - *Basic sales agent with Pydantic AI*
 - ❌ **0004-006** (Profile Data Collection) **NOT STARTED** - *Agent data capture tools*
 - ❌ **0004-012** (Conversation Hierarchy & Management) **NOT STARTED** - *Agent conversation memory*
+- ❌ **0004-013** (Agent Context Management) **NOT STARTED** - *Agent memory and context integration*
 - ❌ **0003-007-007** (Standalone chat documentation) **NOT STARTED**
 
 ### **Phase 2: Intelligent Sales Agent (RAG + Memory)**
 *Transform basic agent into intelligent sales assistant with knowledge and memory*
 
 #### **Agent Intelligence Enhancement**
-- ❌ **0008-002** (Sales Agent RAG Integration) **NOT STARTED** - *Connect agent to vector database*
-- ❌ **0004-004-001-03** (LLM Conversation Context) **NOT STARTED** - *Agent memory and context management*
+- ❌ **0008-002** (Sales Agent Intelligence - RAG) **NOT STARTED** - *Vector search and knowledge capabilities*
+- ❌ **0005-002** (Agent Template System) **NOT STARTED** - *Template management and instantiation*
 - ❌ **0010** (Website Content Ingestion) **NOT STARTED** - *Astro content → Pinecone for agent knowledge*
 - ❌ **0011** (Vector Database Integration) **NOT STARTED** - *Pinecone + RAG pipeline for agent*
 
@@ -68,9 +70,8 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 *Equip sales agent with business tools (CRM, email, scheduling)*
 
 #### **Agent Business Tools Integration**
-- ❌ **0008-003** (Sales Agent CRM Tools) **NOT STARTED** - *Zoho CRM integration as agent tools*
-- ❌ **0008-004** (Sales Agent Email Tools) **NOT STARTED** - *Email capabilities for agent*
-- ❌ **0008-005** (Sales Agent Scheduling Tools) **NOT STARTED** - *Appointment booking tools*
+- ❌ **0008-003** (Sales Agent Business Tools) **NOT STARTED** - *CRM, email, and scheduling capabilities*
+- ❌ **0005-004** (Tool Integration Framework) **NOT STARTED** - *Base tool classes and MCP server integration*
 - ❌ **0012** (Outbound Email Integration) **NOT STARTED** - *Mailgun infrastructure for agent*
 - ❌ **0013** (Scheduling Integration) **NOT STARTED** - *Nylas/Calendly infrastructure for agent*
 
@@ -85,12 +86,12 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 *Finalize sales agent integration and establish multi-agent foundation*
 
 #### **Complete Sales Agent**
-- ❌ **0008-006** (Sales Agent Page Tracking) **NOT STARTED** - *Referrer and page source tracking*
-- ❌ **0008-007** (Sales Agent Integration Testing) **NOT STARTED** - *End-to-end agent workflows*
-- ❌ **0008-008** (Sales Agent Optimization) **NOT STARTED** - *Performance and accuracy tuning*
+- ❌ **0008-004** (Sales Agent Optimization) **NOT STARTED** - *Performance and accuracy tuning*
+- ❌ **0005-003** (Multi-Agent Routing & Delegation) **NOT STARTED** - *Router agent and delegation framework*
 
 #### **Multi-Agent Architecture Foundation**
-- ❌ **0005** (Multi-Agent Support Framework) **NOT STARTED** - *Pydantic AI multi-agent architecture*
+- ❌ **0005** (Multi-Agent Support Framework) **PLANNED** - *Complete Pydantic AI multi-agent architecture*
+- ❌ **0009-001** (Digital Expert Agent Framework) **PLANNED** - *Second agent for multi-agent validation*
 - End-to-end testing and optimization
 
 ### **Phase 5: Production Readiness & Technical Excellence**
@@ -141,12 +142,12 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - 🔄 **Phase 4**: Production-ready sales agent with page tracking and multi-agent foundation **PLANNED**
 
 #### **Technical Deliverables**
-- 🔄 Pydantic AI agent framework with dependency injection **READY TO START**
-- 🔄 Content ingestion pipeline (Astro → Pinecone) **PLANNED**
-- 🔄 LLM conversation context and memory **PLANNED**
-- 🔄 Email integration (summaries, confirmations) **PLANNED**
-- 🔄 Scheduling integration (Nylas/Calendly) **PLANNED**
-- 🔄 Zoho CRM integration **PLANNED**
-- 🔄 Page source tracking **PLANNED**
+- 🔄 **Core Framework**: Pydantic AI agent framework with dependency injection **READY TO START**
+- 🔄 **Agent Templates**: Template system for agent instantiation and management **PLANNED**
+- 🔄 **Tool Integration**: Base tool classes and MCP server framework **PLANNED**
+- 🔄 **Vector Knowledge**: Content ingestion pipeline (Astro → Pinecone) **PLANNED**
+- 🔄 **Agent Memory**: LLM conversation context and agent memory management **PLANNED**
+- 🔄 **Business Tools**: Email, scheduling, and CRM integration as agent tools **PLANNED**
+- 🔄 **Multi-Agent**: Router agent and delegation capabilities **PLANNED**
 
 This tactical approach balances immediate business needs with long-term technical health, providing a clear path forward for completing both epics while maintaining code quality and user experience standards.

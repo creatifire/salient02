@@ -1,6 +1,8 @@
 # Epic 0009 - Digital Expert
 
-> Goal: Create AI-powered digital personas that embody the knowledge, expertise, and communication style of real experts by ingesting and learning from their content, enabling them to answer questions and provide guidance in their absence.
+> Goal: Create Pydantic AI-powered digital personas that embody the knowledge, expertise, and communication style of real experts by ingesting and learning from their content, enabling them to answer questions and provide guidance in their absence.
+
+**Framework**: Built on Pydantic AI with specialized tools for content analysis, persona modeling, and expert knowledge representation.
 
 ## Scope & Approach
 
@@ -18,9 +20,158 @@
 - **Consulting Scale**: Allowing consultants and advisors to scale their expertise across more clients
 - **Legacy Preservation**: Maintaining access to expert knowledge beyond their active availability
 
-## Features & Requirements
+## Pydantic AI Implementation Plan
 
-### [ ] 0009-001 - FEATURE - Content Ingestion & Processing
+### FEATURE 0009-001 - Digital Expert Agent Framework  
+> Establish Pydantic AI-powered digital expert agent with persona modeling
+
+#### TASK 0009-001-001 - Expert Agent Foundation
+- [ ] 0009-001-001-01 - CHUNK - Digital expert agent class implementation
+  - Create `DigitalExpertAgent` class inheriting from base agent
+  - Define expert-specific dependencies and persona configuration
+  - Implement expert persona system prompt generation
+  - **Acceptance**: Digital expert agent responds in expert's style
+  - **Dependencies**: Requires 0005-001 (Pydantic AI Framework Setup)
+
+- [ ] 0009-001-001-02 - CHUNK - Expert dependencies and context
+  - Implement `ExpertDependencies` with content corpus and persona data
+  - Add expert knowledge base and communication style dependencies
+  - Create expert configuration and persona parameter injection
+  - **Acceptance**: Expert agent receives persona-specific dependencies
+
+- [ ] 0009-001-001-03 - CHUNK - Expert output models
+  - Define Pydantic models for expert response formats
+  - Create structured models for expert analysis and insights
+  - Implement source citation and attribution models
+  - **Acceptance**: Expert agent returns structured, cited responses
+
+#### TASK 0009-001-002 - Content Analysis Tools
+- [ ] 0009-001-002-01 - CHUNK - Content ingestion tools
+  - Implement `@expert_agent.tool` for multi-modal content processing
+  - Add audio/video transcription and analysis tools
+  - Create text content extraction and categorization tools
+  - **Acceptance**: Agent processes expert content automatically
+
+- [ ] 0009-001-002-02 - CHUNK - Knowledge extraction tools
+  - Implement expert knowledge extraction and analysis tools
+  - Add concept identification and expertise mapping tools
+  - Create content timeline and evolution tracking tools
+  - **Acceptance**: Agent extracts structured knowledge from content
+
+### FEATURE 0009-002 - Expert Persona Modeling
+> Develop expert personality and communication style modeling
+
+#### TASK 0009-002-001 - Communication Style Analysis
+- [ ] 0009-002-001-01 - CHUNK - Style analysis tools
+  - Implement `@expert_agent.tool` for communication pattern analysis
+  - Add terminology and vocabulary extraction tools
+  - Create response structure and approach analysis tools
+  - **Acceptance**: Agent identifies expert's communication patterns
+
+- [ ] 0009-002-001-02 - CHUNK - Persona configuration tools
+  - Implement persona parameter tuning and configuration tools
+  - Add expert perspective and opinion modeling tools
+  - Create response generation style customization tools
+  - **Acceptance**: Agent generates responses matching expert's style
+
+#### TASK 0009-002-002 - Knowledge Domain Modeling
+- [ ] 0009-002-002-01 - CHUNK - Expertise area mapping tools
+  - Implement expert domain knowledge mapping tools
+  - Add expertise depth and breadth analysis tools
+  - Create knowledge confidence scoring tools
+  - **Acceptance**: Agent understands expert's knowledge boundaries
+
+### FEATURE 0009-003 - Expert Response Generation
+> Enable contextual expert responses with source attribution
+
+#### TASK 0009-003-001 - Contextual Response Tools
+- [ ] 0009-003-001-01 - CHUNK - Expert knowledge retrieval tools
+  - Implement `@expert_agent.tool` for expert knowledge search
+  - Add contextual relevance scoring and ranking tools
+  - Create expert opinion and perspective retrieval tools
+  - **Acceptance**: Agent retrieves relevant expert knowledge
+
+- [ ] 0009-003-001-02 - CHUNK - Source attribution tools
+  - Implement content source tracking and citation tools
+  - Add original content linking and reference tools
+  - Create content authenticity verification tools
+  - **Acceptance**: Agent provides accurate source attributions
+
+#### TASK 0009-003-002 - Expert Analysis Tools
+- [ ] 0009-003-002-01 - CHUNK - Expert insight generation tools
+  - Implement expert analysis and insight generation tools
+  - Add expert prediction and trend analysis tools
+  - Create expert recommendation and advice tools
+  - **Acceptance**: Agent provides expert-level insights and analysis
+
+---
+
+## Technical Architecture - Pydantic AI Implementation
+
+### Digital Expert Agent Structure
+```python
+@dataclass
+class ExpertDependencies:
+    account_id: str
+    expert_id: str
+    db: DatabaseConn
+    vector_config: VectorDBConfig
+    persona_config: PersonaConfig
+    content_corpus: ContentCorpus
+    communication_style: CommunicationStyle
+
+class ExpertResponseOutput(BaseModel):
+    response: str
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    expertise_areas: List[str]
+    source_citations: List[ContentCitation]
+    expert_perspective: str
+    reasoning: Optional[str]
+
+expert_agent = Agent[ExpertDependencies, ExpertResponseOutput](
+    'openai:gpt-4o',
+    deps_type=ExpertDependencies,
+    output_type=ExpertResponseOutput,
+    system_prompt="You are a digital representation of {expert_name}..."
+)
+
+@expert_agent.tool
+async def search_expert_knowledge(ctx: RunContext[ExpertDependencies], query: str) -> List[ExpertKnowledge]:
+    """Search expert's knowledge base for relevant information."""
+    corpus = ctx.deps.content_corpus
+    results = await vector_search_expert_content(corpus, query)
+    return parse_expert_knowledge(results, ctx.deps.expert_id)
+
+@expert_agent.tool
+async def analyze_expert_perspective(ctx: RunContext[ExpertDependencies], topic: str) -> ExpertPerspective:
+    """Analyze topic from expert's established perspective and opinions."""
+    persona = ctx.deps.persona_config
+    perspective = await generate_expert_perspective(persona, topic)
+    return ExpertPerspective(viewpoint=perspective, confidence=persona.confidence)
+```
+
+### Expert Module Structure
+```
+backend/app/agents/digital_expert/
+├── __init__.py
+├── agent.py                  # Main DigitalExpertAgent class
+├── models.py                 # Expert-specific Pydantic models
+├── dependencies.py           # ExpertDependencies class
+├── config.py                 # Expert agent configuration
+└── tools/
+    ├── __init__.py
+    ├── content_tools.py      # Content analysis and ingestion tools
+    ├── persona_tools.py      # Persona modeling and style analysis tools
+    ├── knowledge_tools.py    # Knowledge extraction and management tools
+    ├── citation_tools.py     # Source attribution and verification tools
+    └── analysis_tools.py     # Expert insight and analysis tools
+```
+
+---
+
+## Legacy Requirements (Updated for Pydantic AI)
+
+### [ ] 0009-005 - FEATURE - Content Ingestion & Processing
 
 #### [ ] 0009-001-001 - TASK - Multi-Modal Content Processing
 - [ ] 0009-001-001-01 - CHUNK - Audio and video content processing
