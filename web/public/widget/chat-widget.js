@@ -34,7 +34,7 @@
     ]);
     if (marked && DOMPurify){
       const trimmed = String(raw || '').trim();
-      const html = DOMPurify.sanitize(marked.parse(trimmed));
+      const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
       if (!html || html.replace(/\s/g,'') === ''){
         element.textContent = trimmed || '[no response]';
       } else {
@@ -68,7 +68,44 @@
       .msg{ position: relative; padding:.6rem .8rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
       .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
       .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
-      .content{ white-space:pre-wrap; }
+      .msg.user .content{ white-space:pre-wrap; }
+      
+      /* Table styles for markdown tables */
+      .msg.bot table { 
+        border-collapse: collapse; 
+        width: 100%; 
+        margin: 0.5rem 0; 
+        font-size: 0.9rem;
+      }
+      .msg.bot th, .msg.bot td { 
+        border: 1px solid #ddd; 
+        padding: 0.5rem 0.75rem; 
+        text-align: left; 
+      }
+      .msg.bot th { 
+        background-color: #f8f9fa; 
+        font-weight: 600; 
+        border-bottom: 2px solid #ccc;
+      }
+      .msg.bot tr:nth-child(even) { 
+        background-color: #f9f9f9; 
+      }
+      .msg.bot tr:hover { 
+        background-color: #f0f8ff; 
+      }
+      
+      /* Proper paragraph spacing for bot messages */
+      .msg.bot p {
+        margin: 0.5rem 0;
+        line-height: 1.5;
+      }
+      .msg.bot p:first-child {
+        margin-top: 0;
+      }
+      .msg.bot p:last-child {
+        margin-bottom: 0;
+      }
+      
       .copy{ position:absolute; bottom:6px; right:6px; background:rgba(255,255,255,.9); border:1px solid #ddd; border-radius:6px; padding:4px; width:22px; height:22px; display:flex; align-items:center; justify-content:center; opacity:.2; transition:opacity .15s ease, transform .1s ease; cursor:pointer; }
       .copy img{ width:14px; height:14px; display:block; }
       .msg.bot:hover .copy, .copy:focus{ opacity:1; }
@@ -80,6 +117,13 @@
       .hint{ font-size:.85rem; color:#666; }
       #toast{ position: fixed; right: 16px; bottom: 90px; background:#111; color:#fff; padding:6px 8px; border-radius:6px; font-size:12px; opacity:0; transition:opacity .15s ease; z-index:2147483646; }
       :host([data-toast="1"]) #toast{ opacity:.9; }
+      
+      /* Loading indicator for chat history */
+      .loading-indicator{ display:flex; align-items:center; justify-content:center; padding:1rem; color:#666; font-size:0.9rem; }
+      .loading-text{ margin-left:0.5rem; }
+      .loading-indicator::before{ content:''; width:16px; height:16px; border:2px solid #ddd; border-top:2px solid #666; border-radius:50%; animation:spin 1s linear infinite; }
+      @keyframes spin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
+      
       @media (max-width: 480px){ #pane{ bottom: 82px; width: 92vw; } }
     `;
 
@@ -159,6 +203,69 @@
 
     let busy=false; let activeSSE=null; let activeBotDiv=null; let accumulated='';
     let configCache = null;
+    let historyLoaded = false;
+    
+    async function loadHistory(){
+      if (historyLoaded) return;
+      
+      // Create and show loading indicator
+      const indicator = document.createElement('div');
+      indicator.className = 'loading-indicator';
+      indicator.innerHTML = '<span class="loading-text">Loading chat history...</span>';
+      chat.appendChild(indicator);
+      
+      try{
+        const historyUrl = new URL('/api/chat/history', backend);
+        const r = await fetch(historyUrl.toString(), { 
+          mode: allowCross ? 'cors' : 'same-origin',
+          credentials: allowCross ? 'include' : 'same-origin'
+        });
+        
+        if (!r.ok) {
+          if (r.status === 401) {
+            console.debug('[SalientWidget] No session found for history');
+          } else {
+            console.warn('[SalientWidget] History load failed:', r.status, r.statusText);
+          }
+          return;
+        }
+        
+        const data = await r.json();
+        const msgs = data.messages || [];
+        
+        if (msgs.length === 0) {
+          console.debug('[SalientWidget] No history found');
+          return;
+        }
+        
+        // Load messages into chat
+        msgs.forEach(m => {
+          const role = m.role; // API already maps roles correctly
+          const container = createMessage(role, '');
+          container.dataset.raw = m.raw_content || m.content || '';
+          
+          const content = container.querySelector('.content') || container;
+          if (role === 'bot') {
+            // Bot messages are pre-rendered HTML
+            content.innerHTML = m.content || '';
+          } else {
+            // User messages are plain text
+            content.textContent = m.content || '';
+          }
+        });
+        
+        console.debug(`[SalientWidget] Loaded ${msgs.length} messages`);
+        historyLoaded = true;
+        
+      } catch (e) {
+        console.error('[SalientWidget] History load error:', e);
+      } finally {
+        // Remove loading indicator
+        if (indicator && indicator.parentNode) {
+          indicator.remove();
+        }
+      }
+    }
     
     async function getBackendConfig(){
       if (configCache) return configCache;
@@ -198,7 +305,7 @@
           console.debug('[SalientWidget] SSE', sseUrl.toString());
           const es = new EventSource(sseUrl.toString());
           activeSSE = es;
-          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ setMessage(activeBotDiv, accumulated); } };
+          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ const content = activeBotDiv.querySelector('.content') || activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); content.innerHTML = displayText; activeBotDiv.dataset.raw = accumulated; chat.scrollTop = chat.scrollHeight; } };
           es.addEventListener('end', async()=>{
             try{ es.close(); }catch{}
             activeSSE=null;
@@ -228,7 +335,7 @@
     }
 
     send.addEventListener('click', sendMessage);
-    clear.addEventListener('click', ()=>{ chat.innerHTML=''; });
+    clear.addEventListener('click', ()=>{ chat.innerHTML=''; historyLoaded = false; });
     input.addEventListener('keydown', (e)=>{ const isEnter=e.key==='Enter'; const isCtrl=e.ctrlKey||e.metaKey; if(isEnter&&isCtrl){ e.preventDefault(); sendMessage(); }});
 
     root.appendChild(style);
@@ -240,7 +347,7 @@
     let loaded=false;
     async function maybeFetch(){ if (loaded) return; try{ await fetch(new URL('/health', backend).toString(), { mode: allowCross? 'cors':'same-origin' }); }catch{} loaded=true; }
 
-    function open(){ host.setAttribute('data-open', '1'); fab.setAttribute('aria-expanded','true'); pane.setAttribute('aria-hidden','false'); maybeFetch(); }
+    function open(){ host.setAttribute('data-open', '1'); fab.setAttribute('aria-expanded','true'); pane.setAttribute('aria-hidden','false'); maybeFetch(); loadHistory(); }
     function close(){ host.removeAttribute('data-open'); fab.setAttribute('aria-expanded','false'); pane.setAttribute('aria-hidden','true'); if(activeSSE){ try{ activeSSE.close(); }catch{} activeSSE=null; setBusy(false);} }
     function toggle(){ host.hasAttribute('data-open') ? close() : open(); }
 
