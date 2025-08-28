@@ -42,6 +42,7 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - ✅ **0004-004-002-05** (Frontend chat history loading) **COMPLETED**
 - 🔄 **0004-004-002-06/07/08** (Markdown formatting consistency) **IN PROGRESS** - affects all 5 integration strategies
 - ❌ **0004-004-002-10** (Chat Widget History Loading) **NOT STARTED** - widget conversation continuity
+- ❌ **0004-004-003** (Enhanced Session Information Display) **NOT STARTED** - operational visibility
 - ❌ **0003-007-007** (Standalone chat documentation) **NOT STARTED** 
 - ✅ **0004-001** (Development Environment & Database Setup) **COMPLETED**
 - ✅ **0004-002** (Database Setup & Migrations) **COMPLETED**
@@ -82,7 +83,6 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - ❌ **0004-007** (Code Organization & Maintainability) **NOT STARTED** - clean architecture
 - ❌ **0004-008** (Testing & Validation) **NOT STARTED** - comprehensive test coverage
 - ❌ **0004-009-002** (Code Quality Tools Setup) **NOT STARTED** - automated quality enforcement
-- ❌ **0004-004-003** (Enhanced Session Information Display) **NOT STARTED** - operational visibility
 - Performance optimization and monitoring
 - Complete integration testing
 

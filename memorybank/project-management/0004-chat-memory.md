@@ -400,16 +400,26 @@ The schema and session management fully supports multiple concurrent users:
   - **HTML sanitization**: Added DOMPurify script dependency for secure HTML rendering
   - **Consistent with backend**: All formatting now matches the backend `index.html` implementation
 
-- [ ] 0004-004-002-07 - CHUNK - Markdown formatting for Standalone HTMX Integration (Plain HTML)
-  - SUB-TASKS:
-    - Fix Plain HTMX Demo at `web/public/htmx-chat.html`
-    - Update standalone HTML file with proper markdown configuration
-    - Ensure table rendering and line break handling match backend behavior
-    - Add table styling CSS to standalone HTML implementation
-    - Verify cross-origin functionality and session handling
-    - Acceptance: Standalone HTML demo renders markdown consistently with backend
+- [x] 0004-004-002-07 - CHUNK - Markdown formatting for Standalone HTMX Integration (Plain HTML) ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Fix Plain HTMX Demo at `web/public/htmx-chat.html`
+    - ✅ Update standalone HTML file with proper markdown configuration
+    - ✅ Ensure table rendering and line break handling match backend behavior
+    - ✅ Add table styling CSS to standalone HTML implementation (already present)
+    - ✅ Verify cross-origin functionality and session handling
+    - Acceptance: ✅ Standalone HTML demo renders markdown consistently with backend
   - PRIORITY: High - Self-contained HTML file with HTMX, no framework dependencies
   - DEPENDENCIES: Requires completed backend markdown processing (already done)
+  
+  **Implementation Details:**
+  - **Enhanced markdown processing**: Added `{ breaks: true }` to `marked.parse()` call in `renderMarkdownOrFallback` function
+  - **Streaming line break preservation**: Implemented interim `\n` → `<br>` conversion during SSE streaming for better real-time display
+  - **Comprehensive table styling**: Table CSS was already properly implemented with borders, hover effects, and alternating row colors
+  - **Proper paragraph spacing**: Paragraph CSS was already correctly configured for bot messages
+  - **User message whitespace**: `white-space: pre-wrap` already properly scoped to user messages only
+  - **HTML sanitization**: DOMPurify already integrated for secure HTML rendering
+  - **Cross-origin compatibility**: Session handling and API calls work correctly across different origins
+  - **Consistent with backend**: All formatting now matches the backend `index.html` and Astro implementations
 
 - [ ] 0004-004-002-08 - CHUNK - Markdown formatting for Embeddable Widget Integration (Shadow DOM)
   - SUB-TASKS:

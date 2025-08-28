@@ -158,7 +158,7 @@
         const trimmed=(raw||'').trim();
         const c=container.querySelector('.content')||container;
         try{
-          const html = DOMPurify.sanitize(marked.parse(trimmed));
+          const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
           if (!html || html.replace(/\s/g,'')===''){
             c.textContent = trimmed || '[no response]';
           } else {
@@ -204,7 +204,7 @@
         const url = new URL('/events/stream', window.location.origin); url.searchParams.set('llm','1'); url.searchParams.set('message', value);
         try{
           const es = new EventSource(url.toString()); activeSSE=es;
-          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ activeBotDiv.dataset.raw=accumulated; const c=activeBotDiv.querySelector('.content')||activeBotDiv; c.textContent = accumulated; chat.scrollTop=chat.scrollHeight; } };
+          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ activeBotDiv.dataset.raw=accumulated; const c=activeBotDiv.querySelector('.content')||activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); c.innerHTML = displayText; chat.scrollTop=chat.scrollHeight; } };
           es.addEventListener('end', ()=>{ try{ es.close(); }catch{}; activeSSE=null; if(activeBotDiv){ renderMarkdownOrFallback(activeBotDiv, accumulated); } setBusy(false); });
           es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; doPost(value); };
         }catch{ doPost(value); }
