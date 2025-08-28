@@ -117,7 +117,8 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
    - 🔄 0004-004 (Message Persistence & Chat History) **MOSTLY DONE** - few remaining chunks
    - 🔄 0004-006 (Profile Data Collection) **CRITICAL FOR MILESTONE 1**
    - 🔄 0004-012 (Conversation Hierarchy & Management) **CRITICAL FOR MILESTONE 1**
-2. **Phase 2**: Content and RAG pipeline
+2. **Phase 2**: LLM Enhancement & RAG pipeline
+   - 0004-004-001-03 (LLM Conversation Context) - CRITICAL for sales agent memory
    - 0010 (Website Content Ingestion) - Astro website content only
    - 0011 (Vector Database Integration) - Pinecone + RAG
 3. **Phase 3**: Communication infrastructure & chat enhancements
@@ -170,6 +171,7 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - 🔄 0004-012: Conversation hierarchy and management **CRITICAL FOR MILESTONE 1**
 
 ### **Milestone 1 Success Criteria (Sales Agent)**
+- 🔄 LLM conversation context and memory **PLANNED**
 - 🔄 Content ingestion pipeline (Astro → Pinecone) **PLANNED**
 - 🔄 RAG-powered chat responses **PLANNED**
 - 🔄 Email integration (summaries, confirmations) **PLANNED**

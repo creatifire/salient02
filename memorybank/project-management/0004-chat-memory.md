@@ -530,6 +530,8 @@ async def get_chat_history(request: Request) -> JSONResponse:
 
 ## 0004-006 - FEATURE - Profile Data Collection
 
+> **⚠️ DESIGN REVIEW REQUIRED**: Before implementing profile gathering, review design to add support for configurable profile field definitions via YAML/JSON file (stored in database or filesystem alongside app.yaml, but not in app.yaml itself). This will allow customizable profile data collection based on business requirements.
+
 ### [ ] 0004-006-001 - TASK - Profile Creation & Updates
 - [ ] 0004-006-001-01 - CHUNK - Profile service module
   - SUB-TASKS:
