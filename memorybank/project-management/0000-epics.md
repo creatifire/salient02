@@ -17,6 +17,7 @@
 15. [Simple Research Agent](./0015-simple-research-agent.md)
 16. [Deep Research Agent](./0016-deep-research-agent.md)
 17. [RAG Agent (Document Intelligence)](./0017-rag-agent.md)
+18. [Collaborative AI Workspaces](./0018-collaborative-ai-workspaces.md)
 
 ## Epic Backlog
 
