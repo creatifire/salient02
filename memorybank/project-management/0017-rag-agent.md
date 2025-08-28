@@ -361,7 +361,7 @@ rag_agent:
       
     onedrive:
       enabled: false
-      tenant_id: null
+      account_id: null
       client_id: null
       
   vector_indexing:

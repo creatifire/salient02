@@ -15,8 +15,19 @@ The data model supports:
 
 ```mermaid
 erDiagram
+    accounts {
+        uuid id PK
+        varchar name "Account name or organization"
+        varchar slug UK "URL-safe account identifier"
+        varchar subscription_tier "free|standard|premium|enterprise"
+        boolean is_active "Account status"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
     sessions {
         uuid id PK
+        uuid account_id FK
         varchar session_key UK "Browser session cookie value"
         varchar email "Nullable, when provided by user"
         boolean is_anonymous "True until email provided"
@@ -25,9 +36,23 @@ erDiagram
         jsonb metadata "Extensible session data"
     }
     
+    agent_instances {
+        uuid id PK
+        uuid account_id FK
+        varchar agent_type "sales|research|rag|digital_expert"
+        varchar instance_name "human_health|finance_research|etc"
+        varchar display_name "Human Health Sales Agent"
+        jsonb configuration "Instance-specific config overrides"
+        varchar status "active|inactive|archived"
+        timestamp created_at
+        timestamp updated_at
+        timestamp last_used_at
+    }
+    
     messages {
         uuid id PK
         uuid session_id FK
+        uuid agent_instance_id FK "Which agent handled this message"
         varchar role "human|assistant|system|tool|developer"
         text content "Message text"
         jsonb metadata "Citations, doc_ids, scores, tool info"
@@ -37,6 +62,7 @@ erDiagram
     llm_requests {
         uuid id PK
         uuid session_id FK
+        uuid agent_instance_id FK "Which agent made this request"
         varchar provider "openrouter"
         varchar model "Model identifier"
         jsonb request_body "Sanitized request payload"
@@ -67,18 +93,82 @@ erDiagram
         timestamp updated_at
     }
     
+    agent_performance_metrics {
+        uuid id PK
+        uuid account_id FK
+        uuid agent_instance_id FK
+        decimal response_time_ms "Response time in milliseconds"
+        varchar request_type "chat|stream|tool_call"
+        varchar status "success|error|timeout"
+        timestamp created_at
+    }
+    
+    agent_usage_log {
+        uuid id PK
+        uuid account_id FK
+        uuid agent_instance_id FK
+        uuid session_id FK
+        integer request_count "Number of requests in this log entry"
+        integer total_tokens "Total tokens used"
+        decimal total_cost "Total cost for this usage"
+        timestamp created_at
+    }
+    
     %% Relationships
+    accounts ||--o{ sessions : "has many"
+    accounts ||--o{ agent_instances : "has many"
+    accounts ||--o{ agent_performance_metrics : "tracks performance"
+    accounts ||--o{ agent_usage_log : "tracks usage"
     sessions ||--o{ messages : "has many"
     sessions ||--o{ llm_requests : "tracks usage"
     sessions ||--o| profiles : "may have profile"
+    sessions ||--o{ agent_usage_log : "generates usage"
+    agent_instances ||--o{ messages : "handles"
+    agent_instances ||--o{ llm_requests : "makes requests"
+    agent_instances ||--o{ agent_performance_metrics : "performance tracked"
+    agent_instances ||--o{ agent_usage_log : "usage tracked"
 ```
 
 ## Table Descriptions
 
-### sessions
-Primary entity tracking browser sessions and user continuity.
+### accounts
+Primary entity for multi-account support, enabling organization-level isolation.
 
 **Key Features:**
+- `name`: Human-readable account/organization name
+- `slug`: URL-safe identifier for routing (e.g., `/accounts/acme-corp/chat`)
+- `subscription_tier`: Determines feature access and resource limits
+- `is_active`: Global account enable/disable flag
+
+**Usage:**
+- Account-level billing and usage tracking
+- Feature access control based on subscription tier
+- Agent instance provisioning and limits
+- Data isolation boundary for all account resources
+
+### agent_instances
+Dynamic agent instances per account, each configured for specific use cases.
+
+**Key Features:**
+- `agent_type`: Template type (sales, research, rag, digital_expert)
+- `instance_name`: Unique within account (human_health, finance_research)
+- `display_name`: User-friendly name shown in UI
+- `configuration`: JSONB overrides for template configuration
+- `status`: Instance lifecycle management
+- `last_used_at`: For caching and cleanup decisions
+
+**Usage:**
+- Multiple sales agents per account (different product lines)
+- Multiple research agents with different vector databases
+- Instance-specific tool configurations and prompts
+- Resource usage tracking per agent instance
+- Hot/cold instance management for performance
+
+### sessions
+Browser sessions within an account context for user continuity.
+
+**Key Features:**
+- `account_id`: Links session to specific account
 - `session_key`: Unique identifier stored in browser cookie
 - `email`: Captured when user provides it during conversation
 - `is_anonymous`: Flips to false when email is provided
@@ -86,14 +176,16 @@ Primary entity tracking browser sessions and user continuity.
 - `metadata`: JSONB field for future extensibility
 
 **Usage:**
-- Session resumption: Match browser cookie to `session_key`
-- Email linking: Find sessions with same `email` value
-- Analytics: Track session duration and activity patterns
+- Session resumption: Match browser cookie to `session_key` within account
+- Email linking: Find sessions with same `email` value within account
+- Analytics: Track session duration and activity patterns per account
+- Account-scoped session isolation and security
 
 ### messages
-Complete chat history with support for future RAG citations.
+Complete chat history with agent tracking and RAG citation support.
 
 **Key Features:**
+- `agent_instance_id`: Links message to specific agent instance that handled it
 - `role`: Distinguishes message sources and types:
   - `"human"` - Messages from the user/customer
   - `"assistant"` - Messages from the LLM (OpenRouter responses)
@@ -114,11 +206,14 @@ Complete chat history with support for future RAG citations.
 - Tool call tracking and result correlation
 - Function calling workflows (OpenAI and Anthropic)
 - Citation display when RAG is implemented
+- Agent performance tracking and analytics per instance
+- Multi-agent conversation handoff tracking
 
 ### llm_requests
-Comprehensive LLM usage tracking for cost management and analytics.
+Comprehensive LLM usage tracking for cost management and analytics with agent attribution.
 
 **Key Features:**
+- `agent_instance_id`: Links request to specific agent instance for cost attribution
 - `provider`/`model`: Track which LLM service and model used
 - Token counting: Separate prompt, completion, and total tokens
 - Cost calculation: Unit costs and computed total cost
@@ -127,9 +222,10 @@ Comprehensive LLM usage tracking for cost management and analytics.
 
 **Usage:**
 - Session-level cost reporting
-- Model performance comparison
-- Billing and usage analytics
-- Debugging LLM interactions
+- Agent instance cost attribution and billing
+- Model performance comparison per agent type
+- Account-level usage analytics and billing
+- Debugging LLM interactions by agent instance
 
 ### profiles
 Incremental customer data collection supporting "dribs and drabs" accumulation.
@@ -147,24 +243,74 @@ Incremental customer data collection supporting "dribs and drabs" accumulation.
 - Support future email-based session linking
 - Personalize conversations based on known preferences
 
+### agent_performance_metrics
+Real-time performance tracking for agent instances across accounts.
+
+**Key Features:**
+- `agent_instance_id`: Links metrics to specific agent instance
+- `response_time_ms`: Tracks latency for performance optimization
+- `request_type`: Distinguishes between chat, streaming, and tool calls
+- `status`: Tracks success/error rates for reliability monitoring
+
+**Usage:**
+- Account-level performance dashboards and SLA monitoring
+- Agent instance optimization and capacity planning
+- Error rate tracking and alerting
+- Performance comparison across agent types and accounts
+
+### agent_usage_log
+Aggregated usage tracking for billing and resource management.
+
+**Key Features:**
+- `agent_instance_id`: Links usage to specific agent instance
+- `request_count`: Batch request counting for efficient logging
+- `total_tokens`: Token usage aggregation for cost calculation
+- `total_cost`: Pre-calculated costs for billing accuracy
+
+**Usage:**
+- Account-level billing and usage reporting
+- Resource consumption tracking per agent instance
+- Cost optimization and budget management
+- Usage-based scaling decisions
+
 ## Indices Strategy
 
 ### Performance Indices
 ```sql
+-- Account and agent instance management
+CREATE UNIQUE INDEX idx_accounts_slug ON accounts(slug);
+CREATE INDEX idx_accounts_tier_active ON accounts(subscription_tier, is_active);
+CREATE UNIQUE INDEX idx_agent_instances_account_name ON agent_instances(account_id, instance_name);
+CREATE INDEX idx_agent_instances_type_status ON agent_instances(agent_type, status);
+CREATE INDEX idx_agent_instances_last_used ON agent_instances(last_used_at) WHERE status = 'active';
+
 -- Session lookup and resumption
 CREATE UNIQUE INDEX idx_sessions_session_key ON sessions(session_key);
-CREATE INDEX idx_sessions_email ON sessions(email) WHERE email IS NOT NULL;
+CREATE INDEX idx_sessions_account_email ON sessions(account_id, email) WHERE email IS NOT NULL;
+CREATE INDEX idx_sessions_account_activity ON sessions(account_id, last_activity_at);
 
--- Message history retrieval
+-- Message history retrieval  
 CREATE INDEX idx_messages_session_created ON messages(session_id, created_at);
+CREATE INDEX idx_messages_agent_created ON messages(agent_instance_id, created_at);
 
 -- LLM cost analysis
 CREATE INDEX idx_llm_requests_session_created ON llm_requests(session_id, created_at);
+CREATE INDEX idx_llm_requests_agent_created ON llm_requests(agent_instance_id, created_at);
 CREATE INDEX idx_llm_requests_model_created ON llm_requests(model, created_at);
 
 -- Profile management
 CREATE INDEX idx_profiles_session_id ON profiles(session_id);
 CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
+
+-- Performance monitoring
+CREATE INDEX idx_perf_metrics_account_created ON agent_performance_metrics(account_id, created_at);
+CREATE INDEX idx_perf_metrics_agent_created ON agent_performance_metrics(agent_instance_id, created_at);
+CREATE INDEX idx_perf_metrics_status_created ON agent_performance_metrics(status, created_at);
+
+-- Usage tracking
+CREATE INDEX idx_usage_log_account_created ON agent_usage_log(account_id, created_at);
+CREATE INDEX idx_usage_log_agent_created ON agent_usage_log(agent_instance_id, created_at);
+CREATE INDEX idx_usage_log_session_created ON agent_usage_log(session_id, created_at);
 ```
 
 ### Email Collision Detection
@@ -244,11 +390,12 @@ When the same email appears in multiple sessions:
 3. **Manual Review**: Operator decides if sessions should be linked
 4. **Schema Evolution**: Add `primary_profile_id` to support merged profiles
 
-### Multi-Tenant Support
-Future addition of `tenants` table:
-- Add `tenant_id` FK to all tables
-- Partition data by tenant for isolation
-- Support tenant-specific configuration overrides
+### Multi-Account Support
+Implemented with `accounts` table and account-scoped data:
+- All tables include `account_id` FK for complete data isolation
+- Agent instances are account-specific and configurable
+- Account-level billing, usage tracking, and feature access control
+- Support for account-specific configuration overrides
 
 ### RAG Integration
 Enhance `messages.metadata` for retrieval citations:

@@ -30,7 +30,7 @@
   - DoD: restart-safe chats; basic session switcher; JSONL + DB logs agree
 
 - 1005 – Retrieval-Augmented Answers (Pinecone)
-  - Connect Pinecone with namespace per tenant
+  - Connect Pinecone with namespace per account
   - Add retrieval step + cite sources; toggle RAG on/off via YAML
   - Inline citation links; basic rank/score display
   - DoD: side-by-side demo: with/without RAG; clickable citations
@@ -49,7 +49,7 @@
 
 - 1008 – Multi-Agent Ready Routing (Single Agent shipped)
   - Introduce `/a/{agent}/chat` path; keep only Sales agent enabled
-  - Minimal `agents` + `tenant_agents` tables for future use
+  - Minimal `agents` + `account_agents` tables for future use
   - Per-agent config overrides (model/persona) read from YAML
   - DoD: app runs under `/a/sales/...`; toggling agent name works
 

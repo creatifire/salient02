@@ -342,7 +342,7 @@ Marketing Automation ← Follow-up Sequences ← Pipeline Management
 -- CRM system mappings
 crm_integrations:
   id (GUID, PK)
-  tenant_id (GUID, FK → tenants.id)
+  account_id (GUID, FK → accounts.id)
   crm_type (VARCHAR) -- salesforce, hubspot, dynamics, pipedrive
   api_credentials (JSONB, encrypted)
   field_mappings (JSONB)

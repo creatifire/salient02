@@ -40,7 +40,7 @@ Account → Agent Template Selection → Instance Configuration → Deployed Age
 ```
 
 ### Primary Architectural Question: Endpoint Strategy
-**How should we structure API endpoints for multi-tenant, multi-agent, multi-instance architecture?**
+**How should we structure API endpoints for multi-account, multi-agent, multi-instance architecture?**
 
 ### Option 1: Account-Scoped Agent Endpoints (Recommended)
 ```
@@ -59,7 +59,7 @@ DELETE /accounts/{account-id}/agents/{agent-id}
 ```
 
 **Pros:**
-- ✅ **Perfect tenant isolation**: Account-based resource boundaries
+- ✅ **Perfect account isolation**: Account-based resource boundaries
 - ✅ **Clear billing model**: Easy to track usage per account
 - ✅ **Scalable architecture**: Aligns with Render's multi-service scaling
 - ✅ **Agent-specific optimization**: Each agent can have custom configurations
@@ -298,7 +298,7 @@ vector_db_configs:
 
 ### Infrastructure Strategy (Render-Based)
 ```yaml
-# render.yaml for multi-tenant agent platform
+# render.yaml for multi-account agent platform
 services:
   - type: web
     name: agent-platform-api
@@ -347,7 +347,7 @@ def get_vector_config(account_id: str, agent_instance_id: str):
         # Shared index with namespace isolation
         namespace = f"account-{account_id}-{agent_instance_id}"
         return PineconeConfig(
-            index_name="shared-multi-tenant",
+            index_name="shared-multi-account",
             namespace=namespace
         )
     elif config.type == "pinecone_dedicated":
@@ -389,13 +389,13 @@ async def call_mcp_server(
 ```
 
 ### Scaling Strategy
-- **Entry/Standard Tiers**: Shared Render services with database-level tenant isolation
+- **Entry/Standard Tiers**: Shared Render services with database-level account isolation
 - **Premium Tiers**: Dedicated Render services for complete infrastructure isolation
 - **Auto-scaling**: Render's built-in scaling based on CPU/memory usage
 - **Database Scaling**: PostgreSQL read replicas for improved performance
 - **Cache Layer**: Redis for configuration and session caching
 
-This epic will establish the foundation for a sophisticated, scalable, multi-tenant AI agent platform that can serve diverse customer segments while maintaining cost-effectiveness and operational simplicity.
+This epic will establish the foundation for a sophisticated, scalable, multi-account AI agent platform that can serve diverse customer segments while maintaining cost-effectiveness and operational simplicity.
 
 ---
 

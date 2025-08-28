@@ -2,7 +2,7 @@
 
 > Goal: Create collaborative AI-powered workspaces that combine document libraries, intelligent agents, and team collaboration to enable shared knowledge creation, exploration, and management.
 
-**Framework**: Built on Pydantic AI with multi-tenant workspace management, document library orchestration, agent collaboration, and automated knowledge generation capabilities.
+**Framework**: Built on Pydantic AI with multi-account workspace management, document library orchestration, agent collaboration, and automated knowledge generation capabilities.
 
 ## Concept Overview
 

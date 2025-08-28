@@ -3,7 +3,7 @@
 > Goal: Add persistent chat history and session management to the existing baseline system. Messages and sessions stored in Postgres, with automatic session resumption and profile data accumulation.
 
 ## Scope & Approach
-- **Single-tenant mode**: No `tenants` table for now; simplify schema
+- **Single-account mode**: No `accounts` table for now; simplify schema
 - **Multiple concurrent sessions**: Full support for multiple users having separate, distinct conversations simultaneously. Each browser/user gets unique session_key, ensuring complete conversation isolation
 - **Modify existing endpoints**: Enhance current `POST /chat` and `GET /events/stream` to use database
 - **Session resumption**: Automatic based on browser session cookie/ID matching database
@@ -70,14 +70,7 @@ profiles:
 ```
 
 ### Indices
-```sql
-CREATE INDEX idx_sessions_session_key ON sessions(session_key);
-CREATE INDEX idx_sessions_email ON sessions(email) WHERE email IS NOT NULL;
-CREATE INDEX idx_messages_session_created ON messages(session_id, created_at);
-CREATE INDEX idx_llm_requests_session_created ON llm_requests(session_id, created_at);
-CREATE INDEX idx_profiles_session_id ON profiles(session_id);
-CREATE INDEX idx_profiles_email ON profiles(email) WHERE email IS NOT NULL;
-```
+Database indices for optimal performance are defined in [architecture/datamodel.md](../architecture/datamodel.md#performance-indices). Key indices include session lookup, message retrieval, cost analysis, and profile management.
 
 ## Concurrent Session Architecture
 
@@ -1175,8 +1168,8 @@ conversations:
 -- Add conversation_id foreign key to existing messages table
 ALTER TABLE messages ADD COLUMN conversation_id (GUID, FK → conversations.id);
 -- Update existing messages to belong to default conversations
--- Add index for conversation-based message retrieval
-CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at);
+-- Add index for conversation-based message retrieval (to be added to datamodel.md)
+-- CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at);
 ```
 
 #### Configuration Schema (app.yaml)
