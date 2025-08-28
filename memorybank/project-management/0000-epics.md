@@ -16,8 +16,9 @@
 14. [CrossFeed MCP Server](./0014-crossfeed.md)
 15. [Simple Research Agent](./0015-simple-research-agent.md)
 16. [Deep Research Agent](./0016-deep-research-agent.md)
-17. [Collaborative AI Workspaces](./0018-collaborative-ai-workspaces.md)
-18. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md)
+17. [Simple Chat Agent](./0017-simple-chat-agent.md)
+18. [Collaborative AI Workspaces](./0018-collaborative-ai-workspaces.md)
+19. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md)
 
 ## Epic Backlog
 
