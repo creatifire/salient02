@@ -1,43 +1,61 @@
 # Epic 0005 - Multi-Agent Support
 
-> Goal: Implement Pydantic AI-based multi-agent infrastructure with intelligent routing, tool calling, and specialized agent endpoints to support different agent types with distinct capabilities and workflows.
+> Goal: Implement multi-account and multi-agent infrastructure supporting four agent types (simple-chat, sales, simple-research, deep-research) with account-scoped routing, agent instance management, and intelligent query routing within accounts.
 
-**Framework**: Built on Pydantic AI for type-safe agent development with dependency injection, structured output, and tool orchestration.
+**Framework**: Built on Pydantic AI with database-driven agent instance management, supporting multiple agent instances per account with different configurations, vector databases, and tool access.
 
 ## Scope & Approach
 
-### Multi-Agent Architecture
-- **Specialized Agents**: Different agents with distinct capabilities, tools, and knowledge domains
-- **Intelligent Routing**: Automatic agent selection based on query intent and context
-- **Tool Integration**: Agent-specific tool calling and workflow orchestration
-- **Context Preservation**: Maintain conversation context across agent handoffs
+### Four Agent Types Supported
+- **Simple Chat Agent (0017)**: Multi-tool foundation with vector search, web search, CrossFeed MCP, conversation management
+- **Sales Agent (0008)**: CRM integration, product recommendations, lead qualification, scheduling
+- **Simple Research Agent (0015)**: Web search, document intelligence, research synthesis, smart bookmarking
+- **Deep Research Agent (0016)**: Advanced multi-step investigation, hypothesis formation, evidence validation
 
-## Core Architectural Questions
+### Multi-Account Infrastructure
+- **Account Isolation**: Complete data separation between accounts with account-scoped endpoints
+- **Agent Instance Management**: Multiple instances per agent type per account with unique configurations
+- **Vector Database Routing**: Account-tier based routing (pgvector → Pinecone namespace → dedicated index)
+- **Resource Management**: Subscription-tier based limits and feature access control
 
-### Multi-Dimensional Agent Architecture
-The system must handle two distinct dimensions:
+### Intelligent Query Routing
+- **Router Agent**: Intent classification to route queries to appropriate agent instances within an account
+- **Context Preservation**: Maintain conversation context and enable agent handoffs when needed
+- **Fallback Handling**: Graceful degradation when specialist agents are unavailable
 
-#### 1. **Agent Types (Agentic Workflows)**
-Different agent workflows implemented in pydantic.ai:
-- **Sales Agent**: CRM integration, lead qualification, pricing
-- **Digital Expert**: Content ingestion, persona modeling, knowledge extraction
-- **Support Agent**: Ticket management, knowledge base queries
-- **Research Agent**: Document analysis, competitive intelligence
+## Multi-Account Agent Architecture
 
-#### 2. **Agent Instances (Configuration Variants)**
-Same workflow configured differently for specific use cases:
-- **Vector Database**: Different Pinecone namespaces or dedicated indexes
-- **MCP Servers**: Different tools and API access levels
-- **Tool Restrictions**: Account-specific permissions and capabilities
-- **Pricing Tiers**: Different feature sets and usage limits
+### Agent Instance Model
+Each account can provision multiple instances of the four supported agent types:
 
-### Multi-Tenant Account Architecture
 ```
-Account → Agent Template Selection → Instance Configuration → Deployed Agent
-├── account-123/sales-agent-enterprise    (Dedicated Pinecone index)
-├── account-123/digital-expert-ceo        (Specialized content corpus)
-└── account-456/sales-agent-startup       (Shared Pinecone namespace)
+Account: "Acme Healthcare Corp"
+├── simple-chat-instances:
+│   ├── general-support (shared knowledge base)
+│   └── product-specialist (product-specific vector DB)
+├── sales-agent-instances:
+│   ├── human-health (Salesforce + FDA content)
+│   └── animal-health (HubSpot + veterinary content)  
+├── research-agent-instances:
+│   ├── clinical-research (PubMed + clinical trials)
+│   └── regulatory-research (FDA docs + compliance)
+└── deep-research-instances:
+    └── competitive-analysis (market research + patents)
 ```
+
+### Configuration Differentiation
+Same agent type, different configurations per instance:
+- **Vector Database**: Different content libraries (Pinecone namespaces/indexes)
+- **Search Engines**: Different providers (Exa for academic, Tavily for general)
+- **MCP Servers**: Different tool access (basic CRM vs advanced pricing)
+- **System Prompts**: Instance-specific domain expertise and tone
+
+### Multi-Account Data Isolation
+Complete separation achieved through:
+- **Database Schema**: All tables include `account_id` FK (defined in [datamodel.md](../architecture/datamodel.md))
+- **Vector Databases**: Account-tier routing (pgvector → Pinecone namespace → dedicated)
+- **Agent Instances**: Account-scoped with unique `(account_id, instance_name)` combinations
+- **Resource Limits**: Subscription-tier based agent limits and feature access
 
 ### Primary Architectural Question: Endpoint Strategy
 **How should we structure API endpoints for multi-account, multi-agent, multi-instance architecture?**
@@ -239,62 +257,14 @@ Start with **Option 3 (Hybrid)** for these reasons:
 3. **Database Access**: Should agents have direct database access or go through APIs?
 4. **Event Streaming**: Should agent actions generate events for analytics and monitoring?
 
-## Recommended Technical Architecture
+## Database Schema
 
-### Database Schema (PostgreSQL Primary)
-```sql
--- Account management
-accounts:
-  id (GUID, PK)
-  name (VARCHAR)
-  tier (VARCHAR) -- entry, standard, premium
-  created_at (TIMESTAMP)
-  billing_settings (JSONB)
-
--- Agent template definitions
-agent_templates:
-  id (GUID, PK)
-  name (VARCHAR) -- sales_agent, digital_expert
-  workflow_class (VARCHAR) -- pydantic.ai class reference
-  description (TEXT)
-  version (VARCHAR)
-  config_schema (JSONB) -- JSON schema for validation
-  pricing_tiers (JSONB) -- tier-specific configurations
-
--- Account-specific agent instances
-agent_instances:
-  id (GUID, PK)
-  account_id (GUID, FK → accounts.id)
-  template_id (GUID, FK → agent_templates.id)
-  name (VARCHAR) -- user-friendly name
-  tier (VARCHAR)
-  configuration (JSONB) -- instance-specific config
-  vector_db_config (JSONB) -- Pinecone namespace or pgvector settings
-  mcp_server_configs (JSONB) -- MCP server assignments and tokens
-  status (VARCHAR) -- active, suspended, configuring
-  created_at (TIMESTAMP)
-  updated_at (TIMESTAMP)
-
--- MCP server registrations
-mcp_servers:
-  id (GUID, PK)
-  name (VARCHAR)
-  type (VARCHAR) -- crm, pricing, content_analysis
-  endpoint_url (VARCHAR)
-  is_stateless (BOOLEAN)
-  supported_tools (VARCHAR[])
-  account_restrictions (JSONB) -- which accounts can access
-
--- Vector database configurations
-vector_db_configs:
-  id (GUID, PK)
-  account_id (GUID, FK → accounts.id)
-  agent_instance_id (GUID, FK → agent_instances.id)
-  type (VARCHAR) -- pinecone_namespace, pinecone_dedicated, pgvector
-  connection_details (JSONB, encrypted)
-  namespace (VARCHAR) -- for Pinecone
-  index_name (VARCHAR) -- for dedicated indexes
-```
+Multi-account and multi-agent database schema is defined in [architecture/datamodel.md](../architecture/datamodel.md), including:
+- `accounts`: Multi-account support with subscription tiers
+- `agent_instances`: Account-scoped agent instances with configuration overrides  
+- `agent_templates`: Template definitions for the four agent types
+- `mcp_servers`: MCP server registry with account restrictions
+- `vector_db_configs`: Per-instance vector database configurations
 
 ### Infrastructure Strategy (Render-Based)
 ```yaml
@@ -402,7 +372,7 @@ This epic will establish the foundation for a sophisticated, scalable, multi-acc
 ## Implementation Plan
 
 ### FEATURE 0005-001 - Pydantic AI Framework Setup
-> Establish core Pydantic AI infrastructure and base agent classes
+> Establish core Pydantic AI infrastructure and base agent classes for multi-account support
 
 #### TASK 0005-001-001 - Core Framework Installation & Configuration
 - [ ] 0005-001-001-01 - CHUNK - Install Pydantic AI dependencies
@@ -412,122 +382,105 @@ This epic will establish the foundation for a sophisticated, scalable, multi-acc
   - **Acceptance**: Pydantic AI imports successfully, no dependency conflicts
 
 - [ ] 0005-001-001-02 - CHUNK - Base agent module structure
-  - Create `backend/app/agents/` module hierarchy
-  - Implement base agent class with common functionality
-  - Define shared types and dependency injection patterns
-  - **Acceptance**: Base agent class available for inheritance
+  - Create `backend/app/agents/` module hierarchy following code-organization.md
+  - Implement base agent class with account-aware dependency injection
+  - Define shared types and multi-account dependency patterns
+  - **Acceptance**: Base agent class supports account isolation
 
-- [ ] 0005-001-001-03 - CHUNK - Configuration integration
-  - Extend `app.yaml` with agent configuration section
-  - Implement agent configuration loading and validation
-  - Add environment variable overrides for agent settings
-  - **Acceptance**: Agent configurations load from YAML with env overrides
+- [ ] 0005-001-001-03 - CHUNK - Multi-account configuration integration
+  - Implement agent template loading (filesystem initially, database eventually)
+  - Add agent instance configuration loading from database
+  - Create configuration validation and schema enforcement
+  - **Acceptance**: Agent configurations load with account and instance context
 
-#### TASK 0005-001-002 - Agent Dependency Injection System
-- [ ] 0005-001-002-01 - CHUNK - Core dependency classes
-  - Implement `AgentDependencies` base class with account context
-  - Add database connection, session, and configuration dependencies
-  - Create dependency factory for agent instantiation
-  - **Acceptance**: Agents receive properly injected dependencies
+#### TASK 0005-001-002 - Multi-Account Agent Factory
+- [ ] 0005-001-002-01 - CHUNK - Agent factory implementation
+  - Implement AgentFactory with LRU caching for agent instances
+  - Add account-scoped agent instance creation and management
+  - Create agent template to instance configuration merging
+  - **Acceptance**: Factory creates account-isolated agent instances with caching
 
-- [ ] 0005-001-002-02 - CHUNK - Vector database dependency integration
-  - Implement vector database configuration dependency
-  - Add Pinecone namespace/dedicated index routing
-  - Create pgvector fallback for entry-tier accounts
-  - **Acceptance**: Agents access appropriate vector database per account tier
+- [ ] 0005-001-002-02 - CHUNK - Vector database routing
+  - Implement tier-based vector database routing (pgvector → Pinecone namespace → dedicated)
+  - Add account-specific vector database configuration loading
+  - Create vector database connection pooling and management
+  - **Acceptance**: Agent instances connect to appropriate vector database per account tier
 
-- [ ] 0005-001-002-03 - CHUNK - MCP server dependency integration
-  - Implement MCP server configuration dependency injection
-  - Add account-specific MCP server routing and authentication
-  - Create MCP client wrapper for agent tool integration
-  - **Acceptance**: Agents access account-specific MCP servers
+- [ ] 0005-001-002-03 - CHUNK - Resource management and limits
+  - Implement subscription-tier based agent limits enforcement
+  - Add resource usage tracking and quota management
+  - Create agent instance lifecycle management (active/inactive/archived)
+  - **Acceptance**: Account resource limits enforced correctly per subscription tier
 
-### FEATURE 0005-002 - Agent Template System
-> Implement agent template management and instantiation
+### FEATURE 0005-002 - Account-Scoped Agent Endpoints
+> Implement account-based routing and agent instance endpoints
 
-#### TASK 0005-002-001 - Agent Template Database Schema
-- [ ] 0005-002-001-01 - CHUNK - Agent template database tables
-  - Create `agent_templates` table with workflow definitions
-  - Add `agent_instances` table for account-specific configurations
-  - Implement `agent_tools` table for tool registry
-  - **Acceptance**: Database schema supports agent templates and instances
+#### TASK 0005-002-001 - Account-Based Routing Infrastructure
+- [ ] 0005-002-001-01 - CHUNK - Account-scoped endpoint structure
+  - Implement `/accounts/{account-slug}/chat/{agent-type}/{instance-name}` endpoints
+  - Add account authentication and authorization middleware  
+  - Create account resolution from slug to account ID
+  - **Acceptance**: Account-scoped agent endpoints functional with proper isolation
 
-- [ ] 0005-002-001-02 - CHUNK - Agent configuration models
-  - Define Pydantic models for agent template configuration
-  - Implement configuration validation and schema enforcement
-  - Add pricing tier and feature flag support
-  - **Acceptance**: Agent configurations validate correctly
+- [ ] 0005-002-001-02 - CHUNK - Agent instance discovery
+  - Implement `GET /accounts/{account-slug}/agents` endpoint for instance listing
+  - Add agent instance metadata and capability reporting
+  - Create agent instance status and health checking
+  - **Acceptance**: Clients can discover available agent instances per account
 
-#### TASK 0005-002-002 - Template Management API
-- [ ] 0005-002-002-01 - CHUNK - Template CRUD operations
-  - Implement template creation, reading, updating, deletion
-  - Add template versioning and backward compatibility
-  - Create template validation and testing framework
-  - **Acceptance**: Agent templates managed through API
+- [ ] 0005-002-001-03 - CHUNK - Request routing to agent instances
+  - Implement request routing from endpoint to appropriate agent instance
+  - Add agent instance loading and caching integration
+  - Create error handling for unavailable or misconfigured instances
+  - **Acceptance**: Requests correctly routed to account-specific agent instances
 
-- [ ] 0005-002-002-02 - CHUNK - Instance provisioning system
-  - Implement agent instance creation from templates
-  - Add account-specific configuration override handling
-  - Create instance lifecycle management (activate, suspend, delete)
-  - **Acceptance**: Agent instances provisioned correctly per account
+#### TASK 0005-002-002 - Agent Instance Management API
+- [ ] 0005-002-002-01 - CHUNK - Instance provisioning endpoints
+  - Implement `POST /accounts/{account-slug}/agents` for instance creation
+  - Add template selection and configuration override handling
+  - Create instance validation and configuration merging
+  - **Acceptance**: Agent instances can be provisioned through API per account
 
-### FEATURE 0005-003 - Multi-Agent Routing & Delegation
-> Implement intelligent agent routing and delegation capabilities
+- [ ] 0005-002-002-02 - CHUNK - Instance configuration management
+  - Implement `PUT /accounts/{account-slug}/agents/{instance-id}/config` for updates
+  - Add configuration validation and hot-reloading
+  - Create instance status management (activate/deactivate/archive)
+  - **Acceptance**: Agent instance configurations can be updated without service restart
+
+### FEATURE 0005-003 - Router Agent & Intent Classification
+> Implement intelligent query routing to appropriate agent instances within accounts
 
 #### TASK 0005-003-001 - Router Agent Implementation
 - [ ] 0005-003-001-01 - CHUNK - Intent classification router
-  - Implement Pydantic AI router agent for intent detection
-  - Add query classification and agent selection logic
-  - Create fallback handling for ambiguous queries
-  - **Acceptance**: Router correctly identifies appropriate specialist agents
+  - Implement Pydantic AI router agent for intent detection between the four agent types
+  - Add query classification logic to route between simple-chat, sales, simple-research, deep-research
+  - Create confidence scoring and fallback to simple-chat agent for ambiguous queries
+  - **Acceptance**: Router correctly identifies appropriate agent type for user queries
 
-- [ ] 0005-003-001-02 - CHUNK - Agent delegation framework
-  - Implement agent-to-agent delegation using Pydantic AI
-  - Add context preservation across agent handoffs
-  - Create delegation tracking and conversation continuity
-  - **Acceptance**: Agents delegate successfully with context preservation
+- [ ] 0005-003-001-02 - CHUNK - Agent instance selection within type
+  - Implement instance selection logic when multiple instances of same type exist
+  - Add instance capability matching based on configuration (vector DB content, tools)
+  - Create load balancing for instances with similar capabilities
+  - **Acceptance**: Router selects optimal agent instance within the chosen agent type
 
-#### TASK 0005-003-002 - Account-Scoped Agent Endpoints
-- [ ] 0005-003-002-01 - CHUNK - Account-based routing
-  - Implement `/accounts/{account-id}/agents/{agent-id}/chat` endpoints
-  - Add account authentication and authorization middleware
-  - Create agent discovery endpoints per account
-  - **Acceptance**: Account-scoped agent endpoints functional
+- [ ] 0005-003-001-03 - CHUNK - Context handoff and conversation continuity
+  - Implement conversation context preservation across agent switches
+  - Add conversation metadata to track which agents handled which messages
+  - Create conversation summary generation for agent handoffs
+  - **Acceptance**: Context preserved when routing changes between agent instances
 
-- [ ] 0005-003-002-02 - CHUNK - Agent session management
-  - Implement agent-specific session handling
-  - Add conversation tracking per agent instance
-  - Create cross-agent conversation linking
-  - **Acceptance**: Agent sessions managed independently with linking
+#### TASK 0005-003-002 - Router Integration with Account Endpoints
+- [ ] 0005-003-002-01 - CHUNK - Unified chat endpoint with routing
+  - Implement `/accounts/{account-slug}/chat` endpoint that uses router agent
+  - Add automatic agent selection based on query intent and account available instances
+  - Create transparent routing that doesn't require clients to specify agent type
+  - **Acceptance**: Clients can chat without specifying agent type, router handles selection
 
-### FEATURE 0005-004 - Tool Integration Framework
-> Establish tool integration patterns for Pydantic AI agents
-
-#### TASK 0005-004-001 - Base Tool Classes
-- [ ] 0005-004-001-01 - CHUNK - Tool base class implementation
-  - Create base tool class with common functionality
-  - Implement tool authentication and error handling
-  - Add tool usage tracking and rate limiting
-  - **Acceptance**: Tools inherit common functionality consistently
-
-- [ ] 0005-004-001-02 - CHUNK - MCP server tool integration
-  - Implement MCP server tool wrapper for Pydantic AI
-  - Add dynamic tool discovery from MCP servers
-  - Create tool authentication and session management
-  - **Acceptance**: MCP server tools available to agents
-
-#### TASK 0005-004-002 - Tool Registry & Discovery
-- [ ] 0005-004-002-01 - CHUNK - Dynamic tool registration
-  - Implement runtime tool registration system
-  - Add tool capability detection and metadata
-  - Create tool availability checking per account/agent
-  - **Acceptance**: Tools registered and discoverable dynamically
-
-- [ ] 0005-004-002-02 - CHUNK - Tool security and permissions
-  - Implement tool access control per account tier
-  - Add tool usage auditing and logging
-  - Create tool rate limiting and quota management
-  - **Acceptance**: Tool access properly controlled and audited
+- [ ] 0005-003-002-02 - CHUNK - Router performance optimization
+  - Implement caching for frequently used routing decisions  
+  - Add router agent performance monitoring and optimization
+  - Create fallback mechanisms when router agent is unavailable
+  - **Acceptance**: Router operates efficiently with sub-100ms decision time
 
 ---
 

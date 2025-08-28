@@ -36,8 +36,8 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 3. ✅ **Calendar API Integration**: Epic 0013 - Scheduling (Nylas/Calendly)
 4. 🔄 **Referrer Tracking**: Session middleware enhancement (add to 0008)
 
-### **Phase 1: Foundation + Basic Sales Agent** 
-*Critical fixes, core infrastructure, and basic agent framework*
+### **Phase 1: Foundation + Simple Chat Agent** 
+*Critical fixes, core infrastructure, and foundational Pydantic AI agent*
 
 #### **Infrastructure (Completed)**
 - ✅ **0004-004-002-05** (Frontend chat history loading) **COMPLETED**
@@ -49,24 +49,37 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - ✅ **0004-003** (Session Management & Resumption) **COMPLETED**
 - 🔄 **0004-004** (Message Persistence & Chat History) **MOSTLY COMPLETED** - few remaining chunks
 
-#### **Basic Sales Agent Framework (Next Priority)**
+#### **Simple Chat Agent Foundation (Next Priority)**
 - ❌ **0005-001** (Pydantic AI Framework Setup) **READY TO START** - *Core framework and base agent classes*
-- ❌ **0008-001** (Sales Agent Framework) **READY TO START** - *Basic sales agent with Pydantic AI*
+- ❌ **0017-001** (Simple Chat Agent Foundation) **READY TO START** - *Basic Pydantic AI agent with multi-tool capabilities*
+- ❌ **0017-002** (Core Agent Tools) **READY TO START** - *Vector search and conversation management tools*
 - ❌ **0004-006** (Profile Data Collection) **NOT STARTED** - *Agent data capture tools*
 - ❌ **0004-012** (Conversation Hierarchy & Management) **NOT STARTED** - *Agent conversation memory*
 - ❌ **0004-013** (Agent Context Management) **NOT STARTED** - *Agent memory and context integration*
 - ❌ **0003-007-007** (Standalone chat documentation) **NOT STARTED**
 
-### **Phase 2: Intelligent Sales Agent (RAG + Memory)**
-*Transform basic agent into intelligent sales assistant with knowledge and memory*
+### **Phase 2: Specialized Sales Agent (RAG + Memory)**
+*Transform simple chat agent into specialized sales assistant with knowledge and memory*
+
+#### **Sales Agent Specialization**
+- ❌ **0008-001** (Sales Agent Framework) **NOT STARTED** - *Specialized sales agent built on Simple Chat Agent foundation*
+- ❌ **0008-002** (Sales Agent Intelligence) **NOT STARTED** - *Sales-specific knowledge and customer intelligence*
+- ❌ **0005-002** (Agent Template System) **NOT STARTED** - *Template management and instantiation*
 
 #### **Agent Intelligence Enhancement**
 - ❌ **0011** (Vector Database Integration - Pinecone) **NOT STARTED** - *Foundational RAG infrastructure with Pinecone*
 - ❌ **0010** (Website Content Ingestion) **NOT STARTED** - *Astro content pipeline feeding Pinecone*
-- ❌ **0008-002** (Sales Agent Intelligence) **NOT STARTED** - *Sales-specific knowledge and customer intelligence*
-- ❌ **0005-002** (Agent Template System) **NOT STARTED** - *Template management and instantiation*
+- ❌ **0017-003** (External Integration Tools) **NOT STARTED** - *Web search and CrossFeed MCP integration*
+- ❌ **0017-004** (Agent Factory & Configuration) **NOT STARTED** - *Database-driven agent instances and YAML templates*
 
-### **Phase 3: Sales Agent Tools & Communication**
+### **Phase 3: Complete Simple Chat Agent Integration**
+*Complete the Simple Chat Agent with streaming and performance optimization*
+
+#### **Simple Chat Agent Completion**
+- ❌ **0017-005** (FastAPI Integration & Streaming) **NOT STARTED** - *SSE streaming and performance optimization*
+- ❌ **0004-005** (LLM Request Tracking) **NOT STARTED** - *Cost monitoring for agent operations*
+
+### **Phase 4: Sales Agent Tools & Communication**
 *Equip sales agent with business tools (CRM, email, scheduling)*
 
 #### **Agent Business Tools Integration**
@@ -78,11 +91,10 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 #### **Widget Ecosystem Enhancement**
 - ❌ **0003-003-002** (Preact Chat Widget Component) **NOT STARTED** - enables React ecosystem integration
 - ❌ **0003-003-003** (React Chat Widget Component) **NOT STARTED** - completes widget trio
-- ❌ **0004-005** (LLM Request Tracking) **NOT STARTED** - cost monitoring for sales agent
 - ❌ **0004-010** (Chat UI Copy Functionality) **NOT STARTED** - enhanced user experience
 - ❌ **0003-010** (Chat Widget Maximize/Minimize Toggle) **NOT STARTED** - widget UX enhancement
 
-### **Phase 4: Complete Sales Agent & Multi-Agent Architecture**
+### **Phase 5: Complete Sales Agent & Multi-Agent Architecture**
 *Finalize sales agent integration and establish multi-agent foundation*
 
 #### **Complete Sales Agent**
@@ -94,7 +106,7 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - ❌ **0009-001** (Digital Expert Agent Framework) **PLANNED** - *Second agent for multi-agent validation*
 - End-to-end testing and optimization
 
-### **Phase 5: Production Readiness & Technical Excellence**
+### **Phase 6: Production Readiness & Technical Excellence**
 *Production deployment and code quality*
 
 - ❌ **0004-011** (Session Security Hardening) **NOT STARTED** - production security standards
@@ -136,13 +148,15 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - 🔄 0004-012: Conversation hierarchy and management **CRITICAL FOR MILESTONE 1**
 
 ### **Milestone 1 Success Criteria (Complete Sales Agent)**
-- 🔄 **Phase 1**: Basic Pydantic AI sales agent with simple chat capabilities **READY TO START**
-- 🔄 **Phase 2**: Intelligent agent with RAG-powered responses and conversation memory **PLANNED**
-- 🔄 **Phase 3**: Business-capable agent with CRM, email, and scheduling tools **PLANNED**  
-- 🔄 **Phase 4**: Production-ready sales agent with page tracking and multi-agent foundation **PLANNED**
+- 🔄 **Phase 1**: Simple Chat Agent foundation with basic multi-tool capabilities **READY TO START**
+- 🔄 **Phase 2**: Specialized Sales Agent with RAG-powered responses and conversation memory **PLANNED**
+- 🔄 **Phase 3**: Complete Simple Chat Agent with streaming and performance optimization **PLANNED**
+- 🔄 **Phase 4**: Business-capable Sales Agent with CRM, email, and scheduling tools **PLANNED**  
+- 🔄 **Phase 5**: Production-ready Sales Agent with page tracking and multi-agent foundation **PLANNED**
 
 #### **Technical Deliverables**
 - 🔄 **Core Framework**: Pydantic AI agent framework with dependency injection **READY TO START**
+- 🔄 **Simple Chat Agent**: Foundational multi-tool agent (Epic 0017) **READY TO START**
 - 🔄 **Vector Infrastructure**: Pinecone RAG pipeline and semantic search (Epic 0011) **PLANNED**
 - 🔄 **Content Pipeline**: Website content ingestion and indexing (Epic 0010) **PLANNED**
 - 🔄 **Agent Templates**: Template system for agent instantiation and management **PLANNED**
