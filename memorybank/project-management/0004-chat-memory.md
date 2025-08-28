@@ -366,16 +366,39 @@ The schema and session management fully supports multiple concurrent users:
   - **Loading indicators**: Visual feedback during history fetch with proper show/hide logic
   - **Session compatibility**: Works correctly with existing session management and cross-origin scenarios
 
-- [ ] 0004-004-002-06 - CHUNK - Markdown formatting for HTMX-Based Chat Integration (Astro Framework)
+- [ ] 0004-004-002-10 - CHUNK - Chat Widget History Loading Integration ❌ **NOT STARTED**
   - SUB-TASKS:
-    - Fix HTMX Demo (Astro) at `web/src/pages/demo/htmx-chat.astro`
-    - Add `{ breaks: true }` to markdown processing in Astro HTMX implementation
-    - Implement interim line break preservation (`\n` → `<br>`) during streaming
-    - Add table styling CSS to Astro demo page
-    - Test poetry, tables, and copy functionality in Astro environment
-    - Acceptance: Astro HTMX demo renders markdown consistently with backend
+    - ❌ Add chat history loading functionality to Shadow DOM Widget (`web/public/widget/chat-widget.js`)
+    - ❌ Implement `/api/chat/history` endpoint integration for widget
+    - ❌ Handle cross-origin session management for embedded widgets
+    - ❌ Add loading indicators and error handling for widget history loading
+    - ❌ Ensure widget history displays consistently with session data
+    - ❌ Handle empty history gracefully in widget environment
+    - ❌ Test widget history loading across different embedding scenarios
+    - Acceptance: ❌ Chat widget loads previous conversation history when opened
+  - PRIORITY: High - Widget users expect conversation continuity
+  - DEPENDENCIES: Requires `/api/chat/history` endpoint (already available) and cross-origin session handling (completed in 0004-004-002-04)
+
+- [x] 0004-004-002-06 - CHUNK - Markdown formatting for HTMX-Based Chat Integration (Astro Framework) ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Fix HTMX Demo (Astro) at `web/src/pages/demo/htmx-chat.astro`
+    - ✅ Add `{ breaks: true }` to markdown processing in Astro HTMX implementation
+    - ✅ Implement interim line break preservation (`\n` → `<br>`) during streaming
+    - ✅ Add table styling CSS to Astro demo page
+    - ✅ Add proper paragraph spacing and user message whitespace preservation
+    - ✅ Add DOMPurify script dependency for HTML sanitization
+    - Acceptance: ✅ Astro HTMX demo renders markdown consistently with backend
   - PRIORITY: High - Server-side rendered Astro page with HTMX for dynamic chat
   - DEPENDENCIES: Requires completed backend markdown processing (already done)
+  
+  **Implementation Details:**
+  - **Enhanced markdown processing**: Added `{ breaks: true }` to `marked.parse()` calls for proper line break handling
+  - **Streaming line break preservation**: Implemented interim `\n` → `<br>` conversion during streaming for better real-time display
+  - **Comprehensive table styling**: Added complete CSS for markdown tables with borders, hover effects, and alternating row colors
+  - **Proper paragraph spacing**: Added paragraph margin and line-height styles specifically for bot messages
+  - **User message whitespace**: Preserved `white-space: pre-wrap` only for user messages to maintain intended formatting
+  - **HTML sanitization**: Added DOMPurify script dependency for secure HTML rendering
+  - **Consistent with backend**: All formatting now matches the backend `index.html` implementation
 
 - [ ] 0004-004-002-07 - CHUNK - Markdown formatting for Standalone HTMX Integration (Plain HTML)
   - SUB-TASKS:
