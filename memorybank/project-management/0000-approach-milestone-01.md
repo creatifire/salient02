@@ -61,10 +61,10 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 *Transform basic agent into intelligent sales assistant with knowledge and memory*
 
 #### **Agent Intelligence Enhancement**
-- ❌ **0008-002** (Sales Agent Intelligence - RAG) **NOT STARTED** - *Vector search and knowledge capabilities*
+- ❌ **0011** (Vector Database Integration - Pinecone) **NOT STARTED** - *Foundational RAG infrastructure with Pinecone*
+- ❌ **0010** (Website Content Ingestion) **NOT STARTED** - *Astro content pipeline feeding Pinecone*
+- ❌ **0008-002** (Sales Agent Intelligence) **NOT STARTED** - *Sales-specific knowledge and customer intelligence*
 - ❌ **0005-002** (Agent Template System) **NOT STARTED** - *Template management and instantiation*
-- ❌ **0010** (Website Content Ingestion) **NOT STARTED** - *Astro content → Pinecone for agent knowledge*
-- ❌ **0011** (Vector Database Integration) **NOT STARTED** - *Pinecone + RAG pipeline for agent*
 
 ### **Phase 3: Sales Agent Tools & Communication**
 *Equip sales agent with business tools (CRM, email, scheduling)*
@@ -143,10 +143,10 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 
 #### **Technical Deliverables**
 - 🔄 **Core Framework**: Pydantic AI agent framework with dependency injection **READY TO START**
+- 🔄 **Vector Infrastructure**: Pinecone RAG pipeline and semantic search (Epic 0011) **PLANNED**
+- 🔄 **Content Pipeline**: Website content ingestion and indexing (Epic 0010) **PLANNED**
 - 🔄 **Agent Templates**: Template system for agent instantiation and management **PLANNED**
-- 🔄 **Tool Integration**: Base tool classes and MCP server framework **PLANNED**
-- 🔄 **Vector Knowledge**: Content ingestion pipeline (Astro → Pinecone) **PLANNED**
-- 🔄 **Agent Memory**: LLM conversation context and agent memory management **PLANNED**
+- 🔄 **Sales Intelligence**: Sales-specific knowledge tools and customer analytics **PLANNED**
 - 🔄 **Business Tools**: Email, scheduling, and CRM integration as agent tools **PLANNED**
 - 🔄 **Multi-Agent**: Router agent and delegation capabilities **PLANNED**
 

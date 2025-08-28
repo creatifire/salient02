@@ -1,15 +1,20 @@
 # Epic 0011 - Vector Database Integration
 
-> Goal: Implement comprehensive Pinecone vector database integration for RAG-powered chat responses, including semantic search, content retrieval, and intelligent response generation using ingested website content.
+> Goal: Implement comprehensive vector database integration for RAG-powered chat responses, including semantic search, content retrieval, and intelligent response generation using ingested website content.
+
+**Milestone 1**: Pinecone integration for premium vector storage  
+**Milestone 2**: PostgreSQL pgvector extension for cost-effective entry-tier storage
 
 ## Scope & Approach
 
 ### Vector Database Capabilities
-- **Pinecone Integration**: Full API integration with Pinecone vector database
+- **Pinecone Integration** (Milestone 1): Full API integration with Pinecone vector database
+- **PostgreSQL pgvector** (Milestone 2): Cost-effective vector storage using PostgreSQL extension
 - **Semantic Search**: High-quality similarity search for relevant content retrieval
 - **RAG Pipeline**: Complete retrieval-augmented generation workflow
 - **Chat Integration**: Seamless integration with existing chat endpoints
 - **Performance Optimization**: Efficient querying and response generation
+- **Hybrid Architecture**: Support for multiple vector storage backends
 
 ### Target Use Cases
 - **Product Inquiries**: Accurate responses using website product information
@@ -274,4 +279,69 @@ vector_database:
 6. **User Satisfaction**: Positive user feedback on response quality and helpfulness
 7. **Cost Efficiency**: RAG enhancement maintains reasonable operational costs
 
-This epic creates the intelligent content retrieval foundation that transforms the chat system from a general LLM to a knowledgeable domain expert using the company's own content.
+---
+
+## Milestone 2: PostgreSQL pgvector Integration
+
+### [ ] 0011-006 - FEATURE - PostgreSQL pgvector Implementation
+> Cost-effective vector storage using PostgreSQL pgvector extension for entry-tier accounts
+
+#### [ ] 0011-006-001 - TASK - pgvector Setup & Configuration
+- [ ] 0011-006-001-01 - CHUNK - PostgreSQL pgvector extension installation
+  - SUB-TASKS:
+    - Install and configure pgvector extension in PostgreSQL
+    - Create vector tables and indexes for content storage
+    - Set up vector similarity functions and operators
+    - Configure optimal index parameters for performance
+    - Add pgvector monitoring and health checks
+    - Acceptance: pgvector extension ready for vector storage and queries
+
+- [ ] 0011-006-001-02 - CHUNK - Hybrid vector storage architecture
+  - SUB-TASKS:
+    - Implement vector storage routing based on account tier
+    - Create abstraction layer for Pinecone + pgvector backends
+    - Add vector storage migration capabilities between backends
+    - Implement cost-based storage tier recommendations
+    - Add vector storage usage analytics and optimization
+    - Acceptance: Seamless routing between Pinecone and pgvector based on account tier
+
+#### [ ] 0011-006-002 - TASK - pgvector Performance Optimization
+- [ ] 0011-006-002-01 - CHUNK - PostgreSQL vector query optimization
+  - SUB-TASKS:
+    - Optimize pgvector similarity search queries
+    - Implement efficient indexing strategies (IVFFlat, HNSW)
+    - Add query result caching for pgvector searches
+    - Create batch processing for vector operations
+    - Add performance monitoring and benchmarking
+    - Acceptance: pgvector performance meets entry-tier requirements
+
+### Configuration Schema Extensions
+```yaml
+vector_database:
+  # Account-tier based storage routing
+  storage_tiers:
+    entry:
+      provider: "pgvector"
+      connection: "postgresql://..."
+      index_type: "ivfflat"  # or hnsw
+      max_vectors: 100000
+    
+    standard:
+      provider: "pinecone"
+      environment: "us-west1-gcp"
+      namespace_based: true
+      
+    premium:
+      provider: "pinecone"
+      environment: "us-west1-gcp"
+      dedicated_index: true
+
+  # Automatic tier recommendations
+  tier_optimization:
+    enabled: true
+    usage_threshold_upgrade: 50000  # vectors
+    performance_threshold_upgrade: 2000  # ms average query time
+    cost_optimization: true
+```
+
+This epic creates the intelligent content retrieval foundation that transforms the chat system from a general LLM to a knowledgeable domain expert using the company's own content, with flexible storage options for different account tiers.

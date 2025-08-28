@@ -60,28 +60,29 @@
   - **Acceptance**: Agent tracks conversation sources accurately
 
 ### FEATURE 0008-002 - Sales Agent Intelligence (RAG)
-> Enhance sales agent with vector search and knowledge capabilities
+> Enhance sales agent with sales-specific knowledge and customer intelligence
 
-#### TASK 0008-002-001 - Vector Search Integration
+#### TASK 0008-002-001 - Sales Knowledge Tools
 - [ ] 0008-002-001-01 - CHUNK - Product knowledge tools
-  - Implement `@sales_agent.tool` for vector product search
-  - Add product comparison and recommendation tools
-  - Create pricing and feature lookup tools
-  - **Acceptance**: Agent provides accurate product information
+  - Implement `@sales_agent.tool` for sales-focused product search
+  - Add competitive analysis and product comparison tools  
+  - Create pricing strategy and discount authorization tools
+  - **Acceptance**: Agent provides sales-optimized product information
+  - **Dependencies**: Requires 0011-003 (Semantic Search & Retrieval)
 
-- [ ] 0008-002-001-02 - CHUNK - Content citation tools
-  - Implement source attribution and citation tools
-  - Add content validation and fact-checking tools
-  - Create knowledge base updating tools
-  - **Acceptance**: Agent provides cited, accurate responses
+- [ ] 0008-002-001-02 - CHUNK - Customer intelligence tools
+  - Implement customer history and interaction analysis tools
+  - Add lead scoring and qualification intelligence tools
+  - Create sales opportunity identification tools
+  - **Acceptance**: Agent leverages customer data for sales optimization
 
-#### TASK 0008-002-002 - Conversation Context Management
-- [ ] 0008-002-002-01 - CHUNK - Conversation memory integration
-  - Implement conversation history context for agent
-  - Add customer interaction tracking across sessions
-  - Create conversation state management tools
-  - **Acceptance**: Agent maintains context across conversations
-  - **Dependencies**: Requires 0004-004-001-03 (LLM Conversation Context)
+#### TASK 0008-002-002 - Sales Context Management
+- [ ] 0008-002-002-01 - CHUNK - Sales conversation context
+  - Implement sales pipeline and opportunity context
+  - Add customer journey and touchpoint tracking
+  - Create sales process and methodology integration
+  - **Acceptance**: Agent maintains sales-focused conversation context
+  - **Dependencies**: Requires 0004-013 (Agent Context Management)
 
 ### FEATURE 0008-003 - Sales Agent Business Tools
 > Equip sales agent with CRM, email, and scheduling capabilities
@@ -215,17 +216,18 @@ backend/app/agents/sales/
     - Acceptance: Customer profiles captured and linked to conversations
     - Dependencies: Requires 0004-006 completion
 
-### [ ] 0008-002 - FEATURE - RAG-Powered Sales Responses
+### [ ] 0008-006 - FEATURE - Sales Performance Analytics
+> Track and optimize sales agent performance and conversion metrics
 
-#### [ ] 0008-002-001 - TASK - Vector Database Integration
-- [ ] 0008-002-001-01 - CHUNK - Pinecone sales knowledge base
+#### [ ] 0008-006-001 - TASK - Sales Metrics Tracking
+- [ ] 0008-006-001-01 - CHUNK - Conversion tracking and analytics
   - SUB-TASKS:
-    - Configure Pinecone namespace for sales agent content
-    - Integrate retrieval into chat endpoints for contextual responses
-    - Add citation tracking for website source attribution
-    - Implement relevance scoring and content ranking
-    - Acceptance: Sales agent provides accurate, website-sourced responses
-    - Dependencies: Requires 0010 Website Content Ingestion completion
+    - Track lead qualification rates and conversion metrics
+    - Monitor appointment booking success rates
+    - Measure CRM integration effectiveness and data quality
+    - Analyze customer engagement and response patterns
+    - Acceptance: Comprehensive sales performance visibility
+    - Dependencies: Requires sales agent implementation (0008-001 through 0008-003)
 
 ### [ ] 0008-003 - FEATURE - Conversation Summaries & Communication
 
@@ -345,10 +347,10 @@ sales_agent:
       - industry
   
   vector_database:
-    provider: "pinecone"  # pinecone, pgvector
-    namespace: "sales_content"
-    similarity_threshold: 0.7
-    max_results: 5
+    # Core vector DB configuration managed in Epic 0011
+    sales_namespace: "sales_content"  
+    sales_specific_filters: true
+    lead_scoring_integration: true
   
   conversation_summaries:
     auto_generate: true
@@ -377,20 +379,20 @@ sales_agent:
 ```
 
 ### Integration Points
-- **Vector Database**: Pinecone for website content retrieval and response generation
 - **CRM Platforms**: Zoho CRM, Salesforce, HubSpot for lead and opportunity management
 - **Calendar Systems**: Google Calendar, Calendly for appointment scheduling
 - **Email Services**: SMTP, SendGrid, or Mailgun for summary distribution
-- **Content Sources**: WordPress XML dumps and Astro websites via Epic 0010
+- **Vector Database**: Uses Epic 0011 infrastructure for sales-specific content retrieval
+- **Content Sources**: Sales-focused content via Epic 0010 and 0011
 
 ### Dependencies
+- **0005-001**: Pydantic AI Framework Setup (required for agent foundation)
 - **0004-006**: Profile Data Collection (foundation for customer capture)
 - **0004-012**: Conversation Hierarchy & Management (required for summaries)
-- **0010**: Website Content Ingestion (provides content for RAG)
-- **0011**: Vector Database Integration (required for RAG responses)
+- **0004-013**: Agent Context Management (required for sales context)
+- **0011**: Vector Database Integration (provides foundational RAG capabilities)
 - **0012**: Outbound Email Integration (required for summary distribution)
 - **0013**: Scheduling Integration (required for appointment booking)
-- **Multi-Agent Infrastructure**: Basic agent routing from Epic 0005
 
 ### Performance & Analytics
 - **Lead Source Tracking**: Conversion rates by website page
@@ -402,10 +404,10 @@ sales_agent:
 ## Success Criteria (Milestone 1)
 1. **Page Source Tracking**: 100% of conversations track originating website page
 2. **Profile Capture**: 80% of qualified conversations capture customer contact information
-3. **RAG Responses**: Sales agent provides accurate, website-sourced answers
-4. **Summary Generation**: Automated summaries sent to customers and sales team
-5. **Appointment Booking**: Customers can schedule meetings directly from chat
-6. **CRM Integration**: At least one CRM system (Zoho, Salesforce, or HubSpot) fully operational
-7. **Response Quality**: Agent responses are contextually relevant using ingested website content
+3. **Sales Intelligence**: Agent provides product recommendations and pricing guidance
+4. **Lead Qualification**: Automated lead scoring and qualification during conversations
+5. **Summary Generation**: Automated summaries sent to customers and sales team
+6. **Appointment Booking**: Customers can schedule meetings directly from chat
+7. **CRM Integration**: At least one CRM system (Zoho, Salesforce, or HubSpot) fully operational
 
 This milestone establishes the foundation for a complete sales automation system by implementing core lead capture, content-aware responses, and essential CRM integration.
