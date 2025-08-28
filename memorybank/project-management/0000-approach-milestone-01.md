@@ -36,43 +36,61 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 3. ✅ **Calendar API Integration**: Epic 0013 - Scheduling (Nylas/Calendly)
 4. 🔄 **Referrer Tracking**: Session middleware enhancement (add to 0008)
 
-### **Phase 1: Foundation** 
-*Critical fixes and core infrastructure*
+### **Phase 1: Foundation + Basic Sales Agent** 
+*Critical fixes, core infrastructure, and basic agent framework*
 
+#### **Infrastructure (Completed)**
 - ✅ **0004-004-002-05** (Frontend chat history loading) **COMPLETED**
 - ✅ **0004-004-002-06/07/08** (Markdown formatting consistency) **COMPLETED** - 06✅, 07✅, 08✅ affects all 5 integration strategies
 - ✅ **0004-004-002-10** (Chat Widget History Loading) **COMPLETED** - widget conversation continuity
-- ❌ **0004-004-003** (Enhanced Session Information Display) **NOT STARTED** - operational visibility
-- ❌ **0003-007-007** (Standalone chat documentation) **NOT STARTED** 
+- ✅ **0004-004-003** (Enhanced Session Information Display) **COMPLETED** - operational visibility
 - ✅ **0004-001** (Development Environment & Database Setup) **COMPLETED**
 - ✅ **0004-002** (Database Setup & Migrations) **COMPLETED**
 - ✅ **0004-003** (Session Management & Resumption) **COMPLETED**
 - 🔄 **0004-004** (Message Persistence & Chat History) **MOSTLY COMPLETED** - few remaining chunks
-- ❌ **0004-006** (Profile Data Collection) **NOT STARTED** - *CRITICAL FOR MILESTONE 1*
-- ❌ **0004-012** (Conversation Hierarchy & Management) **NOT STARTED** - *CRITICAL FOR MILESTONE 1*
 
-### **Phase 2: LLM Enhancement & RAG Pipeline**
-*Enable intelligent conversations with memory and knowledge*
+#### **Basic Sales Agent Framework (Next Priority)**
+- ❌ **0008-001** (Pydantic AI Sales Agent Setup) **READY TO START** - *Basic agent with simple chat*
+- ❌ **0004-006** (Profile Data Collection) **NOT STARTED** - *Agent data capture tools*
+- ❌ **0004-012** (Conversation Hierarchy & Management) **NOT STARTED** - *Agent conversation memory*
+- ❌ **0003-007-007** (Standalone chat documentation) **NOT STARTED**
 
-- ❌ **0004-004-001-03** (LLM Conversation Context) **NOT STARTED** - *CRITICAL for sales agent memory*
-- ❌ **0010** (Website Content Ingestion) **NOT STARTED** - Astro website content only
-- ❌ **0011** (Vector Database Integration) **NOT STARTED** - Pinecone + RAG
+### **Phase 2: Intelligent Sales Agent (RAG + Memory)**
+*Transform basic agent into intelligent sales assistant with knowledge and memory*
 
-### **Phase 3: Widget Ecosystem & Communication Infrastructure**
-*Complete widget platform and communication tools*
+#### **Agent Intelligence Enhancement**
+- ❌ **0008-002** (Sales Agent RAG Integration) **NOT STARTED** - *Connect agent to vector database*
+- ❌ **0004-004-001-03** (LLM Conversation Context) **NOT STARTED** - *Agent memory and context management*
+- ❌ **0010** (Website Content Ingestion) **NOT STARTED** - *Astro content → Pinecone for agent knowledge*
+- ❌ **0011** (Vector Database Integration) **NOT STARTED** - *Pinecone + RAG pipeline for agent*
 
+### **Phase 3: Sales Agent Tools & Communication**
+*Equip sales agent with business tools (CRM, email, scheduling)*
+
+#### **Agent Business Tools Integration**
+- ❌ **0008-003** (Sales Agent CRM Tools) **NOT STARTED** - *Zoho CRM integration as agent tools*
+- ❌ **0008-004** (Sales Agent Email Tools) **NOT STARTED** - *Email capabilities for agent*
+- ❌ **0008-005** (Sales Agent Scheduling Tools) **NOT STARTED** - *Appointment booking tools*
+- ❌ **0012** (Outbound Email Integration) **NOT STARTED** - *Mailgun infrastructure for agent*
+- ❌ **0013** (Scheduling Integration) **NOT STARTED** - *Nylas/Calendly infrastructure for agent*
+
+#### **Widget Ecosystem Enhancement**
 - ❌ **0003-003-002** (Preact Chat Widget Component) **NOT STARTED** - enables React ecosystem integration
 - ❌ **0003-003-003** (React Chat Widget Component) **NOT STARTED** - completes widget trio
-- ❌ **0012** (Outbound Email Integration) **NOT STARTED** - Mailgun
-- ❌ **0013** (Scheduling Integration) **NOT STARTED** - Nylas primary, Calendly fallback
 - ❌ **0004-005** (LLM Request Tracking) **NOT STARTED** - cost monitoring for sales agent
 - ❌ **0004-010** (Chat UI Copy Functionality) **NOT STARTED** - enhanced user experience
 - ❌ **0003-010** (Chat Widget Maximize/Minimize Toggle) **NOT STARTED** - widget UX enhancement
 
-### **Phase 4: Sales Agent Integration**
-*Integrate all components into working sales agent*
+### **Phase 4: Complete Sales Agent & Multi-Agent Architecture**
+*Finalize sales agent integration and establish multi-agent foundation*
 
-- ❌ **0008** (Sales Agent focused features) **NOT STARTED** - Zoho CRM + page tracking
+#### **Complete Sales Agent**
+- ❌ **0008-006** (Sales Agent Page Tracking) **NOT STARTED** - *Referrer and page source tracking*
+- ❌ **0008-007** (Sales Agent Integration Testing) **NOT STARTED** - *End-to-end agent workflows*
+- ❌ **0008-008** (Sales Agent Optimization) **NOT STARTED** - *Performance and accuracy tuning*
+
+#### **Multi-Agent Architecture Foundation**
+- ❌ **0005** (Multi-Agent Support Framework) **NOT STARTED** - *Pydantic AI multi-agent architecture*
 - End-to-end testing and optimization
 
 ### **Phase 5: Production Readiness & Technical Excellence**
@@ -116,10 +134,16 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - 🔄 0004-006: Profile data collection **CRITICAL FOR MILESTONE 1**
 - 🔄 0004-012: Conversation hierarchy and management **CRITICAL FOR MILESTONE 1**
 
-### **Milestone 1 Success Criteria (Sales Agent)**
-- 🔄 LLM conversation context and memory **PLANNED**
+### **Milestone 1 Success Criteria (Complete Sales Agent)**
+- 🔄 **Phase 1**: Basic Pydantic AI sales agent with simple chat capabilities **READY TO START**
+- 🔄 **Phase 2**: Intelligent agent with RAG-powered responses and conversation memory **PLANNED**
+- 🔄 **Phase 3**: Business-capable agent with CRM, email, and scheduling tools **PLANNED**  
+- 🔄 **Phase 4**: Production-ready sales agent with page tracking and multi-agent foundation **PLANNED**
+
+#### **Technical Deliverables**
+- 🔄 Pydantic AI agent framework with dependency injection **READY TO START**
 - 🔄 Content ingestion pipeline (Astro → Pinecone) **PLANNED**
-- 🔄 RAG-powered chat responses **PLANNED**
+- 🔄 LLM conversation context and memory **PLANNED**
 - 🔄 Email integration (summaries, confirmations) **PLANNED**
 - 🔄 Scheduling integration (Nylas/Calendly) **PLANNED**
 - 🔄 Zoho CRM integration **PLANNED**
