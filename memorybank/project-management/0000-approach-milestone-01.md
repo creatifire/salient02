@@ -8,80 +8,7 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 **Current State**: ~45% project completion with Epic 0004 foundational work completed (session management, database setup, message persistence)
 **Critical Path**: Fix frontend inconsistencies → Complete conversation hierarchy → Expand widget ecosystem
 
-## Immediate Actions (Sprint 1)
-
-### 🔥 **Critical Fixes - Week 1**
-1. ✅ **0004-004-002-05** - Frontend chat history loading for demo pages **COMPLETED**
-   - **Impact**: Demo pages currently broken without history persistence
-   - **Blocker**: Prevents effective demo and testing
-   - **Status**: ✅ Fixed - History loading working correctly on demo pages
-
-2. **0004-004-002-06/07/08** - Markdown formatting consistency **IN PROGRESS**
-   - **Impact**: User experience inconsistency across chat interfaces
-   - **Critical**: Affects all 5 integration strategies
-   - **Status**: 🔄 Ready to start - Backend formatting completed, frontend fixes needed
-
-### 📋 **Documentation Cleanup - Week 2**
-3. **0003-007-007** - Complete standalone chat documentation
-   - **Impact**: Developer onboarding and maintenance
-   - **Low Risk**: Documentation only
-
-## Short-Term Strategy (Sprints 2-3)
-
-### 🏗️ **Major Feature Development**
-1. **0004-012 - Conversation Hierarchy & Management** (Priority #1)
-   - **Business Value**: Transforms chat from simple log to conversation management platform
-   - **Scope**: 6 tasks, 12 chunks
-   - **Dependencies**: Database migration, service layer updates, UI redesign
-   - **Risk**: Complex schema changes require careful migration planning
-
-### 🧩 **Widget Ecosystem Completion**
-2. **0003-003-002 - Preact Chat Widget Component** (Priority #2)
-   - **Business Value**: Enables modern React ecosystem integration
-   - **Scope**: 7 chunks
-   - **Dependencies**: Shadow DOM widget completion (already done)
-
-3. **0003-003-003 - React Chat Widget Component** (Priority #3)
-   - **Business Value**: Completes widget trio (Shadow DOM, Preact, React)
-   - **Scope**: 7 chunks
-   - **Dependencies**: Preact widget patterns established
-
-### 💰 **Business Intelligence**
-4. **0004-005 - LLM Request Tracking** (Priority #4)
-   - **Business Value**: Cost monitoring and usage analytics
-   - **Scope**: 2 tasks, 2 chunks
-   - **Low Risk**: Additive feature, no breaking changes
-
-## Medium-Term Objectives (Sprints 4-6)
-
-### 🔧 **Technical Modernization**
-1. **0003-009/008 - HTMX 2.0.6 Upgrade**
-   - **Technical Debt**: Currently using HTMX 1.9.12
-   - **Scope**: 9 tasks, 10 chunks combined
-   - **Risk**: Breaking changes require careful testing
-
-### 🛡️ **Production Readiness**
-2. **0004-011 - Session Security Hardening**
-   - **Compliance**: Production security requirements
-   - **Scope**: 3 tasks, 6 chunks  
-   - **Critical**: Required before production deployment
-
-### ✨ **User Experience Enhancement**
-3. **0003-010 - Chat Widget Maximize/Minimize Toggle**
-   - **UX Value**: Improved widget usability
-   - **Scope**: 8 tasks, 16 chunks
-   - **Enhancement**: Can be deferred if needed
-
-## Long-Term Roadmap (Sprints 7+)
-
-### 🏛️ **Architecture & Quality**
-1. **0004-007 - Code Organization & Maintainability**
-2. **0004-009-002 - Code Quality Tools Setup**
-3. **0004-008 - Testing & Validation**
-
-### 📊 **Advanced Features**
-1. **0004-006 - Profile Data Collection**
-2. **0004-004-003 - Enhanced Session Information Display**
+## Milestone 1 Implementation Plan
 
 ## Milestone 1: Sales Agent with RAG & CRM Integration
 
@@ -109,36 +36,54 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 3. ✅ **Calendar API Integration**: Epic 0013 - Scheduling (Nylas/Calendly)
 4. 🔄 **Referrer Tracking**: Session middleware enhancement (add to 0008)
 
-### **Implementation Sequence**
-1. **Phase 1**: Complete foundational features (**Base: ✅ COMPLETED**)
-   - ✅ 0004-001 (Development Environment & Database Setup) **COMPLETED**
-   - ✅ 0004-002 (Database Setup & Migrations) **COMPLETED**
-   - ✅ 0004-003 (Session Management & Resumption) **COMPLETED**
-   - 🔄 0004-004 (Message Persistence & Chat History) **MOSTLY DONE** - few remaining chunks
-   - 🔄 0004-006 (Profile Data Collection) **CRITICAL FOR MILESTONE 1**
-   - 🔄 0004-012 (Conversation Hierarchy & Management) **CRITICAL FOR MILESTONE 1**
-2. **Phase 2**: LLM Enhancement & RAG pipeline
-   - 0004-004-001-03 (LLM Conversation Context) - CRITICAL for sales agent memory
-   - 0010 (Website Content Ingestion) - Astro website content only
-   - 0011 (Vector Database Integration) - Pinecone + RAG
-3. **Phase 3**: Communication infrastructure & chat enhancements
-   - 0012 (Outbound Email Integration) - Mailgun
-   - 0013 (Scheduling Integration) - Nylas primary, Calendly fallback
-   - 0004-005 (LLM Request Tracking) - Cost monitoring for sales agent
-   - 0004-010 (Chat UI Copy Functionality) - Enhanced user experience
-4. **Phase 4**: Sales agent integration
-   - 0008 focused features (Zoho CRM + page tracking)
-   - End-to-end testing and optimization
-5. **Phase 5**: Polish and production readiness
-   - 0004-011 (Session Security Hardening) - Production security standards
-   - 0004-007 (Code Organization & Maintainability) - Clean architecture
-   - 0004-008 (Testing & Validation) - Comprehensive test coverage
-   - 0004-009 (Code Quality & Standards Compliance) - Code quality tools
-   - 0004-004-003 (Enhanced Session Information Display) - Operational visibility
-   - Performance optimization and monitoring
-   - Complete integration testing
+### **Phase 1: Foundation** 
+*Critical fixes and core infrastructure*
 
-**Timeline**: 6-8 sprints post-Epic 0004 completion
+- ✅ **0004-004-002-05** (Frontend chat history loading) **COMPLETED**
+- 🔄 **0004-004-002-06/07/08** (Markdown formatting consistency) **IN PROGRESS** - affects all 5 integration strategies
+- ❌ **0003-007-007** (Standalone chat documentation) **NOT STARTED** 
+- ✅ **0004-001** (Development Environment & Database Setup) **COMPLETED**
+- ✅ **0004-002** (Database Setup & Migrations) **COMPLETED**
+- ✅ **0004-003** (Session Management & Resumption) **COMPLETED**
+- 🔄 **0004-004** (Message Persistence & Chat History) **MOSTLY COMPLETED** - few remaining chunks
+- ❌ **0004-006** (Profile Data Collection) **NOT STARTED** - *CRITICAL FOR MILESTONE 1*
+- ❌ **0004-012** (Conversation Hierarchy & Management) **NOT STARTED** - *CRITICAL FOR MILESTONE 1*
+
+### **Phase 2: LLM Enhancement & RAG Pipeline**
+*Enable intelligent conversations with memory and knowledge*
+
+- ❌ **0004-004-001-03** (LLM Conversation Context) **NOT STARTED** - *CRITICAL for sales agent memory*
+- ❌ **0010** (Website Content Ingestion) **NOT STARTED** - Astro website content only
+- ❌ **0011** (Vector Database Integration) **NOT STARTED** - Pinecone + RAG
+
+### **Phase 3: Widget Ecosystem & Communication Infrastructure**
+*Complete widget platform and communication tools*
+
+- ❌ **0003-003-002** (Preact Chat Widget Component) **NOT STARTED** - enables React ecosystem integration
+- ❌ **0003-003-003** (React Chat Widget Component) **NOT STARTED** - completes widget trio
+- ❌ **0012** (Outbound Email Integration) **NOT STARTED** - Mailgun
+- ❌ **0013** (Scheduling Integration) **NOT STARTED** - Nylas primary, Calendly fallback
+- ❌ **0004-005** (LLM Request Tracking) **NOT STARTED** - cost monitoring for sales agent
+- ❌ **0004-010** (Chat UI Copy Functionality) **NOT STARTED** - enhanced user experience
+- ❌ **0003-010** (Chat Widget Maximize/Minimize Toggle) **NOT STARTED** - widget UX enhancement
+
+### **Phase 4: Sales Agent Integration**
+*Integrate all components into working sales agent*
+
+- ❌ **0008** (Sales Agent focused features) **NOT STARTED** - Zoho CRM + page tracking
+- End-to-end testing and optimization
+
+### **Phase 5: Production Readiness & Technical Excellence**
+*Production deployment and code quality*
+
+- ❌ **0004-011** (Session Security Hardening) **NOT STARTED** - production security standards
+- ❌ **0003-009/008** (HTMX 2.0.6 Upgrade) **NOT STARTED** - breaking changes require careful testing
+- ❌ **0004-007** (Code Organization & Maintainability) **NOT STARTED** - clean architecture
+- ❌ **0004-008** (Testing & Validation) **NOT STARTED** - comprehensive test coverage
+- ❌ **0004-009-002** (Code Quality Tools Setup) **NOT STARTED** - automated quality enforcement
+- ❌ **0004-004-003** (Enhanced Session Information Display) **NOT STARTED** - operational visibility
+- Performance optimization and monitoring
+- Complete integration testing
 
 ## Risk Assessment & Mitigation
 
