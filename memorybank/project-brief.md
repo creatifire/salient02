@@ -51,10 +51,20 @@
     - RAG Application
     - Memories in a Relational Database (Postgres)
     - Knowledge Indexed in a Vector Database (Pinecone)
+    - Pydantic AI Multi-Agent System
+
+### Core Architecture Documents
 - [Technology Stack](./architecture/technology-stack.md)
 - [Technical Constraints](./architecture/technical-constraints.md)
 - [Code Organization](./architecture/code-organization.md)
 - [Data Model & ER Diagram](./architecture/datamodel.md)
+- [Multi-Account Support](./architecture/multi-account-support.md)
+
+### Design Documents
+- [Simple Chat Agent Design](./design/simple-chat.md)
+- [Agent Endpoint Transition Strategy](./design/agent-endpoint-transition.md)
+
+### Integration & Deployment
 - [SalesBot Integration Options](./architecture/salesbot-integration.md)
 - [Demo Integration Strategy](./architecture/demo-integrations.md)
 - [Cross-Origin Session Handling](./architecture/cross-origin-session-handling.md)
@@ -62,11 +72,28 @@
 - [Production Deployment Configuration](./architecture/production-deployment-config.md)
 
 ## Planning
-- [Plans](./project-management/0000-epics.md) contains the high level plans, with each file getting its own epic file
-    - [Preliminary Design](./project-management/0001-preliminary-design.md)
-    - [Baseline Connectivity](./project-management/0002-baseline-connectivity.md)
-    - [Website & HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
-    - [Chat Memory & Persistence](./project-management/0004-chat-memory.md)
+
+### Strategic Planning
+- [Milestone 1 Tactical Approach](./project-management/0000-approach-milestone-01.md)
+- [Master Epic List](./project-management/0000-epics.md)
+
+### Core Epics (Milestone 1)
+- [Chat Memory & Persistence](./project-management/0004-chat-memory.md)
+- [Multi-Account and Agent Support](./project-management/0005-multi-account-and-agent-support.md)
+- [Sales Agent](./project-management/0008-sales-agent.md)
+- [Simple Chat Agent](./project-management/0017-simple-chat-agent.md)
+
+### Foundation Epics
+- [Preliminary Design](./project-management/0001-preliminary-design.md)
+- [Baseline Connectivity](./project-management/0002-baseline-connectivity.md)
+- [Website & HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
+
+### Supporting Infrastructure Epics
+- [Website Content Ingestion](./project-management/0010-website-content-ingestion.md)
+- [Vector Database Integration](./project-management/0011-vector-db-integration.md)
+- [Outbound Email](./project-management/0012-outbound-email.md)
+- [Scheduling Integration](./project-management/0013-scheduling-integration.md)
+- [Library Manager](./project-management/0019-library-manager.md)
 
 ## Project Standards
 

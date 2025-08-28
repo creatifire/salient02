@@ -1,5 +1,11 @@
 # Epics
 > Convention: Use `[ ]` for open items and `[x]` for completed items across FEATURES, TASKS, and CHUNKS.
+
+## Milestone Planning
+- [Milestone 1 Tactical Approach](./0000-approach-milestone-01.md) - Current development plan with API endpoint evolution
+- [Milestone 2 Tactical Approach](./0000-approach-milestone-02.md) - Future development plan
+
+## Active Epics
 01. [Preliminary Design](./0001-preliminary-design.md)
 02. [Baseline Connectivity](./0002-baseline-connectivity.md)
 03. [Website & HTMX Chatbot](./0003-website-htmx-chatbot.md)

@@ -4,6 +4,8 @@
 
 **Framework**: Built on Pydantic AI with type-safe dependencies, structured outputs, multi-account support, and comprehensive tool integration including vector search, web search, CrossFeed MCP, and conversation management.
 
+**Implementation Strategy**: Parallel endpoint development with legacy compatibility - see [Agent Endpoint Transition Strategy](../design/agent-endpoint-transition.md) for detailed transition plan from `/chat` to `/agents/simple-chat/chat`.
+
 ## Agent Architecture Diagram
 
 ```mermaid
