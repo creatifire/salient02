@@ -541,13 +541,23 @@ async def get_chat_history(request: Request) -> JSONResponse:
 - Testing: Cross-origin request validation and session persistence verification
 
 ### [ ] 0004-004-003 - TASK - Enhanced Session Information Display
-- [ ] 0004-004-003-01 - CHUNK - Session info API enhancement
-  - SUB-TASKS:
-    - Extend GET /api/session endpoint to include LLM configuration
-    - Add current model, provider, temperature, and max_tokens to response
-    - Include configuration source information (YAML vs environment)
-    - Add last LLM usage statistics (if available)
-    - Acceptance: Session API returns comprehensive configuration data
+- [x] 0004-004-003-01 - CHUNK - Session info API enhancement ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Extend GET /api/session endpoint to include LLM configuration
+    - ✅ Add current model, provider, temperature, and max_tokens to response
+    - ✅ Include configuration source information (YAML vs environment)
+    - ✅ Add last LLM usage statistics (if available)
+    - Acceptance: ✅ Session API returns comprehensive configuration data
+
+  **Implementation Details:**
+  - **Enhanced session endpoint**: Extended `/api/session` to include comprehensive LLM configuration section
+  - **LLM configuration display**: Added provider, model, temperature, max_tokens with current values
+  - **Configuration source tracking**: Implemented detection of YAML vs environment vs default sources for each setting
+  - **Environment variable override detection**: Checks for LLM_PROVIDER, LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS
+  - **Usage statistics framework**: Added placeholder structure for future LLM usage tracking implementation
+  - **Response structure**: Added `llm_configuration` section with nested `config_sources` for operational transparency
+  - **Backward compatibility**: Maintains all existing session information while adding new LLM data
+  - **Security**: Configuration source information helps identify potential security/deployment issues
 
 - [ ] 0004-004-003-02 - CHUNK - Frontend session info UI enhancement
   - SUB-TASKS:

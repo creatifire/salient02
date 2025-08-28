@@ -1046,10 +1046,48 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
 
 @app.get("/api/session", response_class=JSONResponse)
 async def get_session_info(request: Request) -> JSONResponse:
-    """Get current session information for debugging/development."""
+    """Get current session information including LLM configuration for debugging/development."""
     session = get_current_session(request)
     if not session:
         return JSONResponse({"error": "No active session"}, status_code=404)
+    
+    # Load current configuration to get LLM settings
+    from .config import load_config, get_env
+    config = load_config()
+    llm_config = config.get("llm", {})
+    
+    # Determine configuration sources
+    config_sources = {
+        "provider": "yaml" if "llm" in config and "provider" in config["llm"] else "default",
+        "model": "yaml" if "llm" in config and "model" in config["llm"] else "default", 
+        "temperature": "yaml" if "llm" in config and "temperature" in config["llm"] else "default",
+        "max_tokens": "yaml" if "llm" in config and "max_tokens" in config["llm"] else "default"
+    }
+    
+    # Check for environment variable overrides
+    if get_env("LLM_PROVIDER"):
+        config_sources["provider"] = "environment"
+    if get_env("LLM_MODEL"):
+        config_sources["model"] = "environment"
+    if get_env("LLM_TEMPERATURE"):
+        config_sources["temperature"] = "environment"
+    if get_env("LLM_MAX_TOKENS"):
+        config_sources["max_tokens"] = "environment"
+    
+    # Prepare LLM configuration display
+    llm_info = {
+        "provider": llm_config.get("provider", "openrouter"),
+        "model": llm_config.get("model", "openai/gpt-oss-20b:free"),
+        "temperature": llm_config.get("temperature", 0.3),
+        "max_tokens": llm_config.get("max_tokens", 512),
+        "config_sources": config_sources
+    }
+    
+    # Add usage statistics placeholder (can be enhanced with actual tracking later)
+    llm_info["last_usage"] = {
+        "available": False,
+        "note": "Usage statistics tracking not yet implemented"
+    }
     
     return JSONResponse({
         "session_id": str(session.id),
@@ -1058,7 +1096,8 @@ async def get_session_info(request: Request) -> JSONResponse:
         "is_anonymous": session.is_anonymous,
         "created_at": session.created_at.isoformat() if session.created_at else None,
         "last_activity_at": session.last_activity_at.isoformat() if session.last_activity_at else None,
-        "metadata": session.meta
+        "metadata": session.meta,
+        "llm_configuration": llm_info
     })
 
 
