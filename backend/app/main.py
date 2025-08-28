@@ -90,6 +90,7 @@ Usage:
 import asyncio
 import glob
 import sys
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -1052,9 +1053,10 @@ async def get_session_info(request: Request) -> JSONResponse:
         return JSONResponse({"error": "No active session"}, status_code=404)
     
     # Load current configuration to get LLM settings
-    from .config import load_config, get_env
+    from .config import load_config, get_env, get_config_metadata
     config = load_config()
     llm_config = config.get("llm", {})
+    config_metadata = get_config_metadata()
     
     # Determine configuration sources
     config_sources = {
@@ -1087,6 +1089,17 @@ async def get_session_info(request: Request) -> JSONResponse:
     llm_info["last_usage"] = {
         "available": False,
         "note": "Usage statistics tracking not yet implemented"
+    }
+    
+    # Add configuration metadata for change detection
+    llm_info["configuration_metadata"] = {
+        "version": config_metadata.get("version", "unknown"),
+        "loaded_at": config_metadata.get("loaded_at"),
+        "loaded_at_formatted": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(config_metadata.get("loaded_at", 0))) if config_metadata.get("loaded_at") else "unknown",
+        "yaml_file_modified": config_metadata.get("yaml_file_modified"),
+        "yaml_file_modified_formatted": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(config_metadata.get("yaml_file_modified", 0))) if config_metadata.get("yaml_file_modified") else "no yaml file",
+        "config_hash": config_metadata.get("config_hash", "unknown"),
+        "env_vars_hash": config_metadata.get("env_vars_hash", "unknown")
     }
     
     return JSONResponse({

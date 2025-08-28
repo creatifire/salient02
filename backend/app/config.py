@@ -70,7 +70,9 @@ Dependencies:
 
 from __future__ import annotations
 
+import hashlib
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -87,6 +89,15 @@ load_dotenv(find_dotenv(), override=False)
 # This singleton pattern ensures configuration is loaded once per application lifecycle
 # and provides consistent, high-performance access across all application components
 _CONFIG_CACHE: Dict[str, Any] | None = None
+
+# Configuration metadata for change detection and versioning
+_CONFIG_METADATA: Dict[str, Any] = {
+    "loaded_at": None,
+    "config_hash": None,
+    "yaml_file_modified": None,
+    "env_vars_hash": None,
+    "version": None
+}
 
 
 def load_config() -> Dict[str, Any]:
@@ -347,9 +358,52 @@ def load_config() -> Dict[str, Any]:
         # Non-numeric cache_db, fallback to safe default
         redis_cfg["cache_db"] = 2
 
+    # Generate configuration metadata for change detection
+    _generate_config_metadata(config, config_path)
+    
     # Cache validated configuration globally for performance
     _CONFIG_CACHE = config
     return config
+
+
+def _generate_config_metadata(config: Dict[str, Any], config_path: Path) -> None:
+    """Generate metadata for configuration change detection."""
+    global _CONFIG_METADATA
+    
+    # Current timestamp
+    _CONFIG_METADATA["loaded_at"] = time.time()
+    
+    # YAML file modification time
+    if config_path.exists():
+        _CONFIG_METADATA["yaml_file_modified"] = config_path.stat().st_mtime
+    else:
+        _CONFIG_METADATA["yaml_file_modified"] = None
+    
+    # Hash of relevant environment variables for LLM configuration
+    llm_env_vars = {
+        "LLM_PROVIDER": get_env("LLM_PROVIDER"),
+        "LLM_MODEL": get_env("LLM_MODEL"), 
+        "LLM_TEMPERATURE": get_env("LLM_TEMPERATURE"),
+        "LLM_MAX_TOKENS": get_env("LLM_MAX_TOKENS")
+    }
+    env_string = str(sorted(llm_env_vars.items()))
+    _CONFIG_METADATA["env_vars_hash"] = hashlib.md5(env_string.encode()).hexdigest()[:8]
+    
+    # Hash of complete configuration for change detection
+    config_string = str(sorted(config.items()))
+    _CONFIG_METADATA["config_hash"] = hashlib.md5(config_string.encode()).hexdigest()[:8]
+    
+    # Generate version string combining hashes
+    _CONFIG_METADATA["version"] = f"{_CONFIG_METADATA['config_hash']}-{_CONFIG_METADATA['env_vars_hash']}"
+
+
+def get_config_metadata() -> Dict[str, Any]:
+    """Get configuration metadata for change detection and debugging."""
+    # Ensure config is loaded
+    if _CONFIG_CACHE is None:
+        load_config()
+    
+    return _CONFIG_METADATA.copy()
 
 
 def get_env(name: str, default: str | None = None) -> str | None:

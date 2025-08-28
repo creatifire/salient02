@@ -215,6 +215,76 @@
         border-top: 1px solid #e9ecef; 
         font-size: 0.8rem; 
       }
+      .config-metadata { 
+        margin-top: 0.75rem; 
+        padding-top: 0.75rem; 
+        border-top: 1px solid #d1ecf1; 
+        background: #f8fdff; 
+        border-radius: 4px; 
+        padding: 0.5rem; 
+      }
+      .config-metadata h6 { 
+        margin: 0 0 0.4rem 0; 
+        color: #0c5460; 
+        font-size: 0.75rem; 
+        font-weight: 600; 
+        text-transform: uppercase; 
+      }
+      .config-meta-item { 
+        margin-bottom: 0.3rem; 
+        font-size: 0.75rem; 
+        display: flex; 
+        align-items: center; 
+        flex-wrap: wrap; 
+        gap: 0.25rem; 
+      }
+      .config-version { 
+        background: #e2f3ff; 
+        color: #0066cc; 
+        font-weight: 600; 
+      }
+      .config-timestamp { 
+        color: #6c757d; 
+        font-style: italic; 
+      }
+      .config-hash { 
+        background: #f0f0f0; 
+        color: #495057; 
+        font-size: 0.7rem; 
+        padding: 0.1rem 0.2rem; 
+        margin: 0 0.1rem; 
+      }
+      .config-warnings { 
+        margin-bottom: 0.75rem; 
+        padding: 0.5rem; 
+        border-radius: 4px; 
+        background: #fff3cd; 
+        border: 1px solid #ffeaa7; 
+      }
+      .config-warning { 
+        margin-bottom: 0.25rem; 
+        font-size: 0.75rem; 
+        display: flex; 
+        align-items: center; 
+        gap: 0.25rem; 
+      }
+      .config-warning:last-child { 
+        margin-bottom: 0; 
+      }
+      .config-warning-stale { 
+        color: #856404; 
+      }
+      .config-warning-modified { 
+        color: #721c24; 
+        background: #f8d7da; 
+        border-color: #f5c6cb; 
+        padding: 0.25rem; 
+        border-radius: 3px; 
+        font-weight: 500; 
+      }
+      .warning-icon { 
+        font-size: 0.8rem; 
+      }
     </style>
   </head>
   <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}" data-sse-enabled="{{ sse_enabled }}" data-allow-basic-html="{{ allow_basic_html }}">
@@ -437,9 +507,51 @@
               // Add LLM configuration if available
               if (data.llm_configuration) {
                 const llm = data.llm_configuration;
+                
+                // Check for potential configuration warnings
+                const checkConfigWarnings = () => {
+                  const warnings = [];
+                  const metadata = llm.configuration_metadata;
+                  
+                  if (metadata) {
+                    const loadedTime = metadata.loaded_at;
+                    const currentTime = Date.now() / 1000;
+                    const hoursSinceLoad = (currentTime - loadedTime) / 3600;
+                    
+                    // Warn if configuration was loaded more than 24 hours ago
+                    if (hoursSinceLoad > 24) {
+                      warnings.push({
+                        type: 'stale',
+                        message: `Configuration loaded ${Math.round(hoursSinceLoad)} hours ago - may be outdated`
+                      });
+                    }
+                    
+                    // Warn if YAML file modified time is newer than loaded time
+                    if (metadata.yaml_file_modified && metadata.yaml_file_modified > loadedTime) {
+                      warnings.push({
+                        type: 'modified',
+                        message: 'YAML file modified after configuration load - restart may be needed'
+                      });
+                    }
+                  }
+                  
+                  return warnings;
+                };
+                
+                const configWarnings = checkConfigWarnings();
                 sessionInfo += `
                   <div class="llm-section">
                     <h5>LLM Configuration</h5>
+                    ${configWarnings.length > 0 ? 
+                      `<div class="config-warnings">
+                        ${configWarnings.map(w => 
+                          `<div class="config-warning config-warning-${w.type}">
+                            <span class="warning-icon">⚠️</span> ${w.message}
+                           </div>`
+                        ).join('')}
+                       </div>` : 
+                      ''
+                    }
                     <div class="llm-config-item">
                       <strong>Provider:</strong> <code>${llm.provider}</code> ${getSourceBadge(llm.config_sources?.provider)}
                     </div>
@@ -461,6 +573,25 @@
                       `<div class="llm-usage">
                         <strong>Usage Stats:</strong> <span class="llm-description">Not yet implemented</span>
                        </div>`
+                    }
+                    ${llm.configuration_metadata ? 
+                      `<div class="config-metadata">
+                        <h6>Configuration Metadata</h6>
+                        <div class="config-meta-item">
+                          <strong>Version:</strong> <code class="config-version">${llm.configuration_metadata.version}</code>
+                        </div>
+                        <div class="config-meta-item">
+                          <strong>Loaded:</strong> <span class="config-timestamp">${llm.configuration_metadata.loaded_at_formatted}</span>
+                        </div>
+                        <div class="config-meta-item">
+                          <strong>YAML Modified:</strong> <span class="config-timestamp">${llm.configuration_metadata.yaml_file_modified_formatted}</span>
+                        </div>
+                        <div class="config-meta-item">
+                          <strong>Config Hash:</strong> <code class="config-hash">${llm.configuration_metadata.config_hash}</code>
+                          <strong>Env Hash:</strong> <code class="config-hash">${llm.configuration_metadata.env_vars_hash}</code>
+                        </div>
+                       </div>` : 
+                      ''
                     }
                   </div>
                 `;
