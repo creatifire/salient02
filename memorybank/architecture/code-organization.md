@@ -166,7 +166,10 @@ Notes:
 ## Backend: Python FastAPI + Jinja + HTMX + SSE + Pydantic AI Agents
 - Keep all Python server code in `backend/`.
 - Jinja templates (HTMX partials/snippets) under `backend/templates/`.
-- SSE endpoint exposed by backend (e.g., `GET /events/stream`).
+- **Endpoint Strategy**: Parallel endpoints for backward compatibility (see [agent-endpoint-transition.md](../design/agent-endpoint-transition.md))
+  - Legacy: `POST /chat`, `GET /events/stream` (preserved during transition)
+  - Agent: `POST /agents/{agent-type}/chat`, `GET /agents/{agent-type}/stream` (new)
+  - Future: `POST /accounts/{account-slug}/agents/{agent-type}/chat` (Phase 3+)
 - YAML config under `backend/config/app.yaml` with keys already defined in the design docs.
 - **Phase 1-2**: Agent configurations under `backend/config/agent_configs/` for config file-based setup.
 - Loguru configured from YAML to write JSONL to `backend/logs/` (path in YAML).

@@ -39,6 +39,14 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 ### **Phase 1: Complete Simple Chat Agent (Single Instance)**
 *Deliver a fully functional simple chat agent with multi-tool capabilities using config file-based setup*
 
+#### **Endpoint Transition Strategy**
+- **Parallel Endpoints**: New agent endpoints (`/agents/simple-chat/chat`) alongside existing legacy endpoints (`/chat`)
+- **Zero Disruption**: Existing chat functionality continues working during agent development
+- **Session Compatibility**: Shared session management and chat history between legacy and agent endpoints
+- **Gradual Migration**: Demo pages migrate to agent endpoints while legacy remains as fallback
+- **Future-Ready**: Agent endpoint structure naturally extends to multi-account architecture
+- **Detailed Plan**: See [agent-endpoint-transition.md](../design/agent-endpoint-transition.md)
+
 #### **Infrastructure (Completed)**
 - ✅ **0004-004-002-05** (Frontend chat history loading) **COMPLETED**
 - ✅ **0004-004-002-06/07/08** (Markdown formatting consistency) **COMPLETED** - 06✅, 07✅, 08✅ affects all 5 integration strategies
