@@ -559,14 +559,25 @@ async def get_chat_history(request: Request) -> JSONResponse:
   - **Backward compatibility**: Maintains all existing session information while adding new LLM data
   - **Security**: Configuration source information helps identify potential security/deployment issues
 
-- [ ] 0004-004-003-02 - CHUNK - Frontend session info UI enhancement
-  - SUB-TASKS:
-    - Update session info button display to include LLM model information
-    - Add formatted display for model configuration (provider/model)
-    - Include temperature and max_tokens settings with user-friendly labels
-    - Add visual indicators for configuration source (config file vs environment)
-    - Style LLM configuration section distinctly from session data
-    - Acceptance: Session info shows current LLM model and settings clearly
+- [x] 0004-004-003-02 - CHUNK - Frontend session info UI enhancement ✅ **COMPLETED**
+  - SUB-TASKS: ✅ **ALL COMPLETED**
+    - ✅ Update session info button display to include LLM model information
+    - ✅ Add formatted display for model configuration (provider/model)
+    - ✅ Include temperature and max_tokens settings with user-friendly labels
+    - ✅ Add visual indicators for configuration source (config file vs environment)
+    - ✅ Style LLM configuration section distinctly from session data
+    - Acceptance: ✅ Session info shows current LLM model and settings clearly
+
+  **Implementation Details:**
+  - **Enhanced session display**: Updated session info JavaScript to include comprehensive LLM configuration section
+  - **Configuration source badges**: Added color-coded badges (YAML/ENV/DEFAULT) to show source of each setting
+  - **User-friendly formatting**: Provider/model displayed in code blocks, temperature/max_tokens with descriptive labels
+  - **Visual distinction**: LLM section has blue left border, light background, and distinct styling from session data
+  - **Responsive layout**: Configuration items use flexbox for proper wrapping and alignment
+  - **Descriptive labels**: Added explanatory text for temperature (randomness) and max_tokens (response length)
+  - **Usage statistics placeholder**: Framework ready for future LLM usage tracking display
+  - **Error handling**: Graceful degradation when LLM configuration is unavailable
+  - **Accessibility**: Clear headings and semantic structure for screen readers
 
 - [ ] 0004-004-003-03 - CHUNK - Configuration change detection
   - SUB-TASKS:

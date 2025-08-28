@@ -146,6 +146,75 @@
           height: 16px;
         }
       }
+      
+      /* Session Info Styling */
+      .session-section, .llm-section { 
+        margin-bottom: 1rem; 
+        padding-bottom: 0.75rem; 
+      }
+      .session-section { 
+        border-bottom: 1px solid #e9ecef; 
+      }
+      .llm-section { 
+        background: #f8f9fa; 
+        padding: 0.75rem; 
+        border-radius: 6px; 
+        border-left: 4px solid #0ea5e9; 
+      }
+      .session-section h5, .llm-section h5 { 
+        margin: 0 0 0.5rem 0; 
+        color: #495057; 
+        font-size: 0.9rem; 
+        font-weight: 600; 
+      }
+      .llm-section h5 { 
+        color: #0ea5e9; 
+      }
+      .llm-config-item { 
+        margin-bottom: 0.4rem; 
+        display: flex; 
+        align-items: center; 
+        flex-wrap: wrap; 
+        gap: 0.3rem; 
+      }
+      .llm-value { 
+        font-weight: 500; 
+        color: #28a745; 
+      }
+      .llm-description { 
+        font-size: 0.75rem; 
+        color: #6c757d; 
+        font-style: italic; 
+      }
+      .config-badge { 
+        font-size: 0.65rem; 
+        padding: 0.15rem 0.3rem; 
+        border-radius: 3px; 
+        font-weight: 600; 
+        text-transform: uppercase; 
+        margin-left: 0.25rem; 
+      }
+      .config-yaml { 
+        background: #d4edda; 
+        color: #155724; 
+        border: 1px solid #c3e6cb; 
+      }
+      .config-env { 
+        background: #d1ecf1; 
+        color: #0c5460; 
+        border: 1px solid #bee5eb; 
+      }
+      .config-default { 
+        background: #fff3cd; 
+        color: #856404; 
+        border: 1px solid #ffeaa7; 
+      }
+      .llm-usage { 
+        margin-top: 0.5rem; 
+        padding-top: 0.5rem; 
+        border-top: 1px solid #e9ecef; 
+        font-size: 0.8rem; 
+      }
     </style>
   </head>
   <body data-debounce-ms="{{ debounce_ms }}" data-submit-shortcut="{{ submit_shortcut }}" data-enter-inserts-newline="{{ enter_inserts_newline }}" data-frontend-debug="{{ frontend_debug }}" data-sse-enabled="{{ sse_enabled }}" data-allow-basic-html="{{ allow_basic_html }}">
@@ -341,15 +410,63 @@
             if (data.error) {
               sessionData.innerHTML = `<span style="color: #dc3545;">Error: ${data.error}</span>`;
             } else {
-              sessionData.innerHTML = `
-                <strong>Session ID:</strong> ${data.session_id}<br>
-                <strong>Session Key:</strong> ${data.session_key}<br>
-                <strong>Anonymous:</strong> ${data.is_anonymous ? 'Yes' : 'No'}<br>
-                <strong>Email:</strong> ${data.email || 'Not provided'}<br>
-                <strong>Created:</strong> ${new Date(data.created_at).toLocaleString()}<br>
-                <strong>Last Activity:</strong> ${new Date(data.last_activity_at).toLocaleString()}<br>
-                <strong>Cookie Set:</strong> ${document.cookie.includes('salient_session') ? 'Yes' : 'No'}
+              // Function to get source indicator badge
+              const getSourceBadge = (source) => {
+                const badges = {
+                  'yaml': '<span class="config-badge config-yaml">YAML</span>',
+                  'environment': '<span class="config-badge config-env">ENV</span>',
+                  'default': '<span class="config-badge config-default">DEFAULT</span>'
+                };
+                return badges[source] || `<span class="config-badge">${source}</span>`;
+              };
+              
+              // Build session information
+              let sessionInfo = `
+                <div class="session-section">
+                  <h5>Session Information</h5>
+                  <strong>Session ID:</strong> ${data.session_id}<br>
+                  <strong>Session Key:</strong> ${data.session_key}<br>
+                  <strong>Anonymous:</strong> ${data.is_anonymous ? 'Yes' : 'No'}<br>
+                  <strong>Email:</strong> ${data.email || 'Not provided'}<br>
+                  <strong>Created:</strong> ${new Date(data.created_at).toLocaleString()}<br>
+                  <strong>Last Activity:</strong> ${new Date(data.last_activity_at).toLocaleString()}<br>
+                  <strong>Cookie Set:</strong> ${document.cookie.includes('salient_session') ? 'Yes' : 'No'}
+                </div>
               `;
+              
+              // Add LLM configuration if available
+              if (data.llm_configuration) {
+                const llm = data.llm_configuration;
+                sessionInfo += `
+                  <div class="llm-section">
+                    <h5>LLM Configuration</h5>
+                    <div class="llm-config-item">
+                      <strong>Provider:</strong> <code>${llm.provider}</code> ${getSourceBadge(llm.config_sources?.provider)}
+                    </div>
+                    <div class="llm-config-item">
+                      <strong>Model:</strong> <code>${llm.model}</code> ${getSourceBadge(llm.config_sources?.model)}
+                    </div>
+                    <div class="llm-config-item">
+                      <strong>Temperature:</strong> <span class="llm-value">${llm.temperature}</span> ${getSourceBadge(llm.config_sources?.temperature)}
+                      <span class="llm-description">(randomness: 0.0-2.0)</span>
+                    </div>
+                    <div class="llm-config-item">
+                      <strong>Max Tokens:</strong> <span class="llm-value">${llm.max_tokens}</span> ${getSourceBadge(llm.config_sources?.max_tokens)}
+                      <span class="llm-description">(response length limit)</span>
+                    </div>
+                    ${llm.last_usage && llm.last_usage.available ? 
+                      `<div class="llm-usage">
+                        <strong>Last Usage:</strong> Available
+                       </div>` : 
+                      `<div class="llm-usage">
+                        <strong>Usage Stats:</strong> <span class="llm-description">Not yet implemented</span>
+                       </div>`
+                    }
+                  </div>
+                `;
+              }
+              
+              sessionData.innerHTML = sessionInfo;
             }
           } catch (error) {
             sessionData.innerHTML = `<span style="color: #dc3545;">Failed to load session info: ${error.message}</span>`;
