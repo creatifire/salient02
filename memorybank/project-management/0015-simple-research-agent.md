@@ -1,8 +1,8 @@
-# Epic 0015 - Simple Research Agent
+# Epic 0015 - Intelligent Research Agent
 
-> Goal: Implement Pydantic AI-powered research agent with conversation history, web search capabilities, memory management, and bookmark functionality for basic research workflows.
+> Goal: Implement Pydantic AI-powered research agent with advanced document intelligence, research methodology, conversation history, web search capabilities, memory management, and comprehensive document analysis for sophisticated research workflows.
 
-**Framework**: Built on Pydantic AI with Exa search integration, conversation management, and memory summarization capabilities.
+**Framework**: Built on Pydantic AI with Library Manager integration, web search, conversation management, document intelligence, and research synthesis capabilities.
 
 ## Agent Flow Diagram
 
@@ -31,20 +31,35 @@ flowchart TD
 ## Scope & Approach
 
 ### Core Capabilities
+
+#### Research Intelligence
+- **Research Planning & Strategy**: Query analysis, depth assessment, and iterative planning
 - **Multi-Conversation Support**: Maintain separate research contexts across conversations
-- **Conversation History**: Track and reference previous research within conversation threads
-- **Web Search Integration**: Leverage Exa search for high-quality research results
-- **Memory Management**: Store and retrieve important research findings
-- **Memory Summarization**: Condense research findings at specified intervals
-- **Smart Bookmarking**: Automatically bookmark valuable research sources
-- **Research Continuity**: Resume research across conversation sessions
+- **Research Methodology**: Systematic approach to information gathering and synthesis
+- **Memory Management**: Store and retrieve important research findings with categorization
+- **Smart Bookmarking**: Automatically bookmark valuable research sources with relevance scoring
+- **Research Continuity**: Resume research across conversation sessions with progress tracking
+
+#### Document Intelligence (from Library Manager Integration)
+- **Document Analysis**: Summarization, key insight extraction, and theme identification
+- **Document Collection Intelligence**: Pattern detection and knowledge gap analysis
+- **Cross-Document Analysis**: Relationship detection and comparison capabilities
+- **Document Lifecycle Management**: Version tracking, usage analytics, and optimization
+
+#### Search & Synthesis
+- **Web Search Integration**: Leverage multiple search engines (Exa, Tavily, Linkup) for research
+- **Library Search**: Access curated document collections through Library Manager
+- **Research Synthesis**: Combine findings from multiple sources and sessions
+- **Quality Assessment**: Evaluate source credibility and research completeness
 
 ### Target Workflows
-- **Exploratory Research**: Initial topic investigation with iterative refinement
-- **Fact Verification**: Cross-reference claims against multiple sources
-- **Literature Review**: Comprehensive topic coverage with source tracking
-- **Comparative Analysis**: Side-by-side evaluation of options or alternatives
-- **Research Synthesis**: Combine findings from multiple research sessions
+- **Exploratory Research**: Initial topic investigation with iterative refinement and library integration
+- **Document Intelligence**: Deep analysis of document collections with insight extraction
+- **Literature Review**: Comprehensive topic coverage with cross-document analysis
+- **Comparative Analysis**: Side-by-side evaluation with document and web source comparison
+- **Research Synthesis**: Multi-source synthesis combining libraries, web search, and memory
+- **Knowledge Discovery**: Pattern detection across large document collections
+- **Research Validation**: Cross-reference claims against curated libraries and web sources
 
 ## Pydantic AI Implementation Plan
 
@@ -138,24 +153,54 @@ flowchart TD
   - Create bookmark recommendation and suggestion tools
   - **Acceptance**: Agent maintains organized research source library
 
-### FEATURE 0015-004 - Research Optimization
-> Optimize research agent performance and summarization capabilities
+### FEATURE 0015-004 - Document Intelligence & Analytics
+> Advanced document analysis and collection intelligence capabilities
 
-#### TASK 0015-004-001 - Memory Summarization
-- [ ] 0015-004-001-01 - CHUNK - Interval-based summarization
+#### TASK 0015-004-001 - Document Analysis Tools
+- [ ] 0015-004-001-01 - CHUNK - Content analysis and summarization
+  - Implement document summarization and key insight extraction
+  - Add topic modeling and theme identification tools
+  - Create document comparison and difference analysis
+  - **Acceptance**: Agent provides intelligent document analysis
+  - **Dependencies**: Requires 0019 (Library Manager)
+
+- [ ] 0015-004-001-02 - CHUNK - Document collection insights
+  - Implement collection-wide analysis and pattern detection
+  - Add document clustering and categorization tools
+  - Create knowledge gap identification and recommendations
+  - **Acceptance**: Agent provides insights across document collections
+
+#### TASK 0015-004-002 - Cross-Document Intelligence
+- [ ] 0015-004-002-01 - CHUNK - Relationship detection system
+  - Implement cross-document similarity analysis
+  - Add citation and reference link detection
+  - Create document relationship mapping and visualization
+  - **Acceptance**: Agent identifies and maps document relationships
+
+- [ ] 0015-004-002-02 - CHUNK - Document lifecycle analytics
+  - Implement document usage analytics and access patterns
+  - Add document versioning and change impact analysis
+  - Create document archival and optimization recommendations
+  - **Acceptance**: Agent manages document lifecycle intelligently
+
+### FEATURE 0015-005 - Research Optimization
+> Optimize research agent performance and synthesis capabilities
+
+#### TASK 0015-005-001 - Memory Summarization
+- [ ] 0015-005-001-01 - CHUNK - Interval-based summarization
   - Implement configurable memory summarization triggers
   - Add research progress and finding synthesis
   - Create summary quality assessment and refinement
   - **Acceptance**: Agent maintains condensed research summaries
 
-- [ ] 0015-004-001-02 - CHUNK - Research synthesis optimization
+- [ ] 0015-005-001-02 - CHUNK - Research synthesis optimization
   - Implement intelligent research finding synthesis
   - Add contradiction detection and resolution
   - Create research gap identification and filling
   - **Acceptance**: Agent produces coherent research syntheses
 
-#### TASK 0015-004-002 - Performance Optimization
-- [ ] 0015-004-002-01 - CHUNK - Research efficiency optimization
+#### TASK 0015-005-002 - Performance Optimization
+- [ ] 0015-005-002-01 - CHUNK - Research efficiency optimization
   - Implement research workflow optimization
   - Add search redundancy detection and prevention
   - Create research completion criteria and assessment
@@ -171,10 +216,12 @@ flowchart TD
 class ResearchDependencies:
     account_id: str
     db: DatabaseConn
-    exa_config: ExaConfig
+    library_manager: LibraryManagerClient
+    search_engines: Dict[str, SearchEngineConfig]  # exa, tavily, linkup
     memory_config: MemoryConfig
     conversation_context: Optional[ConversationContext]
     research_session: Optional[ResearchSession]
+    document_analyzer: DocumentAnalysisEngine
 
 class ResearchQuery(BaseModel):
     query: str
@@ -183,12 +230,22 @@ class ResearchQuery(BaseModel):
     source_preferences: List[str]
     previous_context: Optional[str]
 
+class DocumentAnalysis(BaseModel):
+    document_id: str
+    summary: str
+    key_insights: List[str]
+    topics: List[str]
+    entities: List[str]
+    relationships: List[DocumentRelationship]
+
 class ResearchOutput(BaseModel):
     findings: List[ResearchFinding]
     sources: List[BookmarkedSource]
+    document_analyses: List[DocumentAnalysis]
     synthesis: str
     confidence_score: float = Field(ge=0, le=1)
     research_gaps: List[str]
+    cross_document_insights: List[str]
     next_steps: List[str]
 
 research_agent = Agent[ResearchDependencies, ResearchOutput](
@@ -199,11 +256,44 @@ research_agent = Agent[ResearchDependencies, ResearchOutput](
 )
 
 @research_agent.tool
-async def exa_search(ctx: RunContext[ResearchDependencies], query: str, num_results: int = 10) -> List[SearchResult]:
-    """Perform high-quality web search using Exa API."""
-    exa_client = ExaClient(ctx.deps.exa_config.api_key)
-    results = await exa_client.search(query, num_results=num_results, use_autoprompt=True)
-    return [SearchResult.from_exa(result) for result in results.results]
+async def web_search(ctx: RunContext[ResearchDependencies], query: str, engine: str = "exa", num_results: int = 10) -> List[SearchResult]:
+    """Perform web search using configured search engines."""
+    search_config = ctx.deps.search_engines.get(engine)
+    if not search_config:
+        raise ValueError(f"Search engine {engine} not configured")
+    
+    search_client = SearchEngineFactory.create(engine, search_config)
+    results = await search_client.search(query, num_results=num_results)
+    return [SearchResult.from_engine_result(result) for result in results]
+
+@research_agent.tool
+async def search_libraries(ctx: RunContext[ResearchDependencies], query: str, library_ids: List[str] = None) -> List[DocumentMatch]:
+    """Search document libraries for relevant information."""
+    return await ctx.deps.library_manager.search(
+        query=query,
+        library_ids=library_ids,
+        account_id=ctx.deps.account_id
+    )
+
+@research_agent.tool
+async def analyze_document(ctx: RunContext[ResearchDependencies], document_id: str) -> DocumentAnalysis:
+    """Perform deep analysis of a specific document."""
+    document = await ctx.deps.library_manager.get_document(document_id)
+    analysis = await ctx.deps.document_analyzer.analyze(document)
+    return DocumentAnalysis(
+        document_id=document_id,
+        summary=analysis.summary,
+        key_insights=analysis.insights,
+        topics=analysis.topics,
+        entities=analysis.entities,
+        relationships=analysis.relationships
+    )
+
+@research_agent.tool
+async def compare_documents(ctx: RunContext[ResearchDependencies], document_ids: List[str]) -> DocumentComparison:
+    """Compare multiple documents for similarities and differences."""
+    documents = await ctx.deps.library_manager.get_documents(document_ids)
+    return await ctx.deps.document_analyzer.compare(documents)
 
 @research_agent.tool  
 async def store_research_memory(ctx: RunContext[ResearchDependencies], finding: ResearchFinding) -> str:
@@ -233,9 +323,12 @@ backend/app/agents/research/
 ├── models.py                   # Research-specific Pydantic models
 ├── dependencies.py             # ResearchDependencies class
 ├── config.py                   # Research agent configuration
+├── document_analyzer.py        # Document intelligence engine
 └── tools/
     ├── __init__.py
-    ├── search_tools.py         # Exa search integration tools
+    ├── search_tools.py         # Multi-engine web search tools
+    ├── library_tools.py        # Library Manager integration tools
+    ├── document_tools.py       # Document analysis and comparison tools
     ├── memory_tools.py         # Memory storage and retrieval tools
     ├── bookmark_tools.py       # Bookmarking and source management tools
     ├── synthesis_tools.py      # Research synthesis and analysis tools
@@ -249,8 +342,19 @@ backend/app/agents/research/
 ```yaml
 research_agent:
   search:
-    provider: "exa"  # exa, tavily, google
-    max_results_per_query: 20
+    web_engines:
+      exa:
+        enabled: true
+        api_key: "${EXA_API_KEY}"
+        max_results: 20
+      tavily:
+        enabled: true
+        api_key: "${TAVILY_API_KEY}"
+        max_results: 15
+      linkup:
+        enabled: false
+        api_key: "${LINKUP_API_KEY}"
+        max_results: 10
     quality_threshold: 0.7
     auto_follow_links: true
     
@@ -271,10 +375,23 @@ research_agent:
     metadata_extraction: true
     duplicate_detection: true
     
+  document_intelligence:
+    analysis_depth: "comprehensive"  # basic, moderate, comprehensive
+    topic_modeling: true
+    entity_extraction: true
+    relationship_detection: true
+    cross_document_analysis: true
+    
+  library_integration:
+    max_libraries_per_query: 5
+    library_search_timeout_ms: 5000
+    cross_library_synthesis: true
+    
   performance:
     max_search_iterations: 5
     response_time_target_ms: 3000
     research_depth_auto_adjust: true
+    document_analysis_parallel: true
 ```
 
 ### Database Extensions
@@ -311,11 +428,33 @@ research_bookmarks:
   relevance_score (FLOAT)
   metadata (JSONB)
   created_at (TIMESTAMP)
+
+-- Document analysis results
+document_analyses:
+  id (GUID, PK)
+  document_id (GUID, FK → content_items.id)
+  conversation_id (GUID, FK → conversations.id)
+  analysis_type (VARCHAR)  -- summary, topic_analysis, entity_extraction
+  results (JSONB)
+  confidence_score (FLOAT)
+  created_at (TIMESTAMP)
+
+-- Cross-document relationships
+document_relationships:
+  id (GUID, PK)
+  source_document_id (GUID, FK → content_items.id)
+  target_document_id (GUID, FK → content_items.id)
+  relationship_type (VARCHAR)  -- similar, references, contradicts
+  strength (FLOAT)
+  metadata (JSONB)
+  created_at (TIMESTAMP)
 ```
 
 ### Integration Points
-- **Exa Search API**: High-quality web search with neural search capabilities
+- **Multi-Engine Web Search**: Exa, Tavily, Linkup search APIs with intelligent routing
+- **Library Manager (Epic 0019)**: Document collections, processing, and vector search
 - **Research Memory System**: Persistent storage and retrieval of research findings
+- **Document Intelligence Engine**: Analysis, comparison, and relationship detection
 - **Conversation Management**: Multi-conversation research context tracking
 - **Bookmark System**: Automatic source organization and metadata extraction
 
@@ -323,15 +462,19 @@ research_bookmarks:
 - **0005-001**: Pydantic AI Framework Setup (required for agent foundation)
 - **0004-012**: Conversation Hierarchy & Management (required for multi-conversation support)
 - **0004-013**: Agent Context Management (required for research context)
+- **0019**: Library Manager (required for document collections and processing)
 - **0011**: Vector Database Integration (for advanced memory search capabilities)
 
 ## Success Criteria
 1. **Multi-Conversation Support**: Research agent maintains separate contexts across conversations
-2. **Web Search Integration**: Successful Exa search integration with quality filtering
-3. **Memory Management**: Research findings stored and retrieved effectively
-4. **Memory Summarization**: Automatic condensation of research at specified intervals
-5. **Smart Bookmarking**: Automatic identification and organization of valuable sources
-6. **Research Continuity**: Ability to resume and build on previous research sessions
-7. **Research Quality**: Generated syntheses are accurate, comprehensive, and well-sourced
+2. **Multi-Engine Web Search**: Successful integration with Exa, Tavily, and Linkup search APIs
+3. **Library Integration**: Seamless access to document collections through Library Manager
+4. **Document Intelligence**: Deep analysis, comparison, and relationship detection capabilities
+5. **Memory Management**: Research findings stored and retrieved effectively with categorization
+6. **Smart Bookmarking**: Automatic identification and organization of valuable sources
+7. **Research Synthesis**: Intelligent combination of web search, library content, and memory
+8. **Cross-Document Analysis**: Pattern detection and insight extraction across document collections
+9. **Research Continuity**: Ability to resume and build on previous research sessions
+10. **Research Quality**: Generated syntheses are accurate, comprehensive, and well-sourced
 
-This epic establishes a foundation for intelligent research workflows with persistent memory and multi-conversation support.
+This epic establishes a comprehensive research platform combining web search, document intelligence, and persistent memory for sophisticated research workflows.
