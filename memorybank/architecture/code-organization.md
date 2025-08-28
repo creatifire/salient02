@@ -5,6 +5,8 @@
 - Use pnpm for the frontend (Basecoat/Tailwind, optional Astro host page)
 - Preserve server-driven HTMX + Jinja for the chat UI, with SSE
 - Allow easy local dev: run backend and web independently
+- Support Pydantic AI agents with config file-based setup initially, database-driven instances later
+- Enable five agent types: simple-chat, sales, digital-expert, simple-research, deep-research
 
 ## Top-level layout
 ```
@@ -19,56 +21,72 @@ salient02/
           dependencies.py      # Common dependency injection classes
           tools_base.py        # Base tool classes and utilities
           types.py            # Shared types and Pydantic models
-        templates/             # Agent template definitions (workflows)
+        simple_chat/           # Simple chat agent (Epic 0017)
           __init__.py
-          simple_research/     # Simple research agent template
-            agent.py           # Template agent implementation
-            dependencies.py    # Template dependency structure
-            models.py          # Template Pydantic models
-            tools/             # Template tools directory
-              __init__.py
-              search_tools.py  # Web search and knowledge tools
-              memory_tools.py  # Memory management tools
-          sales/               # Sales agent template (Epic 0008)
-            agent.py           # Sales agent template
-            dependencies.py    # Sales dependency structure
-            models.py          # Sales-specific Pydantic models
-            tools/             # Sales-specific tools
-              __init__.py
-              crm_tools.py     # CRM integration tools
-              email_tools.py   # Email and communication tools
-              scheduling_tools.py # Calendar and appointment tools
-              product_tools.py # Product search and recommendation tools
-              profile_tools.py # Customer profile capture and qualification
-          digital_expert/      # Digital expert agent template (Epic 0009)
-            agent.py           # Digital expert template
-            dependencies.py    # Expert-specific dependencies
-            models.py          # Expert-specific Pydantic models
-            tools/             # Expert-specific tools
-              __init__.py
-              content_tools.py # Content analysis and ingestion tools
-              persona_tools.py # Digital persona modeling tools
-              knowledge_tools.py # Knowledge extraction and management
-          rag/                 # RAG agent template (Epic 0017)
-            agent.py           # RAG agent template
-            dependencies.py    # RAG-specific dependencies
-            models.py          # RAG-specific Pydantic models
-            tools/             # RAG-specific tools
-              __init__.py
-              upload_tools.py  # Document upload and validation tools
-              processing_tools.py # Document processing tools
-              indexing_tools.py # Vector indexing tools
-        factory/               # Agent instance factory and management
+          agent.py             # Simple chat agent implementation
+          dependencies.py      # Chat agent dependencies
+          models.py           # Chat-specific Pydantic models
+          tools/              # Simple chat tools
+            __init__.py
+            vector_tools.py   # Vector search tools
+            web_search_tools.py # Web search integration
+            conversation_tools.py # Conversation management
+            crossfeed_tools.py # CrossFeed MCP integration
+        sales/                # Sales agent (Epic 0008)  
           __init__.py
-          agent_factory.py     # Creates configured agent instances
-          config_loader.py     # Loads instance configurations from database
-          instance_manager.py  # Manages agent instance lifecycle
-          registry.py          # Tracks active agent instances
-          cache.py             # LRU cache for hot agent instances
-        router/                # Router agent for intent classification
+          agent.py            # Sales agent implementation
+          dependencies.py     # Sales-specific dependencies
+          models.py          # Sales-specific Pydantic models
+          tools/             # Sales-specific tools
+            __init__.py
+            crm_tools.py     # CRM integration tools
+            email_tools.py   # Email and communication tools
+            scheduling_tools.py # Calendar and appointment tools
+            product_tools.py # Product search and recommendation tools
+            profile_tools.py # Customer profile capture and qualification
+        simple_research/      # Simple research agent (Epic 0015)
           __init__.py
-          intent_router.py     # Main router agent implementation
-          delegation.py        # Agent delegation and handoff logic
+          agent.py           # Research agent implementation
+          dependencies.py    # Research-specific dependencies
+          models.py         # Research-specific Pydantic models
+          tools/            # Research-specific tools
+            __init__.py
+            search_tools.py # Multi-engine web search
+            memory_tools.py # Research memory management
+            document_tools.py # Document intelligence
+            library_tools.py # Library Manager integration
+        deep_research/        # Deep research agent (Epic 0016)
+          __init__.py
+          agent.py           # Deep research agent implementation
+          dependencies.py    # Deep research dependencies  
+          models.py         # Deep research Pydantic models
+          tools/            # Advanced research tools
+            __init__.py
+            investigation_tools.py # Multi-step investigation
+            hypothesis_tools.py # Hypothesis formation
+            validation_tools.py # Evidence validation
+            synthesis_tools.py # Research synthesis
+        digital_expert/       # Digital expert agent (Epic 0009)
+          __init__.py
+          agent.py           # Digital expert agent implementation
+          dependencies.py    # Expert-specific dependencies
+          models.py         # Expert-specific Pydantic models
+          tools/            # Expert-specific tools
+            __init__.py
+            content_tools.py # Content analysis and ingestion tools
+            persona_tools.py # Digital persona modeling tools
+            knowledge_tools.py # Knowledge extraction and management
+        factory/               # Agent factory (Phase 3: Multi-Account)
+          __init__.py
+          agent_factory.py     # Creates agent instances (config files → database)
+          config_loader.py     # Loads configurations (YAML files initially)
+          instance_manager.py  # Agent instance lifecycle (added in Phase 3)
+          registry.py          # Instance tracking (added in Phase 3)
+          cache.py             # LRU cache for instances (added in Phase 3)
+        router/                # Router agent (Phase 4: Multi-Agent Routing)
+          __init__.py
+          intent_router.py     # Routes between simple-chat, sales, research agents
+          delegation.py        # Agent handoff and context preservation
         shared/                # Shared agent resources
           __init__.py
           mcp_client.py       # MCP server integration client
@@ -78,18 +96,21 @@ salient02/
     templates/                 # Jinja2 templates (HTMX partials/snippets)
     static/                    # Static assets served by backend (if any)
     config/                    # YAML app config, schema, examples
-      app.yaml
-      agent_templates/         # Agent template configurations (NEW)
-        simple_research.yaml  # Simple research agent template config
-        sales.yaml            # Sales agent template configuration
-        digital_expert.yaml  # Digital expert agent template configuration
-        rag.yaml              # RAG agent template configuration
+      app.yaml                 # Global application configuration
+      agent_configs/           # Agent configurations (Phase 1-2: Config files)
+        simple_chat.yaml      # Simple chat agent configuration
+        sales.yaml            # Sales agent configuration  
+        digital_expert.yaml   # Digital expert agent configuration
+        simple_research.yaml  # Simple research agent configuration (future)
+        deep_research.yaml    # Deep research agent configuration (future)
     logs/                      # Loguru JSONL output path (from YAML)
     tests/                     # Backend tests (pytest)
-      agents/                  # Agent-specific tests (NEW)
+      agents/                  # Agent-specific tests
+        test_simple_chat_agent.py
         test_sales_agent.py
-        test_digital_expert.py
-        test_router_agent.py
+        test_digital_expert_agent.py
+        test_research_agents.py
+        test_router_agent.py    # Phase 4: Multi-agent routing tests
     pyproject.toml             # Python project metadata (or requirements.txt)
     README.md
 
@@ -147,10 +168,31 @@ Notes:
 - Jinja templates (HTMX partials/snippets) under `backend/templates/`.
 - SSE endpoint exposed by backend (e.g., `GET /events/stream`).
 - YAML config under `backend/config/app.yaml` with keys already defined in the design docs.
-- **NEW**: Agent template configurations under `backend/config/agent_templates/` for reusable agent definitions.
+- **Phase 1-2**: Agent configurations under `backend/config/agent_configs/` for config file-based setup.
 - Loguru configured from YAML to write JSONL to `backend/logs/` (path in YAML).
 
 ### Agent Development Patterns
+
+#### **Implementation Phases**
+
+**Phase 1-2: Config File-Based Agents (Simple Setup)**
+- Agent configurations in YAML files (`backend/config/agent_configs/`)
+- Single account, single instance per agent type
+- Direct agent instantiation from config files
+- No multi-account complexity
+
+**Phase 3: Multi-Account Architecture**
+- Database-driven agent instances (see [datamodel.md](datamodel.md))
+- Agent factory system with LRU caching
+- Account isolation and subscription tiers
+- Dynamic instance provisioning
+
+**Phase 4: Multi-Agent Routing**
+- Router agent for intent classification
+- Agent delegation and context handoff
+- Intelligent routing between agent types
+
+#### **Core Architecture Components**
 
 - **Base Agent Classes**: Common functionality in `backend/app/agents/base/`
   - `agent_base.py`: Base Pydantic AI agent class with shared dependencies
@@ -158,30 +200,29 @@ Notes:
   - `tools_base.py`: Base tool classes with authentication, error handling, usage tracking
   - `types.py`: Shared Pydantic models and type definitions
 
-- **Agent Templates**: Reusable agent implementations in `backend/app/agents/templates/`
-  - Each template defines a specific workflow (e.g., `sales/`, `simple_research/`, `rag/`)
-  - Template-specific dependencies, models, and tools in separate files
-  - Tools organized in `tools/` subdirectory for each template
-  - Templates are instantiated with account-specific configurations
+- **Five Agent Types**: Specific implementations in `backend/app/agents/`
+  - `simple_chat/`: Multi-tool foundation agent (Epic 0017)
+  - `sales/`: Sales-focused agent with CRM integration (Epic 0008)
+  - `digital_expert/`: Digital persona agent with content modeling (Epic 0009)
+  - `simple_research/`: Research agent with document intelligence (Epic 0015)
+  - `deep_research/`: Advanced multi-step investigation agent (Epic 0016)
 
-- **Agent Factory System**: Dynamic agent instance creation in `backend/app/agents/factory/`
-  - `agent_factory.py`: Creates configured agent instances from templates
-  - `config_loader.py`: Loads instance configurations from database
-  - `instance_manager.py`: Manages agent instance lifecycle and cleanup
-  - `registry.py`: Tracks active agent instances across accounts
-  - `cache.py`: LRU cache for frequently accessed agent instances
+- **Agent Factory System**: Dynamic creation in `backend/app/agents/factory/` (Phase 3+)
+  - `agent_factory.py`: Creates configured agent instances
+  - `config_loader.py`: Loads configurations (YAML → database transition)
+  - `instance_manager.py`: Manages agent instance lifecycle
+  - `registry.py`: Tracks active agent instances
+  - `cache.py`: LRU cache for frequently accessed instances
 
-- **Shared Resources**: Common agent utilities in `backend/app/agents/shared/`
+- **Shared Resources**: Common utilities in `backend/app/agents/shared/`
   - MCP server integration client for external tool calling
-  - Vector database tools (Pinecone/pgvector routing based on account tier)
-  - Configuration management for hot-reloadable agent settings
-  - Authentication and authorization tools for secure agent operations
+  - Vector database tools (Pinecone/pgvector routing)
+  - Configuration management and authentication tools
 
-- **Router Agent**: Intent classification and delegation in `backend/app/agents/router/`
-  - Route incoming queries to appropriate specialist agents
+- **Router Agent**: Intent classification in `backend/app/agents/router/` (Phase 4)
+  - Route queries between simple-chat, sales, digital-expert, and research agents
   - Maintain conversation context across agent handoffs
   - Handle fallback scenarios for ambiguous queries
-  - Account-aware routing to correct agent instances
 
 ## Integration between web and backend
 - The Astro host page (`web/src/pages/index.astro`) can:
@@ -192,9 +233,9 @@ Notes:
 ## Environment & config
 - `.env` at repo root for secrets (e.g., `OPENROUTER_API_KEY`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `PINECONE_API_KEY`, `OPENAI_API_KEY`).
 - App runtime config in `backend/config/app.yaml` (model, temperature, max_tokens, logging, UI flags, debounce, etc.).
-- **NEW**: Agent template configs in `backend/config/agent_templates/` (e.g., `sales.yaml`, `digital_expert.yaml`).
-- **NEW**: Agent template configurations include system prompts, tool configurations, pricing tiers, and feature flags.
-- **NEW**: Agent instance configurations stored in database for scalable multi-account support.
+- **Phase 1-2**: Agent configs in `backend/config/agent_configs/` (e.g., `simple_chat.yaml`, `sales.yaml`).
+- **Phase 3+**: Agent instance configurations stored in database for multi-account support (see [datamodel.md](datamodel.md)).
+- Agent configurations include system prompts, tool configurations, and model settings.
 - Keep model IDs out of code paths (refer to YAML `llm.model` or agent-specific model overrides).
 
 ## Local development flow

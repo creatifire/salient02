@@ -114,11 +114,48 @@ erDiagram
         timestamp created_at
     }
     
+    agent_templates {
+        uuid id PK
+        varchar name "simple_chat|sales|simple_research|deep_research"
+        varchar workflow_class "Pydantic AI class reference"
+        text description
+        varchar version
+        jsonb config_schema "JSON schema for validation"
+        jsonb pricing_tiers "Tier-specific configurations"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    mcp_servers {
+        uuid id PK
+        varchar name "Server identifier"
+        varchar type "crm|pricing|content_analysis|crossfeed"
+        varchar endpoint_url
+        boolean is_stateless "Whether server maintains state"
+        varchar_array supported_tools "List of available tools"
+        jsonb account_restrictions "Which accounts can access"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    vector_db_configs {
+        uuid id PK
+        uuid account_id FK
+        uuid agent_instance_id FK
+        varchar type "pinecone_namespace|pinecone_dedicated|pgvector"
+        jsonb connection_details "Encrypted connection info"
+        varchar namespace "For Pinecone namespace isolation"
+        varchar index_name "For dedicated indexes"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
     %% Relationships
     accounts ||--o{ sessions : "has many"
     accounts ||--o{ agent_instances : "has many"
     accounts ||--o{ agent_performance_metrics : "tracks performance"
     accounts ||--o{ agent_usage_log : "tracks usage"
+    accounts ||--o{ vector_db_configs : "has many"
     sessions ||--o{ messages : "has many"
     sessions ||--o{ llm_requests : "tracks usage"
     sessions ||--o| profiles : "may have profile"
@@ -127,6 +164,8 @@ erDiagram
     agent_instances ||--o{ llm_requests : "makes requests"
     agent_instances ||--o{ agent_performance_metrics : "performance tracked"
     agent_instances ||--o{ agent_usage_log : "usage tracked"
+    agent_instances ||--|| vector_db_configs : "has config"
+    agent_templates ||--o{ agent_instances : "instantiated as"
 ```
 
 ## Table Descriptions
@@ -273,6 +312,53 @@ Aggregated usage tracking for billing and resource management.
 - Cost optimization and budget management
 - Usage-based scaling decisions
 
+### agent_templates
+Template definitions for the four supported agent types with configuration schemas.
+
+**Key Features:**
+- `name`: Agent type identifier (simple_chat, sales, simple_research, deep_research)
+- `workflow_class`: Reference to Pydantic AI implementation class
+- `config_schema`: JSON schema for validating instance configurations
+- `pricing_tiers`: Tier-specific feature and resource configurations
+- `version`: Template versioning for backward compatibility
+
+**Usage:**
+- Define reusable agent workflows that can be instantiated multiple times per account
+- Validate agent instance configurations against schema
+- Support different pricing tiers with varying capabilities
+- Enable template evolution while maintaining compatibility
+
+### mcp_servers
+Registry of available MCP (Model Context Protocol) servers for agent tool integration.
+
+**Key Features:**
+- `type`: Server category (crm, pricing, content_analysis, crossfeed)
+- `endpoint_url`: Server connection endpoint
+- `is_stateless`: Whether server maintains client state
+- `supported_tools`: Array of available tool names
+- `account_restrictions`: JSONB defining which accounts have access
+
+**Usage:**
+- Dynamic tool discovery for agent instances
+- Account-based access control for external services
+- Stateless vs stateful server routing decisions
+- Tool availability validation during agent configuration
+
+### vector_db_configs
+Vector database configurations per agent instance for RAG and semantic search.
+
+**Key Features:**
+- `type`: Database type (pinecone_namespace, pinecone_dedicated, pgvector)
+- `connection_details`: Encrypted connection credentials and settings
+- `namespace`: Pinecone namespace for shared index isolation
+- `index_name`: Dedicated index name for premium accounts
+
+**Usage:**
+- Account-tier based vector database routing (pgvector → Pinecone namespace → dedicated)
+- Complete data isolation between accounts and agent instances
+- Support multiple agent instances per account with different knowledge bases
+- Enable agent specialization through different vector database content
+
 ## Indices Strategy
 
 ### Performance Indices
@@ -311,6 +397,19 @@ CREATE INDEX idx_perf_metrics_status_created ON agent_performance_metrics(status
 CREATE INDEX idx_usage_log_account_created ON agent_usage_log(account_id, created_at);
 CREATE INDEX idx_usage_log_agent_created ON agent_usage_log(agent_instance_id, created_at);
 CREATE INDEX idx_usage_log_session_created ON agent_usage_log(session_id, created_at);
+
+-- Agent templates
+CREATE UNIQUE INDEX idx_agent_templates_name_version ON agent_templates(name, version);
+CREATE INDEX idx_agent_templates_name ON agent_templates(name);
+
+-- MCP servers
+CREATE UNIQUE INDEX idx_mcp_servers_name ON mcp_servers(name);
+CREATE INDEX idx_mcp_servers_type ON mcp_servers(type);
+
+-- Vector database configurations
+CREATE UNIQUE INDEX idx_vector_configs_agent_instance ON vector_db_configs(agent_instance_id);
+CREATE INDEX idx_vector_configs_account_type ON vector_db_configs(account_id, type);
+CREATE INDEX idx_vector_configs_namespace ON vector_db_configs(namespace) WHERE namespace IS NOT NULL;
 ```
 
 ### Email Collision Detection
