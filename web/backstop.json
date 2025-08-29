@@ -1,0 +1,50 @@
+{
+  "id": "salient-parity",
+  "viewports": [
+    { "name": "desktop", "width": 1280, "height": 800 }
+  ],
+  "onReadyScript": "backstop/onReadyInjectGolden.cjs",
+  "scenarios": [
+    {
+      "label": "backend-baseline",
+      "url": "http://localhost:8000/",
+      "selectors": ["#chatPane"],
+      "delay": 200
+    },
+    {
+      "label": "astro-plain-htmx",
+      "url": "http://localhost:4321/htmx-chat.html",
+      "selectors": [".chat"],
+      "delay": 200
+    },
+    {
+      "label": "astro-htmx-page",
+      "url": "http://localhost:4321/demo/htmx-chat",
+      "selectors": [".chat"],
+      "delay": 200
+    },
+    {
+      "label": "widget-shadow",
+      "url": "http://localhost:4321/demo/widget",
+      "selectors": ["#widget-capture"],
+      "selectorExpansion": false,
+      "postInteractionWait": 200
+    }
+  ],
+  "paths": {
+    "bitmaps_reference": "backstop_data/bitmaps_reference",
+    "bitmaps_test": "backstop_data/bitmaps_test",
+    "engine_scripts": "backstop_data/engine_scripts",
+    "html_report": "backstop_data/html_report",
+    "ci_report": "backstop_data/ci_report"
+  },
+  "report": ["browser", "CI"],
+  "engine": "playwright",
+  "engineOptions": {
+    "args": []
+  },
+  "asyncCaptureLimit": 5,
+  "asyncCompareLimit": 50,
+  "debug": false
+}
+

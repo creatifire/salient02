@@ -450,7 +450,7 @@ The schema and session management fully supports multiple concurrent users:
   - **Cross-domain embedding**: Architecture supports embedding across different domains with proper CORS handling
   - **Consistent rendering**: All formatting now matches backend, Astro, and standalone HTML implementations
 
-- [ ] 0004-004-002-09 - CHUNK - Cross-Strategy Markdown Validation (All 5 Integration Strategies)
+- [deprecated] 0004-004-002-09 - CHUNK - Cross-Strategy Markdown Validation (All 5 Integration Strategies)
   - SUB-TASKS:
     - Verify markdown consistency across all FIVE integration strategies:
       1. **Backend FastAPI Template** (`backend/templates/index.html`) - ✅ Already working
@@ -465,9 +465,10 @@ The schema and session management fully supports multiple concurrent users:
     - Create comprehensive test matrix for markdown rendering across all 5 chat interfaces
     - Verify cross-origin functionality works correctly for strategies 2, 3, 4, and 5
     - Ensure session handling consistency across all integration approaches
-    - Acceptance: All 5 chat integration strategies provide identical markdown rendering experience
-  - PRIORITY: Medium - Quality assurance across all integration approaches
-  - DEPENDENCIES: Requires completion of chunks 0004-004-002-06, 0004-004-002-07, 0004-004-002-08
+    - Acceptance: (Deprecated) strict DOM/CSS parity across backend/astro/widget is not required. We rely on functional checks (history loads, copy works, streaming completes) and ad‑hoc visual review.
+  - STATUS: Deprecated — keep functional parity only; no cross‑strategy DOM/CSS equality enforcement.
+  - RATIONALE: Different surfaces (SSR template, Astro HTMX, Shadow DOM widget) intentionally differ in wrappers and CSS scope; enforcing equality is noisy and low-value.
+  - DEPENDENCIES: N/A
 
 #### Implementation Details for CHUNK 0004-004-002-04
 

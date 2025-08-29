@@ -6,7 +6,11 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test:parity": "playwright test --config=playwright.config.ts",
+    "backstop:reference": "backstop reference",
+    "backstop:test": "backstop test",
+    "dom:diff": "node scripts/dom-semantic-diff.js"
   },
   "dependencies": {
     "@astrojs/preact": "^4.1.0",
@@ -15,5 +19,11 @@
     "basecoat-css": "^0.3.1",
     "preact": "^10.27.0",
     "tailwindcss": "^4.1.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "backstopjs": "^6.5.3",
+    "jsdom": "^25.0.1",
+    "node-fetch": "^3.3.2"
   }
 }

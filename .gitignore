@@ -53,5 +53,16 @@ web/.astro/
 .cache/
 web/.cache/
 
+# Playwright / Backstop artifacts
+.playwright-results/
+web/test-results/
+web/backstop_data/bitmaps_reference/
+web/backstop_data/bitmaps_test/
+web/backstop_data/html_report/
+web/backstop_data/ci_report/
+web/backstop_data/json_report/
+web/backstop_data/engine_scripts/backstop/.DS_Store
+web/backstop_data/.DS_Store
+
 # Misc
 Thumbs.db
