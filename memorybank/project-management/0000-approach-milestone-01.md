@@ -84,7 +84,7 @@ GET /agents/simple-chat/stream       # Agent-specific SSE
 - ✅ **0004-001** (Development Environment & Database Setup) **COMPLETED**
 - ✅ **0004-002** (Database Setup & Migrations) **COMPLETED**
 - ✅ **0004-003** (Session Management & Resumption) **COMPLETED**
-- 🔄 **0004-004** (Message Persistence & Chat History) **MOSTLY COMPLETED** - few remaining chunks
+- ✅ **0004-004** (Message Persistence & Chat History) **COMPLETED**
 
 #### **Pydantic AI Framework (Single Account)**
 - ❌ **0005-001** (Pydantic AI Framework Setup) **READY TO START** - *Core framework, simplified for single account*
@@ -248,7 +248,7 @@ POST /agents/{type}/chat             # → /accounts/default/agents/{type}/chat
 - ✅ 0004-001: Development Environment & Database Setup **COMPLETED**
 - ✅ 0004-002: Database schema and migrations **COMPLETED**
 - ✅ 0004-003: Session management and middleware **COMPLETED** 
-- 🔄 0004-004: Message persistence (mostly done, few chunks remaining) **MOSTLY COMPLETED**
+- ✅ 0004-004: Message persistence **COMPLETED**
 - 🔄 0004-012: Conversation hierarchy and management **CRITICAL FOR AGENTS**
 - 🔄 0011: Vector database integration (Pinecone) **READY FOR SIMPLE CHAT AGENT**
 
