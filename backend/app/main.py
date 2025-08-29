@@ -1198,3 +1198,5 @@ async def tail_logs(request: Request) -> JSONResponse:
         lines = []
     return JSONResponse({"file": Path(latest).name, "entries": lines})
 
+
+ 
