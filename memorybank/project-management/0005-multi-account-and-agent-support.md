@@ -11,11 +11,12 @@
 - **Sales Agent (0008)**: CRM integration, product recommendations, lead qualification, scheduling
 - **Simple Research Agent (0015)**: Web search, document intelligence, research synthesis, smart bookmarking
 - **Deep Research Agent (0016)**: Advanced multi-step investigation, hypothesis formation, evidence validation
+- **Digital Expert Agent (0009)**: Persona-based expert with content ingestion, knowledge extraction, persona modeling, and cited responses (see [0009-digital-expert-agent.md](0009-digital-expert-agent.md))
 
 ### Multi-Account Infrastructure
 - **Account Isolation**: Complete data separation between accounts with account-scoped endpoints
 - **Agent Instance Management**: Multiple instances per agent type per account with unique configurations
-- **Vector Database Policy**: Subscription-based routing — Budget accounts use pgvector; Standard/Professional accounts use Pinecone (namespace or dedicated index)
+- **Vector Database Policy**: Subscription-based routing — Budget accounts use pgvector; Standard and Professional use shared Pinecone (namespaces/shared index; main difference is allowed storage volume); Enterprise accounts get a dedicated Pinecone instance. Level of sharing for Standard/Professional to be finalized (namespace strategy vs segmented shared indexes).
 - **Resource Management**: Subscription-tier based limits and feature access control
 
 ### Intelligent Query Routing
@@ -59,6 +60,14 @@ Complete separation achieved through:
 
 ### Primary Architectural Question: Endpoint Strategy
 **How should we structure API endpoints for multi-account, multi-agent, multi-instance architecture?**
+
+Path scheme and slug mapping:
+- Phase 1 (single app, single-account, one instance per agent type):
+  - `/agents/{agent-name-slug}/chat` and `/agents/{agent-name-slug}/stream`
+  - `{agent-name-slug}` maps internally to the concrete agent implementation and its YAML configuration (e.g., `simple-chat` → Simple Chat using `simple_chat.yaml`).
+- Phase 3+ (multi-account):
+  - `/accounts/{account-slug}/agents/{agent-name-slug}/chat`
+  - `{agent-name-slug}` continues to map to the agent + configuration bound to that account’s instance.
 
 ### Option 1: Account-Scoped Agent Endpoints (Recommended)
 ```
@@ -135,14 +144,19 @@ Entry Tier (Budget / Cost-optimized):
 ├── Shared infrastructure
 └── Basic agent templates
 
-Standard Tier (Namespace isolation):
-├── Pinecone with namespaces
-├── account-123-sales-agent
-├── account-123-digital-expert
-└── Shared Pinecone index
+Standard Tier (Shared Pinecone):
+├── Pinecone (shared index with namespaces)
+├── account-123-sales-agent (namespace)
+├── account-123-digital-expert (namespace)
+└── Storage quota: standard
 
-Professional/Premium Tier (Dedicated resources):
-├── Dedicated Pinecone indexes
+Professional Tier (Shared Pinecone, larger quota):
+├── Pinecone (shared index with namespaces)
+├── Same isolation via namespaces
+└── Storage quota: professional (larger volume)
+
+Enterprise Tier (Dedicated resources):
+├── Dedicated Pinecone instance/indexes
 ├── Custom MCP server instances
 ├── Enhanced tool access
 └── Dedicated Render services
@@ -158,8 +172,11 @@ Professional/Premium Tier (Dedicated resources):
 
 ### 1. **Agent Discovery & Capabilities**
 - How should clients discover available agents and their capabilities?
+  - ✅ Phase 1: Static list of five agent types (simple-chat, sales, simple-research, deep-research, digital-expert), one instance each, defined via YAML config files.
 - Should agent capabilities be static (config) or dynamic (runtime discovery)?
+  - ✅ Phase 1: Static via configuration files; dynamic discovery deferred to Phase 3 (DB-backed templates/instances).
 - How do we handle agent availability and fallback strategies?
+  - ✅ Phase 1: If a requested agent is unavailable, fallback to Simple Chat agent.
 
 ### 2. **Context & State Management**
 - How do we maintain conversation context when switching between agents?
@@ -188,10 +205,15 @@ Professional/Premium Tier (Dedicated resources):
 
 ### 7. **Configuration Management**
 - Should each agent have its own dedicated YAML configuration file complementary to app.yaml?
+  - ✅ Yes. One config file per agent type under `backend/config/agent_configs/` (e.g., `simple_chat.yaml`).
 - How do we balance centralized configuration (app.yaml) vs. agent-specific configuration files?
+  - ✅ Global behavior in `app.yaml`; agent-specific behavior in per-agent YAML files.
 - Should agent configurations be hot-reloadable or require deployment restarts?
+  - ✅ Phase 1: Restart to pick up changes. Phase 3+: DB-backed configs with hot reload via cache invalidation.
 - How do we handle configuration inheritance and overrides between global and agent-specific settings?
+  - ✅ Phase 1: No inheritance; explicit values per agent YAML. Phase 3+: consider template/instance inheritance in DB.
 - Should agent configurations be versioned independently or tied to application versions?
+  - ✅ Phase 1: Tied to application releases. Phase 3+: introduce template/instance versioning.
 
 ## Proposed Investigation Plan
 
