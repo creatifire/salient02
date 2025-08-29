@@ -88,7 +88,7 @@ Notes:
 - Widget roadmap: keep Shadow DOM widget now; defer Preact/React widgets until end of Milestone 1.
 
 ## Implementation Checklist
-- Read agent YAML at startup and inject into agent dependencies.
+- Read agent YAML at startup and inject into agent dependencies. Start with `backend/config/agent_configs/simple_chat.yaml` using the schema above.
 - Keep model ids and thresholds out of code paths; reference `model_settings` and `memory` sections.
 - Ensure endpoint transition plan remains compatible: legacy `/chat` and `/events/stream` plus `/agents/{type}/chat`.
 

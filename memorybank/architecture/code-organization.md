@@ -241,7 +241,7 @@ Notes:
 - Agent configurations include system prompts, tool configurations, and model settings.
 - Keep model IDs out of code paths (refer to YAML `llm.model` or agent-specific model overrides).
  - Short-term YAML knobs must include per-agent thresholds and models: `model_settings` (model, temperature, max_tokens) and `memory` (e.g., `auto_summary_threshold`, `context_window_messages`). See `memorybank/architecture/agent-configuration.md`.
- - Pinecone is the default vector DB in Milestone 1; consider `pgvector` as a budget alternative in Milestone 2.
+ - Vector DB policy: Budget subscribers use `pgvector`; Standard/Professional use Pinecone (namespace or dedicated). Pinecone remains default for Milestone 1 while we add pgvector as an option in Milestone 2.
 
 ## Local development flow
 - Backend:

@@ -15,7 +15,7 @@
 ### Multi-Account Infrastructure
 - **Account Isolation**: Complete data separation between accounts with account-scoped endpoints
 - **Agent Instance Management**: Multiple instances per agent type per account with unique configurations
-- **Vector Database Routing**: Account-tier based routing (pgvector → Pinecone namespace → dedicated index)
+- **Vector Database Policy**: Subscription-based routing — Budget accounts use pgvector; Standard/Professional accounts use Pinecone (namespace or dedicated index)
 - **Resource Management**: Subscription-tier based limits and feature access control
 
 ### Intelligent Query Routing
@@ -130,7 +130,7 @@ POST /accounts/{account-id}/agents
 ```
 // Multi-tier vector database architecture
 
-Entry Tier (Cost-optimized):
+Entry Tier (Budget / Cost-optimized):
 ├── PostgreSQL + pgvector
 ├── Shared infrastructure
 └── Basic agent templates
@@ -141,7 +141,7 @@ Standard Tier (Namespace isolation):
 ├── account-123-digital-expert
 └── Shared Pinecone index
 
-Premium Tier (Dedicated resources):
+Professional/Premium Tier (Dedicated resources):
 ├── Dedicated Pinecone indexes
 ├── Custom MCP server instances
 ├── Enhanced tool access
@@ -393,20 +393,20 @@ This epic will establish the foundation for a sophisticated, scalable, multi-acc
   - Create configuration validation and schema enforcement
   - **Acceptance**: Agent configurations load with account and instance context
 
-#### TASK 0005-001-002 - Multi-Account Agent Factory
-- [ ] 0005-001-002-01 - CHUNK - Agent factory implementation
+#### TASK 0005-001-002 - Multi-Account Agent Factory (Deferred to Phase 3)
+- [ ] 0005-001-002-01 - CHUNK - Agent factory implementation (Phase 3)
   - Implement AgentFactory with LRU caching for agent instances
   - Add account-scoped agent instance creation and management
   - Create agent template to instance configuration merging
   - **Acceptance**: Factory creates account-isolated agent instances with caching
 
-- [ ] 0005-001-002-02 - CHUNK - Vector database routing
-  - Implement tier-based vector database routing (pgvector → Pinecone namespace → dedicated)
+- [ ] 0005-001-002-02 - CHUNK - Vector database routing (Phase 3)
+  - Implement subscription policy routing: Budget → pgvector; Standard/Professional → Pinecone (namespace/dedicated)
   - Add account-specific vector database configuration loading
   - Create vector database connection pooling and management
   - **Acceptance**: Agent instances connect to appropriate vector database per account tier
 
-- [ ] 0005-001-002-03 - CHUNK - Resource management and limits
+- [ ] 0005-001-002-03 - CHUNK - Resource management and limits (Phase 3)
   - Implement subscription-tier based agent limits enforcement
   - Add resource usage tracking and quota management
   - Create agent instance lifecycle management (active/inactive/archived)
