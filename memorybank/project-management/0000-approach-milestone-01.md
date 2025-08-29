@@ -18,6 +18,11 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - Widget scope: keep existing Shadow DOM widget; defer Preact/React widgets until the end of Milestone 1.
 - Deployment target: Backend on Render, frontend on a CDN (Cloudflare/Netlify/Vercel) with cross-origin session + CORS support (see production cross-origin plan).
 
+### Pinecone sharding plan (Phase 1-2 note)
+- We will shard a single organization’s Pinecone project across clients using namespaces on a shared index for Standard and Professional plans. Storage quotas differ by tier; isolation is enforced by namespace.
+- For Enterprise, we will provision a dedicated Pinecone instance/indexes per account.
+- Open question (to decide during Phase 2): whether to segment multiple shared indexes by cohort versus a single shared index per environment.
+
 ## API Endpoint Evolution Summary
 
 | Phase | Primary Endpoints | Agent Types | Strategy |

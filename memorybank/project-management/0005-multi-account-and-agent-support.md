@@ -69,6 +69,9 @@ Path scheme and slug mapping:
   - `/accounts/{account-slug}/agents/{agent-name-slug}/chat`
   - `{agent-name-slug}` continues to map to the agent + configuration bound to that account’s instance.
 
+Legacy terminology:
+- “legacy-agent” refers to the existing pre–pydantic-ai implementation behind `POST /chat` and `GET /events/stream`.
+
 ### Option 1: Account-Scoped Agent Endpoints (Recommended)
 ```
 POST /accounts/{account-id}/agents/{agent-id}/chat
@@ -180,8 +183,11 @@ Enterprise Tier (Dedicated resources):
 
 ### 2. **Context & State Management**
 - How do we maintain conversation context when switching between agents?
+  - ✅ Phase 1 (single browser with multiple tabs): Use per-tab conversation identifiers maintained in the URL or localStorage, while session cookie identifies the user. The same session can host multiple concurrent agent conversations by scoping context to a per-tab conversation id.
 - Should agents share conversation history or maintain separate contexts?
+  - ✅ Phase 1: Separate contexts per agent conversation (no cross-agent sharing). 0004-012 will introduce formal conversation hierarchy.
 - How do we handle agent-specific context (e.g., customer service case ID)?
+  - ✅ Phase 1: Store in conversation-scoped metadata attached to messages; expose via `/api/session` or future conversation APIs.
 
 ### 3. **Tool Access & Security**
 - Should tool access be agent-specific or user/session-specific?
