@@ -6,12 +6,8 @@
 
 ## Scope & Approach
 
-### Four Agent Types Supported
-- **Simple Chat Agent (0017)**: Multi-tool foundation with vector search, web search, CrossFeed MCP, conversation management
-- **Sales Agent (0008)**: CRM integration, product recommendations, lead qualification, scheduling
-- **Simple Research Agent (0015)**: Web search, document intelligence, research synthesis, smart bookmarking
-- **Deep Research Agent (0016)**: Advanced multi-step investigation, hypothesis formation, evidence validation
-- **Digital Expert Agent (0009)**: Persona-based expert with content ingestion, knowledge extraction, persona modeling, and cited responses (see [0009-digital-expert-agent.md](0009-digital-expert-agent.md))
+### Five Agent Types Supported
+See agent type list in [architecture/code-organization.md](../architecture/code-organization.md) (simple-chat, sales, simple-research, deep-research, digital-expert). Details for Digital Expert live in [0009-digital-expert-agent.md](0009-digital-expert-agent.md).
 
 ### Multi-Account Infrastructure
 - **Account Isolation**: Complete data separation between accounts with account-scoped endpoints
@@ -26,37 +22,7 @@
 
 ## Multi-Account Agent Architecture
 
-### Agent Instance Model
-Each account can provision multiple instances of the four supported agent types:
-
-```
-Account: "Acme Healthcare Corp"
-├── simple-chat-instances:
-│   ├── general-support (shared knowledge base)
-│   └── product-specialist (product-specific vector DB)
-├── sales-agent-instances:
-│   ├── human-health (Salesforce + FDA content)
-│   └── animal-health (HubSpot + veterinary content)  
-├── research-agent-instances:
-│   ├── clinical-research (PubMed + clinical trials)
-│   └── regulatory-research (FDA docs + compliance)
-└── deep-research-instances:
-    └── competitive-analysis (market research + patents)
-```
-
-### Configuration Differentiation
-Same agent type, different configurations per instance:
-- **Vector Database**: Different content libraries (Pinecone namespaces/indexes)
-- **Search Engines**: Different providers (Exa for academic, Tavily for general)
-- **MCP Servers**: Different tool access (basic CRM vs advanced pricing)
-- **System Prompts**: Instance-specific domain expertise and tone
-
-### Multi-Account Data Isolation
-Complete separation achieved through:
-- **Database Schema**: All tables include `account_id` FK (defined in [datamodel.md](../architecture/datamodel.md))
-- **Vector Databases**: Account-tier routing (pgvector → Pinecone namespace → dedicated)
-- **Agent Instances**: Account-scoped with unique `(account_id, instance_name)` combinations
-- **Resource Limits**: Subscription-tier based agent limits and feature access
+See the database schema and isolation model in [architecture/datamodel.md](../architecture/datamodel.md). Per-account isolation is enforced across API, storage, and vector DB (per the Vector DB Policy above).
 
 ### Primary Architectural Question: Endpoint Strategy
 **How should we structure API endpoints for multi-account, multi-agent, multi-instance architecture?**
@@ -72,268 +38,33 @@ Path scheme and slug mapping:
 Legacy terminology:
 - “legacy-agent” refers to the existing pre–pydantic-ai implementation behind `POST /chat` and `GET /events/stream`.
 
-### Option 1: Account-Scoped Agent Endpoints (Recommended)
-```
-POST /accounts/{account-id}/agents/{agent-id}/chat
-POST /accounts/123/agents/sales-agent-enterprise/chat
-POST /accounts/456/agents/digital-expert-startup/chat
+### Endpoint & Configuration Options
+Endpoint patterns and configuration templates are summarized in [architecture/code-organization.md](../architecture/code-organization.md). This epic focuses on implementing 0005-001/002/003; option trade-offs are tracked in architecture docs.
 
-// Agent discovery per account
-GET /accounts/{account-id}/agents
-GET /accounts/{account-id}/agentic-workflows  // Admin-level templates
+## Open items (trackers)
+- Standard/Professional Pinecone sharing model: finalize single shared index vs segmented shared indexes (Phase 2 decision).
 
-// Agent instance management
-POST /accounts/{account-id}/agents            // Create from template
-PUT /accounts/{account-id}/agents/{agent-id}  // Update configuration
-DELETE /accounts/{account-id}/agents/{agent-id}
-```
-
-**Pros:**
-- ✅ **Perfect account isolation**: Account-based resource boundaries
-- ✅ **Clear billing model**: Easy to track usage per account
-- ✅ **Scalable architecture**: Aligns with Render's multi-service scaling
-- ✅ **Agent-specific optimization**: Each agent can have custom configurations
-- ✅ **Security**: Account-level permissions and access control
-
-**Cons:**
-- ❌ **More complex frontend**: Must manage account context
-- ❌ **Agent discovery overhead**: Requires separate calls to list agents
-- ❌ **Cross-agent workflows**: Harder to implement agent handoffs
-
-### Option 2: Template-Based Configuration Management
-```
-// Database-stored agent templates
-agent_templates:
-  sales_agent:
-    workflow_class: "SalesAgentWorkflow"
-    pricing_tiers:
-      startup: { tools: ["basic_crm"], vector_db: "pgvector" }
-      enterprise: { tools: ["advanced_crm", "pricing"], vector_db: "pinecone_dedicated" }
-  
-  digital_expert:
-    workflow_class: "DigitalExpertWorkflow"
-    pricing_tiers:
-      standard: { vector_db: "pinecone_namespace" }
-      premium: { vector_db: "pinecone_dedicated", tools: ["advanced_nlp"] }
-
-// Account agent instance creation
-POST /accounts/{account-id}/agents
-{
-  "template": "sales_agent",
-  "tier": "enterprise",
-  "config_overrides": {
-    "crm_integration": "salesforce",
-    "vector_namespace": "account-123-sales"
-  }
-}
-```
-
-**Pros:**
-- ✅ **Template reusability**: Same workflow, different configurations
-- ✅ **Tiered pricing**: Easy to implement different feature levels
-- ✅ **Database configuration**: Hot-reloadable, admin-friendly
-- ✅ **Account isolation**: Complete data and resource separation
-
-**Cons:**
-- ❌ **Configuration complexity**: More moving parts to manage
-- ❌ **Template versioning**: Need to handle template updates gracefully
-
-### Option 3: Vector Database Strategy (Critical Decision)
-```
-// Multi-tier vector database architecture
-
-Entry Tier (Budget / Cost-optimized):
-├── PostgreSQL + pgvector
-├── Shared infrastructure
-└── Basic agent templates
-
-Standard Tier (Shared Pinecone):
-├── Pinecone (shared index with namespaces)
-├── account-123-sales-agent (namespace)
-├── account-123-digital-expert (namespace)
-└── Storage quota: standard
-
-Professional Tier (Shared Pinecone, larger quota):
-├── Pinecone (shared index with namespaces)
-├── Same isolation via namespaces
-└── Storage quota: professional (larger volume)
-
-Enterprise Tier (Dedicated resources):
-├── Dedicated Pinecone instance/indexes
-├── Custom MCP server instances
-├── Enhanced tool access
-└── Dedicated Render services
-```
-
-**Multi-Tenant Vector DB Options:**
-- **Pinecone Namespaces**: Perfect for shared hosting with complete data isolation
-- **Dedicated Indexes**: Premium accounts get their own Pinecone indexes
-- **pgvector**: Entry-level PostgreSQL extension for smaller workloads
-- **Hybrid**: Mix of pgvector (entry) → Pinecone namespace (standard) → Dedicated index (premium)
-
-## Questions for Architectural Decision
-
-### 1. **Agent Discovery & Capabilities**
-- How should clients discover available agents and their capabilities?
-  - ✅ Phase 1: Static list of five agent types (simple-chat, sales, simple-research, deep-research, digital-expert), one instance each, defined via YAML config files.
-- Should agent capabilities be static (config) or dynamic (runtime discovery)?
-  - ✅ Phase 1: Static via configuration files; dynamic discovery deferred to Phase 3 (DB-backed templates/instances).
-- How do we handle agent availability and fallback strategies?
-  - ✅ Phase 1: If a requested agent is unavailable, fallback to Simple Chat agent.
-
-### 2. **Context & State Management**
-- How do we maintain conversation context when switching between agents?
-  - ✅ Phase 1 (single browser with multiple tabs): Use per-tab conversation identifiers maintained in the URL or localStorage, while session cookie identifies the user. The same session can host multiple concurrent agent conversations by scoping context to a per-tab conversation id.
-- Should agents share conversation history or maintain separate contexts?
-  - ✅ Phase 1: Separate contexts per agent conversation (no cross-agent sharing). 0004-012 will introduce formal conversation hierarchy.
-- How do we handle agent-specific context (e.g., customer service case ID)?
-  - ✅ Phase 1: Store in conversation-scoped metadata attached to messages; expose via `/api/session` or future conversation APIs.
-
-### 3. **Tool Access & Security**
-- Should tool access be agent-specific or user/session-specific?
-- How do we prevent agents from accessing unauthorized tools or data?
-- Should tool calling be logged/audited per agent or per conversation?
-
-### 4. **Performance & Scaling**
-- Should each agent type have dedicated infrastructure resources?
-- How do we handle different latency requirements (fast chat vs. deep analysis)?
-- Should we implement agent-specific caching strategies?
-
-### 5. **Monitoring & Analytics**
-- How granular should agent performance monitoring be?
-- Should we track agent handoff patterns and success rates?
-- How do we measure agent effectiveness and user satisfaction per agent type?
-
-### 6. **Version Management**
-- How do we handle agent updates and backward compatibility?
-- Should agents have independent version lifecycles?
-- How do we coordinate updates across dependent agents?
-
-### 7. **Configuration Management**
-- Should each agent have its own dedicated YAML configuration file complementary to app.yaml?
-  - ✅ Yes. One config file per agent type under `backend/config/agent_configs/` (e.g., `simple_chat.yaml`).
-- How do we balance centralized configuration (app.yaml) vs. agent-specific configuration files?
-  - ✅ Global behavior in `app.yaml`; agent-specific behavior in per-agent YAML files.
-- Should agent configurations be hot-reloadable or require deployment restarts?
-  - ✅ Phase 1: Restart to pick up changes. Phase 3+: DB-backed configs with hot reload via cache invalidation.
-- How do we handle configuration inheritance and overrides between global and agent-specific settings?
-  - ✅ Phase 1: No inheritance; explicit values per agent YAML. Phase 3+: consider template/instance inheritance in DB.
-- Should agent configurations be versioned independently or tied to application versions?
-  - ✅ Phase 1: Tied to application releases. Phase 3+: introduce template/instance versioning.
-
-## Proposed Investigation Plan
-
-### Phase 1: Requirements Analysis
-- **Stakeholder Interviews**: Understand different agent use cases and requirements
-- **Use Case Mapping**: Document specific workflows and tool requirements per agent type
-- **Performance Requirements**: Define latency, throughput, and accuracy requirements
-- **Integration Analysis**: Assess frontend and external system integration needs
-
-### Phase 2: Prototype & Validation
-- **Simple Multi-Agent POC**: Implement 2-3 basic agents with different approaches
-- **Endpoint Pattern Testing**: Try both unified and dedicated endpoint patterns
-- **Context Handoff Testing**: Validate conversation continuity across agent switches
-- **Performance Benchmarking**: Measure latency and resource usage patterns
-
-### Phase 3: Architecture Decision
-- **Trade-off Analysis**: Document pros/cons of each approach with real data
-- **Stakeholder Review**: Present findings and get feedback on preferred approach
-- **Technical Decision**: Choose endpoint strategy with clear rationale
-- **Migration Plan**: If changing from current approach, plan transition strategy
-
-## Recommended Starting Point
-
-### Immediate Recommendation: **Hybrid Approach**
-
-Start with **Option 3 (Hybrid)** for these reasons:
-
-1. **Evolutionary Path**: Begin with unified endpoint, add specialized as needed
-2. **Flexibility**: Supports both simple and complex use cases
-3. **Risk Mitigation**: Can fall back to single approach if hybrid proves too complex
-4. **User Choice**: Different clients can choose appropriate level of complexity
-
-### Implementation Sequence:
-1. **Phase 1**: Implement unified `/chat` endpoint with basic agent routing
-2. **Phase 2**: Add agent discovery endpoints (`GET /agents`)
-3. **Phase 3**: Implement specialized agent endpoints (`POST /agents/{id}/chat`)
-4. **Phase 4**: Add advanced routing and handoff capabilities
-
-### Success Metrics:
-- **Developer Experience**: Easy to integrate for simple use cases
-- **Flexibility**: Supports advanced agent-specific workflows
-- **Performance**: Meets latency requirements for all agent types
-- **Maintainability**: Clear separation of concerns and monitoring
+## References
+- Architecture and code structure: [architecture/code-organization.md](../architecture/code-organization.md)
+- Data model and account isolation: [architecture/datamodel.md](../architecture/datamodel.md)
+- Agent configuration schema: [architecture/agent-configuration.md](../architecture/agent-configuration.md)
 
 ## Research Questions for Further Investigation
 
 ### Technical Architecture
-1. **Agent Registry**: Should we implement a dynamic agent registry service?
-2. **Load Balancing**: How do we distribute load across multiple instances of the same agent?
-3. **Circuit Breakers**: How do we handle agent failures and implement fallbacks?
-4. **Streaming**: Should all agents support streaming responses or only specific ones?
-5. **Configuration Architecture**: Should agents have dedicated config files (e.g., `agents/sales-agent.yaml`) vs. centralized in `app.yaml`?
 
-### Business Logic
-1. **Agent Specialization**: What's the optimal level of agent specialization vs. generalization?
-2. **User Experience**: Should users be aware of agent switching or should it be transparent?
-3. **Training Data**: How do we manage training data and fine-tuning per agent type?
-4. **Cost Optimization**: How do we balance cost vs. capability across different agent types?
+#### 1) API Gateway (Kong) policies
+See [architecture/api-gateway-kong-policies.md](../architecture/api-gateway-kong-policies.md).
 
-### Integration Patterns
-1. **Tool Orchestration**: Should agents orchestrate tools directly or through a separate service?
-2. **External APIs**: How do we handle rate limiting and authentication for agent tool calls?
-3. **Database Access**: Should agents have direct database access or go through APIs?
-4. **Event Streaming**: Should agent actions generate events for analytics and monitoring?
+#### 2) Agent configuration storage (files → database)
+See [architecture/agent-configuration-storage.md](../architecture/agent-configuration-storage.md).
+
+#### 3) Redis usage policy
+See [architecture/redis-usage-policy.md](../architecture/redis-usage-policy.md).
 
 ## Database Schema
 
 Multi-account and multi-agent database schema is defined in [architecture/datamodel.md](../architecture/datamodel.md), including:
-- `accounts`: Multi-account support with subscription tiers
-- `agent_instances`: Account-scoped agent instances with configuration overrides  
-- `agent_templates`: Template definitions for the four agent types
-- `mcp_servers`: MCP server registry with account restrictions
-- `vector_db_configs`: Per-instance vector database configurations
-
-### Infrastructure Strategy (Render-Based)
-```yaml
-# render.yaml for multi-account agent platform
-services:
-  - type: web
-    name: agent-platform-api
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-    scaling:
-      minInstances: 2
-      maxInstances: 20
-      targetCPUPercent: 70
-    envVars:
-      - key: DATABASE_URL
-        from: render-postgres:platform-db
-      - key: PINECONE_API_KEY
-        from: render-secret:pinecone-key
-
-  - type: backgroundWorker
-    name: agent-orchestrator
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python -m app.workers.agent_orchestrator"
-    instances: 3
-
-  - type: postgres
-    name: platform-db
-    plan: standard-2gb
-    
-  - type: redis
-    name: platform-cache
-    plan: starter
-```
-
-### Configuration Management Strategy
-**Database-Stored Configuration** with caching:
-- **Agent Templates**: Stored in `agent_templates` table
-- **Instance Configs**: Stored in `agent_instances` table  
-- **Runtime Caching**: Redis cache for frequently accessed configs
-- **Hot Reloading**: Configuration changes take effect immediately
-- **Version Control**: Template versioning for backward compatibility
 
 ### Vector Database Multi-Tenancy
 ```python
