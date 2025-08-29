@@ -10,6 +10,14 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 
 ## Milestone 1 Implementation Plan
 
+### Decisions (confirmed)
+- Agent configs live in YAML under `backend/config/agent_configs/` for Phase 1-2; will move into DB in Phase 3.
+- Vector DB: Pinecone-first for RAG; reassess `pgvector` as a budget option in Milestone 2.
+- First CRM integration: Zoho.
+- Per-agent thresholds/models are configurable in YAML (e.g., `model_settings`, `memory.auto_summary_threshold`).
+- Widget scope: keep existing Shadow DOM widget; defer Preact/React widgets until the end of Milestone 1.
+- Deployment target: Backend on Render, frontend on a CDN (Cloudflare/Netlify/Vercel) with cross-origin session + CORS support (see production cross-origin plan).
+
 ## API Endpoint Evolution Summary
 
 | Phase | Primary Endpoints | Agent Types | Strategy |

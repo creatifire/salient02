@@ -257,6 +257,66 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
+### 3. Render backend + CDN-hosted frontend (Cloudflare/Netlify/Vercel)
+
+This setup runs the FastAPI backend on Render and serves the Astro site via a CDN provider. Cross-origin requests must send and receive cookies (sessions) securely.
+
+- Backend (Render): `https://api.yourcompany.com` (or Render-provided domain)
+- Frontend (CDN): `https://yourcompany.com` or `https://yourcompany-frontend.app`
+
+Backend requirements:
+- Configure CORS allowlist to include all frontend origins (production and preview):
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://yourcompany.com",
+        "https://www.yourcompany.com",
+        "https://yourcompany-frontend.app",
+        "https://*.vercel.app",
+        "https://*.netlify.app",
+        "https://*.pages.dev"  # Cloudflare Pages
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"]
+)
+```
+
+- Session cookie settings for cross-origin:
+```yaml
+session:
+  cookie_name: "salient_session"
+  cookie_max_age: 604800
+  cookie_secure: true       # HTTPS on Render
+  cookie_httponly: true
+  cookie_samesite: "none"  # Required for cross-origin cookies
+  # cookie_domain optional; set if using subdomains like .yourcompany.com
+```
+
+Frontend requirements:
+- Use `credentials: 'include'` on all fetches to backend endpoints so cookies flow:
+```ts
+await fetch(`${API_CONFIG.baseUrl}/chat`, {
+  method: 'POST',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message })
+});
+```
+
+- Provide `PUBLIC_API_BASE_URL` at build time (Astro) and ensure preview environments are allowed in CORS.
+
+Operations on Render:
+- Set env vars for `ALLOWED_ORIGINS` to the comma-separated list of frontend origins.
+- Ensure TLS is enabled so `cookie_secure: true` is valid end-to-end.
+- Consider Render autoscaling and background workers for long-running jobs. See Render’s product overview for capabilities like autoscaling, private networking, and managed Postgres. [Render](https://render.com/)
+
+Security:
+- Avoid wildcards in production allowlists where possible; prefer exact origins.
+- Maintain separate staging domains and include them explicitly.
+
+
 ## Security Considerations
 
 ### 1. **Cookie Security**
