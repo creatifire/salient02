@@ -11,7 +11,7 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - **Implementation Details**: Added Pydantic AI development patterns and testing strategy
 - **Validation Framework**: Added incremental checkpoints and clear acceptance criteria
 
-**Current State**: ~45% project completion with Epic 0004 foundational work completed (session management, database setup, message persistence)
+**Current State**: ~50% project completion with Epic 0004 foundational work completed (session management, database setup, message persistence) + Pydantic AI framework infrastructure (TASK 0005-001-001)
 **Critical Path**: Fix frontend inconsistencies → Complete conversation hierarchy → Expand widget ecosystem
 
 ## Milestone 1 Implementation Plan
@@ -43,26 +43,10 @@ Based on comprehensive analysis of remaining work in Epic 0003 (Website & HTMX C
 - **Result**: Both legacy and agent systems working, with frontends using agent endpoints
 
 #### **Phase 1A: Agent Development** (Backend Focus)
-Priority order for agent development:
-1. **0005-001**: Pydantic AI framework setup (install, base module, DI)
-2. **0011-001**: Vector DB (Pinecone) minimal setup - *Required for agent tools testing*
-3. **0017-001**: Simple Chat Agent foundation + basic configuration system
-4. **0017-004**: Agent YAML config loading + validation patterns
-5. **0017-005**: FastAPI integration & basic agent endpoints (parallel with #6)
-6. **0010-001**: Website content pipeline - minimal (parallel with #5)  
-7. **0017-002**: Core tools (vector search, conversation management)
-8. **0017-003**: External tools (web search, CrossFeed MCP) - *Can be done parallel with #7*
-9. **0004-005**: LLM request tracking (cost/usage) - *Non-blocking, can be parallel*
+*Detailed implementation breakdown provided in Phase 1A Implementation section below*
 
-#### **Phase 1B: Frontend Migration** (After Agent Development)
-Frontend migration sequence using parallel endpoint strategy:
-1. **Demo Page Migration**: Update Astro demo pages to use `/agents/simple-chat/chat`
-2. **A/B Testing**: Compare legacy vs agent responses for quality validation
-3. **Widget Integration**: Ensure chat widget works with agent endpoints  
-4. **Progressive Rollout**: Gradually migrate frontend components based on testing results
-5. **Legacy Fallback**: Keep legacy endpoints available for safety during migration
-
-**Parallel Development Note**: Items #5-6 can run in parallel, and items #7-8 can run in parallel with each other. Item #9 can start anytime after item #3 is complete.
+#### **Phase 1B: Frontend Migration** (After Agent Development)  
+*Detailed implementation breakdown provided in Phase 1B Implementation section below*
 
 ### **Implementation Strategy Details**
 
@@ -177,15 +161,12 @@ GET /agents/simple-chat/stream       # Agent-specific SSE
 - ✅ **0004-002** (Database Setup & Migrations) **COMPLETED**
 - ✅ **0004-003** (Session Management & Resumption) **COMPLETED**
 - ✅ **0004-004** (Message Persistence & Chat History) **COMPLETED**
+- ✅ **0005-001-001** (Pydantic AI Framework Setup) **COMPLETED**
 
-#### **Pydantic AI Framework (Single Account)**
-- ❌ **0005-001** (Pydantic AI Framework Setup) **READY TO START** - *Core framework, simplified for single account*
-- ❌ **0004-012** (Conversation Hierarchy & Management) **NOT STARTED** - *Agent conversation memory*
-- ❌ **0004-013** (Agent Context Management) **NOT STARTED** - *Agent memory and context integration*
 
 #### **Phase 1A Implementation Breakdown** (Detailed Work Items)
 
-##### **Item 1: 0005-001 - Pydantic AI Framework Setup** 
+##### **Item 1: 0005-001 - Pydantic AI Framework Setup** ✅ COMPLETE
 - Install pydantic-ai>=0.8.1 + dependencies (latest stable version)
 - Create `backend/app/agents/base/` module structure
 - Implement BaseAgent class with dependency injection patterns
@@ -339,7 +320,7 @@ Priority order (Phase 7)
 ### 🚨 **High-Risk Items**
 | Item | Risk | Mitigation |
 |------|------|------------|
-| **0004-012 Conversation Hierarchy** | Complex database migration | Staged rollout, rollback plan, extensive testing |
+| **Agent Selection Configuration** | Breaking changes to config system | Gradual rollout with fallbacks, extensive validation |
 | **HTMX 2.0.6 Upgrade** | Breaking changes | Parallel implementation, feature flags |
 | **Security Hardening** | Production impact | Staging environment testing, gradual rollout |
 
@@ -352,7 +333,7 @@ Priority order (Phase 7)
 ### **Phase 1 Success Gates & Validation**
 
 #### **Phase 1A Validation Checkpoints** (Agent Development)
-1. **After Item 1 (Framework)**: Pydantic AI imports work, base agent class instantiates
+1. **After Item 1 (Framework)** ✅: Pydantic AI imports work, base agent class instantiates
 2. **After Item 2 (Vector DB)**: Can search test vectors, basic retrieval working  
 3. **After Item 3 (Agent Foundation)**: Agent responds to simple queries, no errors
 4. **After Item 4 (Configuration)**: YAML config loads, agent configures correctly

@@ -45,45 +45,26 @@ See summary in [architecture/code-organization.md](../architecture/code-organiza
 ### FEATURE 0005-001 - Pydantic AI Framework Setup
 > Establish core Pydantic AI infrastructure and base agent classes for multi-account support
 
-#### TASK 0005-001-001 - Core Framework Installation & Configuration
-- [ ] 0005-001-001-01 - CHUNK - Install Pydantic AI dependencies
+#### TASK 0005-001-001 - Core Framework Installation & Configuration ✅ COMPLETE
+- [x] 0005-001-001-01 - CHUNK - Install Pydantic AI dependencies
   - Install `pydantic-ai` package and core dependencies
   - Configure project requirements and version constraints
   - Verify compatibility with existing FastAPI infrastructure
   - **Acceptance**: Pydantic AI imports successfully, no dependency conflicts
 
-- [ ] 0005-001-001-02 - CHUNK - Base agent module structure
+- [x] 0005-001-001-02 - CHUNK - Base agent module structure
   - Create `backend/app/agents/` module hierarchy following code-organization.md
   - Implement base agent class with account-aware dependency injection
   - Define shared types and multi-account dependency patterns
   - **Acceptance**: Base agent class supports account isolation
 
-- [ ] 0005-001-001-03 - CHUNK - Multi-account configuration integration + Agent Selection
+- [x] 0005-001-001-03 - CHUNK - Multi-account configuration integration + Agent Selection
   - Implement agent template loading from `backend/config/agent_configs/` directory
   - Add agent selection mechanism from app.yaml (`agents.default_agent`, `routes` configuration)
   - Create route-based agent selection logic and configuration validation
   - Add agent instance configuration loading from database (Phase 3 preparation)
   - Create configuration validation and schema enforcement for both app-level and agent-level configs
   - **Acceptance**: Agent selection works via app.yaml routing AND agent configurations load with account context
-
-#### TASK 0005-001-002 - Multi-Account Agent Factory (Deferred to Phase 3)
-- [ ] 0005-001-002-01 - CHUNK - Agent factory implementation (Phase 3)
-  - Implement AgentFactory with LRU caching for agent instances
-  - Add account-scoped agent instance creation and management
-  - Create agent template to instance configuration merging
-  - **Acceptance**: Factory creates account-isolated agent instances with caching
-
-- [ ] 0005-001-002-02 - CHUNK - Vector database routing (Phase 3)
-  - Implement subscription policy routing: Budget → pgvector; Standard/Professional → Pinecone (namespace/dedicated)
-  - Add account-specific vector database configuration loading
-  - Create vector database connection pooling and management
-  - **Acceptance**: Agent instances connect to appropriate vector database per account tier
-
-- [ ] 0005-001-002-03 - CHUNK - Resource management and limits (Phase 3)
-  - Implement subscription-tier based agent limits enforcement
-  - Add resource usage tracking and quota management
-  - Create agent instance lifecycle management (active/inactive/archived)
-  - **Acceptance**: Account resource limits enforced correctly per subscription tier
 
 ### FEATURE 0005-002 - Account-Scoped Agent Endpoints
 > Implement account-based routing and agent instance endpoints
@@ -154,6 +135,28 @@ See summary in [architecture/code-organization.md](../architecture/code-organiza
   - Add router agent performance monitoring and optimization
   - Create fallback mechanisms when router agent is unavailable
   - **Acceptance**: Router operates efficiently with sub-100ms decision time
+
+### FEATURE 0005-004 - Multi-Account Agent Factory (Phase 3)
+> Implement agent factory with caching, vector database routing, and resource management for multi-account architecture
+
+#### TASK 0005-004-001 - Agent Factory Implementation
+- [ ] 0005-004-001-01 - CHUNK - Agent factory implementation
+  - Implement AgentFactory with LRU caching for agent instances
+  - Add account-scoped agent instance creation and management
+  - Create agent template to instance configuration merging
+  - **Acceptance**: Factory creates account-isolated agent instances with caching
+
+- [ ] 0005-004-001-02 - CHUNK - Vector database routing
+  - Implement subscription policy routing: Budget → pgvector; Standard/Professional → Pinecone (namespace/dedicated)
+  - Add account-specific vector database configuration loading
+  - Create vector database connection pooling and management
+  - **Acceptance**: Agent instances connect to appropriate vector database per account tier
+
+- [ ] 0005-004-001-03 - CHUNK - Resource management and limits
+  - Implement subscription-tier based agent limits enforcement
+  - Add resource usage tracking and quota management
+  - Create agent instance lifecycle management (active/inactive/archived)
+  - **Acceptance**: Account resource limits enforced correctly per subscription tier
 
 ---
 
