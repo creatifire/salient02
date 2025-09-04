@@ -52,11 +52,29 @@ See summary in [architecture/code-organization.md](../architecture/code-organiza
   - Verify compatibility with existing FastAPI infrastructure
   - **Acceptance**: Pydantic AI imports successfully, no dependency conflicts
 
+#### 0005-001-001-01 - AUTOMATED-TESTS - Pydantic AI Dependencies
+**Unit Tests** (`backend/tests/unit/test_pydantic_ai_setup.py`):
+- **Import Validation**: Verify pydantic-ai imports successfully with version ≥0.8.1
+- **FastAPI Compatibility**: Confirm Agent class works alongside FastAPI without conflicts
+- **Core Dependencies**: Check all required packages (pydantic, fastapi, asyncio) are available
+- **Version Constraints**: Validate minimum versions meet requirements (pydantic ≥2.0.0, fastapi ≥0.100.0)
+
 - [x] 0005-001-001-02 - CHUNK - Base agent module structure
   - Create `backend/app/agents/` module hierarchy following code-organization.md
   - Implement base agent class with account-aware dependency injection
   - Define shared types and multi-account dependency patterns
   - **Acceptance**: Base agent class supports account isolation
+
+#### 0005-001-001-02 - AUTOMATED-TESTS - Base Agent Module Structure
+**Unit Tests** (`backend/tests/unit/test_agent_base_structure.py`):
+- **Module Import Validation**: Verify all base agent classes import without errors
+  - BaseAgent, BaseDependencies, AccountScopedDependencies, SessionDependencies
+- **Agent Instantiation**: Confirm BaseAgent can be created with proper dependency types
+- **Dependency Injection**: Test account-aware dependency injection patterns work correctly
+- **Shared Type Definitions**: Validate core types (AgentResponse, ToolResult, AgentConfig) function properly
+
+**Integration Tests**:
+- **Account Isolation Support**: Verify different account contexts remain properly isolated
 
 - [x] 0005-001-001-03 - CHUNK - Multi-account configuration integration + Agent Selection
   - Implement agent template loading from `backend/config/agent_configs/` directory
@@ -65,6 +83,23 @@ See summary in [architecture/code-organization.md](../architecture/code-organiza
   - Add agent instance configuration loading from database (Phase 3 preparation)
   - Create configuration validation and schema enforcement for both app-level and agent-level configs
   - **Acceptance**: Agent selection works via app.yaml routing AND agent configurations load with account context
+
+#### 0005-001-001-03 - AUTOMATED-TESTS - Configuration Integration & Agent Selection
+**Unit Tests** (`backend/tests/unit/test_agent_config_loader.py`):
+- **Agent Template Loading**: Verify YAML agent configs load correctly from `agent_configs/` directory
+  - Test config file parsing, agent type validation, tool configuration
+- **Agent Selection from app.yaml**: Confirm agent selection mechanism works
+  - Route-based selection (`/chat` → `simple_chat`, `/agents/sales` → `sales_agent`)
+  - Default agent fallback for unknown routes
+  - Available agents listing from configuration
+- **Route-to-Agent Mapping**: Test route mapping logic and fallback behavior
+- **Configuration Validation**: Verify schema enforcement for both valid and invalid configs
+  - Required fields validation (`agent_type`, `name`)
+  - Tool configuration structure validation
+
+**Integration Tests**:
+- **Account Context Integration**: Test config loading with account context (Phase 3 preparation)
+- **Config Directory Scanning**: Verify automatic discovery of agent templates in filesystem
 
 ### FEATURE 0005-002 - Account-Scoped Agent Endpoints
 > Implement account-based routing and agent instance endpoints
