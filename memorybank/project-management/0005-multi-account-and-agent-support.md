@@ -58,11 +58,13 @@ See summary in [architecture/code-organization.md](../architecture/code-organiza
   - Define shared types and multi-account dependency patterns
   - **Acceptance**: Base agent class supports account isolation
 
-- [ ] 0005-001-001-03 - CHUNK - Multi-account configuration integration
-  - Implement agent template loading (filesystem initially, database eventually)
-  - Add agent instance configuration loading from database
-  - Create configuration validation and schema enforcement
-  - **Acceptance**: Agent configurations load with account and instance context
+- [ ] 0005-001-001-03 - CHUNK - Multi-account configuration integration + Agent Selection
+  - Implement agent template loading from `backend/config/agent_configs/` directory
+  - Add agent selection mechanism from app.yaml (`agents.default_agent`, `routes` configuration)
+  - Create route-based agent selection logic and configuration validation
+  - Add agent instance configuration loading from database (Phase 3 preparation)
+  - Create configuration validation and schema enforcement for both app-level and agent-level configs
+  - **Acceptance**: Agent selection works via app.yaml routing AND agent configurations load with account context
 
 #### TASK 0005-001-002 - Multi-Account Agent Factory (Deferred to Phase 3)
 - [ ] 0005-001-002-01 - CHUNK - Agent factory implementation (Phase 3)
@@ -152,6 +154,67 @@ See summary in [architecture/code-organization.md](../architecture/code-organiza
   - Add router agent performance monitoring and optimization
   - Create fallback mechanisms when router agent is unavailable
   - **Acceptance**: Router operates efficiently with sub-100ms decision time
+
+---
+
+## Configuration Architecture
+
+### Enhanced app.yaml Structure (Phase 1)
+```yaml
+# Enhanced backend/config/app.yaml with agent selection
+agents:
+  default_agent: simple_chat           # Default agent for unspecified routes
+  available_agents:                    # Available agent types (Phase 1: simple_chat only)
+    - simple_chat
+    - sales_agent                      # Available in Phase 2
+  configs_directory: ./config/agent_configs/  # Directory for agent YAML templates
+
+# Route-to-agent mapping (Phase 1)
+routes:
+  "/chat": simple_chat                 # Legacy endpoint uses simple_chat
+  "/agents/simple-chat": simple_chat   # Explicit simple_chat routing
+  "/agents/sales": sales_agent         # Sales agent routing (Phase 2+)
+
+# Existing configuration sections continue unchanged
+llm:
+  provider: openrouter
+  model: deepseek/deepseek-chat-v3.1
+  # ... rest of existing config
+```
+
+### Agent Configuration Templates
+```yaml
+# backend/config/agent_configs/simple_chat.yaml
+agent_type: "simple_chat"
+name: "Simple Chat Agent"
+description: "General-purpose conversational agent with RAG capabilities"
+
+system_prompt: |
+  You are a helpful AI assistant with access to knowledge base search and web search.
+  Always provide accurate, helpful responses with proper citations.
+
+model_settings:
+  model: "openai:gpt-4o"  # Can override app.yaml default
+  temperature: 0.3
+  max_tokens: 2000
+
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+    similarity_threshold: 0.7
+  web_search:
+    enabled: true
+    provider: "exa"
+  conversation_management:
+    enabled: true
+    auto_summarize_threshold: 10
+
+dependencies:
+  vector_db_required: true
+  session_required: true
+  account_context: true  # Phase 3 preparation
+```
 
 ---
 

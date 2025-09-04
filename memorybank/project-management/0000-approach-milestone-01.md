@@ -100,14 +100,33 @@ async def search_knowledge(ctx: RunContext[ChatDependencies], query: str) -> Lis
 6. **Session Compatibility**: Ensure seamless transition between legacy and agent endpoints
 
 #### **Configuration System Implementation**
-**Phase 1A Approach**: File-based configuration with database preparation
+**Phase 1A Approach**: File-based configuration with database preparation + agent selection
+- `backend/config/app.yaml` - Enhanced with agent selection settings
 - `backend/config/agent_configs/simple_chat.yaml` - Agent template
-- `backend/app/agents/config_loader.py` - YAML loading + validation
+- `backend/app/agents/config_loader.py` - YAML loading + validation + agent selection
 - Database schema ready for Phase 3 transition to database-driven configs
+- **Detailed Implementation**: See [0005-multi-account-and-agent-support.md](0005-multi-account-and-agent-support.md) **FEATURE 0005-001-001-03** (Multi-account configuration integration + Agent Selection) for complete app.yaml agent selection architecture and individual agent configuration patterns
 
-**Configuration Loading Pattern**:
+**Enhanced app.yaml with Agent Selection**:
 ```yaml
-# simple_chat.yaml
+# Added to backend/config/app.yaml
+agents:
+  default_agent: simple_chat           # Which agent to use by default
+  available_agents:                    # List of available agent types
+    - simple_chat
+    - sales_agent                      # Available in Phase 2
+  configs_directory: ./config/agent_configs/  # Agent YAML files location
+  
+# Route-specific agent assignments (optional)
+routes:
+  "/chat": simple_chat                 # Legacy endpoint uses simple_chat
+  "/agents/simple-chat": simple_chat   # Explicit agent routing
+  "/agents/sales": sales_agent         # Sales agent routing (Phase 2)
+```
+
+**Individual Agent Configuration Pattern**:
+```yaml
+# backend/config/agent_configs/simple_chat.yaml
 agent_type: "simple_chat"
 system_prompt: "You are a helpful AI assistant..."
 tools:
@@ -167,7 +186,7 @@ GET /agents/simple-chat/stream       # Agent-specific SSE
 #### **Phase 1A Implementation Breakdown** (Detailed Work Items)
 
 ##### **Item 1: 0005-001 - Pydantic AI Framework Setup** 
-- Install pydantic-ai>=0.0.49 + dependencies
+- Install pydantic-ai>=0.8.1 + dependencies (latest stable version)
 - Create `backend/app/agents/base/` module structure
 - Implement BaseAgent class with dependency injection patterns
 - **Deliverable**: Base agent infrastructure ready for specific agent types
@@ -185,11 +204,12 @@ GET /agents/simple-chat/stream       # Agent-specific SSE
 - Agent instantiation and dependency wiring
 - **Deliverable**: Agent can respond to basic queries (no tools yet)
 
-##### **Item 4: 0017-004 - Configuration System**
-- YAML config loading for agent templates
-- Configuration validation using Pydantic
-- Agent instance configuration merging
-- **Deliverable**: simple_chat.yaml loads and creates configured agent
+##### **Item 4: 0017-004 - Configuration System + Agent Selection**
+- YAML config loading for agent templates from `agent_configs/` directory
+- Agent selection mechanism from app.yaml (`agents.default_agent`, `routes`)
+- Configuration validation using Pydantic for both app-level and agent-level configs
+- Agent instance configuration merging and route-based agent selection
+- **Deliverable**: Agent selection works via app.yaml + simple_chat.yaml loads and creates configured agent
 
 ##### **Stream A (Parallel): Endpoints + Content**
 - **0017-005**: FastAPI agent endpoints with SSE streaming
