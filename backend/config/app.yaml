@@ -65,3 +65,14 @@ ui:
   expose_backend_chat: true  # when false, hide GET / chat UI in production
   expose_backend_logs: true  # dev-only log tail endpoint
   logs_tail_count: 10        # default N lines for /dev/logs/tail
+
+agents:
+  default_agent: simple_chat           # Which agent to use by default
+  available_agents:                    # List of available agent types
+    - simple_chat
+  configs_directory: ./config/agent_configs/  # Agent YAML files location
+  
+# Route-specific agent assignments (optional)
+routes:
+  "/chat": simple_chat                 # Legacy endpoint uses simple_chat
+  "/agents/simple-chat": simple_chat   # Explicit agent routing

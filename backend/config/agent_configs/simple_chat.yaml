@@ -1,0 +1,54 @@
+agent_type: "simple_chat"
+name: "Simple Chat Agent"
+description: "General-purpose conversational agent with RAG capabilities and web search"
+
+system_prompt: |
+  You are a helpful AI assistant with access to knowledge base search and web search tools.
+  Always provide accurate, helpful responses with proper citations when you use information from searches.
+  
+  Guidelines:
+  - Use the vector_search tool when users ask questions that might be answered by stored knowledge
+  - Use web_search when you need current information or when vector search doesn't provide good results
+  - Be conversational and helpful while remaining accurate
+  - Cite your sources when using search results
+
+model_settings:
+  model: "openai:gpt-4o"  # Can override app.yaml default
+  temperature: 0.3
+  max_tokens: 2000
+
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+    similarity_threshold: 0.7
+    namespace_isolation: true
+  
+  web_search:
+    enabled: true
+    provider: "exa"
+    engines:
+      exa:
+        api_key_env: "EXA_API_KEY"
+        max_results: 10
+      tavily:
+        api_key_env: "TAVILY_API_KEY"
+        max_results: 10
+  
+  conversation_management:
+    enabled: true
+    auto_summarize_threshold: 10
+    summary_model: "openai:gpt-4o-mini"
+
+context_management:
+  max_history_messages: 20
+  context_window_tokens: 8000
+  summarization:
+    enabled: true
+    trigger_threshold: 10
+    summary_length: 200
+
+dependencies:
+  vector_db_required: true
+  session_required: true
+  account_context: true  # Phase 3 preparation

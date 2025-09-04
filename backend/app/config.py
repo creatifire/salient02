@@ -669,3 +669,60 @@ def get_redis_url() -> str:
         # This should not happen if configuration loading succeeded
         raise ValueError("REDIS_URL environment variable is required")
     return url
+
+
+def get_agent_config() -> Dict[str, Any]:
+    """
+    Get agent configuration for agent selection and management.
+    
+    This function provides access to the agent configuration section from app.yaml,
+    including default agent selection, available agent types, and configuration
+    directory settings.
+    
+    Configuration Contents:
+    - default_agent: Default agent type to use when none specified
+    - available_agents: List of available agent types
+    - configs_directory: Directory containing agent YAML configuration files
+    
+    Returns:
+        Dict[str, Any]: Dictionary containing agent configuration settings
+        
+    Examples:
+        >>> agent_config = get_agent_config()
+        >>> default = agent_config["default_agent"]
+        >>> available = agent_config["available_agents"]
+        >>> configs_dir = agent_config["configs_directory"]
+    
+    Usage in Agent System:
+        This configuration is used by the agent configuration loader and
+        agent selection logic to determine which agents are available and
+        how to route requests to appropriate agent types.
+    """
+    config = load_config()
+    return config.get("agents", {})
+
+
+def get_routes_config() -> Dict[str, Any]:
+    """
+    Get route-to-agent mapping configuration.
+    
+    This function provides access to the routes configuration section from app.yaml,
+    which maps specific HTTP routes to agent types for request routing.
+    
+    Configuration Contents:
+    Route paths mapped to agent type identifiers, enabling route-specific
+    agent selection (e.g., "/chat" -> "simple_chat")
+    
+    Returns:
+        Dict[str, Any]: Dictionary containing route-to-agent mappings
+        
+    Examples:
+        >>> routes_config = get_routes_config()
+        >>> agent_for_chat = routes_config.get("/chat", "simple_chat")
+    
+    Usage in Agent Routing:
+        This configuration is used by the agent selection logic to determine
+        which agent type should handle requests to specific routes.
+    """
+    config = load_config()
+    return config.get("routes", {})
