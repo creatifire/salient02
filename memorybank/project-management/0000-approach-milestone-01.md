@@ -201,9 +201,13 @@ GET /agents/simple-chat/stream       # Agent-specific SSE
 ##### **Stream A (Parallel): Endpoints + Content**
 - **0017-005**: FastAPI agent endpoints with SSE streaming
 - **0010-001**: Minimal website content ingestion for testing
+  - **📋 RAG Content Requirement**: Must complete before Stream B 0017-002 for RAG testing
+  - **🎯 Content Types**: Product docs, FAQ, support content for comprehensive RAG validation
 
 ##### **Stream B (Parallel): Agent Tools**  
 - **0017-002**: Core tools (vector_search, conversation_management)
+  - **🔍 RAG Integration Point**: This is where vector_search tool integrates with chat history for RAG responses
+  - **📝 Content Preparation**: Test content should be ingested into vector DB before this stage
 - **0017-003**: External tools (web_search, crossfeed_mcp)
 
 #### **Phase 1B: Frontend Migration** (After Phase 1A Complete)
@@ -340,11 +344,11 @@ Priority order (Phase 7)
 
 #### **Phase 1A Validation Checkpoints** (Agent Development)
 1. **After Item 1 (Framework)** ✅: Pydantic AI imports work, base agent class instantiates
-2. **After Item 2 (Vector DB)**: Can search test vectors, basic retrieval working  
+2. **After Item 2 (Vector DB)** ✅: Can search test vectors, basic retrieval working  
 3. **After Item 3 (Agent Foundation)**: Agent responds to simple queries, no errors
 4. **After Item 4 (Configuration)**: YAML config loads, agent configures correctly
-5. **After Stream A (Endpoints)**: Agent accessible via API, SSE streaming works
-6. **After Stream B (Tools)**: Agent uses tools correctly, structured responses
+5. **After Stream A (Endpoints + Content)**: Agent accessible via API, SSE streaming works, test content ingested
+6. **After Stream B (Tools)**: **🔍 RAG TESTING READY** - Agent uses vector_search tool with chat history context, structured RAG responses
 
 #### **Phase 1B Validation Checkpoints** (Frontend Migration)
 7. **After Demo Migration**: Demo pages successfully using agent endpoints
@@ -355,6 +359,7 @@ Priority order (Phase 7)
 #### **Final Phase 1 Acceptance Criteria** 
 - ✅ **Agent Functionality**: Simple chat agent responds with structured outputs
 - ✅ **Tool Integration**: Vector search tool returns relevant results
+- **🔍 RAG Integration**: Agent combines vector search results with chat history context for enhanced responses
 - ✅ **API Integration**: Agent accessible via `/agents/simple-chat/chat` endpoint
 - ✅ **Session Compatibility**: Works with existing session management
 - ✅ **Legacy Parallel**: Both legacy `/chat` and agent endpoints working
@@ -365,6 +370,7 @@ Priority order (Phase 7)
 
 #### **Demo Validation Targets**
 - **Technical Demo**: Agent answering questions using vector knowledge base
+- **🔍 RAG Demo**: Agent providing context-aware responses using both vector knowledge and conversation history
 - **Performance Demo**: Response times comparable to legacy system (<2s)
 - **Integration Demo**: Demo pages successfully using agent endpoints
 - **A/B Comparison**: Agent vs legacy response quality assessment
