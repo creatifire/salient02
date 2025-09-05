@@ -23,6 +23,13 @@ tools:
     max_results: 5
     similarity_threshold: 0.7
     namespace_isolation: true
+    pinecone:
+      index_name: "salient-dev-01"
+      index_host: "https://salient-dev-01-e1nildl.svc.aped-4627-b74a.pinecone.io"
+      namespace: "development"
+      embedding_model: "text-embedding-3-small"
+      dimensions: 1536
+      metric: "cosine"
   
   web_search:
     enabled: true

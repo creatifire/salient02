@@ -12,5 +12,6 @@ loguru==0.7.3
 python-dotenv==1.1.1
 PyYAML==6.0.2
 openai==1.99.9
+pinecone==7.3.0
 httpx==0.28.1
 sse-starlette==3.0.2
