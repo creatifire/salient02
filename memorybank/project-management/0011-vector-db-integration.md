@@ -48,12 +48,13 @@
 #### 0011-001-001-01 - AUTOMATED-TESTS - Pinecone Index Configuration
 **Unit Tests** (`backend/tests/unit/test_pinecone_infrastructure.py`):
 - **API Key Validation**: Test API key loading from environment and configuration validation
-- **Index Configuration**: Verify index creation with correct dimensions (1536 for OpenAI embeddings) and cosine similarity
+- **Index Configuration Validation**: Verify application validates existing index dimensions (1536) and cosine similarity
 - **Environment Setup**: Test dev/staging/prod index configuration switching
-- **Namespace Strategy**: Validate namespace creation and organization logic
+- **Namespace Strategy**: Validate namespace selection and organization logic
 
 **Integration Tests** (`backend/tests/integration/test_pinecone_connection.py`):
-- **Index Creation**: Test actual index creation and configuration in test environment
+- **Index Connection**: Test connection to pre-existing index in test environment
+- **Index Configuration Match**: Verify existing index matches application expectations
 - **Health Check Integration**: Verify index monitoring and health check functionality
 
 - ✅ 0011-001-001-02 - CHUNK - Connection and authentication management [COMPLETED]
