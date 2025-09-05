@@ -7,7 +7,7 @@ import asyncio
 import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 
 try:
     from pinecone.exceptions import PineconeException
@@ -97,7 +97,7 @@ class VectorService:
                 "metadata": {
                     **document.metadata,
                     "text": document.text,
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": datetime.now(UTC).isoformat(),
                     "embedding_model": self.pinecone_client.config.embedding_model
                 }
             }
@@ -170,7 +170,7 @@ class VectorService:
                         "metadata": {
                             **doc.metadata,
                             "text": doc.text,
-                            "created_at": datetime.utcnow().isoformat(),
+                            "created_at": datetime.now(UTC).isoformat(),
                             "embedding_model": self.pinecone_client.config.embedding_model
                         }
                     })

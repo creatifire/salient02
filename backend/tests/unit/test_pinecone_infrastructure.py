@@ -327,7 +327,15 @@ class TestNamespaceStrategy:
             # Test consistent namespace generation
             for _ in range(5):  # Test multiple times to ensure consistency
                 dev_namespace = config_manager.get_namespace_for_account("test-account")
-                assert dev_namespace == "development"  # Should ignore account in dev
+                assert dev_namespace == "development"  # Default environment is development
+                
+        # Test explicit test environment
+        with patch.dict(os.environ, {'PINECONE_API_KEY': 'test-key', 'ENVIRONMENT': 'test'}):
+            config_manager = PineconeConfigManager()
+            
+            for _ in range(3):  # Test multiple times to ensure consistency
+                test_namespace = config_manager.get_namespace_for_account("test-account") 
+                assert test_namespace == "test"  # Should use 'test' when ENVIRONMENT=test
         
         with patch.dict(os.environ, {'ENVIRONMENT': 'production', 'PINECONE_API_KEY': 'test-key'}):
             config_manager = PineconeConfigManager()
