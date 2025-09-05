@@ -87,6 +87,22 @@ flowchart TD
   - **Acceptance**: ChatResponse validates basic agent text outputs correctly
   - **Dependencies**: None
 
+#### 0017-001-001-01 - AUTOMATED-TESTS - ChatResponse Pydantic Model
+**Unit Tests** (`backend/tests/unit/test_chat_response_model.py`):
+- **Model Validation**: Test ChatResponse instantiation with valid data (3 tests)
+- **Field Validation**: Verify required fields and optional field handling (4 tests)  
+- **Data Types**: Test proper typing for message, confidence, metadata fields (3 tests)
+- **Validation Rules**: Test field constraints and custom validators (3 tests)
+- **Serialization**: Test JSON serialization and deserialization (2 tests)
+- **Error Handling**: Test validation errors with invalid input data (3 tests)
+
+**Integration Tests** (`backend/tests/integration/test_chat_response_integration.py`):
+- **FastAPI Integration**: Test ChatResponse as FastAPI response model (2 tests)
+- **Database Serialization**: Test storing/retrieving ChatResponse objects (2 tests)
+- **Agent Output Validation**: Test real agent outputs conform to ChatResponse schema (2 tests)
+
+**Test Results**: [To be implemented - target: 24 tests total]
+
 - [ ] 0017-001-001-02 - CHUNK - Simple chat agent class setup  
   - Create chat_agent instance using existing SessionDependencies pattern
   - Implement static system prompt for basic conversational agent
@@ -94,12 +110,45 @@ flowchart TD
   - **Acceptance**: Agent instantiates successfully and uses existing dependency injection
   - **Dependencies**: Requires 0005-001 (Pydantic AI Framework Setup)
 
+#### 0017-001-001-02 - AUTOMATED-TESTS - Simple Chat Agent Class Setup
+**Unit Tests** (`backend/tests/unit/test_simple_chat_agent.py`):
+- **Agent Instantiation**: Test chat_agent creation with proper configuration (3 tests)
+- **Dependency Injection**: Verify SessionDependencies integration and type checking (4 tests)
+- **System Prompt**: Test static system prompt loading and configuration (2 tests)
+- **Model Configuration**: Test openai:gpt-4o model setup and parameter validation (3 tests)
+- **Agent Properties**: Test agent attributes and configuration access (3 tests)
+- **Error Handling**: Test agent creation failures and error messages (3 tests)
+
+**Integration Tests** (`backend/tests/integration/test_simple_chat_agent_integration.py`):
+- **Pydantic AI Integration**: Test agent works with Pydantic AI framework (3 tests)
+- **Model Connection**: Test actual OpenAI model connection and configuration (2 tests)
+- **Dependency Validation**: Test real SessionDependencies object creation (2 tests)
+
+**Test Results**: [To be implemented - target: 25 tests total]
+
 - [ ] 0017-001-001-03 - CHUNK - Agent factory integration
   - Implement simple agent creation through existing AgentFactory patterns
   - Add agent loading from simple_chat.yaml configuration
   - Create basic agent instantiation without complex context management
   - **Acceptance**: Agent responds to simple queries with structured ChatResponse output
   - **Dependencies**: Requires agent class setup and existing configuration system
+
+#### 0017-001-001-03 - AUTOMATED-TESTS - Agent Factory Integration
+**Unit Tests** (`backend/tests/unit/test_agent_factory_integration.py`):
+- **Factory Creation**: Test AgentFactory.create_simple_chat_agent method (3 tests)
+- **YAML Configuration**: Test loading simple_chat.yaml configuration (4 tests)
+- **Configuration Merging**: Test template and instance-specific settings merge (3 tests)
+- **Agent Creation**: Test complete agent instantiation through factory (4 tests)
+- **Dependency Wiring**: Test proper dependency injection through factory (3 tests)
+- **Error Handling**: Test factory failures and configuration validation errors (3 tests)
+
+**Integration Tests** (`backend/tests/integration/test_agent_factory_e2e.py`):
+- **End-to-End Agent Creation**: Test complete agent creation pipeline (3 tests)
+- **Configuration Loading**: Test real YAML configuration loading and validation (2 tests)
+- **Agent Response**: Test factory-created agent produces valid ChatResponse (3 tests)
+- **Session Integration**: Test factory integration with existing session system (2 tests)
+
+**Test Results**: [To be implemented - target: 30 tests total]
 
 #### TASK 0017-001-002 - Basic Response Testing
 - [ ] 0017-001-002-01 - CHUNK - Agent response validation
@@ -109,12 +158,83 @@ flowchart TD
   - **Acceptance**: Agent consistently produces valid ChatResponse objects for test queries
   - **Dependencies**: Requires basic agent implementation
 
+#### 0017-001-002-01 - AUTOMATED-TESTS - Agent Response Validation
+**Unit Tests** (`backend/tests/unit/test_agent_response_validation.py`):
+- **Response Format**: Test agent produces valid ChatResponse objects (4 tests)
+- **Q&A Interactions**: Test basic question-answer functionality (5 tests)
+- **Response Consistency**: Test multiple queries produce consistent format (3 tests)
+- **Error Scenarios**: Test agent handles invalid queries gracefully (4 tests)
+- **Validation Logic**: Test response validation and quality checks (3 tests)
+- **Performance**: Test response time constraints for basic queries (2 tests)
+
+**Integration Tests** (`backend/tests/integration/test_agent_response_e2e.py`):
+- **Live Agent Testing**: Test real agent responses with OpenAI model (4 tests)
+- **Response Quality**: Test response content quality and relevance (3 tests)
+- **Error Handling**: Test agent behavior with API failures (3 tests)
+- **Session Context**: Test agent responses within session context (2 tests)
+
+**Test Results**: [To be implemented - target: 33 tests total]
+
 - [ ] 0017-001-002-02 - CHUNK - Integration with existing session system
   - Integrate agent with existing session management and database
   - Add compatibility with current /chat endpoint patterns (parallel development)
   - Create basic logging and monitoring for agent responses
   - **Acceptance**: Agent works with existing session system without breaking legacy functionality  
   - **Dependencies**: Requires agent response validation
+
+#### 0017-001-002-02 - AUTOMATED-TESTS - Session System Integration
+**Unit Tests** (`backend/tests/unit/test_session_integration.py`):
+- **Session Management**: Test agent integration with existing session objects (4 tests)
+- **Database Integration**: Test agent responses are properly stored (3 tests)
+- **Legacy Compatibility**: Test existing /chat endpoint patterns remain functional (4 tests)
+- **Logging Integration**: Test agent responses are properly logged with Loguru (3 tests)
+- **Session Context**: Test agent receives proper session context and account info (4 tests)
+- **Error Isolation**: Test agent errors don't break existing session functionality (3 tests)
+
+**Integration Tests** (`backend/tests/integration/test_session_system_e2e.py`):
+- **Parallel Endpoint**: Test both /chat and agent endpoints work simultaneously (3 tests)
+- **Session Persistence**: Test agent responses persist correctly in database (3 tests)
+- **Account Isolation**: Test agent responses are properly isolated by account (2 tests)
+- **Legacy Workflow**: Test existing chat workflows continue to function (3 tests)
+- **Monitoring Integration**: Test agent metrics and monitoring work end-to-end (2 tests)
+
+**Test Results**: [To be implemented - target: 34 tests total]
+
+---
+
+### FEATURE 0017-001 - Automated Testing Summary
+
+**Total Test Coverage**: 146 automated tests across 5 chunks
+- **Unit Tests**: 86 tests (59%) - Fast, isolated component testing
+- **Integration Tests**: 60 tests (41%) - End-to-end workflow validation
+
+**Test Categories by Chunk**:
+1. **ChatResponse Model**: 24 tests (16%) - Model validation and serialization
+2. **Agent Class Setup**: 25 tests (17%) - Agent instantiation and configuration  
+3. **Factory Integration**: 30 tests (21%) - Configuration loading and agent creation
+4. **Response Validation**: 33 tests (23%) - Q&A functionality and error handling
+5. **Session Integration**: 34 tests (23%) - Legacy compatibility and session management
+
+**Test Strategy**:
+- **TDD Approach**: Tests written before implementation for all chunks
+- **Progressive Testing**: Each chunk builds on previous test foundation
+- **Legacy Safety**: Comprehensive tests ensure no regression in existing /chat functionality
+- **Performance Validation**: Response time and quality constraints tested
+- **Error Resilience**: Comprehensive error scenario coverage
+
+**Key Test Files**:
+- `backend/tests/unit/test_chat_response_model.py`
+- `backend/tests/unit/test_simple_chat_agent.py` 
+- `backend/tests/unit/test_agent_factory_integration.py`
+- `backend/tests/unit/test_agent_response_validation.py`
+- `backend/tests/unit/test_session_integration.py`
+- `backend/tests/integration/test_chat_response_integration.py`
+- `backend/tests/integration/test_simple_chat_agent_integration.py`
+- `backend/tests/integration/test_agent_factory_e2e.py`
+- `backend/tests/integration/test_agent_response_e2e.py`
+- `backend/tests/integration/test_session_system_e2e.py`
+
+---
 
 ### FEATURE 0017-002 - Core Agent Tools
 > Implement database-driven and conversation management tools
@@ -479,6 +599,7 @@ Key tables required:
 2. **Dependency Integration**: Agent uses existing SessionDependencies and configuration patterns
 3. **Response Validation**: All agent responses follow ChatResponse model validation
 4. **Legacy Compatibility**: Agent integration doesn't break existing /chat endpoint functionality
+5. **Test Coverage**: All automated tests pass with >90% code coverage (target: 146 total tests)
 
 ### FEATURE 0017-002-005 - Full System Success Criteria  
 5. **Tool Integration**: All four tools (vector search, web search, CrossFeed MCP, conversation management) function independently and together
