@@ -185,7 +185,7 @@ GET /agents/simple-chat/stream       # Agent-specific SSE
 - **Deliverable**: Vector search working for agent tool testing
 - **Critical**: Must complete before agent tools development
 
-##### **Item 3: 0017-001 - Simple Chat Agent Foundation**
+##### **Item 3: 0017-001 - Simple Chat Agent Foundation** [🚧 READY TO START]
 - Create simple_chat agent using BaseAgent patterns
 - Basic system prompt and response structure
 - Agent instantiation and dependency wiring

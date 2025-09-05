@@ -77,51 +77,44 @@ flowchart TD
 ## Pydantic AI Implementation Plan
 
 ### FEATURE 0017-001 - Simple Chat Agent Foundation
-> Establish core agent structure with dependencies, models, and basic functionality
+> Establish core agent structure with basic functionality - minimal viable agent that responds to queries without tools
 
-#### TASK 0017-001-001 - Agent Structure & Dependencies
-- [ ] 0017-001-001-01 - CHUNK - ChatDependencies dataclass implementation
-  - Create `ChatDependencies` dataclass with proper typing for all required services
-  - Include account_id, session_id, agent_instance_id, database connections
-  - Add vector_config, search_engines, mcp_clients, conversation_context
-  - **Acceptance**: ChatDependencies instantiates with all required fields and proper types
-  - **Dependencies**: Requires database schema for agent instances
-
-- [ ] 0017-001-001-02 - CHUNK - ChatResponse Pydantic model
-  - Implement `ChatResponse` BaseModel with message, sources, actions_taken, metadata
-  - Add proper Field descriptions and validation rules
-  - Create supporting models for CitationSource and conversation metadata
-  - **Acceptance**: ChatResponse validates structured agent outputs correctly
+#### TASK 0017-001-001 - Basic Agent Implementation
+- [ ] 0017-001-001-01 - CHUNK - ChatResponse Pydantic model
+  - Implement `ChatResponse` BaseModel with message, confidence, metadata
+  - Add proper Field descriptions and validation rules for structured outputs
+  - Create simple response model supporting text responses (no citations/tools yet)
+  - **Acceptance**: ChatResponse validates basic agent text outputs correctly
   - **Dependencies**: None
 
-- [ ] 0017-001-001-03 - CHUNK - Basic chat agent class setup
-  - Create chat_agent instance with ChatDependencies and ChatResponse types
-  - Implement static system prompt and dynamic system prompt decorator
-  - Add basic agent configuration and model settings
-  - **Acceptance**: Agent responds to simple queries with structured output
+- [ ] 0017-001-001-02 - CHUNK - Simple chat agent class setup  
+  - Create chat_agent instance using existing SessionDependencies pattern
+  - Implement static system prompt for basic conversational agent
+  - Add basic agent configuration using openai:gpt-4o model
+  - **Acceptance**: Agent instantiates successfully and uses existing dependency injection
   - **Dependencies**: Requires 0005-001 (Pydantic AI Framework Setup)
 
-#### TASK 0017-001-002 - Context Management Implementation
-- [ ] 0017-001-002-01 - CHUNK - Message history retrieval system
-  - Implement message history loading from database with conversation filtering
-  - Add conversation summary integration and context assembly logic
-  - Create context window management with token counting and truncation
-  - **Acceptance**: Agent loads relevant conversation history within context limits
-  - **Dependencies**: Requires conversation database schema
+- [ ] 0017-001-001-03 - CHUNK - Agent factory integration
+  - Implement simple agent creation through existing AgentFactory patterns
+  - Add agent loading from simple_chat.yaml configuration
+  - Create basic agent instantiation without complex context management
+  - **Acceptance**: Agent responds to simple queries with structured ChatResponse output
+  - **Dependencies**: Requires agent class setup and existing configuration system
 
-- [ ] 0017-001-002-02 - CHUNK - Conversation summarization system
-  - Implement automatic summarization trigger based on message count threshold
-  - Add summary generation, storage, and retrieval functionality  
-  - Create summary integration with ongoing conversation context
-  - **Acceptance**: Agent automatically summarizes conversations at configured intervals
-  - **Dependencies**: Requires 0004-013 (Agent Context Management)
+#### TASK 0017-001-002 - Basic Response Testing
+- [ ] 0017-001-002-01 - CHUNK - Agent response validation
+  - Implement basic agent testing for simple Q&A interactions
+  - Add response format validation and error handling
+  - Create test suite for agent instantiation and basic functionality
+  - **Acceptance**: Agent consistently produces valid ChatResponse objects for test queries
+  - **Dependencies**: Requires basic agent implementation
 
-- [ ] 0017-001-002-03 - CHUNK - Dynamic context optimization
-  - Implement intelligent context assembly combining summaries and recent messages
-  - Add context filtering and relevance scoring for optimal LLM input
-  - Create context debugging and monitoring capabilities
-  - **Acceptance**: Agent maintains optimal context with relevant information prioritization
-  - **Dependencies**: Requires message history and summarization systems
+- [ ] 0017-001-002-02 - CHUNK - Integration with existing session system
+  - Integrate agent with existing session management and database
+  - Add compatibility with current /chat endpoint patterns (parallel development)
+  - Create basic logging and monitoring for agent responses
+  - **Acceptance**: Agent works with existing session system without breaking legacy functionality  
+  - **Dependencies**: Requires agent response validation
 
 ### FEATURE 0017-002 - Core Agent Tools
 > Implement database-driven and conversation management tools
@@ -311,6 +304,47 @@ flowchart TD
   - **Acceptance**: System handles 100+ concurrent users with acceptable performance
   - **Dependencies**: Requires monitoring implementation
 
+### FEATURE 0017-006 - Advanced Context Management
+> Implement sophisticated conversation history management, summarization, and context optimization
+
+#### TASK 0017-006-001 - Message History System
+- [ ] 0017-006-001-01 - CHUNK - Message history retrieval and filtering
+  - Implement message history loading from database with conversation filtering
+  - Add conversation history pagination and relevance-based selection
+  - Create context window management with token counting and truncation
+  - **Acceptance**: Agent loads relevant conversation history within context limits
+  - **Dependencies**: Requires conversation database schema and basic agent foundation
+
+- [ ] 0017-006-001-02 - CHUNK - Conversation context assembly
+  - Implement intelligent context assembly combining history and current query
+  - Add context relevance scoring and priority-based message selection
+  - Create context debugging and explainability features
+  - **Acceptance**: Agent maintains optimal context with relevant information prioritization
+  - **Dependencies**: Requires message history retrieval
+
+#### TASK 0017-006-002 - Conversation Summarization
+- [ ] 0017-006-002-01 - CHUNK - Automatic summarization system
+  - Implement automatic summarization trigger based on message count threshold
+  - Add summary generation using dedicated summarization model
+  - Create summary storage and retrieval functionality in database
+  - **Acceptance**: Agent automatically summarizes conversations at configured intervals
+  - **Dependencies**: Requires 0004-013 (Agent Context Management) and message history system
+
+- [ ] 0017-006-002-02 - CHUNK - Summary integration and optimization
+  - Implement summary integration with ongoing conversation context
+  - Add summary validation, quality scoring, and regeneration logic
+  - Create summary-based context optimization and token management
+  - **Acceptance**: Agent uses conversation summaries to maintain long-term context effectively
+  - **Dependencies**: Requires automatic summarization system
+
+#### TASK 0017-006-003 - Dynamic Context Optimization
+- [ ] 0017-006-003-01 - CHUNK - Context window optimization
+  - Implement dynamic context window management based on query complexity
+  - Add adaptive token allocation between history, summaries, and tools
+  - Create context optimization metrics and performance monitoring
+  - **Acceptance**: Agent dynamically optimizes context usage for best response quality
+  - **Dependencies**: Requires summarization integration and tool framework
+
 ---
 
 ## Technical Architecture - Pydantic AI Implementation
@@ -431,23 +465,36 @@ Key tables required:
 - **HTMX Frontend**: Real-time UI updates via streaming
 
 ### Dependencies
-- **0005-001**: Pydantic AI Framework Setup (required for agent foundation)
-- **0011**: Vector Database Integration (required for vector_search tool)
-- **0014**: CrossFeed MCP Server (required for crossfeed_query tool)
-- **0004-013**: Agent Context Management (required for conversation management)
+- **0005-001**: Pydantic AI Framework Setup (required for FEATURE 0017-001 foundation)
+- **0011**: Vector Database Integration (required for FEATURE 0017-002 vector_search tool)
+- **0014**: CrossFeed MCP Server (required for FEATURE 0017-003 crossfeed_query tool)
+- **0004-013**: Agent Context Management (required for FEATURE 0017-006 advanced context)
 - **Multi-Account Support**: Database schema for agent instances and isolation
+- **FEATURE 0017-001**: Simple Chat Agent Foundation (required for all subsequent features)
 
 ## Success Criteria
 
-1. **Agent Functionality**: Chat agent responds to queries with structured ChatResponse output
-2. **Tool Integration**: All four tools (vector search, web search, CrossFeed MCP, conversation management) function independently and together
-3. **Context Management**: Conversation history and summarization work correctly with configurable thresholds
-4. **Streaming Performance**: FastAPI integration provides smooth streaming responses under 2 seconds
-5. **Multi-Account Isolation**: Agent instances properly isolated by account with namespace separation
-6. **Configuration System**: Agents load dynamically from database with YAML template merging
-7. **Error Handling**: Comprehensive error handling with graceful degradation and user feedback
-8. **Performance**: System handles 100+ concurrent users with sub-200ms tool response times
-9. **Monitoring**: Complete visibility into agent performance, tool usage, and quality metrics
-10. **Testing Coverage**: All components have unit tests with >90% code coverage
+### FEATURE 0017-001 - Foundation Success Criteria
+1. **Basic Agent Functionality**: Chat agent responds to simple queries with structured ChatResponse output
+2. **Dependency Integration**: Agent uses existing SessionDependencies and configuration patterns
+3. **Response Validation**: All agent responses follow ChatResponse model validation
+4. **Legacy Compatibility**: Agent integration doesn't break existing /chat endpoint functionality
+
+### FEATURE 0017-002-005 - Full System Success Criteria  
+5. **Tool Integration**: All four tools (vector search, web search, CrossFeed MCP, conversation management) function independently and together
+6. **Streaming Performance**: FastAPI integration provides smooth streaming responses under 2 seconds
+7. **Multi-Account Isolation**: Agent instances properly isolated by account with namespace separation
+8. **Configuration System**: Agents load dynamically from database with YAML template merging
+9. **Error Handling**: Comprehensive error handling with graceful degradation and user feedback
+10. **Performance**: System handles 100+ concurrent users with sub-200ms tool response times
+
+### FEATURE 0017-006 - Advanced Context Success Criteria
+11. **Context Management**: Conversation history and summarization work correctly with configurable thresholds
+12. **Context Optimization**: Intelligent context assembly maintains relevance within token limits
+13. **Summarization Quality**: Automatic conversation summaries preserve key information effectively
+
+### System-Wide Success Criteria
+14. **Monitoring**: Complete visibility into agent performance, tool usage, and quality metrics
+15. **Testing Coverage**: All components have unit tests with >90% code coverage
 
 This epic establishes a production-ready Pydantic AI chat agent that demonstrates the full architecture patterns for multi-tool, multi-account agent systems with streaming interfaces and comprehensive monitoring.
