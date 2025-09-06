@@ -412,7 +412,215 @@ result2 = await chat('Tell me more', session_deps, message_history=result1['mess
 - **Dependencies**: TASK 0017-003 (core agent implementation)
 - **Chunk Size**: ~0.5 day
 
-#### TASK 0017-005 - Legacy Session Compatibility
+#### TASK 0017-005 - LLM Request Tracking & Cost Management
+**File**: `backend/app/services/llm_request_tracker.py` (new) + wrapper integration
+**Goal**: Comprehensive tracking of all LLM requests, responses, token usage, and costs for accurate billing
+
+**Critical Requirement**: Track every billable interaction with OpenRouter (or any LLM provider) for accurate customer cost passthrough and usage analytics.
+
+**Implementation:**
+
+```python
+# New service: backend/app/services/llm_request_tracker.py
+from typing import Dict, Any, Optional
+from uuid import UUID
+from datetime import datetime
+from app.models.llm_request import LLMRequest
+from app.database import get_db_session
+from loguru import logger
+
+class LLMRequestTracker:
+    """Shared service for tracking all LLM requests across agent types."""
+    
+    def __init__(self):
+        # Default account and agent for Phase 1
+        self.DEFAULT_ACCOUNT_ID = UUID("00000000-0000-0000-0000-000000000001")
+        self.DEFAULT_AGENT_INSTANCE_ID = UUID("00000000-0000-0000-0000-000000000002")
+    
+    async def track_llm_request(
+        self,
+        session_id: UUID,
+        provider: str,
+        model: str,
+        request_body: Dict[str, Any],
+        response_body: Dict[str, Any],
+        tokens: Dict[str, int],  # {"prompt": 150, "completion": 75, "total": 225}
+        cost_data: Dict[str, float],  # OpenRouter actuals: unit costs + computed total
+        latency_ms: int,
+        agent_instance_id: Optional[UUID] = None,
+        error_metadata: Optional[Dict[str, Any]] = None
+    ) -> UUID:
+        """
+        Track a complete LLM request with all billing and performance data.
+        
+        Returns the llm_request.id for linking with messages.
+        """
+        
+        # Use defaults for Phase 1 (single account)
+        agent_id = agent_instance_id or self.DEFAULT_AGENT_INSTANCE_ID
+        
+        # Sanitize request/response bodies (remove sensitive data, keep structure)
+        sanitized_request = self._sanitize_request_body(request_body)
+        sanitized_response = self._sanitize_response_body(response_body)
+        
+        # Create LLM request record
+        llm_request = LLMRequest(
+            session_id=session_id,
+            agent_instance_id=agent_id,
+            provider=provider,
+            model=model,
+            request_body=sanitized_request,
+            response_body=sanitized_response,
+            prompt_tokens=tokens.get("prompt", 0),
+            completion_tokens=tokens.get("completion", 0),
+            total_tokens=tokens.get("total", 0),
+            unit_cost_prompt=cost_data.get("unit_cost_prompt", 0.0),
+            unit_cost_completion=cost_data.get("unit_cost_completion", 0.0),
+            computed_cost=cost_data.get("total_cost", 0.0),
+            latency_ms=latency_ms,
+            created_at=datetime.utcnow()
+        )
+        
+        # Add error metadata if present
+        if error_metadata:
+            llm_request.response_body["error_metadata"] = error_metadata
+        
+        # Save to database
+        async with get_db_session() as session:
+            session.add(llm_request)
+            await session.commit()
+            await session.refresh(llm_request)
+        
+        # Log for monitoring
+        logger.info({
+            "event": "llm_request_tracked",
+            "session_id": str(session_id),
+            "agent_instance_id": str(agent_id),
+            "provider": provider,
+            "model": model,
+            "total_tokens": tokens.get("total", 0),
+            "computed_cost": cost_data.get("total_cost", 0.0),
+            "latency_ms": latency_ms,
+            "llm_request_id": str(llm_request.id)
+        })
+        
+        return llm_request.id
+
+# Wrapper function for all agents
+async def track_llm_call(
+    agent_function,
+    session_id: UUID,
+    *args,
+    **kwargs
+) -> tuple[Any, UUID]:
+    """
+    Wrapper function that tracks any LLM agent call.
+    
+    Usage:
+        result, llm_request_id = await track_llm_call(
+            agent.run, session_id, message, deps=session_deps
+        )
+    """
+    tracker = LLMRequestTracker()
+    start_time = datetime.utcnow()
+    
+    try:
+        # Make the actual LLM call
+        result = await agent_function(*args, **kwargs)
+        end_time = datetime.utcnow()
+        latency_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        # Extract tracking data from result (Pydantic AI provides usage info)
+        usage_data = result.usage() if hasattr(result, 'usage') else {}
+        tokens = {
+            "prompt": usage_data.get("prompt_tokens", 0),
+            "completion": usage_data.get("completion_tokens", 0), 
+            "total": usage_data.get("total_tokens", 0)
+        }
+        
+        # Get cost data from OpenRouter response (actual costs)
+        cost_data = usage_data.get("cost", {})
+        
+        # Track the successful request
+        llm_request_id = await tracker.track_llm_request(
+            session_id=session_id,
+            provider="openrouter",  # Will be configurable later
+            model=usage_data.get("model", "unknown"),
+            request_body={"messages": "sanitized"},  # Simplified for now
+            response_body={"response": "sanitized"},
+            tokens=tokens,
+            cost_data=cost_data,
+            latency_ms=latency_ms
+        )
+        
+        return result, llm_request_id
+        
+    except Exception as e:
+        # Track failed request if it consumed tokens
+        end_time = datetime.utcnow()
+        latency_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        # Determine if error is billable
+        error_metadata = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "billable": "timeout" in str(e).lower() or "rate_limit" in str(e).lower()
+        }
+        
+        # Track error if billable
+        if error_metadata["billable"]:
+            llm_request_id = await tracker.track_llm_request(
+                session_id=session_id,
+                provider="openrouter",
+                model="unknown",
+                request_body={"error": "failed_request"},
+                response_body={"error": str(e)},
+                tokens={"prompt": 0, "completion": 0, "total": 0},  # May be updated if partial
+                cost_data={"total_cost": 0.0},
+                latency_ms=latency_ms,
+                error_metadata=error_metadata
+            )
+        
+        # Re-raise the exception
+        raise e
+```
+
+**Key Features:**
+- ✅ **Wrapper Function Pattern**: Simple, explicit tracking that developers use intentionally
+- ✅ **Real-Time Cost Tracking**: Uses OpenRouter's actual cost data from API responses
+- ✅ **Comprehensive Error Handling**: Tracks billable errors (timeouts, rate limits) with metadata
+- ✅ **Default Account/Agent**: Fixed UUIDs for Phase 1 single-account development
+- ✅ **Database Integration**: Follows datamodel.md schema exactly
+- ✅ **Shared Across Agents**: All agent types use the same tracking infrastructure
+
+**Acceptance Criteria:**
+- ✅ All LLM calls tracked with accurate token counts and costs
+- ✅ OpenRouter actual costs captured and stored for billing
+- ✅ Billable errors tracked (timeouts, rate limits, partial responses)
+- ✅ Non-billable errors logged but not tracked for billing
+- ✅ Default account and agent instance IDs used consistently
+- ✅ Performance impact minimal (< 50ms tracking overhead)
+- ✅ Database records match datamodel.md schema exactly
+
+**Testing Scenarios:**
+1. **Successful Request**: Full conversation tracked with costs
+2. **Streaming Request**: Complete stream tracked as single record
+3. **Timeout Error**: Partial tokens tracked if billable
+4. **Rate Limit**: Pre-limit token usage tracked
+5. **Network Error**: No tracking (not billable)
+6. **Large Conversation**: Performance acceptable for long context
+
+**Automated Tests:**
+- **Unit Tests**: Wrapper function logic, cost extraction, error handling
+- **Integration Tests**: Database persistence, schema compliance
+- **Performance Tests**: Tracking overhead measurement
+
+**Documentation Reference**: See `architecture/tracking_llm_costs.md` for usage patterns and examples
+
+- **Dependencies**: TASK 0017-003 (agent implementation) and TASK 0017-004 (conversation history patterns)
+- **Chunk Size**: ~1.5 days
+
+#### TASK 0017-006 - Legacy Session Compatibility
 **File**: `backend/app/services/session_compatibility.py` (new) + integration in simple chat
 **Goal**: Seamless transition of existing legacy sessions and conversation history to simple chat agent
 
@@ -542,7 +750,7 @@ async def simple_chat(
 - **Dependencies**: TASK 0017-003 (agent implementation) and TASK 0017-004 (conversation history patterns)
 - **Chunk Size**: ~1 day
 
-#### TASK 0017-006 - FastAPI Endpoint Integration with Legacy Features
+#### TASK 0017-007 - FastAPI Endpoint Integration with Legacy Features
 **File**: `backend/app/api/agents.py` (new endpoint - parallel to existing `/chat`)
 
 **🔀 Parallel Endpoint Strategy**: This creates the **NEW** `/agents/simple-chat/chat` endpoint while the **legacy** `/chat` endpoint remains fully functional and unchanged.
@@ -702,17 +910,18 @@ async def simple_chat_endpoint(
 
 - **Lines of Code**: ~120 lines (comprehensive integration with all legacy features)
 - **Acceptance**: Simple chat accessible via FastAPI endpoint with full legacy feature parity
-- **Dependencies**: TASK 0017-003, 0017-004, and 0017-005 (core agent, conversation history, and session compatibility), existing session middleware, message service, config module
+- **Dependencies**: TASK 0017-003, 0017-004, 0017-005 (LLM tracking), and 0017-006 (session compatibility), existing session middleware, message service, config module
 - **Legacy Integration**: All 7 essential features integrated (session, persistence, config, logging, error handling, validation, security)
+- **Cost Tracking Integration**: Uses TASK 0017-005 LLM tracking wrapper for all agent calls
 - **Response Format**: Maintains compatibility with legacy `/chat` endpoint (PlainTextResponse)
-- **Session Integration**: Uses TASK 0017-005 session compatibility for seamless legacy transition
+- **Session Integration**: Uses TASK 0017-006 session compatibility for seamless legacy transition
 - **Chunk Size**: ~1.5 days
 
 ---
 
 ### PHASE 4: ADVANCED FEATURES (Tool Integration - Following @agent.tool Pattern)
 
-#### TASK 0017-007 - Vector Search Tool
+#### TASK 0017-008 - Vector Search Tool
 ```python
 @chat_agent.tool
 async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str:
@@ -724,10 +933,10 @@ async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str
 
 - **Implementation**: Uses existing VectorService with Pinecone integration
 - **Acceptance**: Agent can search vector database and return formatted results to user
-- **Dependencies**: TASK 0017-006 (endpoint integration), existing VectorService
+- **Dependencies**: TASK 0017-007 (endpoint integration), existing VectorService
 - **Chunk Size**: ~1 day
 
-#### TASK 0017-008 - Web Search Tool (Exa Integration)
+#### TASK 0017-009 - Web Search Tool (Exa Integration)
 ```python
 @chat_agent.tool  
 async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
@@ -739,7 +948,7 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
 
 - **Implementation**: Exa search API integration with configuration-based enable/disable
 - **Acceptance**: Agent can search web for current information when enabled
-- **Dependencies**: TASK 0017-007 (vector search pattern established)
+- **Dependencies**: TASK 0017-008 (vector search pattern established)
 - **Configuration**: Controlled via agent_config.yaml `search_engine.enabled` flag
 - **Chunk Size**: ~1 day
 
@@ -749,17 +958,18 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
 
 | Aspect | Overengineered (Before) | Streamlined Sequential Implementation |
 |--------|------------------------|----------------------------------|
-| **Implementation Approach** | Complex custom framework | 8 sequential tasks with clear dependencies |
-| **Lines of Code** | 950+ lines | ~45 lines (agent) + ~120 lines (endpoint) + ~80 lines (session compatibility) + ~10 lines (config) |
+| **Implementation Approach** | Complex custom framework | 9 sequential tasks with clear dependencies |
+| **Lines of Code** | 950+ lines | ~45 lines (agent) + ~120 lines (endpoint) + ~80 lines (session compatibility) + ~70 lines (LLM tracking) + ~10 lines (config) |
 | **Development Strategy** | Replace existing system | Foundation → Cleanup → Core → Advanced |
 | **Legacy Safety** | ❌ No safety net | ✅ Legacy switch (TASK 0017-001) |
 | **Code Cleanup** | ❌ Keep complexity | ✅ Remove 950+ lines (TASK 0017-002) |
 | **Core Agent** | Custom wrapper classes | ✅ Direct Pydantic AI (TASK 0017-003) |
 | **Conversation History** | Custom implementation | ✅ Native Pydantic AI patterns (TASK 0017-004) |
-| **Session Compatibility** | ❌ Not implemented | ✅ Seamless legacy session bridging (TASK 0017-005) |
-| **API Integration** | Complex factory system | ✅ Simple FastAPI endpoint (TASK 0017-006) |
-| **Vector Search** | Not implemented | ✅ @agent.tool decorator (TASK 0017-007) |
-| **Web Search** | Not implemented | ✅ Exa integration (TASK 0017-008) |
+| **LLM Cost Tracking** | ❌ Not implemented | ✅ Comprehensive request/cost tracking (TASK 0017-005) |
+| **Session Compatibility** | ❌ Not implemented | ✅ Seamless legacy session bridging (TASK 0017-006) |
+| **API Integration** | Complex factory system | ✅ Simple FastAPI endpoint (TASK 0017-007) |
+| **Vector Search** | Not implemented | ✅ @agent.tool decorator (TASK 0017-008) |
+| **Web Search** | Not implemented | ✅ Exa integration (TASK 0017-009) |
 | **Session Integration** | ❌ Missing | ✅ Full session handling |
 | **Message Persistence** | ❌ Missing | ✅ Before/after LLM call |
 | **Error Handling** | ❌ Missing | ✅ Graceful degradation |
@@ -789,28 +999,34 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
    - ✅ ~45 lines following official documentation patterns
 4. **TASK 0017-004 Complete**: Conversation history functional
    - ✅ Native Pydantic AI message history integration
-5. **TASK 0017-005 Complete**: Legacy session compatibility operational
+5. **TASK 0017-005 Complete**: LLM request tracking operational
+   - ✅ Comprehensive cost tracking for all LLM requests
+   - ✅ OpenRouter actual costs captured accurately
+   - ✅ Billable error tracking with metadata
+   - ✅ Shared infrastructure for all agent types
+6. **TASK 0017-006 Complete**: Legacy session compatibility operational
    - ✅ Seamless transition from legacy `/chat` to `/default/simple-chat/chat`
    - ✅ Full conversation history preserved across endpoints
    - ✅ Zero context loss for existing users
-6. **TASK 0017-006 Complete**: FastAPI endpoint integration
+7. **TASK 0017-007 Complete**: FastAPI endpoint integration
    - ✅ ~120 lines with full legacy feature parity
    - ✅ Account-based routing structure ready
-   - ✅ Session compatibility integrated
+   - ✅ Session compatibility and LLM tracking integrated
 
 ### PHASE 4 Success Criteria (Advanced Features):
-7. **TASK 0017-007 Complete**: Vector search tool operational
+8. **TASK 0017-008 Complete**: Vector search tool operational
    - ✅ @agent.tool integration with existing VectorService
-8. **TASK 0017-008 Complete**: Web search tool operational  
+9. **TASK 0017-009 Complete**: Web search tool operational  
    - ✅ Exa integration with configuration-based enable/disable
 
 ### OVERALL Success Criteria:
-1. **Sequential Implementation**: All 8 tasks completed in logical foundation → advanced sequence
-2. **Code Quality**: Dramatic reduction from 950+ lines to ~255 total lines with enhanced functionality
+1. **Sequential Implementation**: All 9 tasks completed in logical foundation → advanced sequence
+2. **Code Quality**: Dramatic reduction from 950+ lines to ~325 total lines with enhanced functionality
 3. **Pattern Compliance**: Follows Pydantic AI official documentation exactly with OpenRouter + DeepSeek
 4. **Zero Disruption**: Legacy system remains unaffected during entire development process
 5. **Enhanced Functionality**: 
    - ✅ All original chat features maintained
+   - ✅ Comprehensive LLM cost tracking for billing
    - ✅ Seamless legacy session compatibility
    - ✅ Vector search capabilities added
    - ✅ Web search integration (Exa)
