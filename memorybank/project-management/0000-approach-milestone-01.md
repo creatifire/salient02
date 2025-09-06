@@ -15,7 +15,7 @@
 ## 🎯 DEVELOPMENT PRIORITIES (Sequential Order)
 
 ### **Priority 1: Legacy Agent Switch** 🔄
-**Epic Reference**: Current implementation maintenance
+**Epic Reference**: [0017-simple-chat-agent.md](0017-simple-chat-agent.md) - TASK 0017-001
 **Goal**: Add configuration switch to enable/disable legacy chat endpoint
 
 **Implementation:**
@@ -23,9 +23,11 @@
 - Update FastAPI routing to conditionally register legacy `/chat` endpoint
 - Maintain backward compatibility during development
 
-**Chunk Size**: ~1 day
+**Detailed Implementation**: See TASK 0017-001 in [0017-simple-chat-agent.md](0017-simple-chat-agent.md) for complete acceptance criteria, automated tests, and technical specifications.
+
+**Chunk Size**: ~0.5 day (as refined in TASK 0017-001)
 **Manual Verification**: Toggle switch, confirm legacy endpoint enables/disables correctly
-**Dependencies**: None
+**Dependencies**: None (foundation feature)
 **Status**: 📋 Ready to start
 
 ---
