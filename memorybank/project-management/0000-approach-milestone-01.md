@@ -186,7 +186,7 @@ backend/config/
     ├── agent_sales_2/ 
     │   └── agent_config.yaml       # → Pinecone index B, Claude-3
     └── agent_simple_1/
-        └── agent_config.yaml       # → Pinecone index C, web search enabled
+        └── agent_config.yaml       # → Pinecone index C, web search enabled, Deepseek R1
 ```
 
 **Routing:**

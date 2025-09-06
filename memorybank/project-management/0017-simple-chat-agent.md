@@ -327,19 +327,103 @@ legacy:
 
 ---
 
+## 📄 AGENT CONFIGURATION PATTERN
+
+### **Standard Agent Configuration Structure**
+
+All agent types will follow this consistent YAML configuration pattern in `backend/config/agent_configs/{agent_type}.yaml`:
+
+```yaml
+# Example: backend/config/agent_configs/simple_chat.yaml
+agent_type: "simple_chat"
+name: "Simple Chat Agent"  
+description: "General-purpose conversational agent"
+
+# System prompt - loaded into Pydantic AI Agent
+system_prompt: |
+  You are a helpful AI assistant with access to knowledge base search and web search tools.
+  Always provide accurate, helpful responses with proper citations when you use information from searches.
+  
+  Guidelines:
+  - Use the vector_search tool when users ask questions that might be answered by stored knowledge
+  - Use web_search when you need current information or when vector search doesn't provide good results
+  - Be conversational and helpful while remaining accurate
+  - Cite your sources when using search results
+
+# Model settings - agent-specific overrides
+model_settings:
+  model: "openai:gpt-4o"      # Override app.yaml model if needed
+  temperature: 0.3            # Agent-specific temperature
+  max_tokens: 2000           # Agent-specific token limit
+
+# Tool configuration - enable/disable per agent
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+  web_search:
+    enabled: true
+    provider: "exa"
+  conversation_management:
+    enabled: true
+
+# Context management settings
+context_management:
+  max_history_messages: 20
+  context_window_tokens: 8000
+```
+
+### **Loading Pattern for All Agents**
+
+```python
+def create_{agent_type}_agent():
+    """Standard pattern for creating any agent type."""
+    # 1. Load app-level configuration
+    config = load_config()
+    llm_config = config.get("llm", {})
+    
+    # 2. Load agent-specific configuration  
+    agent_config = load_agent_config("{agent_type}")
+    system_prompt = agent_config.get("system_prompt", "You are a helpful AI assistant.")
+    
+    # 3. Build model name from app config
+    provider = llm_config.get("provider", "openrouter")
+    model = llm_config.get("model", "deepseek/deepseek-chat-v3.1")
+    model_name = f"{provider}:{model}"
+    
+    # 4. Create agent with YAML-loaded system prompt
+    return Agent(
+        model_name,
+        deps_type=SessionDependencies,
+        system_prompt=system_prompt
+    )
+```
+
+**Benefits of This Pattern:**
+- ✅ **Consistent Configuration**: All agents follow the same structure
+- ✅ **Easy Customization**: Change system prompts without code changes
+- ✅ **Tool Management**: Enable/disable features per agent type
+- ✅ **Setting Overrides**: Agent-specific settings override app defaults
+- ✅ **Scalable**: Easy to add new agent types following same pattern
+
+---
+
 ### PHASE 3: CORE IMPLEMENTATION (Follow Pydantic AI Patterns)
 
-#### TASK 0017-003 - Direct Pydantic AI Agent Implementation
+#### TASK 0017-003 - Direct Pydantic AI Agent Implementation  
 **File**: `backend/app/agents/simple_chat.py` (new, simplified)
 
 ```python
 from pydantic_ai import Agent
 from app.agents.base.dependencies import SessionDependencies
 from app.config import load_config
+from app.agents.config_loader import load_agent_config
+import yaml
+import os
 
-# Simple chat agent with proper dependency injection
+# Simple chat agent with YAML configuration loading
 def create_simple_chat_agent():
-    """Create a simple chat agent with dynamic configuration."""
+    """Create a simple chat agent with dynamic configuration from YAML."""
     config = load_config()
     llm_config = config.get("llm", {})
     
@@ -348,11 +432,34 @@ def create_simple_chat_agent():
     model = llm_config.get("model", "deepseek/deepseek-chat-v3.1")
     model_name = f"{provider}:{model}"
     
+    # Load agent-specific configuration including system prompt
+    agent_config = load_agent_config("simple_chat")
+    system_prompt = agent_config.get("system_prompt", "You are a helpful AI assistant.")
+    
     return Agent(
         model_name,
         deps_type=SessionDependencies,
-        system_prompt='You are a helpful AI assistant. Be conversational and helpful.'
+        system_prompt=system_prompt
     )
+
+def load_agent_config(agent_type: str) -> dict:
+    """
+    Load agent configuration from YAML file.
+    
+    Pattern for all agent types:
+    - Config file: backend/config/agent_configs/{agent_type}.yaml
+    - Contains: system_prompt, model_settings, tools, context_management
+    """
+    config_path = os.path.join(
+        os.path.dirname(__file__), 
+        "..", "..", "config", "agent_configs", f"{agent_type}.yaml"
+    )
+    
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Agent config not found: {config_path}")
+    
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 # Global agent instance (lazy loaded)
 _chat_agent = None
@@ -369,17 +476,22 @@ async def simple_chat(
     session_deps: SessionDependencies, 
     message_history=None
 ) -> dict:
-    """Simple chat function using Pydantic AI agent with legacy integration."""
+    """Simple chat function using Pydantic AI agent with YAML configuration."""
+    # Load both app-level and agent-specific configuration
     config = load_config()
     llm_config = config.get("llm", {})
+    agent_config = load_agent_config("simple_chat")
+    
+    # Use model settings from agent config, fallback to app config
+    model_settings = agent_config.get("model_settings", {})
     
     agent = get_chat_agent()
     result = await agent.run(
         message, 
         deps=session_deps, 
         message_history=message_history,
-        temperature=llm_config.get("temperature", 0.3),
-        max_tokens=llm_config.get("max_tokens", 1024)
+        temperature=model_settings.get("temperature", llm_config.get("temperature", 0.3)),
+        max_tokens=model_settings.get("max_tokens", llm_config.get("max_tokens", 1024))
     )
     
     return {
@@ -390,11 +502,21 @@ async def simple_chat(
     }
 ```
 
-- **Lines of Code**: ~45 lines (vs 950+ previously) - includes proper config integration
-- **Acceptance**: Agent responds to basic chat queries with string responses
+- **Lines of Code**: ~65 lines (vs 950+ previously) - includes YAML configuration loading pattern
+- **Acceptance**: 
+  - ✅ Agent responds to basic chat queries with string responses
+  - ✅ System prompt loaded from `simple_chat.yaml` configuration file
+  - ✅ Model settings (temperature, max_tokens) loaded from agent config with app.yaml fallback
+  - ✅ Configuration pattern established for all future agent types
 - **Dependencies**: TASK 0017-002 (cleanup complete), existing SessionDependencies, app.config module
-- **Configuration**: Dynamically loads from app.yaml (provider: openrouter, model: deepseek/deepseek-chat-v3.1, temperature: 0.3, max_tokens: 1024)
-- **Benefits**: Configuration changes in app.yaml automatically apply without code changes
+- **Configuration Pattern**: 
+  - **System Prompt**: Loaded from `backend/config/agent_configs/simple_chat.yaml`
+  - **Model Settings**: Agent-specific settings override app-level defaults
+  - **App Config**: Fallback to app.yaml for provider and base model settings
+- **Benefits**: 
+  - System prompts and agent behavior configurable via YAML files
+  - Consistent pattern for all future agent types
+  - No code changes needed for prompt or setting adjustments
 - **Conversation History**: Uses Pydantic AI's native `message_history` and `result.all_messages()` patterns
 - **Chunk Size**: ~1 day
 
@@ -964,6 +1086,7 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
 | **Legacy Safety** | ❌ No safety net | ✅ Legacy switch (TASK 0017-001) |
 | **Code Cleanup** | ❌ Keep complexity | ✅ Remove 950+ lines (TASK 0017-002) |
 | **Core Agent** | Custom wrapper classes | ✅ Direct Pydantic AI (TASK 0017-003) |
+| **System Prompt** | ❌ Hardcoded | ✅ YAML-configurable for all agent types |
 | **Conversation History** | Custom implementation | ✅ Native Pydantic AI patterns (TASK 0017-004) |
 | **LLM Cost Tracking** | ❌ Not implemented | ✅ Comprehensive request/cost tracking (TASK 0017-005) |
 | **Session Compatibility** | ❌ Not implemented | ✅ Seamless legacy session bridging (TASK 0017-006) |
@@ -973,7 +1096,7 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
 | **Session Integration** | ❌ Missing | ✅ Full session handling |
 | **Message Persistence** | ❌ Missing | ✅ Before/after LLM call |
 | **Error Handling** | ❌ Missing | ✅ Graceful degradation |
-| **Configuration** | Complex YAML loading | ✅ Direct app.yaml + legacy switch |
+| **Configuration** | Complex YAML loading | ✅ YAML configuration pattern for system prompts + settings |
 | **Parallel Development** | ❌ Risky replacement | ✅ Zero-disruption strategy |
 | **Tool Integration** | Custom patterns | @agent.tool decorators |
 | **Maintainability** | High complexity | Low complexity, clear sequence |
@@ -996,7 +1119,9 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
 
 ### PHASE 3 Success Criteria (Core Implementation):
 3. **TASK 0017-003 Complete**: Direct Pydantic AI agent working
-   - ✅ ~45 lines following official documentation patterns
+   - ✅ ~65 lines following official documentation patterns with YAML configuration
+   - ✅ System prompt loaded from agent_configs/simple_chat.yaml
+   - ✅ Agent configuration pattern established for all future agent types
 4. **TASK 0017-004 Complete**: Conversation history functional
    - ✅ Native Pydantic AI message history integration
 5. **TASK 0017-005 Complete**: LLM request tracking operational
@@ -1023,8 +1148,9 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
 1. **Sequential Implementation**: All 9 tasks completed in logical foundation → advanced sequence
 2. **Code Quality**: Dramatic reduction from 950+ lines to ~325 total lines with enhanced functionality
 3. **Pattern Compliance**: Follows Pydantic AI official documentation exactly with OpenRouter + DeepSeek
-4. **Zero Disruption**: Legacy system remains unaffected during entire development process
-5. **Enhanced Functionality**: 
+4. **Configuration Pattern**: YAML-based system prompts and agent settings for all current and future agent types
+5. **Zero Disruption**: Legacy system remains unaffected during entire development process
+6. **Enhanced Functionality**: 
    - ✅ All original chat features maintained
    - ✅ Comprehensive LLM cost tracking for billing
    - ✅ Seamless legacy session compatibility
