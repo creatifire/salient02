@@ -261,18 +261,75 @@ async def simple_chat_endpoint(request: Request):
 
 ## 📋 IMPLEMENTATION TASKS
 
-### PHASE 1: CLEANUP (Remove Overengineered Code)
+### PHASE 1: FOUNDATION (Enable Parallel Development)
 
-#### TASK 0017-CLEANUP-001 - Remove Overengineered Components
+#### TASK 0017-001 - Legacy Agent Switch
+**File**: `backend/config/app.yaml` + `backend/app/main.py` updates
+**Goal**: Foundation for parallel development - enable/disable legacy endpoints via configuration
+
+**Implementation:**
+```yaml
+# Add to backend/config/app.yaml
+legacy:
+  enabled: true                    # Can be toggled to false for parallel development
+  endpoints:
+    chat: "/chat"                  # Legacy chat endpoint
+    stream: "/events/stream"       # Legacy SSE streaming
+    main: "/"                      # Main chat page
+```
+
+**Code Changes:**
+- **Config Loading**: Update `backend/app/config.py` to read `legacy` section from app.yaml
+- **Conditional Routing**: Update `backend/app/main.py` to conditionally register legacy endpoints:
+  ```python
+  # Only register legacy endpoints if enabled
+  config = load_config()
+  if config.get("legacy", {}).get("enabled", True):
+      app.post("/chat")(legacy_chat_endpoint)
+      app.get("/events/stream")(legacy_stream_endpoint) 
+      app.get("/")(legacy_main_page)
+  ```
+
+**Key Benefits:**
+- ✅ **Parallel Development**: Can develop new agent while legacy remains active
+- ✅ **Zero Disruption**: Legacy functionality preserved during development
+- ✅ **Easy Testing**: Toggle between legacy and new implementations
+- ✅ **Safe Rollback**: Instant fallback if new agent has issues
+- ✅ **Configuration-Driven**: No code changes needed to toggle functionality
+
+**Acceptance Criteria:**
+- ✅ `legacy.enabled: false` → legacy endpoints return 404 Not Found
+- ✅ `legacy.enabled: true` → legacy endpoints work normally
+- ✅ Configuration changes apply on application restart
+- ✅ No errors or exceptions when legacy endpoints disabled
+- ✅ New agent development can proceed independently
+
+**Automated Tests:**
+- **Unit Tests**: Config parsing logic, conditional endpoint registration
+- **Integration Tests**: Endpoint availability based on configuration
+- **Configuration Tests**: Toggle functionality verification
+
+- **Dependencies**: None (foundation feature)
+- **Chunk Size**: ~0.5 day
+
+---
+
+### PHASE 2: CLEANUP (Remove Overengineered Code)
+
+#### TASK 0017-002 - Remove Overengineered Components
 - **Delete**: `backend/app/agents/templates/simple_chat/models.py` (ChatResponse model - 210 lines)
 - **Delete**: `backend/app/agents/templates/simple_chat/agent.py` (SimpleChatAgent wrapper - 306 lines)
 - **Delete**: `backend/app/agents/templates/simple_chat/factory.py` (Factory system - 390 lines)
 - **Simplify**: `backend/app/agents/templates/simple_chat/__init__.py` (reduce to exports only)
 - **Acceptance**: 950+ lines of overengineered code removed
+- **Dependencies**: TASK 0017-001 (foundation enables safe cleanup)
+- **Chunk Size**: ~0.5 day
 
-### PHASE 2: SIMPLE IMPLEMENTATION (Follow Pydantic AI Patterns)
+---
 
-#### TASK 0017-SIMPLE-001 - Direct Pydantic AI Agent Implementation
+### PHASE 3: CORE IMPLEMENTATION (Follow Pydantic AI Patterns)
+
+#### TASK 0017-003 - Direct Pydantic AI Agent Implementation
 **File**: `backend/app/agents/simple_chat.py` (new, simplified)
 
 ```python
@@ -335,12 +392,13 @@ async def simple_chat(
 
 - **Lines of Code**: ~45 lines (vs 950+ previously) - includes proper config integration
 - **Acceptance**: Agent responds to basic chat queries with string responses
-- **Dependencies**: Existing SessionDependencies, app.config module, Pydantic AI native patterns
+- **Dependencies**: TASK 0017-002 (cleanup complete), existing SessionDependencies, app.config module
 - **Configuration**: Dynamically loads from app.yaml (provider: openrouter, model: deepseek/deepseek-chat-v3.1, temperature: 0.3, max_tokens: 1024)
 - **Benefits**: Configuration changes in app.yaml automatically apply without code changes
 - **Conversation History**: Uses Pydantic AI's native `message_history` and `result.all_messages()` patterns
+- **Chunk Size**: ~1 day
 
-#### TASK 0017-SIMPLE-002 - Conversation History Integration
+#### TASK 0017-004 - Conversation History Integration
 Use Pydantic AI's native message history:
 ```python
 # First message
@@ -351,9 +409,140 @@ result2 = await chat('Tell me more', session_deps, message_history=result1['mess
 ```
 
 - **Acceptance**: Conversation history maintained using Pydantic AI patterns
-- **Dependencies**: TASK 0017-SIMPLE-001
+- **Dependencies**: TASK 0017-003 (core agent implementation)
+- **Chunk Size**: ~0.5 day
 
-#### TASK 0017-SIMPLE-003 - FastAPI Endpoint Integration with Legacy Features
+#### TASK 0017-005 - Legacy Session Compatibility
+**File**: `backend/app/services/session_compatibility.py` (new) + integration in simple chat
+**Goal**: Seamless transition of existing legacy sessions and conversation history to simple chat agent
+
+**Critical Requirement**: Users who have ongoing conversations on `/chat` must be able to continue seamlessly on `/default/simple-chat/chat` without losing context or conversation history.
+
+**Implementation:**
+
+```python
+# New service: backend/app/services/session_compatibility.py
+from typing import List, Dict, Any
+from app.services.message_service import get_message_service
+from pydantic_ai.messages import Message
+
+async def load_legacy_conversation_history(session_id: str) -> List[Message]:
+    """
+    Load existing conversation history from database and convert to Pydantic AI format.
+    
+    Handles conversations that started on legacy /chat endpoint and ensures
+    full context is available to simple chat agent.
+    """
+    message_service = get_message_service()
+    
+    # 1. RETRIEVE ALL MESSAGES for this session (legacy + new)
+    db_messages = await message_service.get_conversation_history(
+        session_id=session_id,
+        include_system=False  # Pydantic AI handles system messages
+    )
+    
+    # 2. CONVERT DB MESSAGES to Pydantic AI Message format
+    pydantic_messages = []
+    for msg in db_messages:
+        pydantic_message = Message(
+            role=msg.role,  # "human" or "assistant" 
+            content=msg.content,
+            timestamp=msg.created_at
+        )
+        pydantic_messages.append(pydantic_message)
+    
+    return pydantic_messages
+
+async def ensure_session_continuity(session_id: str) -> Dict[str, Any]:
+    """
+    Ensure session continuity metrics and validation.
+    Returns session statistics for logging/monitoring.
+    """
+    message_service = get_message_service()
+    
+    total_messages = await message_service.count_messages(session_id)
+    legacy_messages = await message_service.count_messages(
+        session_id, source_filter="legacy"
+    )
+    
+    return {
+        "total_messages": total_messages,
+        "legacy_messages": legacy_messages,
+        "agent_messages": total_messages - legacy_messages,
+        "session_bridged": legacy_messages > 0
+    }
+```
+
+**Integration in Simple Chat:**
+```python
+# Update simple_chat function to use legacy session compatibility
+async def simple_chat(
+    message: str, 
+    session_deps: SessionDependencies, 
+    message_history=None  # This will be populated from legacy sessions
+) -> dict:
+    """Enhanced simple chat with legacy session compatibility."""
+    config = load_config()
+    llm_config = config.get("llm", {})
+    
+    # LOAD LEGACY SESSION HISTORY if not provided
+    if message_history is None:
+        message_history = await load_legacy_conversation_history(
+            str(session_deps.session_id)
+        )
+    
+    agent = get_chat_agent()
+    result = await agent.run(
+        message, 
+        deps=session_deps, 
+        message_history=message_history,  # Full legacy + new context
+        temperature=llm_config.get("temperature", 0.3),
+        max_tokens=llm_config.get("max_tokens", 1024)
+    )
+    
+    # SESSION CONTINUITY MONITORING
+    continuity_stats = await ensure_session_continuity(str(session_deps.session_id))
+    
+    return {
+        'response': result.output,
+        'messages': result.all_messages(),
+        'new_messages': result.new_messages(),
+        'usage': result.usage(),
+        'session_continuity': continuity_stats  # For monitoring/debugging
+    }
+```
+
+**Key Features:**
+- ✅ **Session ID Preservation**: Same session cookie/ID used by both legacy and simple chat
+- ✅ **Full History Access**: All previous messages from `/chat` available to simple chat agent
+- ✅ **Format Conversion**: Database messages converted to Pydantic AI Message format
+- ✅ **Zero Context Loss**: Users can switch mid-conversation without losing history
+- ✅ **Monitoring Support**: Session continuity statistics for debugging/analytics
+
+**Acceptance Criteria:**
+- ✅ User starts conversation on `/chat`, continues on `/default/simple-chat/chat` seamlessly
+- ✅ Simple chat agent has access to full conversation context from legacy sessions
+- ✅ No message loss during endpoint transition
+- ✅ Session cookies work identically across both endpoints
+- ✅ Conversation history displays correctly in both endpoints
+- ✅ Performance impact minimal (efficient database queries)
+
+**Testing Scenarios:**
+1. **New Session**: Fresh session works on simple chat agent
+2. **Legacy Session**: Existing legacy session continues on simple chat agent  
+3. **Cross-Endpoint**: Start on legacy, continue on agent, return to legacy
+4. **Long Conversations**: Sessions with 50+ messages maintain full context
+5. **Error Handling**: Database failures don't prevent new messages
+
+**Automated Tests:**
+- **Unit Tests**: Message format conversion, session loading logic
+- **Integration Tests**: Cross-endpoint conversation continuity
+- **Performance Tests**: Query efficiency with large conversation histories
+
+- **Dependencies**: TASK 0017-003 (agent implementation) and TASK 0017-004 (conversation history patterns)
+- **Chunk Size**: ~1 day
+
+#### TASK 0017-006 - FastAPI Endpoint Integration with Legacy Features
 **File**: `backend/app/api/agents.py` (new endpoint - parallel to existing `/chat`)
 
 **🔀 Parallel Endpoint Strategy**: This creates the **NEW** `/agents/simple-chat/chat` endpoint while the **legacy** `/chat` endpoint remains fully functional and unchanged.
@@ -513,13 +702,17 @@ async def simple_chat_endpoint(
 
 - **Lines of Code**: ~120 lines (comprehensive integration with all legacy features)
 - **Acceptance**: Simple chat accessible via FastAPI endpoint with full legacy feature parity
-- **Dependencies**: TASK 0017-SIMPLE-001, existing session middleware, message service, config module
+- **Dependencies**: TASK 0017-003, 0017-004, and 0017-005 (core agent, conversation history, and session compatibility), existing session middleware, message service, config module
 - **Legacy Integration**: All 7 essential features integrated (session, persistence, config, logging, error handling, validation, security)
 - **Response Format**: Maintains compatibility with legacy `/chat` endpoint (PlainTextResponse)
+- **Session Integration**: Uses TASK 0017-005 session compatibility for seamless legacy transition
+- **Chunk Size**: ~1.5 days
 
-### PHASE 3: TOOL INTEGRATION (Future - Following @agent.tool Pattern)
+---
 
-#### TASK 0017-TOOLS-001 - Vector Search Tool
+### PHASE 4: ADVANCED FEATURES (Tool Integration - Following @agent.tool Pattern)
+
+#### TASK 0017-007 - Vector Search Tool
 ```python
 @chat_agent.tool
 async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str:
@@ -529,74 +722,100 @@ async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str
     return format_search_results(results)
 ```
 
-#### TASK 0017-TOOLS-002 - Web Search Tool
+- **Implementation**: Uses existing VectorService with Pinecone integration
+- **Acceptance**: Agent can search vector database and return formatted results to user
+- **Dependencies**: TASK 0017-006 (endpoint integration), existing VectorService
+- **Chunk Size**: ~1 day
+
+#### TASK 0017-008 - Web Search Tool (Exa Integration)
 ```python
 @chat_agent.tool  
 async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
-    """Search the web for current information."""
-    # Implementation using existing search services
+    """Search the web for current information using Exa."""
+    # Implementation using Exa search API
+    # Enable/disable via agent configuration
     pass
 ```
+
+- **Implementation**: Exa search API integration with configuration-based enable/disable
+- **Acceptance**: Agent can search web for current information when enabled
+- **Dependencies**: TASK 0017-007 (vector search pattern established)
+- **Configuration**: Controlled via agent_config.yaml `search_engine.enabled` flag
+- **Chunk Size**: ~1 day
 
 ---
 
 ## 📊 COMPARISON: Before vs After
 
-| Aspect | Overengineered (Before) | Simplified (After) |
-|--------|------------------------|-------------------|
-| **Lines of Code** | 950+ lines | ~45 lines (agent) + ~120 lines (endpoint) |
-| **Files Created** | 4 complex files | 2 simple files |
-| **Response Model** | Complex ChatResponse (210 lines) | Native string output |
-| **Agent Wrapper** | SimpleChatAgent (306 lines) | Direct Agent usage |
-| **Factory System** | Complex factory (390 lines) | Simple function-based creation |
-| **Configuration** | YAML loading complexity | Direct app.yaml config loading |
-| **Conversation History** | Custom implementation | Native Pydantic AI patterns |
+| Aspect | Overengineered (Before) | Streamlined Sequential Implementation |
+|--------|------------------------|----------------------------------|
+| **Implementation Approach** | Complex custom framework | 8 sequential tasks with clear dependencies |
+| **Lines of Code** | 950+ lines | ~45 lines (agent) + ~120 lines (endpoint) + ~80 lines (session compatibility) + ~10 lines (config) |
+| **Development Strategy** | Replace existing system | Foundation → Cleanup → Core → Advanced |
+| **Legacy Safety** | ❌ No safety net | ✅ Legacy switch (TASK 0017-001) |
+| **Code Cleanup** | ❌ Keep complexity | ✅ Remove 950+ lines (TASK 0017-002) |
+| **Core Agent** | Custom wrapper classes | ✅ Direct Pydantic AI (TASK 0017-003) |
+| **Conversation History** | Custom implementation | ✅ Native Pydantic AI patterns (TASK 0017-004) |
+| **Session Compatibility** | ❌ Not implemented | ✅ Seamless legacy session bridging (TASK 0017-005) |
+| **API Integration** | Complex factory system | ✅ Simple FastAPI endpoint (TASK 0017-006) |
+| **Vector Search** | Not implemented | ✅ @agent.tool decorator (TASK 0017-007) |
+| **Web Search** | Not implemented | ✅ Exa integration (TASK 0017-008) |
 | **Session Integration** | ❌ Missing | ✅ Full session handling |
 | **Message Persistence** | ❌ Missing | ✅ Before/after LLM call |
 | **Error Handling** | ❌ Missing | ✅ Graceful degradation |
-| **Logging** | ❌ Missing | ✅ Comprehensive logging |
-| **Input Validation** | ❌ Missing | ✅ Security & validation |
-| **Legacy Compatibility** | ❌ Incompatible | ✅ PlainTextResponse format |
-| **Endpoint Strategy** | ❌ Replace existing | ✅ Parallel endpoints (/chat + /agents/simple-chat/chat) |
+| **Configuration** | Complex YAML loading | ✅ Direct app.yaml + legacy switch |
+| **Parallel Development** | ❌ Risky replacement | ✅ Zero-disruption strategy |
 | **Tool Integration** | Custom patterns | @agent.tool decorators |
-| **Maintainability** | High complexity | Low complexity |
-| **Testing** | Test wrapper layers | Test agent directly |
-| **Documentation** | Custom patterns | Follows Pydantic AI docs |
+| **Maintainability** | High complexity | Low complexity, clear sequence |
+| **Testing** | Test wrapper layers | Test each task independently |
 
 ---
 
-## ✅ SUCCESS CRITERIA (Simplified)
+## ✅ SUCCESS CRITERIA (Sequential Implementation)
 
-### CLEANUP Success Criteria:
-1. **Code Reduction**: 950+ lines reduced to ~165 lines total (agent + endpoint with full legacy integration)
-2. **Complexity Removal**: No custom wrappers, factories, or response models - replaced with simple functions
-3. **Pattern Alignment**: Follows Pydantic AI documentation exactly with OpenRouter + DeepSeek
+### PHASE 1 Success Criteria (Foundation):
+1. **TASK 0017-001 Complete**: Legacy agent switch implemented and tested
+   - ✅ Configuration-driven legacy endpoint toggle
+   - ✅ Zero-disruption parallel development enabled
+   - ✅ Safe rollback mechanism in place
 
-### IMPLEMENTATION Success Criteria:
-1. **Basic Functionality**: Agent responds to simple queries with string responses
-2. **Parallel Endpoint Strategy**: New `/agents/simple-chat/chat` endpoint works alongside existing `/chat` endpoint
-   - ✅ Legacy `/chat` endpoint remains fully functional and unchanged
-   - ✅ New agent endpoint shares session management and message history  
-   - ✅ Zero disruption to existing functionality
-   - ✅ Seamless conversation continuity between endpoints
-3. **Legacy Feature Parity**: All 7 essential features integrated:
-   - ✅ Session handling via existing middleware
-   - ✅ Message persistence before/after LLM calls
-   - ✅ Configuration loading from app.yaml
-   - ✅ OpenRouter integration (via config)
-   - ✅ Comprehensive logging with structured events
-   - ✅ Error handling with graceful degradation
-   - ✅ Input validation and security measures
-4. **Conversation History**: Maintains conversation context using Pydantic AI native message history
-5. **API Integration**: FastAPI endpoint with legacy `/chat` compatibility (PlainTextResponse)
-6. **Database Integration**: Uses existing SessionDependencies and MessageService
-7. **Configuration Flexibility**: Dynamic config loading supports environment variable overrides
+### PHASE 2 Success Criteria (Cleanup):
+2. **TASK 0017-002 Complete**: Overengineered code removed 
+   - ✅ 950+ lines of complex code deleted
+   - ✅ Clean foundation for simple implementation
 
-### FUTURE Success Criteria:
-8. **Tool Integration**: Tools added using @agent.tool decorators
-9. **Vector Search**: Knowledge base search using existing VectorService
-10. **Web Search**: Current information retrieval capabilities
-11. **Streaming Support**: Add streaming responses if needed
+### PHASE 3 Success Criteria (Core Implementation):
+3. **TASK 0017-003 Complete**: Direct Pydantic AI agent working
+   - ✅ ~45 lines following official documentation patterns
+4. **TASK 0017-004 Complete**: Conversation history functional
+   - ✅ Native Pydantic AI message history integration
+5. **TASK 0017-005 Complete**: Legacy session compatibility operational
+   - ✅ Seamless transition from legacy `/chat` to `/default/simple-chat/chat`
+   - ✅ Full conversation history preserved across endpoints
+   - ✅ Zero context loss for existing users
+6. **TASK 0017-006 Complete**: FastAPI endpoint integration
+   - ✅ ~120 lines with full legacy feature parity
+   - ✅ Account-based routing structure ready
+   - ✅ Session compatibility integrated
+
+### PHASE 4 Success Criteria (Advanced Features):
+7. **TASK 0017-007 Complete**: Vector search tool operational
+   - ✅ @agent.tool integration with existing VectorService
+8. **TASK 0017-008 Complete**: Web search tool operational  
+   - ✅ Exa integration with configuration-based enable/disable
+
+### OVERALL Success Criteria:
+1. **Sequential Implementation**: All 8 tasks completed in logical foundation → advanced sequence
+2. **Code Quality**: Dramatic reduction from 950+ lines to ~255 total lines with enhanced functionality
+3. **Pattern Compliance**: Follows Pydantic AI official documentation exactly with OpenRouter + DeepSeek
+4. **Zero Disruption**: Legacy system remains unaffected during entire development process
+5. **Enhanced Functionality**: 
+   - ✅ All original chat features maintained
+   - ✅ Seamless legacy session compatibility
+   - ✅ Vector search capabilities added
+   - ✅ Web search integration (Exa)
+   - ✅ Account-based routing foundation laid
+   - ✅ Configuration-driven feature toggles
 
 ### VERIFICATION Criteria:
 - **Parallel Endpoint Functionality**: Both `/chat` and `/agents/simple-chat/chat` work simultaneously
