@@ -1,47 +1,20 @@
 """
-Simple Chat Agent Template.
+Simple Chat Agent Template - CLEANED UP FOR PHASE 3
 
-This module provides a foundational Pydantic AI-powered chat agent with basic 
-functionality for structured responses and session integration.
+The overengineered components (950+ lines) have been removed in Phase 0 cleanup:
+- ChatResponse model (209 lines) - REMOVED
+- SimpleChatAgent wrapper (305 lines) - REMOVED  
+- Factory system (390 lines) - REMOVED
+- Complex imports and __all__ exports - REMOVED
 
-Key Components:
-- ChatResponse: Simple response model for text-based interactions
-- SimpleChatAgent: Basic conversational agent using SessionDependencies
-- Factory functions: Configuration-driven agent creation and caching
+This module will be reimplemented in Phase 3 with clean Pydantic AI patterns:
+- Direct Agent() usage following official documentation
+- YAML-based configuration loading
+- Simple string responses (no complex models)
+- ~65 lines total vs 950+ previously
 
-Usage:
-    # Simple factory creation
-    from app.agents.templates.simple_chat import create_simple_chat_agent
-    
-    agent, session_deps = await create_simple_chat_agent(session_id="123")
-    response = await agent.chat("Hello!", deps=session_deps)
-    print(response.message)
-    
-    # Direct agent creation
-    from app.agents.templates.simple_chat import SimpleChatAgent
-    
-    agent = SimpleChatAgent()
-    session_deps = await SessionDependencies.create(session_id="123")
-    response = await agent.chat("Hello!", deps=session_deps)
-    print(response.message)
+TODO Phase 3: Implement clean simple_chat agent following 0017-simple-chat-agent.md
 """
 
-from .models import ChatResponse
-from .agent import SimpleChatAgent
-from .factory import (
-    create_simple_chat_agent,
-    create_simple_chat_agent_with_deps,
-    create_simple_chat_agent_basic,
-    clear_agent_cache,
-    get_agent_cache_stats
-)
-
-__all__ = [
-    'ChatResponse',
-    'SimpleChatAgent', 
-    'create_simple_chat_agent',
-    'create_simple_chat_agent_with_deps',
-    'create_simple_chat_agent_basic',
-    'clear_agent_cache',
-    'get_agent_cache_stats'
-]
+# Clean slate - no imports until Phase 3 implementation
+__all__ = []

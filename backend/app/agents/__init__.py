@@ -19,7 +19,7 @@ Architecture:
 
 Usage:
     from app.agents.base import BaseAgent, BaseDependencies
-    from app.agents.simple_chat import SimpleChatAgent
+    # SimpleChatAgent removed in Phase 0 cleanup - will be reimplemented in Phase 3
 """
 
 __version__ = "0.1.0"
