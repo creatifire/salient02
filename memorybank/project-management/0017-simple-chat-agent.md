@@ -637,17 +637,29 @@ def create_{agent_type}_agent():
 
 #### TASK 0017-002 - Direct Pydantic AI Agent Implementation  
 **File**: `backend/app/agents/simple_chat.py` (new, simplified)
+**Status**: ⚠️ **PLAN CORRECTED** - Critical issues identified and fixed
+
+> **⚠️ VERIFICATION RESULTS**: Original plan had critical implementation issues that would cause import errors and runtime failures. Plan updated with corrections based on actual codebase analysis and Pydantic AI documentation validation.
+
+**Issues Found & Fixed**:
+1. ❌ **Import Mismatch**: `load_agent_config` → ✅ **Fixed**: `get_agent_config`
+2. ❌ **Missing Async**: Sync function calls → ✅ **Fixed**: Proper `async`/`await` throughout
+3. ❌ **Wrong Config Access**: `.get()` dict methods → ✅ **Fixed**: Direct Pydantic model attributes
+4. ❌ **Dependencies Creation**: Missing proper instantiation → ✅ **Fixed**: `await SessionDependencies.create()`
+5. ❌ **Message History**: Vague integration → ✅ **Fixed**: Native `ModelMessage` handling
 
 ```python
 from pydantic_ai import Agent
+from pydantic_ai.messages import ModelMessage
 from app.agents.base.dependencies import SessionDependencies
 from app.config import load_config
-from app.agents.config_loader import load_agent_config
-import yaml
-import os
+from app.agents.config_loader import get_agent_config  # Fixed: correct function name
+from typing import List, Optional
 
-# Simple chat agent with YAML configuration loading
-def create_simple_chat_agent():
+# Global agent instance (lazy loaded)
+_chat_agent = None
+
+async def create_simple_chat_agent() -> Agent:  # Fixed: async function
     """Create a simple chat agent with dynamic configuration from YAML."""
     config = load_config()
     llm_config = config.get("llm", {})
@@ -657,9 +669,9 @@ def create_simple_chat_agent():
     model = llm_config.get("model", "deepseek/deepseek-chat-v3.1")
     model_name = f"{provider}:{model}"
     
-    # Load agent-specific configuration including system prompt
-    agent_config = load_agent_config("simple_chat")
-    system_prompt = agent_config.get("system_prompt", "You are a helpful AI assistant.")
+    # Load agent-specific configuration (ASYNC call - Fixed)
+    agent_config = await get_agent_config("simple_chat")  # Fixed: async call with correct function name
+    system_prompt = agent_config.system_prompt  # Fixed: direct attribute access (AgentConfig is Pydantic model)
     
     return Agent(
         model_name,
@@ -667,73 +679,69 @@ def create_simple_chat_agent():
         system_prompt=system_prompt
     )
 
-def load_agent_config(agent_type: str) -> dict:
-    """
-    Load agent configuration from YAML file.
-    
-    Pattern for all agent types:
-    - Config file: backend/config/agent_configs/{agent_type}.yaml
-    - Contains: system_prompt, model_settings, tools, context_management
-    """
-    config_path = os.path.join(
-        os.path.dirname(__file__), 
-        "..", "..", "config", "agent_configs", f"{agent_type}.yaml"
-    )
-    
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Agent config not found: {config_path}")
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
-
-# Global agent instance (lazy loaded)
-_chat_agent = None
-
-def get_chat_agent():
+async def get_chat_agent() -> Agent:  # Fixed: async function
     """Get or create the global chat agent instance."""
     global _chat_agent
     if _chat_agent is None:
-        _chat_agent = create_simple_chat_agent()
+        _chat_agent = await create_simple_chat_agent()  # Fixed: await async function
     return _chat_agent
 
 async def simple_chat(
     message: str, 
-    session_deps: SessionDependencies, 
-    message_history=None
+    session_id: str,  # Fixed: simplified interface - create SessionDependencies internally
+    message_history: Optional[List[ModelMessage]] = None  # Fixed: proper type annotation
 ) -> dict:
     """Simple chat function using Pydantic AI agent with YAML configuration."""
-    # Load both app-level and agent-specific configuration
-    config = load_config()
-    llm_config = config.get("llm", {})
-    agent_config = load_agent_config("simple_chat")
     
-    # Use model settings from agent config, fallback to app config
-    model_settings = agent_config.get("model_settings", {})
+    # Create session dependencies properly (Fixed)
+    session_deps = await SessionDependencies.create(
+        session_id=session_id,
+        user_id=None,  # Optional for simple chat
+        max_history_messages=20
+    )
     
-    agent = get_chat_agent()
+    # Load agent configuration for model settings (Fixed: async call)
+    agent_config = await get_agent_config("simple_chat")
+    model_settings = agent_config.model_settings  # Fixed: direct attribute access
+    
+    # Get the agent (Fixed: await async function)
+    agent = await get_chat_agent()
+    
+    # Run with proper parameters
     result = await agent.run(
         message, 
         deps=session_deps, 
-        message_history=message_history,
-        temperature=model_settings.get("temperature", llm_config.get("temperature", 0.3)),
-        max_tokens=model_settings.get("max_tokens", llm_config.get("max_tokens", 1024))
+        message_history=message_history,  # Pydantic AI handles message conversion
+        # Model settings from agent config with fallback
+        temperature=model_settings.get("temperature", 0.3),
+        max_tokens=model_settings.get("max_tokens", 1024)
     )
     
     return {
         'response': result.output,  # Simple string response
-        'messages': result.all_messages(),  # Full conversation history
+        'messages': result.all_messages(),  # Full conversation history (Pydantic AI ModelMessage objects)
         'new_messages': result.new_messages(),  # Only new messages from this run
         'usage': result.usage()  # Built-in usage tracking
     }
 ```
 
-- **Lines of Code**: ~65 lines (vs 950+ previously) - includes YAML configuration loading pattern
-- **Acceptance**: 
+- **Lines of Code**: ~65 lines (vs 950+ previously) - corrected with proper async/await patterns
+- **Acceptance Criteria**: 
   - ✅ Agent responds to basic chat queries with string responses
-  - ✅ System prompt loaded from `simple_chat.yaml` configuration file
-  - ✅ Model settings (temperature, max_tokens) loaded from agent config with app.yaml fallback
+  - ✅ System prompt loaded from `simple_chat.yaml` configuration file via `agent_config.system_prompt`
+  - ✅ Model settings (temperature, max_tokens) loaded from agent config with proper attribute access
+  - ✅ **FIXED**: Proper async/await handling throughout implementation
+  - ✅ **FIXED**: Correct import from `app.agents.config_loader.get_agent_config` (async function)
+  - ✅ **FIXED**: SessionDependencies created properly via `await SessionDependencies.create()`
+  - ✅ **FIXED**: Native Pydantic AI message history integration with `ModelMessage` types
   - ✅ Configuration pattern established for all future agent types
-- **Dependencies**: TASK 0017-002 (cleanup complete), existing SessionDependencies, app.config module
+- **Critical Fixes Applied**:
+  - **Import Correction**: `get_agent_config` instead of `load_agent_config`
+  - **Async Functions**: All configuration loading functions are async
+  - **Configuration Access**: Direct attribute access (`agent_config.system_prompt`) instead of dict methods
+  - **Dependencies Creation**: Proper `SessionDependencies.create()` pattern
+  - **Message History**: Native Pydantic AI `ModelMessage` handling
+- **Dependencies**: Phase 0 complete ✅, existing SessionDependencies, app.config module, app.agents.config_loader
 - **Configuration Pattern**: 
   - **System Prompt**: Loaded from `backend/config/agent_configs/simple_chat.yaml`
   - **Model Settings**: Agent-specific settings override app-level defaults
@@ -742,7 +750,7 @@ async def simple_chat(
   - System prompts and agent behavior configurable via YAML files
   - Consistent pattern for all future agent types
   - No code changes needed for prompt or setting adjustments
-- **Conversation History**: Uses Pydantic AI's native `message_history` and `result.all_messages()` patterns
+- **Conversation History**: Uses Pydantic AI's native `message_history` parameter with `ModelMessage` objects and `result.all_messages()` / `result.new_messages()` patterns for proper conversation continuity
 - **Chunk Size**: ~1 day
 
 #### TASK 0017-003 - Conversation History Integration
