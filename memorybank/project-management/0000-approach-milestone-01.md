@@ -43,7 +43,7 @@
 **Chunk Size**: ~0.5 day (as refined in TASK 0017-001)
 **Manual Verification**: Toggle switch, confirm legacy endpoint enables/disables correctly
 **Dependencies**: Phase 0 complete ✅
-**Status**: 🚀 **Ready to start** (Phase 0 cleanup completed)
+**Status**: ✅ **COMPLETED** (Legacy endpoints conditionally registered based on config)
 
 ---
 
@@ -91,8 +91,8 @@ GET /default/simple-chat/stream     # SSE streaming
 - All conversations saved to database ✓
 
 **Detailed Implementation**: See TASK 0017-002 through TASK 0017-008 in [0017-simple-chat-agent.md](0017-simple-chat-agent.md) for complete acceptance criteria, automated tests, and technical specifications
-**Dependencies**: Priority 1 complete
-**Status**: 📋 Ready to start after Priority 1
+**Dependencies**: Priority 1 complete ✅
+**Status**: 🚀 **Ready to start** (Priority 1 foundation complete)
 
 ---
 
@@ -300,4 +300,4 @@ POST /account_123/simple_1/chat     # Simple chat instance 1
 - **Automated Testing**: Tests documented in respective epic files, implemented alongside features
 - **Epic References**: Each priority maps to detailed planning in specific epic documents
 
-**Phase 0 Complete ✅ - Ready to begin Priority 1: Legacy Agent Switch** 🚀
+**Priority 1 Complete ✅ - Ready to begin Priority 2: Simple Chat Agent Implementation** 🚀
