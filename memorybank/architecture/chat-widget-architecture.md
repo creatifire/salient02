@@ -5,6 +5,7 @@
 The Salient AI system requires a UI architecture that can support multiple agent types with different capabilities while maintaining code reusability and consistent user experience. Key challenges include:
 
 **Multiple Agent Types with Varying UI Needs:**
+- **Legacy Agent**: Existing HTMX-based chat interface for backward compatibility
 - **Simple Chat Agent**: Minimal UI with basic text input/output
 - **Sales Agent**: Specialized forms (lead capture, product displays, CRM integration buttons)  
 - **Support Agent**: Ticket creation, escalation options, knowledge base search
@@ -37,6 +38,7 @@ ChatContainer          // Layout, session management, responsive design
 
 // Agent-Specific Specialization Layers (10% of code)  
 AgentWidgets/
+├── LegacyWidget       // Existing HTMX-based interface for backward compatibility
 ├── SimpleChatWidget   // Minimal UI, basic text interaction
 ├── SalesAgentWidget   // + Lead forms, product displays, CRM buttons
 ├── SupportAgentWidget // + Ticket creation, escalation, knowledge search  
@@ -52,7 +54,7 @@ AgentWidgets/
 **Component Communication:**
 ```typescript
 interface AgentWidget {
-  agentType: 'simple-chat' | 'sales' | 'support' | 'research';
+  agentType: 'legacy' | 'simple-chat' | 'sales' | 'support' | 'research';
   sharedComponents: ChatContainer;
   specializedComponents?: {
     inputExtensions?: React.Component[];    // Custom input fields
@@ -64,11 +66,20 @@ interface AgentWidget {
 ```
 
 **Integration with Backend:**
-- Widget architecture mirrors backend agent structure (`/agents/simple_chat/`, `/agents/sales/`)
+- Widget architecture mirrors backend agent structure:
+  - Legacy: `/chat`, `/events/stream`, `/` (existing endpoints)  
+  - New agents: `/agents/simple_chat/`, `/agents/sales/` (Pydantic AI structure)
 - Configuration-driven UI customization matches agent YAML configs
-- Session bridging supports switching between agent types mid-conversation
+- Session bridging supports switching between legacy and new agent types mid-conversation
+- Parallel development enabled via legacy endpoint toggle in `app.yaml`
 
 ## Implementation Phases
+
+**Legacy Agent Support** (Parallel to all phases - [0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
+- **Scope**: Maintain existing HTMX-based chat functionality during transition
+- **Widget Focus**: Preserve current `/chat`, `/events/stream`, `/` endpoints without changes
+- **Configuration**: Toggle via `legacy.enabled` in `app.yaml` for parallel development
+- **Purpose**: Enable safe testing and gradual migration without functionality loss
 
 **Priority 2: Simple Chat Agent Implementation** (Current - [0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
 - **Scope**: Establish shared foundation with unified widget

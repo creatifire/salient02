@@ -102,27 +102,35 @@ GET /default/simple-chat/stream     # SSE streaming
 
 ---
 
-### **Priority 3: UI Migration to Simple Chat Agent** 🎨
-**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md)
-**Goal**: Migrate all user interfaces to use enhanced simple chat agent
+### **Priority 3: Flexible UI Architecture Implementation** 🎨
+**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md), [chat-widget-architecture.md](../architecture/chat-widget-architecture.md)
+**Goal**: Establish UI architecture supporting both legacy and enhanced agents
 
-**Migration Order:**
-1. **Demo Page** (port 8000): `web/src/pages/demo/htmx-chat.astro` → `/default/simple-chat/chat`
-2. **Chat Widget**: `web/public/widget/chat-widget.js` → enhanced agent endpoints
-3. **HTMX Chat**: `web/public/htmx-chat.html` → agent integration  
-4. **Iframe Integration**: Update iframe demos to use agent endpoints
+**Architecture Benefits:**
+- **Risk Mitigation**: Keep proven legacy interfaces operational during transition
+- **Parallel Testing**: Side-by-side comparison between legacy and enhanced agents
+- **Gradual Migration**: Move interfaces when enhanced agent is proven stable
+- **Easy Rollback**: Instant fallback if enhanced agent has issues
+- **Configuration-Driven**: Agent selection via widget configuration
 
-**Chunk Breakdown:**
-1. **Demo Page Migration** (~1 day): Update Astro page to use new endpoint
-2. **Widget Update** (~1 day): Modify JavaScript widget for agent endpoints
-3. **HTMX Integration** (~1 day): Update HTMX patterns for enhanced functionality
-4. **Iframe Testing** (~0.5 day): Verify embedded scenarios work correctly
+**Implementation Strategy:**
+1. **Widget Foundation** (~1 day): Implement hybrid component architecture with legacy + simple chat widget support
+2. **Demo Showcase** (~1 day): Demo page → Simple chat agent (showcase enhanced features)
+3. **Parallel Testing** (~1 day): A/B testing infrastructure and comparison capabilities
+4. **Selective Migration** (~0.5 day): Move stable interfaces based on readiness and performance
+
+**Widget Types:**
+- **Legacy Widget**: Existing HTMX-based interface (proven, stable)
+- **Simple Chat Widget**: Enhanced agent interface (new features, testing)
+- **Shared Foundation**: Common components (90% code reuse)
 
 **Manual Verification**:
-- All interfaces use simple chat agent ✓
-- Enhanced features (search, vector query) accessible through UI ✓
-- Session continuity maintained across interfaces ✓
-- Performance comparable or better than legacy ✓
+- Legacy interfaces continue working normally ✓
+- Enhanced features accessible through simple chat agent ✓
+- Session continuity maintained across both agent types ✓
+- Configuration-driven agent selection working ✓
+- Seamless switching between agent types ✓
+- Performance meets or exceeds legacy implementation ✓
 
 **Dependencies**: Priority 2 complete
 **Status**: 📋 Planned
@@ -261,13 +269,30 @@ POST /account_123/simple_1/chat     # Simple chat instance 1
 
 ---
 
+## 🏗️ UI ARCHITECTURE DECISION
+
+**Chat Widget Architecture**: Hybrid component-based approach documented in [chat-widget-architecture.md](../architecture/chat-widget-architecture.md)
+
+**Key Benefits:**
+- **Shared Foundation** (90% code reuse): Common chat functionality across all agent types
+- **Agent-Specific Customization** (10% specialized): Tailored UI elements for different agents  
+- **Legacy Compatibility**: Existing HTMX-based interface preserved during transition
+- **Risk Mitigation**: Parallel development without disrupting proven functionality
+- **Future Scalability**: Foundation ready for sales, support, and research agents
+
+**Implementation**: Component architecture mirrors backend agent structure with seamless session bridging between legacy and enhanced agents.
+
+---
+
 ## ✅ SUCCESS CRITERIA
 
 ### **Milestone 1 Complete** (Priorities 1-3):
 - Legacy chat can be toggled on/off via configuration
 - Simple chat agent provides enhanced functionality (vector search, web search, streaming)
-- All UIs successfully migrated to use enhanced agent
+- UI architecture supports both legacy and enhanced agents seamlessly
+- Configuration-driven agent selection enables safe migration strategy
 - Performance meets or exceeds legacy implementation
+- Widget ecosystem proven with legacy/enhanced agent compatibility
 
 ### **Milestone 2 Complete** (Priorities 4-5):
 - Infrastructure supports multiple agent types
@@ -292,7 +317,7 @@ POST /account_123/simple_1/chat     # Simple chat instance 1
 |----------|----------------|
 | **Account routing complexity** | Start with "default" account structure, scale gradually |
 | **Vector DB integration issues** | Pinecone setup already working and tested |
-| **UI migration breaking changes** | Maintain legacy switch as fallback during transition |
+| **UI migration breaking changes** | Hybrid widget architecture supports both legacy and enhanced agents simultaneously |
 | **Multi-account data isolation** | Implement and test isolation patterns early |
 | **Performance degradation** | Benchmark each priority, maintain performance metrics |
 
