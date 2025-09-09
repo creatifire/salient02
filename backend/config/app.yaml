@@ -59,6 +59,13 @@ llm:
   temperature: 0.3
   max_tokens: 1024
 
+legacy:
+  enabled: false                   # Can be toggled to false for parallel development
+  endpoints:
+    chat: "/chat"                  # Legacy chat endpoint
+    stream: "/events/stream"       # Legacy SSE streaming
+    main: "/"                      # Main chat page
+
 ui:
   sse_enabled: true
   allow_basic_html: true

@@ -217,6 +217,30 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+def _register_legacy_endpoints() -> None:
+    """Register legacy endpoints conditionally based on configuration."""
+    config = load_config()
+    legacy_config = config.get("legacy", {})
+    
+    if legacy_config.get("enabled", True):
+        # Register legacy endpoints with their original decorators
+        app.get("/", response_class=HTMLResponse)(serve_base_page)
+        app.get("/events/stream")(sse_stream) 
+        app.post("/chat", response_class=PlainTextResponse)(chat_fallback)
+        
+        logger.info({
+            "event": "legacy_endpoints_registered",
+            "endpoints": ["/", "/events/stream", "/chat"],
+            "enabled": True
+        })
+    else:
+        logger.info({
+            "event": "legacy_endpoints_disabled", 
+            "message": "Legacy endpoints disabled via configuration",
+            "enabled": False
+        })
+
+
 def _setup_logger() -> None:
     """
     Configure structured logging with file rotation and console output.
@@ -398,7 +422,6 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
         return []
 
 
-@app.get("/", response_class=HTMLResponse)
 async def serve_base_page(request: Request) -> HTMLResponse:
     """
     Serve the main chat interface with HTMX-enabled dynamic interactions and chat history.
@@ -642,7 +665,6 @@ async def health() -> dict:
         }
 
 
-@app.get("/events/stream")
 async def sse_stream(request: Request):
     """
     SSE endpoint that streams incremental text chunks with message persistence.
@@ -890,7 +912,6 @@ async def sse_stream(request: Request):
     return EventSourceResponse(event_generator())
 
 
-@app.post("/chat", response_class=PlainTextResponse)
 async def chat_fallback(request: Request) -> PlainTextResponse:
     """
     Non-stream fallback chat endpoint with comprehensive message persistence.
@@ -1199,4 +1220,7 @@ async def tail_logs(request: Request) -> JSONResponse:
     return JSONResponse({"file": Path(latest).name, "entries": lines})
 
 
- 
+# Conditional Legacy Endpoint Registration
+# Register legacy endpoints only if enabled in configuration
+# This enables parallel development of new agents without disrupting existing functionality
+_register_legacy_endpoints()
