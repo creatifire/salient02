@@ -73,13 +73,14 @@ POST /default/simple-chat/chat      # Enhanced chat with tools
 GET /default/simple-chat/stream     # SSE streaming  
 ```
 
-**Chunk Breakdown:**
-1. **Core Agent** (~2 days): Pydantic AI agent with SessionDependencies integration
-2. **Vector Search Tool** (~1 day): @agent.tool for vector database queries  
-3. **Exa Search Tool** (~1 day): @agent.tool for web search
-4. **FastAPI Endpoint** (~1 day): Account-based routing with legacy feature parity
-5. **Configuration System** (~1 day): New config structure and loading
-6. **SSE Streaming** (~1 day): Streaming response support
+**Task Breakdown** (Sequential Implementation):
+1. **TASK 0017-002** (~1 day): Direct Pydantic AI Agent Implementation - Core agent with YAML configuration
+2. **TASK 0017-003** (~0.5 day): Conversation History Integration - Pydantic AI native message history
+3. **TASK 0017-004** (~1.5 days): LLM Request Tracking & Cost Management - Comprehensive billing tracking
+4. **TASK 0017-005** (~1 day): Legacy Session Compatibility - Seamless session bridging
+5. **TASK 0017-006** (~1.5 days): FastAPI Endpoint Integration - Account-based routing with legacy parity
+6. **TASK 0017-007** (~1 day): Vector Search Tool - @agent.tool for vector database queries  
+7. **TASK 0017-008** (~1 day): Web Search Tool (Exa Integration) - @agent.tool for web search
 
 **Manual Verification**: 
 - Agent responds to queries ✓
@@ -89,7 +90,7 @@ GET /default/simple-chat/stream     # SSE streaming
 - Configuration changes apply without code changes ✓
 - All conversations saved to database ✓
 
-**Automated Tests**: Documented in [0017-simple-chat-agent.md](0017-simple-chat-agent.md)
+**Detailed Implementation**: See TASK 0017-002 through TASK 0017-008 in [0017-simple-chat-agent.md](0017-simple-chat-agent.md) for complete acceptance criteria, automated tests, and technical specifications
 **Dependencies**: Priority 1 complete
 **Status**: 📋 Ready to start after Priority 1
 
