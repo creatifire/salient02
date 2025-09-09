@@ -261,6 +261,225 @@ async def simple_chat_endpoint(request: Request):
 
 ## 📋 IMPLEMENTATION TASKS
 
+### PHASE 0: CLEANUP OVERENGINEERED CODE
+
+> **Critical Foundation Step**: Remove 950+ lines of overengineered code before implementing clean Pydantic AI patterns. This phase ensures a clean foundation and prevents conflicts during implementation.
+
+#### **Current Overengineered Code Analysis**
+
+**✅ Files Confirmed to Exist (need removal):**
+- `backend/app/agents/templates/simple_chat/agent.py` - SimpleChatAgent wrapper (306 lines)
+- `backend/app/agents/templates/simple_chat/factory.py` - Factory system (390 lines)  
+- `backend/app/agents/templates/simple_chat/models.py` - ChatResponse model (210 lines)
+- `backend/app/agents/templates/simple_chat/__init__.py` - Exports overengineered components
+- `backend/app/agents/__init__.py` - Imports SimpleChatAgent
+
+**✅ Files to Preserve (needed for new implementation):**
+- `backend/app/agents/base/dependencies.py` - Contains SessionDependencies (required for Pydantic AI)
+- `backend/app/agents/config_loader.py` - Agent configuration loading (will be simplified)  
+- `backend/config/agent_configs/simple_chat.yaml` - Agent configuration file (needed)
+
+**⚠️ Current Usage/Dependencies:**
+- Test files reference overengineered components (need updates)
+- No usage in main.py (safe to remove)
+- __pycache__ files exist (need cleanup)
+
+---
+
+#### **TASK 0017-000-001 - Pre-Cleanup Safety & Documentation**
+**Duration**: ~0.5 day  
+**Goal**: Create safety net and document current state before any deletions
+
+**Implementation Steps:**
+1. **Create Backup Branch**
+   ```bash
+   git checkout -b backup/overengineered-simple-chat-agent
+   git push origin backup/overengineered-simple-chat-agent
+   git checkout main  # Return to main for cleanup
+   ```
+
+2. **Document Current State**
+   - Record exact line counts of files to be deleted
+   - Screenshot or save current test output
+   - Document current imports and dependencies
+
+3. **Verify System Works**  
+   ```bash
+   # Ensure current system works before cleanup
+   cd backend
+   python -m pytest tests/ -v
+   # Verify main endpoints still work
+   curl -X POST http://localhost:8000/chat -d '{"message":"test"}'
+   ```
+
+**Acceptance Criteria:**
+- ✅ Backup branch created with current overengineered code
+- ✅ Current system functionality verified and documented
+- ✅ Test suite passes before cleanup begins
+- ✅ All changes committed and pushed to backup branch
+
+---
+
+#### **TASK 0017-000-002 - Update Test Files**
+**Duration**: ~0.5 day
+**Goal**: Update or disable tests that reference overengineered components
+
+**Files to Update:**
+- `backend/tests/unit/test_agent_base_structure.py`
+- `backend/tests/unit/test_agent_config_loader.py`
+- `backend/tests/fixtures/sample_data.py`
+
+**Implementation:**
+1. **Identify Test Dependencies**
+   ```bash
+   grep -r "SimpleChatAgent\|ChatResponse\|create_simple_chat" backend/tests/
+   ```
+
+2. **Update Test Files**
+   - Comment out tests that use SimpleChatAgent
+   - Remove references to ChatResponse model
+   - Update imports to only use preserved components
+   - Add TODO comments for tests to be recreated in Phase 3
+
+3. **Verify Tests Pass**
+   ```bash
+   python -m pytest tests/ -v
+   ```
+
+**Acceptance Criteria:**
+- ✅ No test failures due to overengineered component references
+- ✅ Preserved components (SessionDependencies) still tested
+- ✅ TODO comments added for future test recreation
+- ✅ Test suite passes completely
+
+---
+
+#### **TASK 0017-000-003 - Remove Overengineered Components**
+**Duration**: ~0.5 day
+**Goal**: Systematically delete overengineered files in safe order
+
+**Deletion Order (safest first):**
+
+1. **Remove Factory System** (lowest risk)
+   ```bash
+   rm backend/app/agents/templates/simple_chat/factory.py
+   ```
+
+2. **Remove Complex Models**
+   ```bash
+   rm backend/app/agents/templates/simple_chat/models.py
+   ```
+
+3. **Remove Agent Wrapper**
+   ```bash
+   rm backend/app/agents/templates/simple_chat/agent.py
+   ```
+
+4. **Update __init__.py Files**
+   - Clear `backend/app/agents/templates/simple_chat/__init__.py`
+   - Update `backend/app/agents/__init__.py` to remove SimpleChatAgent import
+
+5. **Clear Python Cache**
+   ```bash
+   find backend/app/agents/ -name "__pycache__" -exec rm -rf {} +
+   find backend/app/agents/ -name "*.pyc" -delete
+   ```
+
+**Acceptance Criteria:**
+- ✅ All overengineered files deleted
+- ✅ __init__.py files updated to remove deleted imports
+- ✅ Python cache files cleared
+- ✅ No import errors when starting application
+
+---
+
+#### **TASK 0017-000-004 - Verify Clean Foundation**
+**Duration**: ~0.5 day
+**Goal**: Ensure cleanup was successful and foundation is ready for Phase 1
+
+**Verification Steps:**
+
+1. **Import Verification**
+   ```python
+   # Test that preserved components work
+   from app.agents.base.dependencies import SessionDependencies
+   from app.agents.config_loader import get_agent_config
+   ```
+
+2. **Application Startup Test**
+   ```bash
+   cd backend
+   uvicorn app.main:app --reload
+   # Should start without import errors
+   ```
+
+3. **Legacy Endpoints Test**
+   ```bash
+   # Verify existing chat still works
+   curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"message":"Hello"}'
+   curl http://localhost:8000/health
+   ```
+
+4. **Configuration Loading Test**
+   ```python
+   # Verify agent config still loads
+   from app.agents.config_loader import get_agent_config
+   config = get_agent_config("simple_chat")
+   print(config)  # Should load from simple_chat.yaml
+   ```
+
+**Acceptance Criteria:**
+- ✅ Application starts without import errors
+- ✅ Legacy chat endpoints (`/chat`, `/events/stream`) work normally
+- ✅ SessionDependencies imports successfully
+- ✅ Agent configuration loading works
+- ✅ Health check passes
+- ✅ No overengineered code remains in codebase
+
+**Line Count Reduction:**
+- **Before**: ~950+ lines of overengineered code
+- **After**: ~0 lines of overengineered code
+- **Preserved**: SessionDependencies + config loader + YAML files
+
+---
+
+#### **TASK 0017-000-005 - Final Cleanup Commit**
+**Duration**: ~0.25 day
+**Goal**: Commit clean foundation and prepare for Phase 1
+
+**Implementation:**
+1. **Final Verification**
+   - Run complete test suite
+   - Verify all legacy functionality works
+   - Check no broken imports remain
+
+2. **Commit Cleanup**
+   ```bash
+   git add -A
+   git commit -m "feat: remove overengineered simple chat agent components
+
+   - Remove SimpleChatAgent wrapper class (306 lines)
+   - Remove ChatResponse model (210 lines)  
+   - Remove factory system (390 lines)
+   - Update imports and __init__.py files
+   - Clear Python cache files
+   - Preserve SessionDependencies and config loading
+   
+   Prepares clean foundation for Pydantic AI implementation
+   Total reduction: ~950+ lines of overengineered code
+   
+   Ref: TASK 0017-000-005"
+   ```
+
+**Acceptance Criteria:**
+- ✅ Clean commit with descriptive message
+- ✅ All tests pass after cleanup
+- ✅ Legacy endpoints functional
+- ✅ Ready to begin Phase 1 implementation
+- ✅ No overengineered dependencies blocking new development
+
+---
+
 ### PHASE 1: FOUNDATION (Enable Parallel Development)
 
 #### TASK 0017-001 - Legacy Agent Switch
