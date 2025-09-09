@@ -73,22 +73,28 @@ POST /default/simple-chat/chat      # Enhanced chat with tools
 GET /default/simple-chat/stream     # SSE streaming  
 ```
 
-**Task Breakdown** (Sequential Implementation):
+**Task Breakdown** (Sequential Implementation - **CORRECTED ORDER**):
 1. **TASK 0017-002** (~1 day): Direct Pydantic AI Agent Implementation - Core agent with YAML configuration
-2. **TASK 0017-003** (~0.5 day): Conversation History Integration - Pydantic AI native message history
-3. **TASK 0017-004** (~1.5 days): LLM Request Tracking & Cost Management - Comprehensive billing tracking
-4. **TASK 0017-005** (~1 day): Legacy Session Compatibility - Seamless session bridging
-5. **TASK 0017-006** (~1.5 days): FastAPI Endpoint Integration - Account-based routing with legacy parity
+2. **TASK 0017-003** (~0.5 day): Conversation History Integration - Pydantic AI native message history  
+3. **TASK 0017-004** (~1.5 days): **FastAPI Endpoint Integration** - ⬆️ **MOVED UP** for testability
+4. **TASK 0017-005** (~1.5 days): **LLM Request Tracking & Cost Management** - ⬇️ **MOVED DOWN** (testable via endpoint)
+5. **TASK 0017-006** (~1 day): **Legacy Session Compatibility** - ⬇️ **MOVED DOWN** (testable via endpoints)  
 6. **TASK 0017-007** (~1 day): Vector Search Tool - @agent.tool for vector database queries  
 7. **TASK 0017-008** (~1 day): Web Search Tool (Exa Integration) - @agent.tool for web search
 
-**Manual Verification**: 
-- Agent responds to queries ✓
-- Vector search returns relevant results ✓  
-- Web search works when enabled ✓
-- Streaming and regular responses both functional ✓
-- Configuration changes apply without code changes ✓
-- All conversations saved to database ✓
+**🔄 Sequencing Rationale**: 
+- **FastAPI Endpoint moved to TASK 0017-004** (from 0017-006) to provide testable interface early
+- **LLM Tracking and Session Compatibility** moved after endpoint integration for proper testing workflow
+- **Each task can now be manually verified** immediately upon completion using previous tasks as foundation
+
+**Manual Verification** (Sequential Checkpoints): 
+- **TASK 0017-002**: ✅ Agent responds to basic queries with YAML configuration
+- **TASK 0017-003**: ✅ Multi-turn conversations maintain context  
+- **TASK 0017-004**: ✅ `/agents/simple-chat/chat` endpoint accessible via curl - **ENABLES TESTING OF ALL SUBSEQUENT TASKS**
+- **TASK 0017-005**: ✅ LLM cost records appear in database with accurate token counts
+- **TASK 0017-006**: ✅ Session bridging: start on `/chat`, continue on `/agents/simple-chat/chat`
+- **TASK 0017-007**: ✅ Vector search returns relevant results via agent queries
+- **TASK 0017-008**: ✅ Web search works when enabled and returns current information
 
 **Detailed Implementation**: See TASK 0017-002 through TASK 0017-008 in [0017-simple-chat-agent.md](0017-simple-chat-agent.md) for complete acceptance criteria, automated tests, and technical specifications
 **Dependencies**: Priority 1 complete ✅

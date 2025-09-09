@@ -60,7 +60,7 @@ llm:
   max_tokens: 1024
 
 legacy:
-  enabled: false                   # Can be toggled to false for parallel development
+  enabled: true                   # Can be toggled to false for parallel development
   endpoints:
     chat: "/chat"                  # Legacy chat endpoint
     stream: "/events/stream"       # Legacy SSE streaming
