@@ -496,9 +496,10 @@ async def simple_chat_endpoint(request: Request):
 
 ### PHASE 1: FOUNDATION (Enable Parallel Development)
 
-#### TASK 0017-001 - Legacy Agent Switch
+#### TASK 0017-001 - Legacy Agent Switch ✅ **COMPLETED**
 **File**: `backend/config/app.yaml` + `backend/app/main.py` updates
 **Goal**: Foundation for parallel development - enable/disable legacy endpoints via configuration
+**Status**: ✅ **COMPLETED** - Legacy endpoints now conditionally registered based on config
 
 **Implementation:**
 ```yaml
@@ -530,12 +531,12 @@ legacy:
 - ✅ **Safe Rollback**: Instant fallback if new agent has issues
 - ✅ **Configuration-Driven**: No code changes needed to toggle functionality
 
-**Acceptance Criteria:**
-- ✅ `legacy.enabled: false` → legacy endpoints return 404 Not Found
-- ✅ `legacy.enabled: true` → legacy endpoints work normally
-- ✅ Configuration changes apply on application restart
-- ✅ No errors or exceptions when legacy endpoints disabled
-- ✅ New agent development can proceed independently
+**Acceptance Criteria:** ✅ **ALL COMPLETED**
+- ✅ **VERIFIED**: `legacy.enabled: false` → no legacy endpoints registered (0 found)
+- ✅ **VERIFIED**: `legacy.enabled: true` → all legacy endpoints work normally (3 registered)
+- ✅ **VERIFIED**: Configuration changes apply on application restart
+- ✅ **VERIFIED**: No errors or exceptions when legacy endpoints disabled
+- ✅ **VERIFIED**: New agent development can proceed independently
 
 **Automated Tests:**
 - **Unit Tests**: Config parsing logic, conditional endpoint registration
