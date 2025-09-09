@@ -141,6 +141,12 @@ Notes:
 - Place the frontend in `web/` as a standalone Astro app (matches Astro docs: `src/pages`, `src/components`, `public`, `astro.config.mjs`, `package.json`).
 - Tailwind v4 setup: use `@tailwindcss/vite` plugin and `@import "tailwindcss";` in `web/src/styles/global.css`.
 - Install Basecoat and import in `web/src/styles/global.css` after Tailwind: `@import "basecoat-css";`.
+
+### Chat Widget Components
+- **Shared foundation**: `/web/src/components/chat/` - Common chat functionality, session management
+- **Agent-specific**: `/web/src/components/agents/{agent-type}/` - Specialized UI components per agent
+- **Architecture Reference**: See [`/memorybank/architecture/chat-widget-architecture.md`](chat-widget-architecture.md) for design decision details
+
 - Ensure global styles are loaded by importing the stylesheet in your layout:
   ```astro
   ---

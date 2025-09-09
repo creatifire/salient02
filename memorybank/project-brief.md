@@ -39,6 +39,8 @@
 ## Config File
     - YAML
         - Which LLM to use
+            - Legacy endpoints: configured in `app.yaml`
+            - Agent endpoints: configured in `agent_configs/{agent_type}.yaml` (overrides app.yaml)
         - Which Agent to Use
         - Which Vector Database
             - Pinecone
@@ -57,6 +59,7 @@
 - [Technology Stack](./architecture/technology-stack.md)
 - [Technical Constraints](./architecture/technical-constraints.md)
 - [Code Organization](./architecture/code-organization.md)
+- [Chat Widget Architecture](./architecture/chat-widget-architecture.md)
 - [Data Model & ER Diagram](./architecture/datamodel.md)
 - [Multi-Account Support](./architecture/multi-account-support.md)
 

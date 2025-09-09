@@ -168,6 +168,12 @@ flowchart TD
 
 Following Pydantic AI conventions and the code organization structure, here's how to implement the chat agent:
 
+### Widget Architecture Decision
+**Reference**: [`/memorybank/architecture/chat-widget-architecture.md`](../architecture/chat-widget-architecture.md)
+
+**Summary**: Hybrid component-based architecture with shared foundation and agent-specific customization layers.
+**Simple Chat Impact**: Uses unified widget as foundation for future specialization.
+
 ### Agent Dependencies
 
 ```python
