@@ -349,13 +349,33 @@ async def simple_chat(
 - ✅ Global agent instance retrieval works (lazy loading)
 - ✅ All required dependencies available and functional
 
-#### TASK 0017-003 - Conversation History Integration
+#### TASK 0017-003 - Conversation History Integration ✅ **COMPLETED**
 
 Use `result.new_messages()` for passing conversation history between `simple_chat()` calls. Convert database messages to Pydantic AI `ModelMessage` format for session continuity.
 
-**Acceptance**: Multi-turn conversations maintain context  
-**Dependencies**: TASK 0017-002  
-**Manual Verification**: Test conversation history by making multiple requests
+**Implementation:**
+- Added `load_conversation_history()` function to automatically load and convert database messages to Pydantic AI format
+- Enhanced `simple_chat()` function to auto-load conversation history when not provided
+- Database messages converted to `ModelRequest` and `ModelResponse` objects with proper timestamps
+- Session continuity maintained across multiple agent calls
+- Configurable history limits via agent configuration (defaults to 20 messages)
+
+**Acceptance Criteria Completed:**
+- ✅ Multi-turn conversations maintain context across separate function calls
+- ✅ Database message conversion to Pydantic AI `ModelMessage` format working
+- ✅ Automatic history loading when `message_history=None`
+- ✅ Integration with existing message storage and session systems
+- ✅ Proper handling of both user ("human") and assistant message roles
+
+**Manual Verification Results:**
+- ✅ Empty conversation history loads correctly (0 messages)
+- ✅ Database messages properly converted to Pydantic AI format (ModelRequest/ModelResponse)
+- ✅ Agent maintains context: "You told me your name is John!" in follow-up response
+- ✅ Conversation grew properly: 4 total messages (2 existing + 2 new)
+- ✅ Session continuity across multiple chat calls confirmed
+- ✅ Usage tracking and new message detection working
+
+**Dependencies**: TASK 0017-002 ✅
 
 #### TASK 0017-004 - FastAPI Endpoint Integration
 **File**: `backend/app/api/agents.py`
