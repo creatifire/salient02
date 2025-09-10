@@ -85,6 +85,29 @@ flowchart TD
 
 **Integration approach:** Use existing services, add Pydantic AI agent
 
+## Priority 3 Foundation
+
+**Preact-First Widget Architecture Setup:**
+This simple chat agent provides the backend foundation for Priority 3's Preact-first widget implementation:
+
+- **API-Ready**: `/agents/simple-chat/chat` endpoint designed for Preact Islands integration
+- **Session Compatibility**: Cross-origin session sharing configured for `localhost:4321` (Astro dev server)
+- **Configuration-Driven**: Agent behavior configurable via YAML for different widget deployments
+- **Performance Optimized**: Lightweight responses suitable for Preact's performance requirements
+
+**Widget Integration Path:**
+```typescript
+// Astro + Preact Islands (Priority 3)
+<SalientWidget 
+  agent="simple-chat" 
+  endpoint="/agents/simple-chat/chat"
+  client:load 
+/>
+
+// Shadow DOM Fallback
+<script src="cdn.salient.ai/widget.js" data-agent="simple-chat">
+```
+
 ## Completed Work
 
 ### PHASE 0: CLEANUP OVERENGINEERED CODE ✅ **COMPLETED**
@@ -252,6 +275,40 @@ legacy:
 **Phase 1 Result**: Parallel development enabled - legacy endpoints can be disabled via configuration, allowing safe development of new agent endpoints without disrupting existing functionality.
 
 ## Implementation Tasks
+
+### **Current Status: 4 of 7 tasks completed** ✅
+- **TASK 0017-002**: Direct Pydantic AI Agent Implementation ✅ **COMPLETED**
+- **TASK 0017-003**: Conversation History Integration ✅ **COMPLETED**  
+- **TASK 0017-004**: FastAPI Endpoint Integration ✅ **COMPLETED**
+- **TASK 0017-005**: LLM Request Tracking & Cost Management 🔄 **NEXT**
+- **TASK 0017-006**: Legacy Session Compatibility 📋 **PLANNED**
+- **TASK 0017-007**: Vector Search Tool 📋 **PLANNED**
+- **TASK 0017-008**: Web Search Tool (Exa Integration) 📋 **PLANNED**
+
+### **Additional Phase 2 Enhancements Completed** ✅
+- Chat history ordering fix (shows recent messages instead of old ones)
+- Configurable history limits (app.yaml + agent-specific overrides)
+- Cross-origin session sharing fix (frontend ↔ backend cookie sharing)
+- Comprehensive configuration documentation with hierarchy examples
+
+### **Priority 3 Widget Foundation Ready** 🎨
+The completed simple chat agent implementation directly supports Priority 3's **Preact-First Widget Architecture**:
+
+**Backend Foundation Complete:**
+- ✅ **API Endpoint**: `/agents/simple-chat/chat` ready for Preact Islands integration
+- ✅ **CORS Configured**: Cross-origin requests from Astro dev server (`localhost:4321`) working
+- ✅ **Session Bridge**: Legacy and enhanced agent sessions share cookies via `SameSite=None`
+- ✅ **Configuration-Driven**: Agent behavior controlled via `simple_chat.yaml` for widget customization
+
+**Next: Priority 3 Implementation Path**
+1. **Preact Islands Foundation** (~1.5 days): `<SalientWidget agent="simple-chat" client:load />`
+2. **Shadow DOM Fallback** (~1 day): Universal embedding via `<script>` tag
+3. **Component Architecture** (~0.5 day): Prove 90% shared core + 10% agent specialization
+
+**Technical Alignment:**
+- Simple chat agent responses optimized for Preact's lightweight architecture
+- Configuration structure mirrors widget deployment options (islands, shadow-dom, iframe)
+- Session handling proven to work across origins (backend ↔ Astro frontend)
 
 #### TASK 0017-002 - Direct Pydantic AI Agent Implementation ✅ **COMPLETED**
 **File**: `backend/app/agents/simple_chat.py`
@@ -562,7 +619,34 @@ async def simple_chat_endpoint(
 
 **Dependencies**: TASK 0017-002 ✅, TASK 0017-003 ✅
 
-#### TASK 0017-005 - LLM Request Tracking & Cost Management
+### **PHASE 2: ENHANCEMENTS & FIXES** ✅ **COMPLETED**
+
+#### **Additional Improvements Beyond Original Tasks**
+
+**Chat History Ordering Fix** ✅ **COMPLETED**
+- **Problem**: Chat history API was returning oldest 50 messages instead of most recent 50
+- **Root Cause**: Database query used ascending order with limit, getting oldest messages first
+- **Solution**: Fixed SQLAlchemy query to use `desc(Message.created_at).limit(50)` then reverse for chronological display
+- **Files Modified**: `backend/app/main.py` (`_load_chat_history_for_session()` function)
+
+**Configurable Chat History Limits** ✅ **COMPLETED**
+- **Added**: `chat.history_limit: 50` to `backend/config/app.yaml` (global default)
+- **Added**: `context_management.max_history_messages: 50` to `backend/config/agent_configs/simple_chat.yaml` (agent override)
+- **Updated**: All agent code to use configurable limits instead of hardcoded values
+- **Configuration Hierarchy**: Agent configs override global settings, environment variables override both
+
+**Cross-Origin Session Sharing Fix** ✅ **COMPLETED**
+- **Problem**: Session cookies not shared between backend (localhost:8000) and frontend (localhost:4321)
+- **Solution**: Added CORS middleware, configured `credentials: 'include'`, set `SameSite=None` and `Domain=localhost`
+- **Files Modified**: `backend/app/main.py`, `backend/config/app.yaml`, `web/src/pages/demo/htmx-chat.astro`
+
+**Comprehensive Configuration Documentation** ✅ **COMPLETED**
+- **Created**: `/memorybank/architecture/configuration-reference.md` - Complete configuration guide
+- **Updated**: Agent configuration documentation to use new `context_management` structure
+- **Enhanced**: Project brief with references to all active architecture files
+- **Coverage**: Global settings, agent overrides, environment variables, usage examples
+
+#### TASK 0017-005 - LLM Request Tracking & Cost Management 🔄 **NEXT**
 **File**: `backend/app/services/llm_request_tracker.py`
 
 **Implementation:**

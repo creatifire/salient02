@@ -88,52 +88,61 @@ GET /default/simple-chat/stream     # SSE streaming
 - **Each task can now be manually verified** immediately upon completion using previous tasks as foundation
 
 **Manual Verification** (Sequential Checkpoints): 
-- **TASK 0017-002**: ✅ Agent responds to basic queries with YAML configuration
-- **TASK 0017-003**: ✅ Multi-turn conversations maintain context  
-- **TASK 0017-004**: ✅ `/agents/simple-chat/chat` endpoint accessible via curl - **ENABLES TESTING OF ALL SUBSEQUENT TASKS**
-- **TASK 0017-005**: ✅ LLM cost records appear in database with accurate token counts
-- **TASK 0017-006**: ✅ Session bridging: start on `/chat`, continue on `/agents/simple-chat/chat`
-- **TASK 0017-007**: ✅ Vector search returns relevant results via agent queries
-- **TASK 0017-008**: ✅ Web search works when enabled and returns current information
+- **TASK 0017-002**: ✅ **COMPLETED** - Agent responds to basic queries with YAML configuration
+- **TASK 0017-003**: ✅ **COMPLETED** - Multi-turn conversations maintain context & history ordering fixed  
+- **TASK 0017-004**: ✅ **COMPLETED** - `/agents/simple-chat/chat` endpoint accessible via curl with session handling
+- **TASK 0017-005**: 🔄 **NEXT** - LLM cost records appear in database with accurate token counts
+- **TASK 0017-006**: 📋 **PLANNED** - Session bridging: start on `/chat`, continue on `/agents/simple-chat/chat`
+- **TASK 0017-007**: 📋 **PLANNED** - Vector search returns relevant results via agent queries
+- **TASK 0017-008**: 📋 **PLANNED** - Web search works when enabled and returns current information
 
 **Detailed Implementation**: See TASK 0017-002 through TASK 0017-008 in [0017-simple-chat-agent.md](0017-simple-chat-agent.md) for complete acceptance criteria, automated tests, and technical specifications
 **Dependencies**: Priority 1 complete ✅
-**Status**: 🚀 **Ready to start** (Priority 1 foundation complete)
+**Status**: 🔄 **IN PROGRESS** - Tasks 0017-002, 0017-003, 0017-004 completed ✅
+**Next**: TASK 0017-005 (LLM Request Tracking & Cost Management)
 
 ---
 
-### **Priority 3: Flexible UI Architecture Implementation** 🎨
-**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md), [chat-widget-architecture.md](../architecture/chat-widget-architecture.md)
-**Goal**: Establish UI architecture supporting both legacy and enhanced agents
+### **Priority 3: Multi-Client Widget Foundation** 🎨
+**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md)  
+**Architecture Reference**: **[Chat Widget Architecture](../architecture/chat-widget-architecture.md)** ⭐
 
-**Architecture Benefits:**
-- **Risk Mitigation**: Keep proven legacy interfaces operational during transition
-- **Parallel Testing**: Side-by-side comparison between legacy and enhanced agents
-- **Gradual Migration**: Move interfaces when enhanced agent is proven stable
-- **Easy Rollback**: Instant fallback if enhanced agent has issues
-- **Configuration-Driven**: Agent selection via widget configuration
+**Goal**: Implement widget foundation supporting Shadow DOM, Preact, and HTMX UI clients with integration examples
+
+**Backend Foundation**: ✅ **READY** (Priority 2 completed with CORS, session bridging, `/agents/simple-chat/chat` endpoint)
+
+**Multi-Client Architecture** (detailed in [chat-widget-architecture.md](../architecture/chat-widget-architecture.md)):
+- **Shadow DOM**: Universal embedding for any website (`<script>` tag integration)
+- **Preact Islands**: Native Astro integration (`<SalientWidget client:load />`)
+- **HTMX Integration**: Enhanced HTMX examples for server-side rendered sites
+- **Foundation**: 90% shared SalientCore + 10% client-specific adaptations
 
 **Implementation Strategy:**
-1. **Widget Foundation** (~1 day): Implement hybrid component architecture with legacy + simple chat widget support
-2. **Demo Showcase** (~1 day): Demo page → Simple chat agent (showcase enhanced features)
-3. **Parallel Testing** (~1 day): A/B testing infrastructure and comparison capabilities
-4. **Selective Migration** (~0.5 day): Move stable interfaces based on readiness and performance
+1. **Shadow DOM Widget** (~1.5 days): Universal embedding with `<script src="cdn.salient.ai/widget.js" data-agent="simple-chat">` 
+2. **Preact Islands Integration** (~1 day): Native Astro + Preact components with simple chat agent
+3. **HTMX UI Examples** (~0.5 day): Enhanced HTMX patterns and integration documentation for server-side sites
 
-**Widget Types:**
-- **Legacy Widget**: Existing HTMX-based interface (proven, stable)
-- **Simple Chat Widget**: Enhanced agent interface (new features, testing)
-- **Shared Foundation**: Common components (90% code reuse)
+**Widget Client Options:**
+- **Shadow DOM** (Universal): `<script src="cdn.salient.ai/widget.js" data-agent="simple-chat">` - Works on any website
+- **Preact Islands** (Astro): `<SalientWidget agent="simple-chat" client:load />` - Native integration
+- **HTMX Integration**: Enhanced patterns for `hx-post="/agents/simple-chat/chat"` with streaming examples
+
+**Technical Foundation:**
+- **API Integration**: `/agents/simple-chat/chat` endpoint ready for widget consumption
+- **Session Compatibility**: Cross-origin session sharing working (`localhost:4321` ↔ `localhost:8000`)
+- **Configuration-Driven**: Widget behavior controlled via `simple_chat.yaml`
+- **Framework Alignment**: Leverages existing Astro + Preact Islands architecture
 
 **Manual Verification**:
-- Legacy interfaces continue working normally ✓
-- Enhanced features accessible through simple chat agent ✓
-- Session continuity maintained across both agent types ✓
-- Configuration-driven agent selection working ✓
-- Seamless switching between agent types ✓
-- Performance meets or exceeds legacy implementation ✓
+- Preact Islands widget works in Astro pages (`<SalientWidget>`) ✓
+- Shadow DOM widget embeds universally via script tag ✓
+- 90% shared components proven with simple chat specialization ✓
+- Session continuity between legacy and Preact widgets ✓
+- Configuration-driven agent selection functional ✓
+- Performance meets/exceeds legacy HTMX implementation ✓
 
-**Dependencies**: Priority 2 complete
-**Status**: 📋 Planned
+**Dependencies**: Priority 2 complete ✅
+**Status**: 📋 **READY** (Backend foundation complete)
 
 ---
 
@@ -147,7 +156,6 @@ GET /default/simple-chat/stream     # SSE streaming
 - Routing enhancement for multiple agent types under same account
 - Health checks and status monitoring for agent instances
 
-**Chunk Size**: ~2 days
 **Manual Verification**: Can add new agent types without code changes, routing works correctly
 **Dependencies**: Priority 3 complete
 **Status**: 📋 Planned
@@ -194,7 +202,6 @@ POST /<actual_account_id>/<agent_id>/chat    # Account-specific agents
 GET /<actual_account_id>/<agent_id>/stream   # Account-scoped streaming
 ```
 
-**Chunk Size**: ~7 days
 **Manual Verification**: Multiple accounts work independently, data isolation maintained
 **Dependencies**: Priority 5 complete
 **Status**: 📋 Planned
@@ -228,42 +235,91 @@ POST /account_123/sales_2/chat      # Sales agent instance 2
 POST /account_123/simple_1/chat     # Simple chat instance 1
 ```
 
-**Chunk Size**: ~4 days
 **Manual Verification**: Multiple agent instances per account work independently
 **Dependencies**: Priority 6 complete
 **Status**: 📋 Planned
 
 ---
 
-### **Priority 8: Preact Chat Widget** ⚛️
-**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md) - Feature 0003-003-002
-**Goal**: React-ecosystem compatible widget component
+### **Priority 8: React and Vue Chat Widgets** ⚛️
+**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md)  
+**Architecture Reference**: **[Chat Widget Architecture](../architecture/chat-widget-architecture.md)** ⭐
 
-**Implementation:**
-- Preact-based widget for modern React/Preact applications
-- Enhanced component lifecycle management
-- Better TypeScript integration
-- Improved bundle size optimization
+**Goal**: Create dedicated React and Vue chat widget components for modern framework ecosystems
 
-**Chunk Size**: ~3 days
-**Manual Verification**: Widget works in Preact/React applications
+**Implementation Strategy:**
+1. **React Widget Component** (~1.5 days): Native React component with hooks, context providers, and TypeScript support
+2. **Vue 3 Widget Component** (~1.5 days): Composition API widget with reactive props and Vue ecosystem integration
+3. **NPM Package Distribution** (~0.5 day): Publish `@salient/widget-react` and `@salient/widget-vue` packages
+
+**React Integration:**
+```tsx
+// React Component with Hooks
+import { SalientWidget } from '@salient/widget-react'
+
+function App() {
+  return (
+    <SalientWidget 
+      agent="simple-chat"
+      endpoint="/agents/simple-chat/chat"
+      theme="modern"
+      onMessageReceived={(msg) => console.log(msg)}
+    />
+  )
+}
+```
+
+**Vue 3 Integration:**
+```vue
+<!-- Vue 3 Composition API -->
+<template>
+  <SalientWidget 
+    :agent="'simple-chat'"
+    :endpoint="'/agents/simple-chat/chat'"
+    :theme="'modern'"
+    @message-received="handleMessage"
+  />
+</template>
+
+<script setup>
+import { SalientWidget } from '@salient/widget-vue'
+
+const handleMessage = (msg) => console.log(msg)
+</script>
+```
+
+**Manual Verification**: React and Vue applications can integrate Salient widgets with framework-native patterns
 **Dependencies**: Priority 7 complete
 **Status**: 📋 Planned
 
 ---
 
-### **Priority 9: React Chat Widget** ⚛️
-**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md) - Feature 0003-003-003
-**Goal**: Native React widget component
+### **Priority 9: Advanced Widget Features** 🎨
+**Epic Reference**: [0003-website-htmx-chatbot.md](0003-website-htmx-chatbot.md)  
+**Architecture Reference**: **[Chat Widget Architecture](../architecture/chat-widget-architecture.md)** ⭐
+
+**Goal**: Enhanced widget ecosystem with advanced deployment options
 
 **Implementation:**
-- Full React component with hooks integration
-- Complete ecosystem compatibility
-- Advanced features (context providers, custom styling)
-- Documentation and examples
+- **Iframe Adapter**: Sandboxed embedding for legacy systems requiring security isolation
+- **API-Only Mode**: Headless widgets for mobile app integration
+- **Advanced Theming**: CSS variables system for brand customization
+- **Widget Analytics**: Usage metrics and performance monitoring
 
-**Chunk Size**: ~3 days  
-**Manual Verification**: Widget works seamlessly in React applications
+**Widget Distribution Matrix:**
+```
+Deployment     | Primary Use Case              | Integration Complexity
+---------------|-------------------------------|----------------------
+Shadow DOM     | Universal embedding          | Low (any website)
+Preact Islands | Astro sites (native)         | Low (this project)
+HTMX Patterns  | Server-side rendered sites   | Low (enhanced examples)
+React Native   | React applications           | Medium (dedicated component)
+Vue Native     | Vue 3 applications           | Medium (composition API)
+Iframe         | Legacy security requirements | High (full isolation)
+API-Only       | Mobile apps, custom UIs      | High (headless integration)
+```
+
+**Manual Verification**: All widget deployment options functional with agent specializations
 **Dependencies**: Priority 8 complete
 **Status**: 📋 Planned
 
@@ -289,13 +345,13 @@ POST /account_123/simple_1/chat     # Simple chat instance 1
 ### **Milestone 1 Complete** (Priorities 1-3):
 - Legacy chat can be toggled on/off via configuration
 - Simple chat agent provides enhanced functionality (vector search, web search, streaming)
-- UI architecture supports both legacy and enhanced agents seamlessly
+- Multi-client widget foundation operational (Shadow DOM, Preact Islands, HTMX examples)
 - Configuration-driven agent selection enables safe migration strategy
 - Performance meets or exceeds legacy implementation
-- Widget ecosystem proven with legacy/enhanced agent compatibility
+- Widget ecosystem proven with universal embedding + server-side integration
 
 ### **Milestone 2 Complete** (Priorities 4-5):
-- Infrastructure supports multiple agent types
+- Infrastructure supports multiple agent types with discovery system
 - Sales agent operational with CRM/email/scheduling integration
 - Agent ecosystem proven and scalable
 
@@ -305,9 +361,10 @@ POST /account_123/simple_1/chat     # Simple chat instance 1
 - Enterprise-ready scaling and isolation
 
 ### **Milestone 4 Complete** (Priorities 8-9):
-- Complete widget ecosystem (Shadow DOM, Preact, React)
-- Modern frontend framework integration
-- Developer-friendly component library
+- React and Vue native chat widget components functional with TypeScript support
+- Complete widget ecosystem (Shadow DOM, Preact, HTMX, React, Vue, Iframe, API-Only)
+- Advanced features (theming, analytics, security isolation)
+- NPM packages published (`@salient/widget-react`, `@salient/widget-vue`) and ecosystem integration proven
 
 ---
 
@@ -331,4 +388,6 @@ POST /account_123/simple_1/chat     # Simple chat instance 1
 - **Automated Testing**: Tests documented in respective epic files, implemented alongside features
 - **Epic References**: Each priority maps to detailed planning in specific epic documents
 
-**Priority 1 Complete ✅ - Ready to begin Priority 2: Simple Chat Agent Implementation** 🚀
+**Priority 1 Complete ✅ - Priority 2: Simple Chat Agent Implementation IN PROGRESS** 🔄  
+**Completed**: TASK 0017-002 ✅, TASK 0017-003 ✅, TASK 0017-004 ✅  
+**Next**: TASK 0017-005 (LLM Request Tracking & Cost Management) 🚀

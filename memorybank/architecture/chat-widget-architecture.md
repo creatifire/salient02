@@ -2,106 +2,94 @@
 
 ## Problem Statement
 
-The Salient AI system requires a UI architecture that can support multiple agent types with different capabilities while maintaining code reusability and consistent user experience. Key challenges include:
+Multiple agent types with different UI needs:
+- **Legacy Agent**: HTMX-based chat interface
+- **Simple Chat Agent**: Basic text input/output
+- **Sales Agent**: Lead capture, product displays, CRM integration
+- **Support Agent**: Ticket creation, escalation, knowledge base search
+- **Research Agent**: Document displays, citation management, workflow controls
 
-**Multiple Agent Types with Varying UI Needs:**
-- **Legacy Agent**: Existing HTMX-based chat interface for backward compatibility
-- **Simple Chat Agent**: Minimal UI with basic text input/output
-- **Sales Agent**: Specialized forms (lead capture, product displays, CRM integration buttons)  
-- **Support Agent**: Ticket creation, escalation options, knowledge base search
-- **Research Agents**: Document displays, citation management, research workflow controls
-
-**Development Efficiency vs. Specialization:**
-- **Code Duplication Risk**: Each agent having completely separate widgets leads to maintenance overhead
-- **User Experience Fragmentation**: Different interfaces for different agents creates learning curve
-- **Technical Debt**: Divergent widget implementations becoming incompatible over time
-- **Scaling Challenges**: Each new agent type requiring entirely new widget development
-
-**Integration Requirements:**
-- Session management across agent types
-- Legacy compatibility during transition
-- Mobile responsiveness across all agent widgets
-- Consistent branding and accessibility standards
+**Requirements**: 90% code reuse, multiple deployment options, legacy compatibility, session management across agent types.
 
 ## Technical Architecture
 
-**Component-Based Hybrid Approach:**
+**Preact-First Hybrid Universal Widget System:**
 
 ```typescript
-// Shared Foundation Components (90% of code)
-ChatContainer          // Layout, session management, responsive design
-├── MessageList        // Conversation display, message types, styling  
-├── InputArea          // Text input, file upload, voice input
-├── TypingIndicator    // Loading states, agent typing animation
-├── ErrorHandling      // Error display, retry mechanisms
-└── SessionManager     // State management, persistence, authentication
+// Core Foundation (90% reuse) - Built with Preact
+SalientCore {
+  ChatEngine,      // Message handling, session management
+  AgentClient,     // Backend communication  
+  StateManager,    // Preact signals/hooks for state
+  ThemeSystem,     // CSS variables, styling
+  A11yManager      // Accessibility, keyboard navigation
+}
 
-// Agent-Specific Specialization Layers (10% of code)  
-AgentWidgets/
-├── LegacyWidget       // Existing HTMX-based interface for backward compatibility
-├── SimpleChatWidget   // Minimal UI, basic text interaction
-├── SalesAgentWidget   // + Lead forms, product displays, CRM buttons
-├── SupportAgentWidget // + Ticket creation, escalation, knowledge search  
-└── ResearchWidget     // + Document panels, citation tools, workflow controls
+// Framework Adapters (5% per deployment type)
+PreactAdapter extends SalientCore     // Native Preact components (primary)
+ShadowDOMAdapter extends SalientCore  // Universal embedding
+ReactAdapter extends SalientCore      // React compatibility via @preact/compat
+VueAdapter extends SalientCore        // Vue 3 composition wrapper
+IframeAdapter extends SalientCore     // Sandboxed embedding
+
+// Agent Specializations (5% per agent type)
+SimpleChatAgent extends SalientCore
+SalesAgent extends SalientCore + LeadCapture + CRMIntegration  
+SupportAgent extends SalientCore + TicketSystem + KnowledgeBase
+ResearchAgent extends SalientCore + DocumentViewer + Citations
 ```
 
-**Implementation Strategy:**
-- **Shared Core**: Common chat functionality, session management, message persistence
-- **Composition Pattern**: Agent widgets compose shared components with specialized additions
-- **Configuration-Driven**: Agent-specific UI elements defined in YAML configuration
-- **Progressive Enhancement**: Start with unified widget, add specializations as agents are developed
-
-**Component Communication:**
+**Component Structure:**
 ```typescript
 interface AgentWidget {
   agentType: 'legacy' | 'simple-chat' | 'sales' | 'support' | 'research';
-  sharedComponents: ChatContainer;
-  specializedComponents?: {
-    inputExtensions?: React.Component[];    // Custom input fields
-    toolPanels?: React.Component[];         // Agent-specific tool interfaces  
-    actionButtons?: React.Component[];      // Context-specific actions
-  };
+  deployment: 'preact' | 'shadow-dom' | 'react' | 'vue' | 'iframe';
+  specializations?: PreactComponent[];
   configuration: AgentConfig;
 }
 ```
 
-**Integration with Backend:**
-- Widget architecture mirrors backend agent structure:
-  - Legacy: `/chat`, `/events/stream`, `/` (existing endpoints)  
-  - New agents: `/agents/simple_chat/`, `/agents/sales/` (Pydantic AI structure)
-- Configuration-driven UI customization matches agent YAML configs
-- Session bridging supports switching between legacy and new agent types mid-conversation
-- Parallel development enabled via legacy endpoint toggle in `app.yaml`
+**Deployment Options:**
+- **Preact Islands**: Native Astro integration (`<SalientWidget client:load />`)
+- **Shadow DOM**: Universal embedding (`<script src="cdn.salient.ai/widget.js">`)
+- **React/Vue**: Framework adapters via compatibility layers
+- **Iframe**: Sandboxed embedding for legacy systems
+- **API-Only**: Headless for mobile apps
+
+**Backend Integration:**
+- Legacy: `/chat`, `/events/stream`, `/`
+- New agents: `/agents/simple-chat/`, `/agents/sales/`
+- Session bridging between legacy and enhanced agents
+- Configuration-driven via agent YAML configs
 
 ## Implementation Phases
 
-**Legacy Agent Support** (Parallel to all phases - [0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
-- **Scope**: Maintain existing HTMX-based chat functionality during transition
-- **Widget Focus**: Preserve current `/chat`, `/events/stream`, `/` endpoints without changes
-- **Configuration**: Toggle via `legacy.enabled` in `app.yaml` for parallel development
-- **Purpose**: Enable safe testing and gradual migration without functionality loss
+**Priority 3: Preact Widget Foundation** ([0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
+- Preact Islands: Native Astro + Preact chat widgets
+- Shadow DOM Fallback: Universal embedding for non-Preact sites  
+- Simple Chat Agent: Prove 90% reuse + 10% specialization model
 
-**Priority 2: Simple Chat Agent Implementation** (Current - [0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
-- **Scope**: Establish shared foundation with unified widget
-- **Widget Focus**: Single widget supporting simple chat agent functionality
-- **Components**: Core chat container, message display, basic input area
-- **Outcome**: Solid foundation for future agent-specific customizations
+**Priority 4: React Compatibility**
+- Preact/Compat Layer: Enable React ecosystem integration
+- Component Library: NPM packages for different frameworks
 
-**Priority 3: UI Migration to Simple Chat Agent** ([0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
-- **Scope**: Migrate all existing interfaces to use enhanced simple chat agent
-- **Widget Impact**: 
-  - Demo Page: `web/src/pages/demo/htmx-chat.astro` → enhanced agent endpoints
-  - Chat Widget: `web/public/widget/chat-widget.js` → agent integration
-  - HTMX Chat: `web/public/htmx-chat.html` → unified widget patterns
-- **Architecture Validation**: Prove shared foundation approach works across all interface types
+**Priority 5+: Agent Specializations** ([0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
+- Sales Agent: First specialized agent with Preact-based UI extensions
+- Support/Research Agents: Scale the pattern to additional agent types
 
-**Priority 5: Sales Agent Addition** ([0000-approach-milestone-01.md](../project-management/0000-approach-milestone-01.md))
-- **Scope**: First specialized agent with business tools and CRM integration
-- **Widget Evolution**: Add specialization layer to existing foundation
-- **New Components**:
-  - Lead capture forms and qualification workflows
-  - Product display and recommendation interfaces
-  - CRM integration buttons and contact management
-- **Architecture Proof**: Validate hybrid approach with first agent-specific customization
+**Legacy Support** (Parallel to all phases)
+- Maintain HTMX-based functionality via `legacy.enabled` toggle
+- Session bridging between legacy and enhanced agents
 
-**Future Phases**: Additional agent types (support, research) will follow the established pattern of shared foundation + agent-specific specialization layers, validating the scalability of the hybrid architecture approach.
+**Distribution Strategy:**
+```bash
+# NPM Packages
+npm install @salient/widget-preact       # Native Preact components
+npm install @salient/widget-react        # React compatibility
+
+# Astro Integration (Primary)
+<SalientWidget agent="sales" client:load />
+
+# Shadow DOM (Universal)
+<script src="cdn.salient.ai/widget/1.0/salient.js" data-agent="sales">
+```
