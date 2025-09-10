@@ -1220,7 +1220,12 @@ async def tail_logs(request: Request) -> JSONResponse:
     return JSONResponse({"file": Path(latest).name, "entries": lines})
 
 
-# Conditional Legacy Endpoint Registration
+# Agent API Router Registration
+# Include agent endpoints for Pydantic AI agent interactions
+from app.api.agents import router as agents_router
+app.include_router(agents_router)
+
+# Conditional Legacy Endpoint Registration  
 # Register legacy endpoints only if enabled in configuration
 # This enables parallel development of new agents without disrupting existing functionality
 _register_legacy_endpoints()
