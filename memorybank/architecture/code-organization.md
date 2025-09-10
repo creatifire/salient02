@@ -246,7 +246,7 @@ Notes:
 - **Phase 3+**: Agent instance configurations stored in database for multi-account support (see [datamodel.md](datamodel.md)).
 - Agent configurations include system prompts, tool configurations, and model settings.
 - Keep model IDs out of code paths (refer to YAML `llm.model` or agent-specific model overrides).
- - Short-term YAML knobs must include per-agent thresholds and models: `model_settings` (model, temperature, max_tokens) and `memory` (e.g., `auto_summary_threshold`, `context_window_messages`). See `memorybank/architecture/agent-configuration.md`.
+ - Short-term YAML knobs must include per-agent thresholds and models: `model_settings` (model, temperature, max_tokens) and `context_management` (e.g., `max_history_messages`, `summarization.trigger_threshold`, `context_window_tokens`). See `memorybank/architecture/agent-configuration.md`.
  - Vector DB policy: Budget subscribers use `pgvector`; Standard/Professional use shared Pinecone (namespaces on a shared index; primary difference is storage quota between tiers); Enterprise uses a dedicated Pinecone instance. Pinecone remains default for Milestone 1 while we add pgvector as an option in Milestone 2.
 
 ## Local development flow

@@ -20,10 +20,10 @@ Dependencies:
 
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
-from app.agents.base.dependencies import SessionDependencies
-from app.config import load_config
-from app.agents.config_loader import get_agent_config  # Fixed: correct function name
-from app.services.message_service import get_message_service
+from .base.dependencies import SessionDependencies
+from ..config import load_config
+from .config_loader import get_agent_config  # Fixed: correct function name
+from ..services.message_service import get_message_service
 from typing import List, Optional
 import uuid
 from datetime import datetime
@@ -31,7 +31,7 @@ from datetime import datetime
 # Global agent instance (lazy loaded)
 _chat_agent = None
 
-async def load_conversation_history(session_id: str, max_messages: int = 20) -> List[ModelMessage]:
+async def load_conversation_history(session_id: str, max_messages: Optional[int] = None) -> List[ModelMessage]:
     """
     Load conversation history from database and convert to Pydantic AI format.
     
@@ -40,11 +40,17 @@ async def load_conversation_history(session_id: str, max_messages: int = 20) -> 
     
     Args:
         session_id: Session ID to load history for
-        max_messages: Maximum number of recent messages to load
+        max_messages: Maximum number of recent messages to load (None to use config)
     
     Returns:
         List of Pydantic AI ModelMessage objects in chronological order
     """
+    # Get max_messages from config if not provided
+    if max_messages is None:
+        config = load_config()
+        chat_config = config.get("chat", {})
+        max_messages = chat_config.get("history_limit", 20)  # Default to 20 for agent context
+    
     message_service = get_message_service()
     
     # Convert string session_id to UUID
@@ -138,11 +144,16 @@ async def simple_chat(
         dict with response, messages, new_messages, and usage data
     """
     
+    # Get max_history_messages from config for session dependencies
+    config = load_config()
+    chat_config = config.get("chat", {})
+    default_history_limit = chat_config.get("history_limit", 20)
+    
     # Create session dependencies properly (Fixed)
     session_deps = await SessionDependencies.create(
         session_id=session_id,
         user_id=None,  # Optional for simple chat
-        max_history_messages=20
+        max_history_messages=default_history_limit
     )
     
     # Load agent configuration for model settings (Fixed: async call)
@@ -151,14 +162,17 @@ async def simple_chat(
     
     # Load conversation history if not provided (TASK 0017-003)
     if message_history is None:
-        # Get max_history_messages from agent config with fallback
-        max_history_messages = 20  # Default fallback
+        # Get max_history_messages - check agent config for override, fall back to global config
+        agent_history_limit = None
         if hasattr(agent_config, 'context_management') and agent_config.context_management:
-            max_history_messages = agent_config.context_management.get('max_history_messages', 20)
+            agent_history_limit = agent_config.context_management.get('max_history_messages')
+        
+        # Use agent-specific limit if set, otherwise fall back to global config (or function default)
+        max_messages = agent_history_limit if agent_history_limit is not None else None
         
         message_history = await load_conversation_history(
             session_id=session_id,
-            max_messages=max_history_messages
+            max_messages=max_messages  # Will use config if None
         )
     
     # Get the agent (Fixed: await async function)

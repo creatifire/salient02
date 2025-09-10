@@ -101,6 +101,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from markdown_it import MarkdownIt
 from sse_starlette.sse import EventSourceResponse
@@ -200,6 +201,16 @@ async def lifespan(app: FastAPI):
 # Title and lifespan management for production deployment
 app = FastAPI(title="SalesBot Backend", lifespan=lifespan)
 
+# CORS Middleware Configuration: Enable cross-origin requests for development
+# Allows frontend (localhost:4321) to communicate with backend (localhost:8000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4321", "http://127.0.0.1:4321"],  # Frontend origins
+    allow_credentials=True,  # Enable session cookie sharing
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
 # Middleware Configuration: Session management with path exclusions
 # SimpleSessionMiddleware provides automatic session creation, validation, and persistence
 # Excluded paths are optimized for performance (health checks, static assets, dev tools)
@@ -295,7 +306,7 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
     during session resumption.
     
     Chat History Strategy:
-    - Loads last 50 messages to balance performance and context preservation
+    - Loads recent messages (configurable limit via app.yaml chat.history_limit, default 50)
     - Excludes system messages from UI display (keeps conversation clean)
     - Formats messages for immediate HTML rendering without additional processing
     - Handles empty history gracefully with no visual artifacts
@@ -309,8 +320,8 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
     - message_id: Unique identifier for future reference
     
     Performance Considerations:
-    - Limited to 50 messages to prevent slow page loads
-    - Uses efficient database queries with proper indexing
+    - Configurable message limit (app.yaml chat.history_limit) to prevent slow page loads
+    - Uses efficient database queries with proper indexing and ORDER BY + LIMIT
     - Graceful degradation if message service is unavailable
     - Minimal processing overhead during template rendering
     
@@ -352,13 +363,36 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
         # Get message service for database operations
         message_service = get_message_service()
         
-        # Load recent messages (last 50) excluding system messages for cleaner UI
-        # Use conversation-friendly order (oldest first) for natural flow
-        messages = await message_service.get_session_messages(
-            session_id=session_id,
-            limit=50,  # Configurable limit for performance
-            role_filter=None  # Include all roles initially, filter below
-        )
+        # Load recent messages (configurable limit) excluding system messages for cleaner UI
+        # Use proper SQLAlchemy 2.0 async syntax to get most recent messages first
+        from sqlalchemy import desc, select
+        from .models.message import Message
+        
+        # Get configurable history limit from app config
+        config = load_config()
+        chat_config = config.get("chat", {})
+        default_history_limit = chat_config.get("history_limit", 50)
+        
+        # For agent-specific limits, we could extend this later to check agent config
+        # For now, use the global chat history limit
+        history_limit = default_history_limit
+
+        db_service = get_database_service()
+        async with db_service.get_session() as db_session:
+            # Build query for most recent N messages (descending order by created_at)
+            stmt = (
+                select(Message)
+                .where(Message.session_id == session_id)
+                .order_by(desc(Message.created_at))
+                .limit(history_limit)
+            )
+            
+            # Execute query and get results
+            result = await db_session.execute(stmt)
+            messages = result.scalars().all()
+            
+            # Reverse to get chronological order (oldest first) for natural conversation flow
+            messages = list(reversed(messages))
         
         # Format messages for template rendering
         formatted_history = []
@@ -1222,7 +1256,7 @@ async def tail_logs(request: Request) -> JSONResponse:
 
 # Agent API Router Registration
 # Include agent endpoints for Pydantic AI agent interactions
-from app.api.agents import router as agents_router
+from .api.agents import router as agents_router
 app.include_router(agents_router)
 
 # Conditional Legacy Endpoint Registration  

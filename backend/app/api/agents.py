@@ -11,10 +11,10 @@ from pydantic import BaseModel
 from loguru import logger
 from typing import Optional, List
 
-from app.agents.simple_chat import simple_chat
-from app.middleware.simple_session_middleware import get_current_session
-from app.services.message_service import get_message_service
-from app.config import load_config
+from ..agents.simple_chat import simple_chat
+from ..middleware.simple_session_middleware import get_current_session
+from ..services.message_service import get_message_service
+from ..config import load_config
 from pydantic_ai.messages import ModelMessage
 
 router = APIRouter()

@@ -3,6 +3,8 @@
 ## Purpose
 Define how agent behavior is configured today (YAML files in the repo) and how it will migrate to database-backed configuration as part of multi-account support. This enables fast iteration now with a clear path to scalable management later.
 
+For comprehensive configuration documentation including global `app.yaml` settings, see [Configuration Reference](./configuration-reference.md).
+
 ## Location (Short Term)
 - Backend config directory: `backend/config/agent_configs/`
 - Files by agent type (examples):
@@ -26,12 +28,18 @@ model_settings:
   temperature: 0.3
   max_tokens: 2000
 
-memory:
+context_management:
+  # Chat history and memory management (NEW SECTION)
+  max_history_messages: 50           # Override app.yaml chat.history_limit (database queries)
+  context_window_tokens: 8000        # Token limit for conversation context passed to LLM
+  
   # Conversation summarization, titles, and context window policy
-  auto_summary_threshold: 10         # Trigger summary every N messages
-  summary_model: "gpt-4o-mini"      # Cost-optimized summary model
-  title_revision_model: "gpt-4o-mini"
-  context_window_messages: 30        # Recent message window to pass to the LLM
+  summarization:
+    enabled: true
+    trigger_threshold: 10            # Trigger summary every N messages
+    summary_model: "gpt-4o-mini"     # Cost-optimized summary model
+    title_revision_model: "gpt-4o-mini"
+    summary_length: 200              # Target summary length in words
 
 vector_database:
   provider: "pinecone"              # pinecone | pgvector (future option)
@@ -89,7 +97,7 @@ Notes:
 
 ## Implementation Checklist
 - Read agent YAML at startup and inject into agent dependencies. Start with `backend/config/agent_configs/simple_chat.yaml` using the schema above.
-- Keep model ids and thresholds out of code paths; reference `model_settings` and `memory` sections.
+- Keep model ids and thresholds out of code paths; reference `model_settings` and `context_management` sections.
 - Ensure endpoint transition plan remains compatible: legacy `/chat` and `/events/stream` plus `/agents/{type}/chat`.
 
 

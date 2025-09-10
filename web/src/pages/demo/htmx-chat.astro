@@ -225,7 +225,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
         const url = new URL('/api/chat/history', CHAT_BASE);
         const response = await fetch(url.toString(), {
           method: 'GET',
-          credentials: 'same-origin' // Include session cookies
+          credentials: 'include' // Include session cookies for cross-origin requests
         });
         
         if (!response.ok) {
@@ -318,7 +318,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
 
     async function doPost(text){
       try{
-        const r = await fetch(new URL('/chat', CHAT_BASE).toString(), { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }) });
+        const r = await fetch(new URL('/chat', CHAT_BASE).toString(), { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }), credentials: 'include' });
         const out = r.ok ? await r.text() : `[http ${r.status}]`;
         if (activeBotDiv){
           activeBotDiv.dataset.raw = out;

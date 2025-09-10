@@ -30,7 +30,7 @@ from typing import Dict, List, Optional
 import yaml
 from pydantic import ValidationError
 
-from app.config import load_config
+from ..config import load_config
 from .base.types import AgentConfig
 
 

@@ -141,7 +141,7 @@ flowchart TD
 
 **Verification Steps:**
 1. **Import Verification**: Test preserved components work
-   ```python
+```python
    from app.agents.base.dependencies import SessionDependencies
    from app.agents.config_loader import get_agent_config
    ```
@@ -198,20 +198,20 @@ flowchart TD
 **Implementation:**
 
 1. **Configuration Addition** - Added to `backend/config/app.yaml`:
-   ```yaml
-   legacy:
-     enabled: true                    # Can be toggled to false for parallel development
-     endpoints:
-       chat: "/chat"                  # Legacy chat endpoint
-       stream: "/events/stream"       # Legacy SSE streaming
-       main: "/"                      # Main chat page
-   ```
+```yaml
+legacy:
+  enabled: true                    # Can be toggled to false for parallel development
+  endpoints:
+    chat: "/chat"                  # Legacy chat endpoint
+    stream: "/events/stream"       # Legacy SSE streaming
+    main: "/"                      # Main chat page
+```
 
 2. **Conditional Routing** - Updated `backend/app/main.py`:
-   ```python
+  ```python
    def _register_legacy_endpoints() -> None:
        """Register legacy endpoints conditionally based on configuration."""
-       config = load_config()
+  config = load_config()
        legacy_config = config.get("legacy", {})
        
        if legacy_config.get("enabled", True):
@@ -233,7 +233,7 @@ flowchart TD
    
    # Execute conditional endpoint registration
    _register_legacy_endpoints()
-   ```
+  ```
 
 **Key Benefits:**
 - **Parallel Development**: Can develop new agent while legacy remains active
@@ -774,7 +774,7 @@ async def load_legacy_conversation_history(session_id: str) -> List[ModelMessage
             # Create user request message
             pydantic_message = ModelRequest(
                 parts=[UserPromptPart(
-                    content=msg.content,
+            content=msg.content,
                     timestamp=msg.created_at or datetime.now()
                 )]
             )

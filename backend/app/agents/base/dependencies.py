@@ -22,8 +22,8 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from app.database import get_db_session, get_database_service  # Existing database integration
-from app.config import load_config  # Existing configuration system
+from ...database import get_db_session, get_database_service  # Existing database integration
+from ...config import load_config  # Existing configuration system
 from .types import AccountContext, DatabaseConnection, VectorDBConfig
 
 

@@ -59,6 +59,11 @@
 - [Technology Stack](./architecture/technology-stack.md)
 - [Technical Constraints](./architecture/technical-constraints.md)
 - [Code Organization](./architecture/code-organization.md)
+- [Configuration Reference](./architecture/configuration-reference.md)
+- [Agent Configuration](./architecture/agent-configuration.md)
+- [Agent Configuration Storage](./architecture/agent-configuration-storage.md)
+- [API Endpoints](./architecture/endpoints.md)
+- [LLM Cost Tracking](./architecture/tracking_llm_costs.md)
 - [Chat Widget Architecture](./architecture/chat-widget-architecture.md)
 - [Data Model & ER Diagram](./architecture/datamodel.md)
 - [Multi-Account Support](./architecture/multi-account-support.md)
@@ -73,6 +78,9 @@
 - [Cross-Origin Session Handling](./architecture/cross-origin-session-handling.md)
 - [Production Cross-Origin Plan](./architecture/production-cross-origin-plan.md)
 - [Production Deployment Configuration](./architecture/production-deployment-config.md)
+- [Deploying on Render](./architecture/deploying-on-render.md)
+- [API Gateway Kong Policies](./architecture/api-gateway-kong-policies.md)
+- [Redis Usage Policy](./architecture/redis-usage-policy.md)
 
 ## Planning
 

@@ -48,7 +48,7 @@ tools:
     summary_model: "openai:gpt-4o-mini"
 
 context_management:
-  max_history_messages: 20
+  max_history_messages: 50             # Agent-specific history limit (overrides app.yaml chat.history_limit)
   context_window_tokens: 8000
   summarization:
     enabled: true
