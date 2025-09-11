@@ -827,6 +827,52 @@ async def track_llm_call(
 
 **Resolution Required**: Debug track_llm_call wrapper function for database deadlocks or infinite loops before re-enabling.
 
+---
+
+### **SESSION PROGRESS NOTES** (September 11, 2025)
+
+**✅ COMPLETED THIS SESSION:**
+- **Complete LLMRequestTracker Service**: Full implementation of `backend/app/services/llm_request_tracker.py` with comprehensive cost tracking, token monitoring, and database integration
+- **Database Integration**: Successfully connects to existing `llm_requests` table, proper UUID handling, async session management
+- **Message Linking**: Implemented `llm_request_id` metadata linking in `backend/app/api/agents.py` for traceability
+- **Error Handling**: Comprehensive exception handling, logging with Loguru, graceful degradation patterns
+- **Integration Points**: Added tracking hooks to `simple_chat.py` agent function
+- **Manual Testing**: Direct database insertion works perfectly (verified 1 record created successfully)
+
+**❌ CRITICAL BUG DISCOVERED:**
+- **Service Hangs**: `track_llm_call` wrapper function causes requests to hang for 2+ minutes instead of ~2 seconds
+- **Complete Unresponsiveness**: Eventually makes entire FastAPI service unresponsive to all endpoints (even legacy `/chat`)
+- **Root Cause Unknown**: Likely database deadlocks, infinite loops, or async/await issues in wrapper function
+- **Symptom**: `curl` requests timeout with 0 bytes received after 5+ seconds
+
+**🔧 TEMPORARY WORKAROUND:**
+- **Tracking Disabled**: LLM tracking temporarily disabled in `simple_chat.py` (line 183-190)
+- **Service Restored**: Simple chat endpoint now responds normally in ~2 seconds
+- **Infrastructure Preserved**: All tracking code committed and documented for future debugging
+
+**📋 NEXT SESSION PICKUP POINTS:**
+1. **Debug Priority**: Investigate `track_llm_call` wrapper in `backend/app/services/llm_request_tracker.py` lines 242-333
+   - Check for database session conflicts or deadlocks
+   - Review async/await patterns and exception handling
+   - Test individual components (tracker.track_llm_request works, wrapper doesn't)
+   - Consider removing complex wrapper and using direct tracking calls
+
+2. **Alternative Approach**: If wrapper debugging is complex, implement simpler direct tracking:
+   ```python
+   # In simple_chat.py - replace wrapper with direct calls
+   tracker = get_llm_request_tracker()
+   llm_request_id = await tracker.track_llm_request(...)
+   ```
+
+3. **Validation**: Once fixed, verify end-to-end tracking with database queries:
+   ```sql
+   SELECT * FROM llm_requests ORDER BY created_at DESC LIMIT 5;
+   ```
+
+**⚠️ CURRENT STATE**: TASK 0017-005 foundation complete but activation blocked by critical service timeout bug in wrapper function.
+
+---
+
 **Acceptance**: Track LLM requests, tokens, costs in database for billing  
 **Dependencies**: TASK 0017-004  
 **Manual Verification**: Debug service timeout issues, then verify cost records in database after making requests
