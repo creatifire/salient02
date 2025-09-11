@@ -24,8 +24,10 @@ from .base.dependencies import SessionDependencies
 from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
+from ..services.llm_request_tracker import track_llm_call
 from typing import List, Optional
 import uuid
+from uuid import UUID
 from datetime import datetime
 
 # Global agent instance (lazy loaded)
@@ -178,16 +180,19 @@ async def simple_chat(
     # Get the agent (Fixed: await async function)
     agent = await get_chat_agent()
     
-    # Run with proper parameters (Pydantic AI handles model settings via agent configuration)
+    # TEMPORARILY DISABLED: LLM tracking was causing service to hang
+    # TODO: Fix the track_llm_call implementation - it's causing requests to timeout
     result = await agent.run(
         message, 
         deps=session_deps, 
-        message_history=message_history  # Auto-loaded or provided message history
+        message_history=message_history
     )
+    llm_request_id = None  # Disabled until tracking is fixed
     
     return {
         'response': result.output,  # Simple string response
         'messages': result.all_messages(),  # Full conversation history (Pydantic AI ModelMessage objects)
         'new_messages': result.new_messages(),  # Only new messages from this run
-        'usage': result.usage()  # Built-in usage tracking
+        'usage': result.usage(),  # Built-in usage tracking
+        'llm_request_id': str(llm_request_id) if llm_request_id else None
     }

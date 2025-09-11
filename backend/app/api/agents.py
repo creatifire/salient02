@@ -121,7 +121,8 @@ async def simple_chat_endpoint(
                     "source": "simple_chat",
                     "agent_type": "simple_chat",
                     "user_message_id": str(user_message_id) if user_message_id else None,
-                    "usage": usage_data
+                    "usage": usage_data,
+                    "llm_request_id": result.get('llm_request_id')  # Link message to LLM cost tracking
                 }
             )
             
@@ -133,7 +134,8 @@ async def simple_chat_endpoint(
                 "user_message_id": str(user_message_id) if user_message_id else None,
                 "content_length": len(result['response']),
                 "usage": result.get('usage', {}),
-                "agent_type": "simple_chat"
+                "agent_type": "simple_chat",
+                "llm_request_id": result.get('llm_request_id')  # Include LLM request ID for traceability
             })
         except Exception as e:
             # ERROR HANDLING - Database failures don't block response
