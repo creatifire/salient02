@@ -276,11 +276,11 @@ legacy:
 
 ## Implementation Tasks
 
-### **Current Status: 4 of 7 tasks completed** ✅
+### **Current Status: 4 of 7 tasks completed** ✅ (1 with critical issues)
 - **TASK 0017-002**: Direct Pydantic AI Agent Implementation ✅ **COMPLETED**
 - **TASK 0017-003**: Conversation History Integration ✅ **COMPLETED**  
 - **TASK 0017-004**: FastAPI Endpoint Integration ✅ **COMPLETED**
-- **TASK 0017-005**: LLM Request Tracking & Cost Management 🔄 **NEXT**
+- **TASK 0017-005**: LLM Request Tracking & Cost Management ⚠️ **PARTIAL** (Critical bugs - tracking disabled)
 - **TASK 0017-006**: Legacy Session Compatibility 📋 **PLANNED**
 - **TASK 0017-007**: Vector Search Tool 📋 **PLANNED**
 - **TASK 0017-008**: Web Search Tool (Exa Integration) 📋 **PLANNED**
@@ -646,7 +646,7 @@ async def simple_chat_endpoint(
 - **Enhanced**: Project brief with references to all active architecture files
 - **Coverage**: Global settings, agent overrides, environment variables, usage examples
 
-#### TASK 0017-005 - LLM Request Tracking & Cost Management 🔄 **NEXT**
+#### TASK 0017-005 - LLM Request Tracking & Cost Management ⚠️ **PARTIALLY IMPLEMENTED** (Critical Issues)
 **File**: `backend/app/services/llm_request_tracker.py`
 
 **Implementation:**
@@ -816,9 +816,20 @@ async def track_llm_call(
         raise e
 ```
 
+**Current Status: ⚠️ Foundation Complete, Critical Bugs Present**
+- **✅ IMPLEMENTED**: Complete LLMRequestTracker service infrastructure
+- **✅ IMPLEMENTED**: Database integration with llm_requests table  
+- **✅ IMPLEMENTED**: Token usage, cost tracking, and latency monitoring
+- **✅ IMPLEMENTED**: Message linking via llm_request_id metadata
+- **❌ CRITICAL ISSUE**: `track_llm_call` wrapper causes service to hang 2+ minutes per request
+- **❌ DISABLED**: LLM tracking temporarily disabled in simple_chat.py due to timeout issues
+- **⚠️ NEEDS DEBUG**: Service becomes unresponsive when tracking is enabled
+
+**Resolution Required**: Debug track_llm_call wrapper function for database deadlocks or infinite loops before re-enabling.
+
 **Acceptance**: Track LLM requests, tokens, costs in database for billing  
 **Dependencies**: TASK 0017-004  
-**Manual Verification**: Verify cost records in database after making requests
+**Manual Verification**: Debug service timeout issues, then verify cost records in database after making requests
 
 #### TASK 0017-006 - Legacy Session Compatibility
 **File**: `backend/app/services/session_compatibility.py`
