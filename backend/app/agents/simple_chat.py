@@ -20,15 +20,19 @@ Dependencies:
 
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from .base.dependencies import SessionDependencies
 from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
-from ..services.llm_request_tracker import track_llm_call
+from ..services.llm_request_tracker import LLMRequestTracker
 from typing import List, Optional
 import uuid
 from uuid import UUID
 from datetime import datetime
+import time
+import os
 
 # Global agent instance (lazy loaded)
 _chat_agent = None
@@ -100,21 +104,40 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
     return pydantic_messages
 
 async def create_simple_chat_agent() -> Agent:  # Fixed: async function
-    """Create a simple chat agent with dynamic configuration from YAML."""
+    """Create a simple chat agent with OpenRouter provider for cost tracking."""
     config = load_config()
     llm_config = config.get("llm", {})
     
-    # Build model name from config: openrouter:deepseek/deepseek-chat-v3.1
-    provider = llm_config.get("provider", "openrouter")
-    model = llm_config.get("model", "deepseek/deepseek-chat-v3.1")
-    model_name = f"{provider}:{model}"
+    # Get OpenRouter configuration
+    model_name = llm_config.get("model", "anthropic/claude-3.5-sonnet")
+    api_key = llm_config.get("api_key") or os.getenv('OPENROUTER_API_KEY')
     
-    # Load agent-specific configuration (ASYNC call - Fixed)
-    agent_config = await get_agent_config("simple_chat")  # Fixed: async call with correct function name
-    system_prompt = agent_config.system_prompt  # Fixed: direct attribute access (AgentConfig is Pydantic model)
+    if not api_key:
+        # Fallback to simple model name for development without API key
+        model_name_simple = f"openrouter:{model_name}"
+        agent_config = await get_agent_config("simple_chat")
+        return Agent(
+            model_name_simple,
+            deps_type=SessionDependencies,
+            system_prompt=agent_config.system_prompt
+        )
+    
+    # Load agent-specific configuration to get model settings and system prompt
+    agent_config = await get_agent_config("simple_chat")
+    model_settings = agent_config.model_settings if hasattr(agent_config, 'model_settings') and agent_config.model_settings else {}
+    system_prompt = agent_config.system_prompt  # Direct attribute access (AgentConfig is Pydantic model)
+    
+    # Configure OpenRouter provider for cost tracking (model parameters configured separately)
+    model = OpenAIChatModel(
+        model_name,
+        provider=OpenAIProvider(
+            base_url='https://openrouter.ai/api/v1',
+            api_key=api_key
+        )
+    )
     
     return Agent(
-        model_name,
+        model,
         deps_type=SessionDependencies,
         system_prompt=system_prompt
     )
@@ -180,19 +203,86 @@ async def simple_chat(
     # Get the agent (Fixed: await async function)
     agent = await get_chat_agent()
     
-    # TEMPORARILY DISABLED: LLM tracking was causing service to hang
-    # TODO: Fix the track_llm_call implementation - it's causing requests to timeout
+    # STEP 1 & 2: Pydantic AI + OpenRouter Integration with Cost Tracking
+    start_time = datetime.utcnow()
+    
+    # Run with proper Pydantic AI parameters and OpenRouter provider
+    
     result = await agent.run(
         message, 
         deps=session_deps, 
         message_history=message_history
     )
-    llm_request_id = None  # Disabled until tracking is fixed
+    
+    end_time = datetime.utcnow()
+    
+    # STEP 2: Extract Real OpenRouter Cost Data from Pydantic AI Result
+    llm_request_id = None
+    try:
+        # Get standard Pydantic AI usage data
+        usage_data = result.usage() if hasattr(result, 'usage') else None
+        
+        if usage_data:
+            # Calculate latency
+            latency_ms = int((end_time - start_time).total_seconds() * 1000)
+            
+            # Extract token counts from Pydantic AI usage
+            prompt_tokens = getattr(usage_data, 'input_tokens', 0)
+            completion_tokens = getattr(usage_data, 'output_tokens', 0)
+            total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
+            
+            # STEP 2: Access raw OpenRouter response for cost data
+            raw_response = getattr(result, '_raw_response', {})
+            openrouter_usage = raw_response.get('usage', {}) if raw_response else {}
+            
+            # Extract real OpenRouter cost (critical for customer billing!)
+            real_cost = openrouter_usage.get('cost', 0.0)
+            
+            from loguru import logger
+            logger.info({
+                "event": "pydantic_ai_openrouter_cost_tracked",
+                "session_id": session_id,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
+                "real_cost": real_cost,
+                "has_raw_response": bool(raw_response),
+                "openrouter_usage_keys": list(openrouter_usage.keys()) if openrouter_usage else [],
+                "latency_ms": latency_ms
+            })
+            
+            # STEP 3: Store real cost data using existing LLMRequestTracker
+            from decimal import Decimal
+            tracker = LLMRequestTracker()
+            llm_request_id = await tracker.track_llm_request(
+                session_id=UUID(session_id),
+                provider="openrouter",
+                model=config.get("llm", {}).get("model", "unknown"),
+                request_body={"message_length": len(message), "has_history": len(message_history) > 0 if message_history else False},
+                response_body={"pydantic_usage": str(usage_data), "openrouter_usage": openrouter_usage},
+                tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
+                cost_data={"unit_cost_prompt": 0.0, "unit_cost_completion": 0.0, "total_cost": Decimal(str(real_cost))},
+                latency_ms=latency_ms
+            )
+        else:
+            from loguru import logger
+            logger.info(f"No usage data available from Pydantic AI result")
+            
+    except Exception as e:
+        # Log tracking errors but don't break the response
+        from loguru import logger
+        logger.error(f"LLM cost tracking failed (non-critical): {e}")
+        llm_request_id = None
     
     return {
-        'response': result.output,  # Simple string response
+        'response': result.output,  # Simple string response from Pydantic AI
         'messages': result.all_messages(),  # Full conversation history (Pydantic AI ModelMessage objects)
         'new_messages': result.new_messages(),  # Only new messages from this run
-        'usage': result.usage(),  # Built-in usage tracking
-        'llm_request_id': str(llm_request_id) if llm_request_id else None
+        'usage': result.usage(),  # Built-in Pydantic AI usage tracking
+        'llm_request_id': str(llm_request_id) if llm_request_id else None,
+        # Additional cost tracking data for debugging
+        'cost_tracking': {
+            'real_cost': real_cost if 'real_cost' in locals() else 0.0,
+            'has_raw_response': bool(getattr(result, '_raw_response', {})) if hasattr(result, '_raw_response') else False
+        }
     }

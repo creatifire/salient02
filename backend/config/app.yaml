@@ -58,6 +58,7 @@ llm:
   provider: openrouter
   model: deepseek/deepseek-chat-v3.1
   temperature: 0.3
+  openrouter_api_key: ${OPENROUTER_API_KEY}  # OpenRouter API key for cost tracking (set via environment variable)
   max_tokens: 1024
 
 legacy:
