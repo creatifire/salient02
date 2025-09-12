@@ -813,136 +813,93 @@ const cost = data ? data.cost_tracking.real_cost : 0;
 
 **Ready for Testing**: UI is ready to validate the complete OpenRouter cost tracking implementation
 
-#### TASK 0017-006 - Legacy Session Compatibility
-**File**: `backend/app/services/session_compatibility.py`
+#### TASK 0017-006 - Agent Conversation Loading 🔄 **NEXT**
+**Purpose**: Load conversation history from database and convert to Pydantic AI format for agent context
+
+**Files**: `backend/app/services/agent_session.py`, `backend/app/agents/simple_chat.py`
+
+**🎯 IMPLEMENTATION PLAN - CHUNKS:**
+
+##### **CHUNK 6A: Create Agent Session Service** ⭐ **MANUAL VERIFICATION REQUIRED**
+**File**: `backend/app/services/agent_session.py`
+**Deliverable**: New service module with conversation loading function
 
 **Implementation:**
+- Create `load_agent_conversation(session_id: str) -> List[ModelMessage]` function
+- Use existing `message_service.get_session_messages()` to retrieve DB messages
+- Convert DB message roles to Pydantic AI message types:
+  - `"user"/"human"` → `ModelRequest` with `UserPromptPart`
+  - `"assistant"` → `ModelResponse` with `TextPart`
+  - Skip `"system"` messages (Pydantic AI handles internally)
+- Return chronological list of `ModelMessage` objects
 
+**Manual Verification**: 
 ```python
-# New service: backend/app/services/session_compatibility.py
-from typing import List, Dict, Any
-from app.services.message_service import get_message_service
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart  # Fixed: Correct imports
-from datetime import datetime
-
-async def load_legacy_conversation_history(session_id: str) -> List[ModelMessage]:  # Fixed: Return type
-    """
-    Load existing conversation history from database and convert to Pydantic AI format.
-    
-    Handles conversations that started on legacy /chat endpoint and ensures
-    full context is available to simple chat agent.
-    """
-    message_service = get_message_service()
-    
-    # 1. RETRIEVE ALL MESSAGES for this session (legacy + new)
-    db_messages = await message_service.get_conversation_history(
-        session_id=session_id,
-        include_system=False  # Pydantic AI handles system messages
-    )
-    
-    if not db_messages:
-        return []
-    
-    # 2. CONVERT DB MESSAGES to Pydantic AI ModelMessage format
-    pydantic_messages = []
-    for msg in db_messages:
-        # Convert based on role - Fixed: Proper Pydantic AI message construction
-        if msg.role == "human" or msg.role == "user":
-            # Create user request message
-            pydantic_message = ModelRequest(
-                parts=[UserPromptPart(
-            content=msg.content,
-                    timestamp=msg.created_at or datetime.now()
-                )]
-            )
-        elif msg.role == "assistant":
-            # Create assistant response message  
-            pydantic_message = ModelResponse(
-                parts=[TextPart(content=msg.content)],
-                usage=None,  # Legacy messages don't have usage data
-                model_name="legacy-model",  # Placeholder for legacy messages
-                timestamp=msg.created_at or datetime.now()
-            )
-        else:
-            # Skip unknown roles
-            continue
-            
-        pydantic_messages.append(pydantic_message)
-    
-    return pydantic_messages
-
-async def ensure_session_continuity(session_id: str) -> Dict[str, Any]:
-    """
-    Ensure session continuity metrics and validation.
-    Returns session statistics for logging/monitoring.
-    """
-    message_service = get_message_service()
-    
-    total_messages = await message_service.count_messages(session_id)
-    legacy_messages = await message_service.count_messages(
-        session_id, source_filter="legacy"
-    )
-    
-    return {
-        "total_messages": total_messages,
-        "legacy_messages": legacy_messages,
-        "agent_messages": total_messages - legacy_messages,
-        "session_bridged": legacy_messages > 0
-    }
+# Test in backend/explore/ or Python shell
+from app.services.agent_session import load_agent_conversation
+messages = await load_agent_conversation("existing-session-id")
+print(f"Loaded {len(messages)} messages")
+for msg in messages[-3:]:  # Show last 3
+    print(f"Type: {type(msg).__name__}, Content preview: {msg.parts[0].content[:50]}...")
 ```
 
-**Integration in Simple Chat:**
-```python
-# Enhanced simple_chat function with legacy session compatibility - Fixed to match TASK 0017-002 signature
-async def simple_chat_with_legacy_support(
-    message: str, 
-    session_id: str,  # Fixed: Match corrected simple_chat signature
-    message_history: Optional[List[ModelMessage]] = None  # Fixed: Proper type annotation
-) -> dict:
-    """Enhanced simple chat with legacy session compatibility."""
-    
-    # Create session dependencies properly - Fixed
-    session_deps = await SessionDependencies.create(
-        session_id=session_id,
-        user_id=None,
-        max_history_messages=20
-    )
-    
-    # LOAD LEGACY SESSION HISTORY if not provided - Fixed
-    if message_history is None:
-        message_history = await load_legacy_conversation_history(session_id)
-    
-    # Load agent configuration for model settings - Fixed: async call
-    agent_config = await get_agent_config("simple_chat")
-    model_settings = agent_config.model_settings
-    
-    # Get the agent - Fixed: await async function
-    agent = await get_chat_agent()
-    
-    result = await agent.run(
-        message, 
-        deps=session_deps, 
-        message_history=message_history,  # Full legacy + new context
-        # Model settings from agent config with fallback - Fixed
-        temperature=model_settings.get("temperature", 0.3),
-        max_tokens=model_settings.get("max_tokens", 1024)
-    )
-    
-    # SESSION CONTINUITY MONITORING
-    continuity_stats = await ensure_session_continuity(str(session_deps.session_id))
-    
-    return {
-        'response': result.output,
-        'messages': result.all_messages(),
-        'new_messages': result.new_messages(),
-        'usage': result.usage(),
-        'session_continuity': continuity_stats  # For monitoring/debugging
-    }
+##### **CHUNK 6B: Integration with Simple Chat Agent** ⭐ **MANUAL VERIFICATION REQUIRED**
+**File**: `backend/app/agents/simple_chat.py`
+**Deliverable**: Enhanced `simple_chat()` function with automatic history loading
+
+**Implementation:**
+- Modify existing `simple_chat()` function (don't create new function)
+- If `message_history is None`, automatically call `load_agent_conversation(session_id)`
+- Pass loaded history to the agent for context continuation
+- Maintain all existing functionality (cost tracking, etc.)
+
+**Manual Verification**: 
+```bash
+# 1. Start conversation on legacy endpoint
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, my name is Alice", "session_id": "test-continuity-123"}'
+
+# 2. Continue conversation on agent endpoint  
+curl -X POST "http://localhost:8000/agents/simple-chat/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is my name?", "session_id": "test-continuity-123"}'
+
+# Expected: Agent should remember "Alice" from previous conversation
 ```
 
-**Acceptance**: Legacy sessions continue seamlessly on new agent endpoint  
-**Dependencies**: TASK 0017-004, TASK 0017-005  
-**Manual Verification**: Start conversation on legacy endpoint, continue on new endpoint
+##### **CHUNK 6C: Session Analytics & Monitoring** ⭐ **MANUAL VERIFICATION REQUIRED**
+**File**: `backend/app/services/agent_session.py`
+**Deliverable**: Optional session metrics for monitoring conversation continuity
+
+**Implementation:**
+- Add `get_session_stats(session_id: str) -> Dict[str, Any]` function
+- Count total messages, source endpoints, conversation length
+- Log session bridging for analytics
+- Return stats in simple_chat response for debugging
+
+**Manual Verification**: 
+```bash
+# Check response includes session stats
+curl -X POST "http://localhost:8000/agents/simple-chat/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Test message", "session_id": "test-continuity-123"}' | jq .session_stats
+
+# Expected: Shows message counts, bridging status
+```
+
+**🎯 CHUNK DEPENDENCIES:**
+- **CHUNK 6A** → **CHUNK 6B** → **CHUNK 6C**
+- All chunks require: ✅ TASK 0017-004, ✅ TASK 0017-005
+
+**📋 CHUNK COMPLETION CRITERIA:**
+- ✅ **CHUNK 6A**: Service loads DB messages → Pydantic AI format correctly
+- ✅ **CHUNK 6B**: Agent remembers conversation context across endpoints
+- ✅ **CHUNK 6C**: Session analytics available for monitoring
+
+**Acceptance**: Any conversation can seamlessly continue on agent endpoint with full context  
+**Dependencies**: ✅ TASK 0017-004, ✅ TASK 0017-005  
+**Overall Manual Verification**: Multi-endpoint conversation continuity with cost tracking
 
 #### TASK 0017-007 - Vector Search Tool
 
