@@ -750,6 +750,98 @@ llm_request_id = await tracker.track_llm_request(
 **Dependencies**: TASK 0017-004  
 **Manual Verification**: Verify real OpenRouter cost data stored in database after making requests
 
+---
+
+### **🎨 TESTING UI IMPLEMENTATION PLAN** 
+
+**Objective**: Create HTMX-based UI to test and validate the `/agents/simple-chat/chat` endpoint with real cost tracking
+
+#### **Test UI Specifications:**
+**File**: `web/src/pages/demo/simple-chat.astro`
+**Based on**: `htmx-chat.astro` design patterns
+**Purpose**: Manual testing and validation of OpenRouter cost tracking
+
+#### **Key Implementation Changes:**
+
+**1. Endpoint Integration:**
+```javascript
+// Legacy endpoint (htmx-chat.astro):
+fetch('/chat', { body: JSON.stringify({ message: text }) })
+
+// New endpoint (simple-chat.astro):
+fetch('/agents/simple-chat/chat', { 
+  body: JSON.stringify({ message: text, message_history: null }) 
+})
+```
+
+**2. Response Handling:**
+```javascript
+// Legacy: Plain text response
+const out = r.ok ? await r.text() : `[http ${r.status}]`;
+
+// New: JSON response with usage data
+const data = r.ok ? await r.json() : null;
+const out = data ? data.response : `[http ${r.status}]`;
+const usage = data ? data.usage : null;
+const cost = data ? data.cost_tracking.real_cost : 0;
+```
+
+**3. Cost Tracking Display:**
+- Add usage information display (tokens, cost, latency)
+- Show real OpenRouter cost data in UI
+- Display LLM request ID for database correlation
+- Add debug panel for validation
+
+**4. Streaming Configuration:**
+- Disable SSE streaming (not implemented for new endpoint yet)
+- Use POST-only mode for immediate response
+- Set `SSE_ENABLED = false` in UI configuration
+
+**5. Session Compatibility:**
+- Maintain existing `/api/chat/history` endpoint usage
+- Preserve session cookie handling for cross-origin requests
+- Keep chat history loading functionality intact
+
+#### **Testing Scenarios:**
+1. **Cost Tracking Validation**: Verify real costs appear in UI and database
+2. **Token Usage Display**: Confirm prompt/completion/total token counts
+3. **Session Continuity**: Test conversation history across requests
+4. **Fallback Mode**: Test behavior without OpenRouter API key
+5. **Database Integration**: Verify `llm_requests` table population
+
+#### **Success Criteria:**
+- ✅ UI loads and connects to `/agents/simple-chat/chat` endpoint
+- ✅ Real OpenRouter costs displayed in interface
+- ✅ Token usage metrics visible to user
+- ✅ Database records created with accurate billing data
+- ✅ Session history maintained across conversations
+- ✅ Graceful handling of API key presence/absence
+
+**Implementation Priority**: **NEXT** - Critical for validating customer billing implementation
+
+#### **✅ IMPLEMENTATION COMPLETED:**
+
+**File Created**: `web/src/pages/demo/simple-chat.astro` (394 lines)
+
+**Key Features Implemented:**
+- ✅ **Endpoint Integration**: Connects to `/agents/simple-chat/chat` with JSON request format
+- ✅ **Cost Tracking Display**: Real-time usage metrics (tokens, cost, latency) shown in UI  
+- ✅ **Debug Information**: Info panel showing endpoint details and last request stats
+- ✅ **JSON Response Handling**: Extracts `response`, `usage`, and `cost_tracking` data
+- ✅ **Session Compatibility**: Uses existing `/api/chat/history` for conversation continuity
+- ✅ **Graceful Fallback**: Handles both API key present/absent scenarios
+- ✅ **Visual Design**: Maintains `htmx-chat.astro` styling with cost tracking enhancements
+
+**UI Enhancements for Cost Validation:**
+- **Info Panel**: Shows endpoint, cost tracking status, and last request details
+- **Usage Display**: Per-message token counts and cost breakdown
+- **Debug Console**: Comprehensive logging for validation and troubleshooting
+- **Copy Functionality**: Preserved from original with raw content access
+
+**Access**: `http://localhost:4321/demo/simple-chat` (when Astro dev server running)
+
+**Ready for Testing**: UI is ready to validate the complete OpenRouter cost tracking implementation
+
 #### TASK 0017-006 - Legacy Session Compatibility
 **File**: `backend/app/services/session_compatibility.py`
 
