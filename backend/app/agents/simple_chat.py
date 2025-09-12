@@ -112,10 +112,27 @@ async def create_simple_chat_agent() -> Agent:  # Fixed: async function
     model_name = llm_config.get("model", "anthropic/claude-3.5-sonnet")
     api_key = llm_config.get("api_key") or os.getenv('OPENROUTER_API_KEY')
     
+    # DEBUG: Log API key status
+    from loguru import logger
+    logger.info({
+        "event": "agent_creation_debug",
+        "model_name": model_name,
+        "has_api_key_in_config": bool(llm_config.get("api_key")),
+        "has_api_key_in_env": bool(os.getenv('OPENROUTER_API_KEY')),
+        "final_api_key_found": bool(api_key),
+        "api_key_source": "config" if llm_config.get("api_key") else ("env" if os.getenv('OPENROUTER_API_KEY') else "none")
+    })
+    
     if not api_key:
         # Fallback to simple model name for development without API key
         model_name_simple = f"openrouter:{model_name}"
         agent_config = await get_agent_config("simple_chat")
+        logger.warning({
+            "event": "agent_fallback_mode",
+            "reason": "no_api_key",
+            "model_used": model_name_simple,
+            "cost_tracking": "disabled"
+        })
         return Agent(
             model_name_simple,
             deps_type=SessionDependencies,
@@ -135,6 +152,14 @@ async def create_simple_chat_agent() -> Agent:  # Fixed: async function
             api_key=api_key
         )
     )
+    
+    logger.info({
+        "event": "agent_openrouter_mode",
+        "model_name": model_name,
+        "provider_base_url": "https://openrouter.ai/api/v1",
+        "api_key_masked": f"{api_key[:10]}..." if api_key else "none",
+        "cost_tracking": "enabled"
+    })
     
     return Agent(
         model,
@@ -239,6 +264,7 @@ async def simple_chat(
             real_cost = openrouter_usage.get('cost', 0.0)
             
             from loguru import logger
+            
             logger.info({
                 "event": "pydantic_ai_openrouter_cost_tracked",
                 "session_id": session_id,

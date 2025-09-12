@@ -68,6 +68,9 @@
 - [Data Model & ER Diagram](./architecture/datamodel.md)
 - [Multi-Account Support](./architecture/multi-account-support.md)
 
+### Research & Analysis
+- [🎯 OpenRouter Cost Tracking Research](../backend/explore/openrouter-cost-tracking/README.md) - **COMPREHENSIVE ANALYSIS** of OpenRouter integration with Python agent frameworks, including breakthrough discovery of perfect hybrid solution
+
 ### Design Documents
 - [Simple Chat Agent Design](./design/simple-chat.md)
 - [Agent Endpoint Transition Strategy](./design/agent-endpoint-transition.md)

@@ -315,6 +315,9 @@ async def chat_completion_with_usage(
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "usage": {
+            "include": True  # Critical: Enable OpenRouter cost tracking
+        }
     }
 
     async with httpx.AsyncClient(base_url=OPENROUTER_BASE_URL, timeout=60.0) as client:
