@@ -6,7 +6,7 @@ with comprehensive session handling, message persistence, and error handling.
 """
 
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from loguru import logger
 from typing import Optional, List
@@ -23,11 +23,11 @@ class ChatRequest(BaseModel):
     message: str
     message_history: Optional[List[ModelMessage]] = None
 
-@router.post("/agents/simple-chat/chat", response_class=PlainTextResponse)
+@router.post("/agents/simple-chat/chat", response_class=JSONResponse)
 async def simple_chat_endpoint(
     chat_request: ChatRequest, 
     request: Request
-) -> PlainTextResponse:
+) -> JSONResponse:
     """
     Simple chat endpoint with comprehensive legacy feature integration.
     
@@ -44,13 +44,13 @@ async def simple_chat_endpoint(
     session = get_current_session(request)
     if not session:
         logger.error("No session available for simple chat request")
-        return PlainTextResponse("Session error", status_code=500)
+        return JSONResponse({"error": "Session error"}, status_code=500)
     
     # 2. INPUT VALIDATION & SECURITY
     message = str(chat_request.message or "").strip()
     if not message:
         logger.warning(f"Empty message from session {session.id}")
-        return PlainTextResponse("", status_code=400)
+        return JSONResponse({"error": "Empty message"}, status_code=400)
     
     # 3. CONFIGURATION LOADING
     config = load_config()
@@ -147,8 +147,25 @@ async def simple_chat_endpoint(
                 "error_type": type(e).__name__
             })
         
-        # Return plain text response like legacy implementation
-        return PlainTextResponse(result['response'])
+        # Return JSON response with cost tracking data for simple-chat UI
+        # Convert RunUsage object to dict for JSON serialization
+        usage = result.get('usage')
+        usage_dict = None
+        if usage:
+            usage_dict = {
+                "input_tokens": getattr(usage, 'input_tokens', 0),
+                "output_tokens": getattr(usage, 'output_tokens', 0),
+                "total_tokens": getattr(usage, 'total_tokens', 0),
+                "requests": getattr(usage, 'requests', 1),
+                "details": getattr(usage, 'details', {})
+            }
+        
+        return JSONResponse({
+            "response": result['response'],
+            "usage": usage_dict,
+            "llm_request_id": result.get('llm_request_id'),
+            "cost_tracking": result.get('cost_tracking', {})
+        })
         
     except Exception as e:
         # ERROR HANDLING & GRACEFUL DEGRADATION - LLM failures
@@ -159,4 +176,7 @@ async def simple_chat_endpoint(
             "error": str(e),
             "error_type": type(e).__name__
         })
-        return PlainTextResponse("Sorry, I'm having trouble responding right now.", status_code=500)
+        return JSONResponse({
+            "error": "Sorry, I'm having trouble responding right now.",
+            "response": "Sorry, I'm having trouble responding right now."
+        }, status_code=500)

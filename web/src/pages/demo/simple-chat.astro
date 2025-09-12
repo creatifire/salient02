@@ -1,3 +1,4 @@
+
 ---
 import Layout from '../../layouts/Layout.astro';
 import { CHAT_TARGET } from '../../lib/chatTarget';
@@ -175,13 +176,13 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   </style>
   <script is:inline define:vars={{ CHAT_TARGET, SSE_ENABLED, ALLOW_BASIC_HTML }}>
-    // Prefer same-origin during dev to use Vite proxy; fall back to configured target in prod if same-origin
+    // For simple-chat, always use the backend URL directly (no Vite proxy)
     let CHAT_BASE;
     try {
-      const cfg = new URL(CHAT_TARGET);
-      CHAT_BASE = (cfg.origin === window.location.origin) ? cfg : new URL('/', window.location.origin);
-    } catch {
-      CHAT_BASE = new URL('/', window.location.origin);
+      CHAT_BASE = new URL(CHAT_TARGET);
+    } catch (error) {
+      // Fallback to localhost:8000 if CHAT_TARGET is invalid
+      CHAT_BASE = new URL('http://localhost:8000/');
     }
     const chat = document.querySelector('.chat');
     const msg = document.getElementById('msg');
@@ -191,6 +192,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
 
     let busy = false;
     let historyLoaded = false;
+    let activeBotDiv = null;
 
     function addCopyButton(container){
       const btn = document.createElement('button');
@@ -379,7 +381,6 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     }
 
     async function doPost(text){
-      let activeBotDiv = null;
       try{
         // NEW ENDPOINT: /agents/simple-chat/chat with JSON request/response
         const requestBody = {
@@ -388,7 +389,9 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
         };
         
         const startTime = Date.now();
-        const r = await fetch(new URL('/agents/simple-chat/chat', CHAT_BASE).toString(), { 
+        const requestUrl = new URL('/agents/simple-chat/chat', CHAT_BASE).toString();
+        
+        const r = await fetch(requestUrl, { 
           method:'POST', 
           headers:{ 'Content-Type':'application/json' }, 
           body: JSON.stringify(requestBody),
@@ -396,6 +399,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
         });
         const endTime = Date.now();
         const requestTime = endTime - startTime;
+        
         
         if (r.ok) {
           // Handle JSON response
@@ -449,13 +453,19 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           
         } else {
           const errorText = `[HTTP ${r.status}] ${r.statusText}`;
+          console.error('Simple Chat Agent HTTP Error:', r.status, r.statusText);
           if (activeBotDiv) {
             activeBotDiv.textContent = errorText;
           }
         }
       } catch(err) { 
-        console.error('Simple Chat Agent Error:', err);
-        if(activeBotDiv) activeBotDiv.textContent='[network error]'; 
+        console.error('Simple Chat Agent Detailed Error:', {
+          error: err,
+          message: err.message,
+          stack: err.stack,
+          requestUrl: requestUrl
+        });
+        if(activeBotDiv) activeBotDiv.textContent=`[network error: ${err.message}]`; 
       }
       finally{ setBusy(false); }
     }
@@ -467,7 +477,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       appendMessage('user', value);
       msg.value = '';
 
-      const activeBotDiv = appendMessage('bot', '');
+      activeBotDiv = appendMessage('bot', '');
       setBusy(true);
 
       // Always use POST (no SSE for simple chat agent)
