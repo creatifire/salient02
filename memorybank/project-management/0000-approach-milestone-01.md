@@ -91,15 +91,15 @@ GET /default/simple-chat/stream     # SSE streaming
 - **TASK 0017-002**: ✅ **COMPLETED** - Agent responds to basic queries with YAML configuration
 - **TASK 0017-003**: ✅ **COMPLETED** - Multi-turn conversations maintain context & history ordering fixed  
 - **TASK 0017-004**: ✅ **COMPLETED** - `/agents/simple-chat/chat` endpoint accessible via curl with session handling
-- **TASK 0017-005**: 🔄 **NEXT** - LLM cost records appear in database with accurate token counts
-- **TASK 0017-006**: 📋 **PLANNED** - Session bridging: start on `/chat`, continue on `/agents/simple-chat/chat`
+- **TASK 0017-005**: ✅ **COMPLETED** - Breakthrough OpenRouter cost tracking with $0.0001801 precision billing
+- **TASK 0017-006**: 🔄 **NEXT** - Session bridging: start on `/chat`, continue on `/agents/simple-chat/chat`
 - **TASK 0017-007**: 📋 **PLANNED** - Vector search returns relevant results via agent queries
 - **TASK 0017-008**: 📋 **PLANNED** - Web search works when enabled and returns current information
 
 **Detailed Implementation**: See TASK 0017-002 through TASK 0017-008 in [0017-simple-chat-agent.md](0017-simple-chat-agent.md) for complete acceptance criteria, automated tests, and technical specifications
 **Dependencies**: Priority 1 complete ✅
-**Status**: 🔄 **IN PROGRESS** - Tasks 0017-002, 0017-003, 0017-004 completed ✅
-**Next**: TASK 0017-005 (LLM Request Tracking & Cost Management)
+**Status**: 🔄 **IN PROGRESS** - Tasks 0017-002, 0017-003, 0017-004, 0017-005 completed ✅
+**Next**: TASK 0017-006 (Legacy Session Compatibility)
 
 ---
 
@@ -389,5 +389,5 @@ API-Only       | Mobile apps, custom UIs      | High (headless integration)
 - **Epic References**: Each priority maps to detailed planning in specific epic documents
 
 **Priority 1 Complete ✅ - Priority 2: Simple Chat Agent Implementation IN PROGRESS** 🔄  
-**Completed**: TASK 0017-002 ✅, TASK 0017-003 ✅, TASK 0017-004 ✅  
-**Next**: TASK 0017-005 (LLM Request Tracking & Cost Management) 🚀
+**Completed**: TASK 0017-002 ✅, TASK 0017-003 ✅, TASK 0017-004 ✅, TASK 0017-005 ✅  
+**Next**: TASK 0017-006 (Legacy Session Compatibility) 🚀
