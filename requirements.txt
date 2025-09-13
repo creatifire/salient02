@@ -16,8 +16,3 @@ pinecone==7.3.0
 httpx==0.28.1
 sse-starlette==3.0.2
 
-# LangChain/LangGraph for advanced agent capabilities
-langchain==0.3.27
-langchain-openai==0.3.33
-langchain-community==0.3.29
-langgraph==0.6.7
