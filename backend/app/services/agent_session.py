@@ -21,25 +21,26 @@ Dependencies:
 - UUID handling for session identification
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .message_service import get_message_service
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
 from datetime import datetime
 import uuid
 
 
-async def load_agent_conversation(session_id: str) -> List[ModelMessage]:
+async def load_agent_conversation(session_id: str, max_messages: Optional[int] = None) -> List[ModelMessage]:
     """
     Load conversation history from database and convert to Pydantic AI format.
     
-    Retrieves all messages for the given session from the database (from any endpoint)
+    Retrieves recent messages for the given session from the database (from any endpoint)
     and converts them to the proper Pydantic AI ModelMessage format for agent consumption.
     
     Args:
         session_id: Session UUID string to load conversation for
+        max_messages: Maximum number of recent messages to load (None to use config default)
         
     Returns:
-        List of ModelMessage objects in chronological order (oldest first)
+        List of ModelMessage objects in chronological order (oldest first), limited by max_messages
         
     Raises:
         ValueError: If session_id format is invalid
@@ -47,13 +48,22 @@ async def load_agent_conversation(session_id: str) -> List[ModelMessage]:
     Example:
         >>> history = await load_agent_conversation("123e4567-e89b-12d3-a456-426614174000")
         >>> print(f"Loaded {len(history)} messages from database")
+        >>> # Or with custom limit
+        >>> history = await load_agent_conversation("123e4567-e89b-12d3-a456-426614174000", max_messages=20)
     """
+    # Get message limit from config if not provided
+    if max_messages is None:
+        from ..config import load_config
+        config = load_config()
+        chat_config = config.get("chat", {})
+        max_messages = chat_config.get("history_limit", 50)  # Default to 50 for safety
+    
     message_service = get_message_service()
     
-    # Get all messages for this session (from any endpoint)
+    # Get recent messages for this session (from any endpoint) with configurable limit
     db_messages = await message_service.get_session_messages(
         session_id=uuid.UUID(session_id),
-        limit=50  # Configurable limit to prevent memory issues
+        limit=max_messages  # Respects configuration
     )
     
     if not db_messages:

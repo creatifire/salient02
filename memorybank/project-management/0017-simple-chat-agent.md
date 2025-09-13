@@ -441,12 +441,99 @@ async def simple_chat(
   - **Performance Tests**: `test_conversation_loading_performance()` - Ensures history loading doesn't impact response times significantly  
   - **Error Handling Tests**: `test_conversation_loading_edge_cases()` - Invalid session IDs, empty sessions, malformed messages
 
-- [ ] 0017-003-006 - TASK - Vector Search Tool
-  - [ ] 0017-003-006-01 - CHUNK - Add vector search tool to agent
+## 0017-004 - FEATURE - Configuration Cascade & Consistency
+**Status**: Planned
+
+**Problem**: Configuration parameter naming inconsistencies and incorrect cascade order
+- **Naming Issue**: `app.yaml` uses `history_limit` while `simple_chat.yaml` uses `max_history_messages`  
+- **Cascade Issue**: Current implementation checks `app.yaml` first, should check agent config first
+
+**Solution**: Agent-specific → Global → Code fallback hierarchy with consistent naming
+
+**Desired Cascade for Simple Chat Agent:**
+1. **`simple_chat.yaml`** (agent-specific settings) — highest priority
+2. **`app.yaml`** (global defaults) — fallback  
+3. **Code constants** (safety fallback) — last resort
+
+- [ ] 0017-004-001 - TASK - Configuration Parameter Standardization
+  - [ ] 0017-004-001-01 - CHUNK - Rename inconsistent parameters in simple_chat.yaml
+    - SUB-TASKS:
+      - Change `context_management.max_history_messages` → `context_management.history_limit`
+      - Audit other parameter names for consistency with app.yaml conventions
+      - Update documentation and comments to reflect standardized naming
+    - STATUS: Planned — Align agent config with global config naming conventions
+    
+**Current Inconsistencies Identified:**
+```yaml
+# app.yaml (STANDARD)
+chat:
+  history_limit: 50          # ✅ Standard name
+
+# simple_chat.yaml (NEEDS FIX) 
+context_management:
+  max_history_messages: 50   # ❌ Should be "history_limit"
+```
+
+- [ ] 0017-004-002 - TASK - Agent-First Configuration Cascade
+  - [ ] 0017-004-002-01 - CHUNK - Implement proper cascade logic in agent_session.py
+    - SUB-TASKS:
+      - Create `get_agent_history_limit(agent_name: str)` function
+      - Check `{agent_name}.yaml` config first, then `app.yaml`, then code fallback
+      - Update `load_agent_conversation()` to use agent-first cascade
+      - Maintain backward compatibility for legacy endpoints (app.yaml first)
+    - STATUS: Planned — Agent configs override global configs with proper fallback chain
+    
+```python
+# New cascade implementation
+async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
+    """Get history limit with proper agent-first cascade."""
+    
+    # 1. FIRST: Check agent-specific config
+    try:
+        agent_config = await get_agent_config(agent_name)
+        context_mgmt = getattr(agent_config, 'context_management', {})
+        if hasattr(context_mgmt, 'history_limit'):
+            return context_mgmt.history_limit
+    except Exception:
+        pass  # Continue to global config
+    
+    # 2. SECOND: Check global app.yaml config
+    config = load_config()
+    chat_config = config.get("chat", {})
+    history_limit = chat_config.get("history_limit")
+    if history_limit is not None:
+        return history_limit
+    
+    # 3. LAST: Code fallback for safety
+    return 50
+```
+
+- [ ] 0017-004-003 - TASK - Update Agent Integration Points  
+  - [ ] 0017-004-003-01 - CHUNK - Update simple_chat.py to use new cascade
+    - SUB-TASKS:
+      - Replace direct config calls with `get_agent_history_limit("simple_chat")`
+      - Update conversation loading to respect agent-first cascade
+      - Add logging to show which config source was used
+      - Test agent config override functionality
+    - STATUS: Planned — Simple chat agent uses proper configuration hierarchy
+
+  AUTOMATED-TESTS:
+  - **Unit Tests**: `test_agent_config_cascade()` - Tests proper config resolution order
+  - **Integration Tests**: `test_agent_history_limit_override()` - Tests agent config overrides global config
+  - **Edge Case Tests**: `test_config_cascade_fallbacks()` - Tests fallback behavior when configs are missing
+
+## 0017-005 - FEATURE - Vector Search Tool
+**Status**: Planned
+
+Enable agent to search knowledge base using existing VectorService integration.
+
+- [ ] 0017-005-001 - TASK - Vector Search Tool Implementation
+  - [ ] 0017-005-001-01 - CHUNK - Add vector search tool to agent
     - SUB-TASKS:
       - `@agent.tool` decorator for vector_search function
       - Integration with existing VectorService
       - Format search results for agent consumption
+      - Configuration-driven enable/disable from simple_chat.yaml
     - STATUS: Planned — Agent can search knowledge base using existing vector service
 
 ```python
@@ -454,16 +541,22 @@ async def simple_chat(
 async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str:
     vector_service = get_vector_service()
     results = await vector_service.query(query, ctx.deps.session_id, max_results=5)
-    # Format results for agent
+    # Format results for agent consumption
     return "Knowledge base search results:\n\n" + formatted_results
 ```
 
-- [ ] 0017-003-007 - TASK - Web Search Tool (Exa Integration)
-  - [ ] 0017-003-007-01 - CHUNK - Add web search tool to agent
+## 0017-006 - FEATURE - Web Search Tool (Exa Integration)  
+**Status**: Planned
+
+Enable agent to search web for current information using Exa API integration.
+
+- [ ] 0017-006-001 - TASK - Web Search Tool Implementation
+  - [ ] 0017-006-001-01 - CHUNK - Add web search tool to agent
     - SUB-TASKS:
       - `@agent.tool` decorator for web_search function
       - Exa API integration with configuration-driven enable/disable
       - Error handling and timeout management
+      - Rate limiting and API key management
     - STATUS: Planned — Agent can search web for current information
 
 ```python

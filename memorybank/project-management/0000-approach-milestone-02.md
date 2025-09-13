@@ -1,104 +1,46 @@
-# Milestone 2: Multi-CRM & WordPress Integration
-> Expand sales agent capabilities with WordPress content ingestion and additional CRM platform support
+# Milestone 2: Multi-CRM & WordPress Integration - Streamlined
+> Expand sales agent capabilities with WordPress content processing and multi-CRM platform support
 
 ## Executive Summary
 
-**Objective**: Build upon Milestone 1 success by adding WordPress content processing and Salesforce/HubSpot CRM integrations for enterprise-scale deployment.
+**Current State**: Post-Milestone 1 with foundational sales agent infrastructure complete:
+- ✅ Epic 0008 (Sales Agent) - Astro content RAG + Zoho CRM working
+- ✅ Feature 0010-001 (Astro Content Processing) - Content pipeline operational
+- ✅ Feature 0011-001 (Vector Database Setup) - Pinecone integration ready
 
-**Prerequisites**: Milestone 1 completed (Astro content RAG + Zoho CRM working)
+**Approach**: Sequential expansion through WordPress content ingestion, cost-effective vector storage, and enterprise CRM platform integrations.
 
-## Core Features
+## 🎯 DEVELOPMENT PRIORITIES
 
-### 🌐 **WordPress Content Pipeline**
-- **WordPress XML Processing**: Parse WordPress export files to structured content
-- **WordPress to Markdown**: Convert WordPress posts, pages, and custom content types
-- **Advanced Content Handling**: Process WordPress shortcodes, blocks, and media
-- **Pinecone Integration**: Index WordPress content alongside existing Astro content
+### **Priority 1: WordPress Content Pipeline** 📋
+- [ ] 0010-002-001 - WordPress XML Processing
+- [ ] 0010-002-002 - WordPress to Markdown Conversion
+- [ ] 0010-002-003 - Advanced Content Handling (shortcodes, blocks, media)
+- [ ] 0010-002-004 - Pinecone Integration Enhancement
 
-### 🔗 **Multi-CRM Support**  
-- **Salesforce Integration**: Enterprise-grade CRM integration with advanced lead management
-- **HubSpot Integration**: Marketing automation and comprehensive sales pipeline
-- **CRM Routing Logic**: Intelligent CRM selection based on account configuration
-- **Cross-CRM Analytics**: Unified reporting across multiple CRM platforms
+### **Priority 2: PostgreSQL Vector Storage (pgvector)** 📋
+- [ ] 0011-006-001 - PostgreSQL pgvector Extension Setup
+- [ ] 0011-006-002 - Hybrid Vector Architecture Implementation
+- [ ] 0011-006-003 - Account-Tier Vector Storage Routing
+- [ ] 0011-006-004 - Vector Storage Migration Capabilities
 
-### 🗄️ **PostgreSQL Vector Storage (pgvector)**
-- **Cost-Effective Vector Storage**: PostgreSQL pgvector extension for entry-tier accounts
-- **Hybrid Vector Architecture**: Pinecone (premium) + pgvector (entry-level) support
-- **Seamless Migration**: Move between vector storage types based on account upgrades
-- **Performance Optimization**: Optimized queries and indexing for PostgreSQL vectors
+### **Priority 3: Salesforce CRM Integration** 📋
+- [ ] 0008-005-001 - Salesforce API Integration
+- [ ] 0008-005-002 - Enterprise Lead Management Workflows
+- [ ] 0008-005-003 - Salesforce Field Mapping
+- [ ] 0008-005-004 - Cross-CRM Analytics Foundation
 
-## Implementation Strategy
+### **Priority 4: CrossFeed MCP Server** 📋
+- [ ] 0014-001-001 - MCP Server Development
+- [ ] 0014-001-002 - MCP Server Integration
+- [ ] 0014-001-003 - Cross-sell Intelligence Implementation
+- [ ] 0014-001-004 - Upsell Intelligence Implementation
 
-### **Phase 1: WordPress Content Pipeline** (Sprints 1-2)
-- Epic 0010-002: WordPress Content Processing (Phase 2 components)
-- WordPress XML parser and markdown conversion
-- Advanced content structure handling
-- Pinecone indexing integration
+### **Priority 5: HubSpot CRM Integration** 📋
+- [ ] 0008-006-001 - HubSpot API Integration
+- [ ] 0008-006-002 - Marketing Automation Integration
+- [ ] 0008-006-003 - Pipeline Management Enhancement
+- [ ] 0008-006-004 - Cross-Platform Lead Synchronization
 
-### **Phase 2: Salesforce Integration** (Sprints 3-4)
-- Epic 0008-005: Salesforce CRM features
-- Enterprise API integration
-- Advanced lead management workflows
-- Salesforce-specific field mapping
-
-### **Phase 3: PostgreSQL Vector Storage Integration** (Sprints 3-4)
-- Epic 0011-006: pgvector Implementation
-- PostgreSQL pgvector extension setup and configuration
-- Hybrid vector storage architecture (Pinecone + pgvector)
-- Account-tier based vector storage routing
-- Performance optimization for PostgreSQL vectors
-
-### **Phase 4: Salesforce Integration** (Sprints 4-5)
-- Epic 0008-005: Salesforce CRM features
-- Enterprise API integration
-- Advanced lead management workflows
-- Salesforce-specific field mapping
-
-### **Phase 5: CrossFeed - Cross/Up/Competitive Sell MCP Server** (Sprints 5-6) 
-- Epic 0014: CrossFeed MCP Server
-- MCP Server Development
-- MCP Server Integration
-- Cross-sell and upsell intelligence
-
-### **Phase 6: HubSpot Integration** (Sprints 6-7)
-- Epic 0008-005: HubSpot CRM features  
-- Marketing automation integration
-- Pipeline management and reporting
-- Cross-platform lead synchronization
-
-## Success Criteria
-
-### **WordPress Integration**
-- ✅ Complete WordPress site content successfully ingested
-- ✅ All content types (posts, pages, custom fields) converted to markdown
-- ✅ WordPress content searchable via RAG pipeline
-- ✅ Media and attachment handling working
-
-### **PostgreSQL Vector Storage**
-- ✅ pgvector extension installed and configured in PostgreSQL
-- ✅ Hybrid vector storage routing working (Pinecone + pgvector)
-- ✅ Account-tier based vector storage assignment functional
-- ✅ Vector storage migration capabilities operational
-
-### **Multi-CRM Capability**
-- ✅ Salesforce lead creation and management functional
-- ✅ HubSpot integration with marketing automation
-- ✅ Account-level CRM selection working
-- ✅ Cross-CRM reporting and analytics available
-
-### **Enterprise Readiness**
-- ✅ Support for large-scale content ingestion (1000+ pages)
-- ✅ Multiple CRM platform management
-- ✅ Cost-effective vector storage for entry-tier accounts
-- ✅ Advanced lead routing and automation
-- ✅ Comprehensive audit trails and reporting
-
-## Dependencies
-
-- **Milestone 1 Completion**: All Milestone 1 features fully operational
-- **Epic 0005**: Multi-agent infrastructure for CRM routing
-- **Performance Optimization**: Enhanced Pinecone indexing for larger content volumes
-
-**Timeline**: 8 sprints post-Milestone 1 completion
-
-This milestone transforms the sales agent from a focused single-CRM solution into an enterprise-capable platform supporting diverse content sources, cost-effective vector storage options, and multiple CRM ecosystems.
+**Current Status**: Post-Milestone 1 - All priorities planned  
+**Next**: 0010-002-001 (WordPress XML Processing)
