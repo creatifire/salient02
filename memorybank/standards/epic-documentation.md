@@ -44,6 +44,7 @@ Brief description of what you're building and why.
 - Manually verifiable units of work
 - Each chunk must have clear deliverable
 - Include essential code snippets when needed
+- Each chunk includes AUTOMATED-TESTS section for focused testing
 
 ## Content Guidelines
 
@@ -52,6 +53,7 @@ Brief description of what you're building and why.
 - **STATUS**: What was actually accomplished (not what was planned)
 - **Code Snippets**: Essential implementation patterns only
 - **Manual Verification**: How to test/verify the work
+- **AUTOMATED-TESTS**: Unit and integration tests for chunks, integration tests for features
 - **Dependencies**: What must be completed first
 
 ### ❌ Exclude  
@@ -79,6 +81,33 @@ def example_function():
     # Key implementation details
     return result
 ```
+
+## Automated Testing Guidelines
+
+### AUTOMATED-TESTS for Chunks
+Each chunk should include focused tests that verify the specific deliverable:
+
+```markdown
+AUTOMATED-TESTS:
+- **Unit Tests**: `test_function_name()` - Tests core function logic without dependencies
+- **Integration Tests**: `test_integration_scenario()` - Tests with real database/external services
+```
+
+### AUTOMATED-TESTS for Features
+Features should include comprehensive integration tests for the complete workflow:
+
+```markdown
+AUTOMATED-TESTS:
+- **Integration Tests**: End-to-end feature workflow testing
+- **Performance Tests**: Response time and load testing (if applicable)
+- **Error Handling Tests**: Graceful degradation scenarios
+```
+
+### Test Focus Guidelines
+- **Chunks**: Test the specific functionality delivered in that chunk only
+- **Features**: Test complete user workflows and integration points
+- **Coverage Goal**: Sufficient to prevent regressions, not exhaustive
+- **Test Names**: Descriptive of what behavior is being verified
 
 ## Status Reporting
 
@@ -153,6 +182,9 @@ STATUS: In progress, working on implementation ❌ (not a status)
       - Message textarea + Submit + Clear buttons
       - Append-only chat pane container
     - STATUS: Completed — Implemented `GET /` rendering `templates/index.html` with HTMX CDN, textarea, Send/Clear buttons, and append-only chat pane
+    - AUTOMATED-TESTS:
+      - **Unit Tests**: `test_route_get_index()` - Tests route returns 200 and renders template
+      - **Integration Tests**: `test_page_loads_with_htmx()` - Tests complete page loading with HTMX elements
 ```
 
 ### Complex Task with Code (from Epic 0017)
@@ -165,6 +197,9 @@ STATUS: In progress, working on implementation ❌ (not a status)
       - Real OpenRouter cost extraction via `extra_body={"usage": {"include": True}}`
       - Database storage with Decimal precision
     - STATUS: Completed — Production-ready billing with $0.0001801 precision, breakthrough single-call architecture
+    - AUTOMATED-TESTS:
+      - **Unit Tests**: `test_openrouter_provider_setup()` - Tests provider initialization and client access
+      - **Integration Tests**: `test_cost_tracking_end_to_end()` - Tests full cost tracking with real OpenRouter API
 
 ```python
 # Breakthrough: Direct OpenRouter client with cost tracking
@@ -183,6 +218,11 @@ response = await direct_client.chat.completions.create(
 
 real_cost = float(response.usage.cost)  # Accurate to the penny
 ```
+
+  AUTOMATED-TESTS:
+  - **Integration Tests**: `test_llm_cost_tracking_workflow()` - Complete cost tracking from request to database storage
+  - **Performance Tests**: `test_cost_tracking_latency()` - Ensures cost tracking doesn't add significant overhead
+  - **Error Handling Tests**: `test_cost_tracking_fallback()` - Graceful handling when cost data unavailable
 ```
 
 ## Definition of Done Template
