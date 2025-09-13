@@ -183,7 +183,7 @@ class TestSimpleChatAgentIntegration:
     @pytest.mark.asyncio
     @patch('app.services.agent_session.load_agent_conversation')
     @patch('app.services.agent_session.get_session_stats')
-    @patch('app.agents.simple_chat.logger')
+    @patch('loguru.logger')
     async def test_simple_chat_session_bridging_logging(self, mock_logger, mock_get_stats, mock_load_conversation, mock_dependencies, sample_conversation_history):
         """Test that session bridging events are logged for analytics."""
         

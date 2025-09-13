@@ -6,6 +6,7 @@ and cross-endpoint conversation continuity functionality.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import uuid
 from datetime import datetime, timezone
@@ -24,14 +25,14 @@ from pydantic_ai.messages import ModelRequest, ModelResponse
 class TestAgentConversationLoadingIntegration:
     """Integration tests for complete agent conversation loading workflow."""
     
-    @pytest.fixture(scope="function")
+    @pytest_asyncio.fixture(scope="function")
     async def setup_database(self):
         """Initialize database for integration testing."""
         await initialize_database()
         yield
         # Cleanup handled by test database isolation
     
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def test_session(self, setup_database):
         """Create a test session for conversation testing."""
         db_service = get_database_service()
@@ -49,7 +50,7 @@ class TestAgentConversationLoadingIntegration:
             await db_session.commit()
             await db_session.refresh(test_session)
             
-            yield str(test_session.id)
+            return str(test_session.id)
     
     @pytest.mark.asyncio
     async def test_load_agent_conversation_with_db(self, test_session):
