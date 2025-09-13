@@ -287,8 +287,8 @@ def _setup_logger() -> None:
     logger.remove()
     logger.add(sys.stdout, level=level, serialize=True, enqueue=enqueue)
     
-    # Create timestamped log file with rotation and retention
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    # Create daily log file with proper rotation (survives restarts)
+    ts = datetime.now().strftime("%Y%m%d")
     Path(log_dir).mkdir(parents=True, exist_ok=True)
     file_target = str(Path(log_dir) / f"{prefix}{ts}.jsonl")
 
