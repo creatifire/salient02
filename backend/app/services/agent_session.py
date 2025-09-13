@@ -22,7 +22,7 @@ Dependencies:
 """
 
 from typing import List, Dict, Any
-from app.services.message_service import get_message_service
+from .message_service import get_message_service
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
 from datetime import datetime
 import uuid

@@ -27,6 +27,7 @@ from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
+from ..services.agent_session import load_agent_conversation, get_session_stats
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -210,7 +211,6 @@ async def simple_chat(
     
     # Load conversation history if not provided (TASK 0017-003-005: Agent Session Service Integration)
     if message_history is None:
-        from app.services.agent_session import load_agent_conversation
         message_history = await load_agent_conversation(session_id)
         
         # TASK 0017-003-005-03: Log session bridging for analytics
@@ -359,7 +359,6 @@ async def simple_chat(
     usage_obj = UsageData(prompt_tokens, completion_tokens, total_tokens)
     
     # TASK 0017-003-005-02: Add session continuity stats
-    from app.services.agent_session import get_session_stats
     session_stats = await get_session_stats(session_id)
     
     return {
