@@ -269,7 +269,14 @@ def _setup_logger() -> None:
     cfg = load_config()
     logging_cfg = cfg.get("logging") or {}
     level = str(logging_cfg.get("level", "INFO")).upper()
-    log_dir = logging_cfg.get("path") or str(BASE_DIR.parent / "backend" / "logs")
+    # Resolve log directory path relative to backend/ directory
+    configured_path = logging_cfg.get("path")
+    if configured_path:
+        # If path is specified in config, resolve it relative to backend/ directory
+        log_dir = str(BASE_DIR / configured_path.lstrip('./'))
+    else:
+        # Default fallback to backend/logs/
+        log_dir = str(BASE_DIR / "logs")
     prefix = logging_cfg.get("prefix", "salient-log-")
     rotation = str(logging_cfg.get("rotation", "1 day"))
     retention = str(logging_cfg.get("retention", "14 days"))
@@ -1225,7 +1232,14 @@ async def tail_logs(request: Request) -> JSONResponse:
         return JSONResponse({"error": "disabled"}, status_code=403)
     # Determine log directory and latest file
     logging_cfg = cfg.get("logging") or {}
-    log_dir = logging_cfg.get("path") or str(BASE_DIR.parent / "backend" / "logs")
+    # Resolve log directory path relative to backend/ directory
+    configured_path = logging_cfg.get("path")
+    if configured_path:
+        # If path is specified in config, resolve it relative to backend/ directory
+        log_dir = str(BASE_DIR / configured_path.lstrip('./'))
+    else:
+        # Default fallback to backend/logs/
+        log_dir = str(BASE_DIR / "logs")
     prefix = logging_cfg.get("prefix", "salient-log-")
     pattern = str(Path(log_dir) / f"{prefix}*.jsonl")
     files: List[str] = sorted(glob.glob(pattern))
