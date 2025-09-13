@@ -208,20 +208,21 @@ async def simple_chat(
     agent_config = await get_agent_config("simple_chat")
     model_settings = agent_config.model_settings  # Fixed: direct attribute access
     
-    # Load conversation history if not provided (TASK 0017-003)
+    # Load conversation history if not provided (TASK 0017-003-005: Agent Session Service Integration)
     if message_history is None:
-        # Get max_history_messages - check agent config for override, fall back to global config
-        agent_history_limit = None
-        if hasattr(agent_config, 'context_management') and agent_config.context_management:
-            agent_history_limit = agent_config.context_management.get('max_history_messages')
+        from app.services.agent_session import load_agent_conversation
+        message_history = await load_agent_conversation(session_id)
         
-        # Use agent-specific limit if set, otherwise fall back to global config (or function default)
-        max_messages = agent_history_limit if agent_history_limit is not None else None
-        
-        message_history = await load_conversation_history(
-            session_id=session_id,
-            max_messages=max_messages  # Will use config if None
-        )
+        # TASK 0017-003-005-03: Log session bridging for analytics
+        from loguru import logger
+        logger.info({
+            "event": "agent_session_bridging",
+            "session_id": session_id,
+            "loaded_messages": len(message_history),
+            "cross_endpoint_continuity": len(message_history) > 0,
+            "agent_type": "simple_chat",
+            "bridging_method": "agent_session_service"
+        })
     
     # Get the agent (Fixed: await async function)
     agent = await get_chat_agent()
@@ -357,6 +358,10 @@ async def simple_chat(
     
     usage_obj = UsageData(prompt_tokens, completion_tokens, total_tokens)
     
+    # TASK 0017-003-005-02: Add session continuity stats
+    from app.services.agent_session import get_session_stats
+    session_stats = await get_session_stats(session_id)
+    
     return {
         'response': response_text,  # Direct response from OpenRouter
         'usage': usage_obj,  # Compatible usage object
@@ -368,5 +373,7 @@ async def simple_chat(
             'provider': 'OpenRouterProvider',
             'cost_found': real_cost > 0,
             'breakthrough_solution': True
-        }
+        },
+        # TASK 0017-003-005: Agent Conversation Loading - Session continuity monitoring
+        'session_continuity': session_stats
     }
