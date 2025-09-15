@@ -103,14 +103,14 @@ class SessionDependencies(BaseDependencies):
     
     # Conversation context
     conversation_history: Optional[list] = None
-    max_history_messages: int = 20
+    history_limit: int = 20
     
     @classmethod
     async def create(
         cls,
         session_id: str,
         user_id: Optional[str] = None,
-        max_history_messages: int = 20,
+        history_limit: int = 20,
     ) -> SessionDependencies:
         """
         Factory method to create session-aware dependencies.
@@ -118,7 +118,7 @@ class SessionDependencies(BaseDependencies):
         Args:
             session_id: Current session identifier
             user_id: Optional user identifier
-            max_history_messages: Maximum conversation history to maintain
+            history_limit: Maximum conversation history to maintain
             
         Returns:
             Initialized SessionDependencies instance
@@ -138,7 +138,7 @@ class SessionDependencies(BaseDependencies):
             user_id=base.user_id,
             
             # Session-specific fields
-            max_history_messages=max_history_messages,
+            history_limit=history_limit,
             conversation_history=[],  # TODO: Load from database
             session_metadata={},  # TODO: Load from database
         )
@@ -182,7 +182,7 @@ class AccountScopedDependencies(SessionDependencies):
         session_id: str, 
         account_id: str = "default",
         user_id: Optional[str] = None,
-        max_history_messages: int = 20,
+        history_limit: int = 20,
     ) -> AccountScopedDependencies:
         """
         Factory method to create account-scoped dependencies.
@@ -191,14 +191,14 @@ class AccountScopedDependencies(SessionDependencies):
             session_id: Current session identifier
             account_id: Account identifier (default="default" for Phase 1)
             user_id: Optional user identifier
-            max_history_messages: Maximum conversation history to maintain
+            history_limit: Maximum conversation history to maintain
             
         Returns:
             Initialized AccountScopedDependencies instance
         """
         # Create session dependencies
         session_deps = await SessionDependencies.create(
-            session_id, user_id, max_history_messages
+            session_id, user_id, history_limit
         )
         
         # Create account context (Phase 1: use defaults)
@@ -236,7 +236,7 @@ class AccountScopedDependencies(SessionDependencies):
             config=session_deps.config,
             session_id=session_deps.session_id,
             user_id=session_deps.user_id,
-            max_history_messages=session_deps.max_history_messages,
+            history_limit=session_deps.history_limit,
             conversation_history=session_deps.conversation_history,
             session_metadata=session_deps.session_metadata,
             

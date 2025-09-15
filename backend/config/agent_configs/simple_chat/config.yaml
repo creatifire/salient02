@@ -2,15 +2,9 @@ agent_type: "simple_chat"
 name: "Simple Chat Agent"
 description: "General-purpose conversational agent with RAG capabilities and web search"
 
-system_prompt: |
-  You are a helpful AI assistant with access to knowledge base search and web search tools.
-  Always provide accurate, helpful responses with proper citations when you use information from searches.
-  
-  Guidelines:
-  - Use the vector_search tool when users ask questions that might be answered by stored knowledge
-  - Use web_search when you need current information or when vector search doesn't provide good results
-  - Be conversational and helpful while remaining accurate
-  - Cite your sources when using search results
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"
 
 model_settings:
   model: "openai:gpt-4o"  # Can override app.yaml default
@@ -45,10 +39,10 @@ tools:
   conversation_management:
     enabled: true
     auto_summarize_threshold: 10
-    summary_model: "openai:gpt-4o-mini"
+    summary_model: "qwen/qwen3-next-80b-a3b-thinking"
 
 context_management:
-  max_history_messages: 50             # Agent-specific history limit (overrides app.yaml chat.history_limit)
+  history_limit: 50                         # Standardized parameter name (was max_history_messages)
   context_window_tokens: 8000
   summarization:
     enabled: true

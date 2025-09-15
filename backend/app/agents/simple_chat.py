@@ -193,7 +193,7 @@ async def simple_chat(
         dict with response, messages, new_messages, and usage data
     """
     
-    # Get max_history_messages from config for session dependencies
+    # Get history_limit from config for session dependencies
     config = load_config()
     chat_config = config.get("chat", {})
     default_history_limit = chat_config.get("history_limit", 20)
@@ -202,7 +202,7 @@ async def simple_chat(
     session_deps = await SessionDependencies.create(
         session_id=session_id,
         user_id=None,  # Optional for simple chat
-        max_history_messages=default_history_limit
+        history_limit=default_history_limit
     )
     
     # Load agent configuration for model settings (Fixed: async call)

@@ -62,6 +62,16 @@ class AgentConfig(BaseModel):
         description="Tool configurations and settings"
     )
     
+    context_management: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Context management settings (history_limit, context_window_tokens, etc.)"
+    )
+    
+    prompts: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Prompt configuration and metadata (system_prompt_file, loaded_from, etc.)"
+    )
+    
     dependencies: Dict[str, Any] = Field(
         default_factory=dict,
         description="Required dependencies (vector_db, session, etc.)"

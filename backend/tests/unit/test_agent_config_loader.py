@@ -249,3 +249,82 @@ async def test_prompt_configuration_section():
         file_content = f.read().strip()
     
     assert config.system_prompt == file_content
+
+
+# =============================================================================
+# CHUNK 0017-004-001-02: Parameter name standardization in config.yaml  
+# =============================================================================
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_history_limit_parameter_exists():
+    """
+    Test that history_limit parameter is read correctly from agent config
+    
+    CHUNK 0017-004-001-02 AUTOMATED-TEST 1:
+    Verify history_limit parameter exists and is accessible in standardized location
+    """
+    from app.agents.config_loader import get_agent_config
+    
+    # Load agent config
+    config = await get_agent_config("simple_chat")
+    
+    # Verify context_management section exists
+    assert hasattr(config, 'context_management') and config.context_management is not None
+    assert isinstance(config.context_management, dict)
+    
+    # Verify history_limit parameter exists with expected value
+    assert 'history_limit' in config.context_management
+    history_limit = config.context_management['history_limit']
+    
+    # Should be a positive integer (the actual value from our config.yaml is 50)
+    assert isinstance(history_limit, int)
+    assert history_limit > 0
+    assert history_limit == 50  # Expected value from simple_chat/config.yaml
+    
+    # Verify parameter is easily accessible for code to use
+    assert config.context_management.get('history_limit') == 50
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio  
+async def test_old_max_history_messages_not_used():
+    """
+    Test that old max_history_messages parameter is no longer referenced
+    
+    CHUNK 0017-004-001-02 AUTOMATED-TEST 2:
+    Verify old parameter name is completely removed from configuration and code
+    """
+    from app.agents.config_loader import get_agent_config
+    
+    # Load agent config
+    config = await get_agent_config("simple_chat")
+    
+    # Verify old parameter name is NOT in context_management section
+    if hasattr(config, 'context_management') and config.context_management:
+        assert 'max_history_messages' not in config.context_management, \
+            "Old parameter 'max_history_messages' should not exist in config"
+    
+    # Verify old parameter name is NOT in the raw config data anywhere
+    config_dict = config.model_dump()
+    
+    # Check that max_history_messages doesn't appear anywhere in the config
+    def check_nested_dict(d, path=""):
+        if isinstance(d, dict):
+            for key, value in d.items():
+                current_path = f"{path}.{key}" if path else key
+                assert key != 'max_history_messages', \
+                    f"Old parameter 'max_history_messages' found at {current_path}"
+                check_nested_dict(value, current_path)
+        elif isinstance(d, list):
+            for i, item in enumerate(d):
+                check_nested_dict(item, f"{path}[{i}]")
+        elif isinstance(d, str):
+            # Don't check string content as it might legitimately contain the old name in comments
+            pass
+    
+    check_nested_dict(config_dict)
+    
+    # Also verify that history_limit is properly used instead
+    assert config.context_management.get('history_limit') is not None, \
+        "Standardized parameter 'history_limit' should exist"

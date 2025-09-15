@@ -484,7 +484,7 @@ async def simple_chat(
     - STATUS: Completed — Agent-specific folder structure implemented with external prompt loading, backward compatibility maintained, all automated tests passing
     - PRIORITY: High — Enables scalable multi-agent architecture with better organization
   
-  - [ ] 0017-004-001-02 - CHUNK - Parameter name standardization in config.yaml
+  - [x] 0017-004-001-02 - CHUNK - Parameter name standardization in config.yaml
     - SUB-TASKS:
       - Change `context_management.max_history_messages: 50` → `context_management.history_limit: 50`
       - Verify all other parameter names follow app.yaml conventions
@@ -497,7 +497,7 @@ async def simple_chat(
       - Verify config.yaml contains `context_management.history_limit` parameter
       - Confirm old `max_history_messages` parameter is completely removed from config
       - Test that agent uses the standardized parameter name in practice
-    - STATUS: Planned — Align agent config parameter names with global config conventions
+    - STATUS: Completed — Parameter names standardized across configuration files and code, SessionDependencies updated to use history_limit, all automated and manual tests passing
     - PRIORITY: High — Required for proper configuration cascade implementation
   
   - [ ] 0017-004-001-03 - CHUNK - Update SessionDependencies class for standardized parameters

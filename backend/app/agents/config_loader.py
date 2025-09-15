@@ -82,12 +82,16 @@ class AgentConfigLoader:
         if agent_type in self._config_cache:
             return self._config_cache[agent_type]
         
-        # Construct config file path
-        config_file = self.configs_dir / f"{agent_type}.yaml"
+        # Construct config file path - try new folder structure first
+        config_file = self.configs_dir / agent_type / "config.yaml"
         
+        # Fall back to legacy flat structure if new structure doesn't exist
+        if not config_file.exists():
+            config_file = self.configs_dir / f"{agent_type}.yaml"
+            
         if not config_file.exists():
             raise AgentConfigError(
-                f"Agent configuration file not found: {config_file}"
+                f"Agent configuration file not found. Tried: {self.configs_dir / agent_type / 'config.yaml'} and {self.configs_dir / f'{agent_type}.yaml'}"
             )
         
         try:
@@ -97,6 +101,35 @@ class AgentConfigLoader:
             
             if not config_data:
                 raise AgentConfigError(f"Empty configuration file: {config_file}")
+            
+            # Load external prompt files if specified
+            if "prompts" in config_data and "system_prompt_file" in config_data["prompts"]:
+                prompt_file_path = config_data["prompts"]["system_prompt_file"]
+                
+                # Resolve relative path from the config file directory
+                if prompt_file_path.startswith("./"):
+                    prompt_file_path = prompt_file_path[2:]  # Remove "./"
+                    prompt_file = config_file.parent / prompt_file_path
+                else:
+                    prompt_file = Path(prompt_file_path)
+                    if not prompt_file.is_absolute():
+                        prompt_file = config_file.parent / prompt_file_path
+                
+                if not prompt_file.exists():
+                    raise AgentConfigError(f"System prompt file not found: {prompt_file}")
+                
+                try:
+                    with open(prompt_file, 'r', encoding='utf-8') as f:
+                        system_prompt = f.read().strip()
+                    
+                    # Replace the file reference with the actual prompt content
+                    config_data["system_prompt"] = system_prompt
+                    
+                    # Keep the file reference for debugging/tracking
+                    config_data["prompts"]["system_prompt_loaded_from"] = str(prompt_file)
+                    
+                except Exception as e:
+                    raise AgentConfigError(f"Failed to load system prompt from {prompt_file}: {e}")
             
             # Validate and create AgentConfig
             agent_config = AgentConfig(**config_data)
