@@ -9,7 +9,9 @@ Epic NNNN - Title
 ├── NNNN-001 - FEATURE - Name
 │   ├── NNNN-001-001 - TASK - Name
 │   │   ├── NNNN-001-001-01 - CHUNK - Name
-│   │   │   └── SUB-TASKS: Specific deliverables
+│   │   │   ├── SUB-TASKS: Specific deliverables
+│   │   │   ├── MANUAL-TESTS: How to manually verify
+│   │   │   ├── AUTOMATED-TESTS: Unit and integration tests
 │   │   │   └── STATUS: What was accomplished
 ```
 
