@@ -1225,7 +1225,7 @@ async def get_chat_history(request: Request) -> JSONResponse:
 
 
 @app.get("/dev/logs/tail", response_class=JSONResponse)
-async def tail_logs(request: Request, format: str = "json") -> JSONResponse:
+async def tail_logs(request: Request, format: str = "json", count: int = 10) -> JSONResponse:
     cfg = load_config()
     ui_cfg = cfg.get("ui") or {}
     # Gate: must be enabled and likely only in dev env
@@ -1248,7 +1248,9 @@ async def tail_logs(request: Request, format: str = "json") -> JSONResponse:
         return JSONResponse({"entries": []})
     latest = files[-1]
     # Tail last N lines safely - ensure complete JSON entries
-    n = int(ui_cfg.get("logs_tail_count", 10))
+    # Use the count parameter, with reasonable limits
+    max_count = int(ui_cfg.get("logs_tail_max", 500))  # Prevent excessive load
+    n = min(max(count, 1), max_count)  # Between 1 and max_count
     lines = []
     try:
         with open(latest, "r", encoding="utf-8") as f:
@@ -1289,11 +1291,22 @@ async def tail_logs(request: Request, format: str = "json") -> JSONResponse:
                     pretty_entries.append(line)
         # Reverse to show newest entries first
         pretty_entries.reverse()
-        return JSONResponse({"file": Path(latest).name, "entries": pretty_entries, "format": "pretty"})
+        return JSONResponse({
+            "file": Path(latest).name, 
+            "entries": pretty_entries, 
+            "format": "pretty",
+            "count": len(pretty_entries),
+            "requested_count": count
+        })
     else:
         # Default: return raw JSONL entries (newest first)
         lines.reverse()
-        return JSONResponse({"file": Path(latest).name, "entries": lines})
+        return JSONResponse({
+            "file": Path(latest).name, 
+            "entries": lines,
+            "count": len(lines),
+            "requested_count": count
+        })
 
 
 # Agent API Router Registration

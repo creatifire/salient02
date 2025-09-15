@@ -3,7 +3,25 @@ import Layout from '../layouts/Layout.astro';
 ---
 <Layout>
   <section style="padding:2rem 0;">
-    <h1 style="font-size:2rem;margin:0 0 .5rem;">Development Logs</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:1rem;">
+      <h1 style="font-size:2rem;margin:0;">Development Logs</h1>
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <label for="count-select" style="font-size:0.9rem;color:#666;">Show:</label>
+          <select id="count-select" style="padding:0.4rem 0.8rem;border:1px solid #ccc;border-radius:0.375rem;background:#fff;font-size:0.9rem;">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          <span style="font-size:0.9rem;color:#666;">entries</span>
+        </div>
+        <button id="refresh-btn" style="padding:0.5rem 1rem;border:1px solid #28a745;border-radius:0.375rem;background:#28a745;color:white;cursor:pointer;font-size:0.9rem;">
+          🔄 Refresh
+        </button>
+      </div>
+    </div>
+    
     <p id="log-info" style="margin:0 0 1rem;color:#666;">Loading logs...</p>
     
     <div id="logs-container">
@@ -12,20 +30,31 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </div>
     
-    <p style="margin-top:1rem;font-size:.9rem;color:#999;">
+    <div id="load-more-section" style="text-align:center;margin:1.5rem 0;display:none;">
+      <button id="load-more-btn" style="padding:0.75rem 1.5rem;border:1px solid #007bff;border-radius:0.375rem;background:#007bff;color:white;cursor:pointer;font-size:0.9rem;margin-right:1rem;">
+        📄 Load 25 More
+      </button>
+      <button id="load-50-more-btn" style="padding:0.75rem 1.5rem;border:1px solid #6c757d;border-radius:0.375rem;background:#6c757d;color:white;cursor:pointer;font-size:0.9rem;">
+        📄 Load 50 More
+      </button>
+    </div>
+    
+    <p style="margin-top:1rem;font-size:.9rem;color:#999;text-align:center;">
       This page is for development only. Do not expose in production.
     </p>
   </section>
   
   <script>
     let rawLogData = []; // Store raw entries for expansion
+    let currentCount = 10; // Track current count
+    let totalLoaded = 0; // Track total entries loaded
     
-    async function loadLogs() {
+    async function loadLogs(count = currentCount, append = false) {
       try {
-        // Load both pretty and raw formats
+        // Load both pretty and raw formats with count parameter
         const [prettyResponse, rawResponse] = await Promise.all([
-          fetch('http://localhost:8000/dev/logs/tail?format=pretty'),
-          fetch('http://localhost:8000/dev/logs/tail')
+          fetch(`http://localhost:8000/dev/logs/tail?format=pretty&count=${count}`),
+          fetch(`http://localhost:8000/dev/logs/tail?count=${count}`)
         ]);
         
         const prettyData = await prettyResponse.json();
@@ -36,44 +65,86 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
         
-        rawLogData = rawData.entries || [];
-        
-        // Update info  
-        document.getElementById('log-info').textContent = 
-          `Showing last entries from: ${prettyData.file || 'n/a'} (${prettyData.entries?.length || 0} entries)`;
-        
-        // Display logs with expandable functionality
-        const container = document.getElementById('logs-container');
-        if (prettyData.entries && prettyData.entries.length > 0) {
-          container.innerHTML = prettyData.entries.map((entry, index) => 
-            `<div class="log-entry" data-index="${index}" style="margin-bottom:0.75rem;">
-              <div class="log-preview" style="background:#f5f5f5;padding:1rem;border-radius:.5rem;font-family:Monaco,Consolas,monospace;font-size:0.9rem;border-left:3px solid #28a745;cursor:pointer;position:relative;">
-                <div style="white-space:pre-wrap;overflow:hidden;max-height:4em;line-height:1.4;">${escapeHtml(entry)}</div>
-                <div class="expand-hint" style="position:absolute;bottom:0.5rem;right:0.5rem;background:rgba(255,255,255,0.8);padding:0.2rem 0.5rem;border-radius:0.25rem;font-size:0.8rem;color:#666;">Click to expand</div>
-              </div>
-              <div class="log-expanded" style="display:none;background:#f8f9fa;padding:1rem;border-radius:.5rem;font-family:Monaco,Consolas,monospace;font-size:0.85rem;border-left:3px solid #007bff;margin-top:0.5rem;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-                  <strong style="color:#007bff;">Full Log Entry (Raw JSON)</strong>
-                  <button class="collapse-btn" style="background:#007bff;color:white;border:none;padding:0.25rem 0.5rem;border-radius:0.25rem;font-size:0.8rem;cursor:pointer;">Collapse</button>
-                </div>
-                <pre style="white-space:pre-wrap;margin:0;max-height:20em;overflow-y:auto;background:#fff;padding:1rem;border-radius:0.25rem;" id="raw-${index}">Loading...</pre>
-              </div>
-            </div>`
-          ).join('');
-          
-          // Add click handlers
-          document.querySelectorAll('.log-preview').forEach(preview => {
-            preview.addEventListener('click', handleExpand);
-          });
-          
-          document.querySelectorAll('.collapse-btn').forEach(btn => {
-            btn.addEventListener('click', handleCollapse);
-          });
+        if (!append) {
+          // Fresh load - replace everything
+          rawLogData = rawData.entries || [];
+          totalLoaded = prettyData.count || 0;
+          renderLogs(prettyData.entries || [], false);
         } else {
-          container.innerHTML = '<pre style="background:#fff3cd;padding:1rem;border-radius:0.5rem;white-space:pre-wrap;text-align:center;color:#856404;">No log entries available</pre>';
+          // Append mode - get more entries beyond what we have
+          const moreCount = totalLoaded + count;
+          const [morePrettyResponse, moreRawResponse] = await Promise.all([
+            fetch(`http://localhost:8000/dev/logs/tail?format=pretty&count=${moreCount}`),
+            fetch(`http://localhost:8000/dev/logs/tail?count=${moreCount}`)
+          ]);
+          
+          const morePrettyData = await morePrettyResponse.json();
+          const moreRawData = await moreRawResponse.json();
+          
+          // Get only the new entries (those beyond our current count)
+          const newPrettyEntries = (morePrettyData.entries || []).slice(totalLoaded);
+          const newRawEntries = (moreRawData.entries || []).slice(totalLoaded);
+          
+          // Append to our arrays
+          rawLogData = [...rawLogData, ...newRawEntries];
+          totalLoaded = morePrettyData.count || totalLoaded;
+          
+          renderLogs(newPrettyEntries, true);
         }
+        
+        // Update info display
+        document.getElementById('log-info').textContent = 
+          `Showing last ${totalLoaded} entries from: ${prettyData.file || 'n/a'}`;
+        
+        // Show/hide load more buttons
+        const loadMoreSection = document.getElementById('load-more-section');
+        loadMoreSection.style.display = totalLoaded >= 10 ? 'block' : 'none';
+        
       } catch (error) {
         showError(`Failed to load logs: ${error.message}`);
+      }
+    }
+    
+    function renderLogs(entries, append = false) {
+      const container = document.getElementById('logs-container');
+      
+      if (entries && entries.length > 0) {
+        const startIndex = append ? totalLoaded - entries.length : 0;
+        
+        const entriesHtml = entries.map((entry, index) => {
+          const globalIndex = startIndex + index;
+          return `<div class="log-entry" data-index="${globalIndex}" style="margin-bottom:0.75rem;">
+            <div class="log-preview" style="background:#f5f5f5;padding:1rem;border-radius:.5rem;font-family:Monaco,Consolas,monospace;font-size:0.9rem;border-left:3px solid #28a745;cursor:pointer;position:relative;">
+              <div style="white-space:pre-wrap;overflow:hidden;max-height:4em;line-height:1.4;">${escapeHtml(entry)}</div>
+              <div class="expand-hint" style="position:absolute;bottom:0.5rem;right:0.5rem;background:rgba(255,255,255,0.8);padding:0.2rem 0.5rem;border-radius:0.25rem;font-size:0.8rem;color:#666;">Click to expand</div>
+            </div>
+            <div class="log-expanded" style="display:none;background:#f8f9fa;padding:1rem;border-radius:.5rem;font-family:Monaco,Consolas,monospace;font-size:0.85rem;border-left:3px solid #007bff;margin-top:0.5rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <strong style="color:#007bff;">Full Log Entry (Raw JSON)</strong>
+                <button class="collapse-btn" style="background:#007bff;color:white;border:none;padding:0.25rem 0.5rem;border-radius:0.25rem;font-size:0.8rem;cursor:pointer;">Collapse</button>
+              </div>
+              <pre style="white-space:pre-wrap;margin:0;max-height:20em;overflow-y:auto;background:#fff;padding:1rem;border-radius:0.25rem;" id="raw-${globalIndex}">Loading...</pre>
+            </div>
+          </div>`;
+        }).join('');
+        
+        if (append) {
+          container.innerHTML += entriesHtml;
+        } else {
+          container.innerHTML = entriesHtml;
+        }
+        
+        // Add click handlers for new entries
+        document.querySelectorAll('.log-preview').forEach(preview => {
+          preview.addEventListener('click', handleExpand);
+        });
+        
+        document.querySelectorAll('.collapse-btn').forEach(btn => {
+          btn.addEventListener('click', handleCollapse);
+        });
+        
+      } else if (!append) {
+        container.innerHTML = '<pre style="background:#fff3cd;padding:1rem;border-radius:0.5rem;white-space:pre-wrap;text-align:center;color:#856404;">No log entries available</pre>';
       }
     }
     
@@ -124,6 +195,26 @@ import Layout from '../layouts/Layout.astro';
       return div.innerHTML;
     }
     
+    // Event handlers
+    document.getElementById('count-select').addEventListener('change', function(e) {
+      currentCount = parseInt(e.target.value);
+      totalLoaded = 0;
+      loadLogs(currentCount, false); // Fresh load with new count
+    });
+    
+    document.getElementById('refresh-btn').addEventListener('click', function() {
+      totalLoaded = 0;
+      loadLogs(currentCount, false); // Refresh with current count
+    });
+    
+    document.getElementById('load-more-btn').addEventListener('click', function() {
+      loadLogs(25, true); // Load 25 more entries
+    });
+    
+    document.getElementById('load-50-more-btn').addEventListener('click', function() {
+      loadLogs(50, true); // Load 50 more entries
+    });
+    
     // Load logs when page loads
     loadLogs();
     
@@ -142,6 +233,19 @@ import Layout from '../layouts/Layout.astro';
       }
       .collapse-btn:hover {
         background: #0056b3 !important;
+      }
+      #refresh-btn:hover {
+        background: #218838 !important;
+      }
+      #load-more-btn:hover {
+        background: #0056b3 !important;
+      }
+      #load-50-more-btn:hover {
+        background: #5a6268 !important;
+      }
+      select:focus {
+        outline: 2px solid #007bff;
+        outline-offset: 2px;
       }
     `;
     document.head.appendChild(style);
