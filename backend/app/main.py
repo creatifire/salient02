@@ -89,6 +89,7 @@ Usage:
 
 import asyncio
 import glob
+import json
 import sys
 import time
 import uuid
@@ -1224,7 +1225,7 @@ async def get_chat_history(request: Request) -> JSONResponse:
 
 
 @app.get("/dev/logs/tail", response_class=JSONResponse)
-async def tail_logs(request: Request) -> JSONResponse:
+async def tail_logs(request: Request, format: str = "json") -> JSONResponse:
     cfg = load_config()
     ui_cfg = cfg.get("ui") or {}
     # Gate: must be enabled and likely only in dev env
@@ -1246,26 +1247,53 @@ async def tail_logs(request: Request) -> JSONResponse:
     if not files:
         return JSONResponse({"entries": []})
     latest = files[-1]
-    # Tail last N lines safely
+    # Tail last N lines safely - ensure complete JSON entries
     n = int(ui_cfg.get("logs_tail_count", 10))
-    tail: List[str] = []
+    lines = []
     try:
-        with open(latest, "rb") as f:
-            f.seek(0, 2)
-            size = f.tell()
-            block = 1024
-            data = b""
-            while len(tail) <= n and size > 0:
-                step = block if size - block > 0 else size
-                f.seek(size - step)
-                data = f.read(step) + data
-                size -= step
-                tail = data.split(b"\n")
-            lines = [ln.decode("utf-8", errors="ignore") for ln in tail if ln]
-            lines = lines[-n:]
+        with open(latest, "r", encoding="utf-8") as f:
+            # Read all lines and get the last N complete lines
+            all_lines = f.readlines()
+            # Filter out empty lines and get last N entries
+            complete_lines = [line.strip() for line in all_lines if line.strip()]
+            lines = complete_lines[-n:] if len(complete_lines) >= n else complete_lines
     except Exception:
         lines = []
-    return JSONResponse({"file": Path(latest).name, "entries": lines})
+    
+    # Process entries based on format parameter
+    if format == "pretty":
+        # Pretty-print JSONL entries for human readability
+        pretty_entries = []
+        for line in lines:
+            if line.strip():
+                try:
+                    # Parse JSON and extract key information
+                    log_entry = json.loads(line)
+                    if isinstance(log_entry, dict) and "record" in log_entry:
+                        record = log_entry["record"]
+                        # Format: TIMESTAMP | LEVEL | MODULE:FUNCTION:LINE - MESSAGE
+                        timestamp = record.get("time", {}).get("repr", "Unknown time")
+                        level = record.get("level", {}).get("name", "INFO")
+                        module = record.get("module", "unknown")
+                        function = record.get("function", "unknown")
+                        line_no = record.get("line", "?")
+                        message = record.get("message", "")
+                        
+                        formatted = f"{timestamp} | {level:5} | {module}:{function}:{line_no} - {message}"
+                        pretty_entries.append(formatted)
+                    else:
+                        # Fallback: pretty-print the JSON
+                        pretty_entries.append(json.dumps(log_entry, indent=2))
+                except json.JSONDecodeError:
+                    # Not JSON, show as-is
+                    pretty_entries.append(line)
+        # Reverse to show newest entries first
+        pretty_entries.reverse()
+        return JSONResponse({"file": Path(latest).name, "entries": pretty_entries, "format": "pretty"})
+    else:
+        # Default: return raw JSONL entries (newest first)
+        lines.reverse()
+        return JSONResponse({"file": Path(latest).name, "entries": lines})
 
 
 # Agent API Router Registration

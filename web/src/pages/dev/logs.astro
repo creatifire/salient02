@@ -1,29 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-const res = await fetch('http://localhost:8000/dev/logs/tail').then(r => r.json()).catch(() => ({ entries: [] }));
-const { file, entries } = res;
-const pretty = (entries || []).map((ln) => {
-  try {
-    const obj = JSON.parse(ln);
-    return JSON.stringify(obj, null, 2);
-  } catch {
-    return ln; // not JSON, show raw line
-  }
-});
 ---
 <Layout>
   <section style="padding:2rem 0;">
     <h1 style="font-size:2rem;margin:0 0 .5rem;">Dev Logs</h1>
-    <p style="margin:0 0 1rem;">Showing last entries from: <code>{file || 'n/a'}</code></p>
-    {pretty && pretty.length ? (
-      <div style="display:grid;gap:.75rem;">
-        {pretty.map((block) => (
-          <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;overflow:auto;">{block}</pre>
-        ))}
-      </div>
-    ) : (
-      <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;">No log entries yet.</pre>
-    )}
-    <p style="margin-top:1rem;font-size:.9rem;">This page is for development only. Do not expose in production.</p>
+    <p>This is a simple test page to verify the route works.</p>
+    <p>If you can see this, the /dev/logs route is working!</p>
   </section>
 </Layout>
