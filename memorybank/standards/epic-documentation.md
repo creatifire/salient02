@@ -44,7 +44,7 @@ Brief description of what you're building and why.
 - Manually verifiable units of work
 - Each chunk must have clear deliverable
 - Include essential code snippets when needed
-- Each chunk includes AUTOMATED-TESTS section for focused testing
+- Each chunk includes MANUAL-TESTS and AUTOMATED-TESTS sections for comprehensive testing
 
 ## Content Guidelines
 
@@ -52,7 +52,7 @@ Brief description of what you're building and why.
 - **SUB-TASKS**: Specific, actionable items
 - **STATUS**: What was actually accomplished (not what was planned)
 - **Code Snippets**: Essential implementation patterns only
-- **Manual Verification**: How to test/verify the work
+- **MANUAL-TESTS**: How to manually test/verify the work
 - **AUTOMATED-TESTS**: Unit and integration tests for chunks, integration tests for features
 - **Dependencies**: What must be completed first
 
@@ -82,7 +82,17 @@ def example_function():
     return result
 ```
 
-## Automated Testing Guidelines
+## Testing Guidelines
+
+### MANUAL-TESTS for Chunks
+Each chunk should include focused manual verification steps:
+
+```markdown
+MANUAL-TESTS:
+- Verify [specific functionality] works as expected
+- Test [integration point] connects properly
+- Confirm [configuration/setup] is correct
+```
 
 ### AUTOMATED-TESTS for Chunks
 Each chunk should include focused tests that verify the specific deliverable:
@@ -182,6 +192,10 @@ STATUS: In progress, working on implementation ❌ (not a status)
       - Message textarea + Submit + Clear buttons
       - Append-only chat pane container
     - STATUS: Completed — Implemented `GET /` rendering `templates/index.html` with HTMX CDN, textarea, Send/Clear buttons, and append-only chat pane
+    - MANUAL-TESTS:
+      - Navigate to `http://localhost:8000/` and verify page loads
+      - Confirm HTMX CDN loads and textarea/buttons are visible
+      - Test that chat pane container is present and functional
     - AUTOMATED-TESTS:
       - **Unit Tests**: `test_route_get_index()` - Tests route returns 200 and renders template
       - **Integration Tests**: `test_page_loads_with_htmx()` - Tests complete page loading with HTMX elements
@@ -197,6 +211,10 @@ STATUS: In progress, working on implementation ❌ (not a status)
       - Real OpenRouter cost extraction via `extra_body={"usage": {"include": True}}`
       - Database storage with Decimal precision
     - STATUS: Completed — Production-ready billing with $0.0001801 precision, breakthrough single-call architecture
+    - MANUAL-TESTS:
+      - Send chat request and verify cost tracking appears in database
+      - Confirm cost values match OpenRouter dashboard within $0.001 precision
+      - Test that provider.client returns valid OpenRouter client instance
     - AUTOMATED-TESTS:
       - **Unit Tests**: `test_openrouter_provider_setup()` - Tests provider initialization and client access
       - **Integration Tests**: `test_cost_tracking_end_to_end()` - Tests full cost tracking with real OpenRouter API
