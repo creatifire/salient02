@@ -10,8 +10,8 @@ Epic NNNN - Title
 │   ├── NNNN-001-001 - TASK - Name
 │   │   ├── NNNN-001-001-01 - CHUNK - Name
 │   │   │   ├── SUB-TASKS: Specific deliverables
-│   │   │   ├── MANUAL-TESTS: How to manually verify
-│   │   │   ├── AUTOMATED-TESTS: Unit and integration tests
+│   │   │   ├── AUTOMATED-TESTS: Unit and integration tests (define requirements first)
+│   │   │   ├── MANUAL-TESTS: How to manually verify (end-to-end validation)
 │   │   │   └── STATUS: What was accomplished
 ```
 
@@ -54,8 +54,8 @@ Brief description of what you're building and why.
 - **SUB-TASKS**: Specific, actionable items
 - **STATUS**: What was actually accomplished (not what was planned)
 - **Code Snippets**: Essential implementation patterns only
-- **MANUAL-TESTS**: How to manually test/verify the work
-- **AUTOMATED-TESTS**: Unit and integration tests for chunks, integration tests for features
+- **AUTOMATED-TESTS**: Unit and integration tests for chunks (define technical requirements first), integration tests for features
+- **MANUAL-TESTS**: How to manually test/verify the work (end-to-end validation)
 - **Dependencies**: What must be completed first
 
 ### ❌ Exclude  
@@ -86,23 +86,26 @@ def example_function():
 
 ## Testing Guidelines
 
+### Test-First Development Approach
+For configuration, refactoring, and technical infrastructure work, use **automated tests first** to define technical requirements, then implement, then manually verify end-to-end behavior.
+
+### AUTOMATED-TESTS for Chunks
+Each chunk should include focused tests that verify the specific deliverable (write these first to define requirements):
+
+```markdown
+AUTOMATED-TESTS:
+- **Unit Tests**: `test_function_name()` - Tests core function logic without dependencies
+- **Integration Tests**: `test_integration_scenario()` - Tests with real database/external services
+```
+
 ### MANUAL-TESTS for Chunks
-Each chunk should include focused manual verification steps:
+Each chunk should include focused manual verification steps (perform after implementation for end-to-end validation):
 
 ```markdown
 MANUAL-TESTS:
 - Verify [specific functionality] works as expected
 - Test [integration point] connects properly
 - Confirm [configuration/setup] is correct
-```
-
-### AUTOMATED-TESTS for Chunks
-Each chunk should include focused tests that verify the specific deliverable:
-
-```markdown
-AUTOMATED-TESTS:
-- **Unit Tests**: `test_function_name()` - Tests core function logic without dependencies
-- **Integration Tests**: `test_integration_scenario()` - Tests with real database/external services
 ```
 
 ### AUTOMATED-TESTS for Features
@@ -193,14 +196,14 @@ STATUS: In progress, working on implementation ❌ (not a status)
       - Include HTMX via CDN
       - Message textarea + Submit + Clear buttons
       - Append-only chat pane container
-    - STATUS: Completed — Implemented `GET /` rendering `templates/index.html` with HTMX CDN, textarea, Send/Clear buttons, and append-only chat pane
+    - AUTOMATED-TESTS:
+      - **Unit Tests**: `test_route_get_index()` - Tests route returns 200 and renders template
+      - **Integration Tests**: `test_page_loads_with_htmx()` - Tests complete page loading with HTMX elements
     - MANUAL-TESTS:
       - Navigate to `http://localhost:8000/` and verify page loads
       - Confirm HTMX CDN loads and textarea/buttons are visible
       - Test that chat pane container is present and functional
-    - AUTOMATED-TESTS:
-      - **Unit Tests**: `test_route_get_index()` - Tests route returns 200 and renders template
-      - **Integration Tests**: `test_page_loads_with_htmx()` - Tests complete page loading with HTMX elements
+    - STATUS: Completed — Implemented `GET /` rendering `templates/index.html` with HTMX CDN, textarea, Send/Clear buttons, and append-only chat pane
 ```
 
 ### Complex Task with Code (from Epic 0017)
@@ -212,14 +215,14 @@ STATUS: In progress, working on implementation ❌ (not a status)
       - Direct client access: `provider.client` 
       - Real OpenRouter cost extraction via `extra_body={"usage": {"include": True}}`
       - Database storage with Decimal precision
-    - STATUS: Completed — Production-ready billing with $0.0001801 precision, breakthrough single-call architecture
+    - AUTOMATED-TESTS:
+      - **Unit Tests**: `test_openrouter_provider_setup()` - Tests provider initialization and client access
+      - **Integration Tests**: `test_cost_tracking_end_to_end()` - Tests full cost tracking with real OpenRouter API
     - MANUAL-TESTS:
       - Send chat request and verify cost tracking appears in database
       - Confirm cost values match OpenRouter dashboard within $0.001 precision
       - Test that provider.client returns valid OpenRouter client instance
-    - AUTOMATED-TESTS:
-      - **Unit Tests**: `test_openrouter_provider_setup()` - Tests provider initialization and client access
-      - **Integration Tests**: `test_cost_tracking_end_to_end()` - Tests full cost tracking with real OpenRouter API
+    - STATUS: Completed — Production-ready billing with $0.0001801 precision, breakthrough single-call architecture
 
 ```python
 # Breakthrough: Direct OpenRouter client with cost tracking

@@ -150,3 +150,102 @@ def test_config_directory_scanning():
 #     # DISABLED: get_configs_directory function missing in overengineered system
 #     # Will be recreated with robust YAML error handling in Phase 3
 #     pass
+
+
+# =============================================================================
+# CHUNK 0017-004-001-01: Agent-specific folder structure and prompt separation
+# =============================================================================
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_agent_config_loads_from_new_path():
+    """
+    Test that agent config loads from new folder structure: simple_chat/config.yaml
+    
+    CHUNK 0017-004-001-01 AUTOMATED-TEST 1:
+    Verify config.yaml loads from simple_chat/ folder with proper fallback behavior
+    """
+    from app.agents.config_loader import get_agent_config
+    
+    # Test that simple_chat config loads successfully from new structure
+    config = await get_agent_config("simple_chat")
+    
+    # Verify basic configuration loaded
+    assert config.agent_type == "simple_chat"
+    assert config.name == "Simple Chat Agent"
+    assert config.description
+    assert config.system_prompt
+    
+    # Verify new structure-specific content
+    assert len(config.system_prompt) > 100  # Should have substantial content
+    assert "helpful AI assistant" in config.system_prompt
+    assert "knowledge base search" in config.system_prompt
+
+
+@pytest.mark.unit 
+@pytest.mark.asyncio
+async def test_system_prompt_loads_from_md_file():
+    """
+    Test that system_prompt.md loads correctly and contains expected content
+    
+    CHUNK 0017-004-001-01 AUTOMATED-TEST 2:
+    Verify system_prompt.md loads correctly and replaces file reference
+    """
+    from app.agents.config_loader import get_agent_config
+    
+    # Load config which should have external prompt file loaded
+    config = await get_agent_config("simple_chat") 
+    
+    # Verify system prompt was loaded from external file
+    assert config.system_prompt  # Should not be empty
+    assert len(config.system_prompt) > 50  # Should have substantial content
+    
+    # Verify specific content from system_prompt.md
+    assert "You are a helpful AI assistant" in config.system_prompt
+    assert "knowledge base search and web search tools" in config.system_prompt
+    assert "Guidelines:" in config.system_prompt
+    assert "vector_search tool" in config.system_prompt
+    assert "web_search" in config.system_prompt
+    assert "Cite your sources" in config.system_prompt
+    
+    # Should not contain the file reference anymore (was replaced with content)
+    assert "system_prompt_file" not in config.system_prompt
+    assert ".md" not in config.system_prompt
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_prompt_configuration_section():
+    """
+    Test that config correctly references external prompt file and tracks loading
+    
+    CHUNK 0017-004-001-01 AUTOMATED-TEST 3: 
+    Verify config references external prompt file and tracks where it was loaded from
+    """
+    from app.agents.config_loader import get_agent_config
+    
+    # Load config and verify prompt configuration section
+    config = await get_agent_config("simple_chat")
+    
+    # Verify prompts configuration section exists
+    assert hasattr(config, 'prompts') and config.prompts is not None
+    assert isinstance(config.prompts, dict)
+    
+    # Verify original file reference is preserved
+    assert 'system_prompt_file' in config.prompts
+    assert config.prompts['system_prompt_file'] == "./system_prompt.md"
+    
+    # Verify loading metadata is tracked  
+    assert 'system_prompt_loaded_from' in config.prompts
+    loaded_from = config.prompts['system_prompt_loaded_from']
+    assert loaded_from.endswith('system_prompt.md')
+    assert 'simple_chat' in loaded_from  # Should reference the agent folder
+    
+    # Verify file path resolution worked correctly
+    assert os.path.exists(loaded_from)  # File should actually exist
+    
+    # Verify content consistency between file and loaded prompt
+    with open(loaded_from, 'r', encoding='utf-8') as f:
+        file_content = f.read().strip()
+    
+    assert config.system_prompt == file_content

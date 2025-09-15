@@ -465,7 +465,7 @@ async def simple_chat(
   │   └── system_prompt.md  # Agent system prompt
   └── app.yaml             # Global configuration defaults
   ```
-  - [ ] 0017-004-001-01 - CHUNK - Agent-specific folder structure and prompt separation  
+  - [x] 0017-004-001-01 - CHUNK - Agent-specific folder structure and prompt separation  
     - SUB-TASKS:
       - Create `backend/config/agent_configs/simple_chat/` directory structure
       - Move and rename `simple_chat.yaml` → `simple_chat/config.yaml`
@@ -473,15 +473,15 @@ async def simple_chat(
       - Add prompt configuration section to config.yaml specifying prompt file paths
       - Update agent config loader to handle new folder structure and external prompt files
       - Update all code references to new config file path (`simple_chat/config.yaml`)
-    - MANUAL-TESTS:
-      - Verify config.yaml loads from `backend/config/agent_configs/simple_chat/` folder
-      - Confirm system_prompt.md file exists and contains expected prompt content
-      - Test that agent config correctly references external prompt file path
     - AUTOMATED-TESTS (3 tests):
       - `test_agent_config_loads_from_new_path()` - Verify config.yaml loads from simple_chat/ folder
       - `test_system_prompt_loads_from_md_file()` - Verify system_prompt.md loads correctly
       - `test_prompt_configuration_section()` - Verify config references external prompt file
-    - STATUS: Planned — Organize each agent type in its own folder with config and prompts together
+    - MANUAL-TESTS:
+      - Verify config.yaml loads from `backend/config/agent_configs/simple_chat/` folder
+      - Confirm system_prompt.md file exists and contains expected prompt content
+      - Test that agent config correctly references external prompt file path
+    - STATUS: Completed — Agent-specific folder structure implemented with external prompt loading, backward compatibility maintained, all automated tests passing
     - PRIORITY: High — Enables scalable multi-agent architecture with better organization
   
   - [ ] 0017-004-001-02 - CHUNK - Parameter name standardization in config.yaml
@@ -490,13 +490,13 @@ async def simple_chat(
       - Verify all other parameter names follow app.yaml conventions
       - Update inline comments to reflect standardized naming
       - Ensure agent-specific overrides maintain consistent naming with global config
+    - AUTOMATED-TESTS (2 tests):
+      - `test_history_limit_parameter_exists()` - Verify history_limit parameter is read correctly
+      - `test_old_max_history_messages_not_used()` - Verify old parameter name is no longer referenced
     - MANUAL-TESTS:
       - Verify config.yaml contains `context_management.history_limit` parameter
       - Confirm old `max_history_messages` parameter is completely removed from config
       - Test that agent uses the standardized parameter name in practice
-    - AUTOMATED-TESTS (2 tests):
-      - `test_history_limit_parameter_exists()` - Verify history_limit parameter is read correctly
-      - `test_old_max_history_messages_not_used()` - Verify old parameter name is no longer referenced
     - STATUS: Planned — Align agent config parameter names with global config conventions
     - PRIORITY: High — Required for proper configuration cascade implementation
   
@@ -506,13 +506,13 @@ async def simple_chat(
       - Update constructor parameters: `__init__(max_history_messages: int = 20)` → `__init__(history_limit: int = 20)`
       - Update all method signatures and docstrings
       - Update class factory methods to use new parameter names
+    - AUTOMATED-TESTS (2 tests):
+      - `test_session_dependencies_constructor()` - Verify constructor accepts history_limit parameter
+      - `test_session_dependencies_no_old_params()` - Verify max_history_messages parameter is removed
     - MANUAL-TESTS:
       - Verify SessionDependencies class accepts history_limit parameter in constructor
       - Confirm max_history_messages parameter is no longer accepted
       - Test that all method signatures use standardized parameter names
-    - AUTOMATED-TESTS (2 tests):
-      - `test_session_dependencies_constructor()` - Verify constructor accepts history_limit parameter
-      - `test_session_dependencies_no_old_params()` - Verify max_history_messages parameter is removed
     - STATUS: Planned — Standardize core dependency injection class
     - PRIORITY: High — Core infrastructure change affects all agents
   
@@ -522,13 +522,13 @@ async def simple_chat(
       - Modify SessionDependencies instantiation: `max_history_messages=limit` → `history_limit=limit`
       - Update load_conversation_history function to use standardized parameter names
       - Verify agent-first configuration cascade logic works correctly
+    - AUTOMATED-TESTS (2 tests):
+      - `test_agent_reads_from_agent_config_first()` - Verify agent prioritizes agent-specific config
+      - `test_agent_uses_history_limit_parameter()` - Verify agent uses standardized parameter name
     - MANUAL-TESTS:
       - Test that agent loads config from agent-specific folder first
       - Verify agent uses history_limit parameter instead of old max_history_messages
       - Confirm SessionDependencies instantiation uses new parameter names
-    - AUTOMATED-TESTS (2 tests):
-      - `test_agent_reads_from_agent_config_first()` - Verify agent prioritizes agent-specific config
-      - `test_agent_uses_history_limit_parameter()` - Verify agent uses standardized parameter name
     - STATUS: Planned — Update primary agent implementation to use standardized config
     - PRIORITY: High — Core agent functionality must use proper config cascade
   
@@ -538,16 +538,16 @@ async def simple_chat(
       - Implement cascade: agent_config.context_management.history_limit → app.yaml chat.history_limit → fallback (50)
       - Add logging to show which config source is used (agent/global/fallback)
       - Update agent_session.py to use new cascade function instead of direct app.yaml access
-    - MANUAL-TESTS:
-      - Test configuration cascade with agent config present, should use agent value
-      - Test cascade fallback when agent config missing, should use app.yaml value
-      - Test cascade fallback when both configs missing, should use hardcoded fallback
-      - Verify logging shows which configuration source was used for each test
     - AUTOMATED-TESTS (4 tests):
       - `test_cascade_uses_agent_config_when_available()` - Agent config takes priority
       - `test_cascade_falls_back_to_global_config()` - Falls back to app.yaml when agent config missing
       - `test_cascade_uses_hardcoded_fallback()` - Uses code fallback when both configs missing
       - `test_cascade_logging_shows_source()` - Logging indicates which config source was used
+    - MANUAL-TESTS:
+      - Test configuration cascade with agent config present, should use agent value
+      - Test cascade fallback when agent config missing, should use app.yaml value
+      - Test cascade fallback when both configs missing, should use hardcoded fallback
+      - Verify logging shows which configuration source was used for each test
     - STATUS: Planned — Implement proper configuration hierarchy
     - PRIORITY: High — Core requirement for agent-specific configuration override
   
@@ -558,14 +558,14 @@ async def simple_chat(
       - Implement relative path resolution from agent_configs directory
       - Add validation for prompt file existence and readability
       - Cache loaded prompts for performance
-    - MANUAL-TESTS:
-      - Verify system_prompt.md loads correctly when referenced in config.yaml
-      - Test error handling when prompt file is missing or unreadable
-      - Confirm relative paths resolve correctly from agent_configs directory
     - AUTOMATED-TESTS (3 tests):
       - `test_prompt_file_loading_success()` - Verify external prompt file loads correctly
       - `test_prompt_file_missing_error_handling()` - Verify graceful error handling for missing files
       - `test_relative_path_resolution()` - Verify paths resolve correctly from agent_configs directory
+    - MANUAL-TESTS:
+      - Verify system_prompt.md loads correctly when referenced in config.yaml
+      - Test error handling when prompt file is missing or unreadable
+      - Confirm relative paths resolve correctly from agent_configs directory
     - STATUS: Planned — Enhance config loader to support external prompt files
     - PRIORITY: Medium — Supports system prompt separation
   
@@ -576,16 +576,16 @@ async def simple_chat(
       - Add tests for agent-first configuration cascade logic
       - Add tests for external prompt file loading
       - Verify all existing functionality still works with new parameter names
-    - MANUAL-TESTS:
-      - Run full test suite and verify all tests pass with new parameter names
-      - Test end-to-end agent behavior to confirm configuration cascade works properly
     - AUTOMATED-TESTS (2 tests):
       - `test_parameter_name_standardization()` - Verify old parameter names are completely removed from codebase
       - `test_end_to_end_configuration_behavior()` - Integration test verifying complete config cascade works
+    - MANUAL-TESTS:
+      - Run full test suite and verify all tests pass with new parameter names
+      - Test end-to-end agent behavior to confirm configuration cascade works properly
     - STATUS: Planned — Ensure tests pass with standardized configuration
     - PRIORITY: High — Tests must validate new configuration structure
   
-  - [ ] 0017-004-001-08 - CHUNK - Update documentation and README files
+  - [ ] 0017-004-001-08 - CHUNK - Update documentation and README files (Documentation-focused)
     - SUB-TASKS:
       - Update `backend/README.md` to document agent-first configuration cascade
       - Update configuration examples in README to show standardized parameter names
@@ -595,7 +595,7 @@ async def simple_chat(
     - STATUS: Planned — Document standardized configuration approach
     - PRIORITY: Medium — Developers need clear configuration guidance
   
-  - [ ] 0017-004-001-09 - CHUNK - Update memorybank documentation
+  - [ ] 0017-004-001-09 - CHUNK - Update memorybank documentation (Documentation-focused)
     - SUB-TASKS:
       - Update `memorybank/architecture/agent-configuration.md` with standardized parameter names
       - Document agent-first configuration cascade in `memorybank/architecture/configuration-reference.md`
@@ -612,6 +612,14 @@ async def simple_chat(
       - Test system prompt loading from external files
       - Verify legacy endpoints still work with app.yaml only (no agent config access)
       - Test error handling for missing/invalid configuration files
+    - AUTOMATED-TESTS (3 tests):
+      - `test_full_configuration_regression_suite()` - Run complete test suite with new parameter names
+      - `test_configuration_cascade_scenarios()` - Test all cascade scenarios (agent->global->fallback)
+      - `test_legacy_endpoint_compatibility()` - Verify legacy endpoints unaffected by agent config changes
+    - MANUAL-TESTS:
+      - Manually verify agent behavior matches expected configuration cascade in browser
+      - Test error scenarios with missing/invalid configuration files
+      - Confirm system remains stable under various configuration states
     - STATUS: Planned — Comprehensive validation of configuration standardization
     - PRIORITY: High — Ensure system reliability with configuration changes
     
