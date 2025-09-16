@@ -17,7 +17,7 @@ export default defineConfig({
         '/events': { target: BACKEND, changeOrigin: true },
         '/health': { target: BACKEND, changeOrigin: true },
         '/api': { target: BACKEND, changeOrigin: true },
-        '/dev': { target: BACKEND, changeOrigin: true },
+        '/dev/logs/tail': { target: BACKEND, changeOrigin: true },
       }
     }
   },
