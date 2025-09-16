@@ -500,20 +500,21 @@ async def simple_chat(
     - STATUS: Completed — Parameter names standardized across configuration files and code, SessionDependencies updated to use history_limit, all automated and manual tests passing
     - PRIORITY: High — Required for proper configuration cascade implementation
   
-  - [ ] 0017-004-001-03 - CHUNK - Update SessionDependencies class for standardized parameters
+  - [x] 0017-004-001-03 - CHUNK - Update SessionDependencies class for standardized parameters
     - SUB-TASKS:
       - Change `SessionDependencies.max_history_messages` → `SessionDependencies.history_limit` in `backend/app/agents/base/dependencies.py`
       - Update constructor parameters: `__init__(max_history_messages: int = 20)` → `__init__(history_limit: int = 20)`
       - Update all method signatures and docstrings
       - Update class factory methods to use new parameter names
-    - AUTOMATED-TESTS (2 tests):
+    - AUTOMATED-TESTS (3 tests):
       - `test_session_dependencies_constructor()` - Verify constructor accepts history_limit parameter
       - `test_session_dependencies_no_old_params()` - Verify max_history_messages parameter is removed
+      - `test_session_dependencies_method_signatures()` - Verify all method signatures use standardized parameters
     - MANUAL-TESTS:
       - Verify SessionDependencies class accepts history_limit parameter in constructor
       - Confirm max_history_messages parameter is no longer accepted
       - Test that all method signatures use standardized parameter names
-    - STATUS: Planned — Standardize core dependency injection class
+    - STATUS: Completed — SessionDependencies class already properly implemented with history_limit parameter, all automated tests passing, comprehensive test coverage added
     - PRIORITY: High — Core infrastructure change affects all agents
   
   - [ ] 0017-004-001-04 - CHUNK - Update simple_chat.py agent implementation
