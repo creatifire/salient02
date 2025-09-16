@@ -545,7 +545,7 @@ async def simple_chat(
     - STATUS: Completed — Implemented get_agent_history_limit() function in config_loader.py with proper agent→global→fallback cascade, added comprehensive logging with config source tracking, updated agent_session.py to use cascade, manual verification shows correct precedence and source logging working perfectly
     - PRIORITY: High — Core requirement for agent-specific configuration override
   
-  - [ ] 0017-004-001-06 - CHUNK - Update configuration loader to handle prompt files
+  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle prompt files
     - SUB-TASKS:
       - Modify `get_agent_config()` in config_loader.py to handle `system_prompt_file` references
       - Add file reading logic with proper error handling for missing prompt files
@@ -560,7 +560,7 @@ async def simple_chat(
       - Verify system_prompt.md loads correctly when referenced in config.yaml
       - Test error handling when prompt file is missing or unreadable
       - Confirm relative paths resolve correctly from agent_configs directory
-    - STATUS: Planned — Enhance config loader to support external prompt files
+    - STATUS: Completed — Enhanced config loader with external prompt file support, comprehensive error handling, relative path resolution, and performance caching. All automated tests passing with 100% success rate
     - PRIORITY: Medium — Supports system prompt separation
   
   - [ ] 0017-004-001-07 - CHUNK - Update unit tests for parameter standardization

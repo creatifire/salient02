@@ -328,3 +328,204 @@ async def test_old_max_history_messages_not_used():
     # Also verify that history_limit is properly used instead
     assert config.context_management.get('history_limit') is not None, \
         "Standardized parameter 'history_limit' should exist"
+
+
+# =============================================================================
+# CHUNK 0017-004-001-06: Update configuration loader to handle prompt files
+# =============================================================================
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_prompt_file_loading_success():
+    """
+    Test external prompt file loads correctly with proper content validation
+    
+    CHUNK 0017-004-001-06 AUTOMATED-TEST 1:
+    Verify external prompt file loads correctly and replaces file reference
+    """
+    from app.agents.config_loader import get_agent_config
+    
+    # Load config which should load external prompt file  
+    config = await get_agent_config("simple_chat")
+    
+    # Verify system prompt was loaded from external file (not from config directly)
+    assert config.system_prompt is not None
+    assert len(config.system_prompt.strip()) > 0
+    
+    # Verify specific expected content from system_prompt.md
+    assert "You are a helpful AI assistant" in config.system_prompt
+    assert "knowledge base search and web search tools" in config.system_prompt
+    assert "Guidelines:" in config.system_prompt
+    assert "vector_search tool" in config.system_prompt
+    assert "web_search" in config.system_prompt
+    
+    # Verify the prompt doesn't contain file reference syntax (was replaced with content)
+    assert "system_prompt_file" not in config.system_prompt
+    assert "./system_prompt.md" not in config.system_prompt
+    
+    # Verify tracking metadata exists
+    assert hasattr(config, 'prompts') and config.prompts is not None
+    assert 'system_prompt_loaded_from' in config.prompts
+    
+    # Verify loaded content matches file content exactly
+    loaded_from_path = config.prompts['system_prompt_loaded_from']
+    assert os.path.exists(loaded_from_path)
+    
+    with open(loaded_from_path, 'r', encoding='utf-8') as f:
+        actual_file_content = f.read().strip()
+    
+    assert config.system_prompt == actual_file_content
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_prompt_file_missing_error_handling():
+    """
+    Test graceful error handling when prompt file is missing or unreadable
+    
+    CHUNK 0017-004-001-06 AUTOMATED-TEST 2:
+    Verify proper error handling for missing prompt files
+    """
+    from app.agents.config_loader import AgentConfigError, get_config_loader
+    
+    # Create temporary config with reference to non-existent prompt file
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create agent config that references missing prompt file
+        invalid_config = {
+            "agent_type": "test_agent",
+            "name": "Test Agent", 
+            "description": "Test agent with missing prompt file",
+            "prompts": {
+                "system_prompt_file": "./missing_prompt.md"  # This file doesn't exist
+            },
+            "model_settings": {
+                "model": "openai:gpt-4o",
+                "temperature": 0.7
+            }
+        }
+        
+        # Create test config directory structure
+        agent_dir = Path(tmpdir) / "test_agent"
+        agent_dir.mkdir()
+        
+        config_file = agent_dir / "config.yaml" 
+        with open(config_file, 'w', encoding='utf-8') as f:
+            yaml.dump(invalid_config, f)
+        
+        # Mock the config loader to use our test directory
+        loader = get_config_loader()
+        original_configs_dir = loader.configs_dir
+        loader.configs_dir = Path(tmpdir)
+        
+        try:
+            # Attempt to load config - should raise AgentConfigError
+            with pytest.raises(AgentConfigError) as exc_info:
+                await loader.get_agent_config("test_agent")
+            
+            # Verify error message mentions the missing file
+            error_message = str(exc_info.value)
+            assert "System prompt file not found" in error_message
+            assert "missing_prompt.md" in error_message
+            
+        finally:
+            # Restore original configs directory
+            loader.configs_dir = original_configs_dir
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio  
+async def test_relative_path_resolution():
+    """
+    Test that prompt file paths resolve correctly from agent_configs directory
+    
+    CHUNK 0017-004-001-06 AUTOMATED-TEST 3:
+    Verify paths resolve correctly from agent_configs directory with various path formats
+    """
+    from app.agents.config_loader import get_config_loader
+    
+    # Test various path resolution scenarios
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create test directory structure
+        agent_dir = Path(tmpdir) / "path_test_agent"
+        agent_dir.mkdir()
+        
+        # Create prompt files in different locations
+        prompt_content = "Test prompt content for path resolution"
+        
+        # Test 1: Relative path with "./" prefix
+        prompt_file_1 = agent_dir / "test_prompt.md"
+        with open(prompt_file_1, 'w', encoding='utf-8') as f:
+            f.write(prompt_content)
+        
+        # Test 2: Relative path without "./" prefix  
+        prompt_file_2 = agent_dir / "another_prompt.md"
+        with open(prompt_file_2, 'w', encoding='utf-8') as f:
+            f.write(prompt_content)
+        
+        # Create configs that reference these files differently
+        config_1 = {
+            "agent_type": "path_test_agent",
+            "name": "Path Test Agent 1",
+            "description": "Test relative path with ./ prefix",
+            "prompts": {
+                "system_prompt_file": "./test_prompt.md"  # With ./ prefix
+            },
+            "model_settings": {"model": "openai:gpt-4o"}
+        }
+        
+        config_file = agent_dir / "config.yaml"
+        with open(config_file, 'w', encoding='utf-8') as f:
+            yaml.dump(config_1, f)
+        
+        # Test the path resolution
+        loader = get_config_loader()
+        original_configs_dir = loader.configs_dir
+        loader.configs_dir = Path(tmpdir)
+        
+        try:
+            # Test relative path with "./" prefix
+            config = await loader.get_agent_config("path_test_agent")
+            
+            # Verify prompt loaded correctly
+            assert config.system_prompt == prompt_content
+            
+            # Verify path resolution tracking
+            loaded_from = config.prompts['system_prompt_loaded_from']
+            assert loaded_from.endswith('test_prompt.md')
+            assert str(agent_dir) in loaded_from  # Should be in the agent directory
+            
+            # Verify file actually exists at resolved path
+            assert os.path.exists(loaded_from)
+            
+            # Test loading another config with different path format
+            config_2 = {
+                "agent_type": "path_test_agent", 
+                "name": "Path Test Agent 2",
+                "description": "Test relative path without ./ prefix",
+                "prompts": {
+                    "system_prompt_file": "another_prompt.md"  # Without ./ prefix
+                },
+                "model_settings": {"model": "openai:gpt-4o"}
+            }
+            
+            # Update config file
+            with open(config_file, 'w', encoding='utf-8') as f:
+                yaml.dump(config_2, f)
+            
+            # Clear cache and reload
+            if "path_test_agent" in loader._config_cache:
+                del loader._config_cache["path_test_agent"]
+            
+            config_2_loaded = await loader.get_agent_config("path_test_agent")
+            
+            # Verify this also loaded correctly
+            assert config_2_loaded.system_prompt == prompt_content
+            loaded_from_2 = config_2_loaded.prompts['system_prompt_loaded_from']
+            assert loaded_from_2.endswith('another_prompt.md')
+            assert os.path.exists(loaded_from_2)
+            
+        finally:
+            # Restore original configs directory and clean up cache
+            loader.configs_dir = original_configs_dir
+            if "path_test_agent" in loader._config_cache:
+                del loader._config_cache["path_test_agent"]
