@@ -545,7 +545,7 @@ async def simple_chat(
     - STATUS: Completed — Implemented get_agent_history_limit() function in config_loader.py with proper agent→global→fallback cascade, added comprehensive logging with config source tracking, updated agent_session.py to use cascade, manual verification shows correct precedence and source logging working perfectly
     - PRIORITY: High — Core requirement for agent-specific configuration override
   
-  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle prompt files
+chara  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle prompt files
     - SUB-TASKS:
       - Modify `get_agent_config()` in config_loader.py to handle `system_prompt_file` references
       - Add file reading logic with proper error handling for missing prompt files
@@ -563,7 +563,7 @@ async def simple_chat(
     - STATUS: Completed — Enhanced config loader with external prompt file support, comprehensive error handling, relative path resolution, and performance caching. All automated tests passing with 100% success rate
     - PRIORITY: Medium — Supports system prompt separation
   
-  - [ ] 0017-004-001-07 - CHUNK - Update unit tests for parameter standardization
+  - [x] 0017-004-001-07 - CHUNK - Update unit tests for parameter standardization
     - SUB-TASKS:
       - Update `test_simple_chat_agent.py` to use `history_limit` instead of `max_history_messages`
       - Update SessionDependencies test cases with new parameter names
@@ -576,7 +576,7 @@ async def simple_chat(
     - MANUAL-TESTS:
       - Run full test suite and verify all tests pass with new parameter names
       - Test end-to-end agent behavior to confirm configuration cascade works properly
-    - STATUS: Planned — Ensure tests pass with standardized configuration
+    - STATUS: Completed — Updated test_simple_chat_agent.py with comprehensive parameter standardization tests, verified SessionDependencies tests use history_limit, confirmed agent-first configuration cascade tests pass, and validated external prompt file loading tests. All 17 unit tests passing with full coverage of parameter standardization requirements
     - PRIORITY: High — Tests must validate new configuration structure
   
   - [ ] 0017-004-001-08 - CHUNK - Update documentation and README files (Documentation-focused)

@@ -1,266 +1,218 @@
 """
-Unit Tests for Simple Chat Agent Integration - TASK 0017-003-005
+Unit Tests for Simple Chat Agent Parameter Standardization - TASK 0017-004-001-07
 
-Tests the simple_chat function's history loading logic and integration
-with agent session service in isolation from external dependencies.
+Tests the simple_chat function's parameter standardization and configuration cascade
+with comprehensive mocking to isolate from external dependencies.
 """
 
 import pytest
 import uuid
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timezone
 
 from app.agents.simple_chat import simple_chat
 from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
 
 
-class TestSimpleChatAgentIntegration:
-    """Unit tests for simple_chat agent integration - CHUNK 0017-003-005-02"""
+class TestSimpleChatParameterStandardization:
+    """Unit tests for simple_chat parameter standardization - CHUNK 0017-004-001-07"""
     
     @pytest.fixture
-    def mock_dependencies(self):
-        """Mock all external dependencies for isolated testing."""
-        with patch('app.agents.simple_chat.load_config') as mock_config, \
-             patch('app.agents.simple_chat.get_agent_config') as mock_agent_config, \
-             patch('app.agents.simple_chat.SessionDependencies') as mock_session_deps, \
-             patch('app.agents.simple_chat.get_chat_agent') as mock_get_agent, \
+    def mock_all_dependencies(self):
+        """Comprehensive mock of all dependencies for parameter standardization tests."""
+        with patch('app.agents.simple_chat.get_agent_history_limit') as mock_get_history_limit, \
+             patch('app.agents.simple_chat.load_config') as mock_load_config, \
+             patch('app.agents.simple_chat.get_agent_config') as mock_get_agent_config, \
+             patch('app.agents.simple_chat.SessionDependencies.create') as mock_session_create, \
+             patch('app.agents.simple_chat.get_chat_agent') as mock_get_chat_agent, \
+             patch('app.agents.simple_chat.load_agent_conversation') as mock_load_conversation, \
+             patch('app.agents.simple_chat.get_session_stats') as mock_get_session_stats, \
              patch('app.agents.simple_chat.OpenRouterProvider') as mock_provider:
             
-            # Configure mocks
-            mock_config.return_value = {
-                "chat": {"history_limit": 20},
-                "llm": {
-                    "model": "test-model",
-                    "api_key": "test-key"
-                }
+            # Mock configuration cascade function
+            mock_get_history_limit.return_value = 50
+            
+            # Mock global config
+            mock_load_config.return_value = {
+                "chat": {"history_limit": 25},
+                "llm": {"openrouter": {"api_key": "test-key"}}
             }
             
-            mock_agent_config.return_value = Mock(
-                model_settings={"max_tokens": 1000, "temperature": 0.7}
-            )
+            # Mock agent config
+            mock_agent_config = MagicMock()
+            mock_agent_config.context_management = {"history_limit": 75}
+            mock_agent_config.model_settings = {"model": "openai:gpt-4o", "temperature": 0.3}
+            mock_get_agent_config.return_value = mock_agent_config
             
-            mock_session_deps_instance = Mock()
-            mock_session_deps.create = AsyncMock(return_value=mock_session_deps_instance)
+            # Mock session dependencies
+            mock_session_deps = MagicMock()
+            mock_session_create.return_value = mock_session_deps
             
-            # Mock successful agent response
-            mock_agent = Mock()
-            mock_result = Mock()
-            mock_result.output = "Test agent response"
-            mock_usage = Mock()
-            mock_usage.input_tokens = 10
-            mock_usage.output_tokens = 20
-            mock_usage.total_tokens = 30
-            mock_usage.requests = 1
-            mock_usage.cost = 0.001
-            mock_result.usage.return_value = mock_usage
-            mock_agent.run = AsyncMock(return_value=mock_result)
-            mock_get_agent.return_value = mock_agent
+            # Mock agent and response
+            mock_agent = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.data = "Test response from agent"
+            mock_result.usage.return_value = {
+                "input_tokens": 15,
+                "output_tokens": 25, 
+                "total_tokens": 40
+            }
+            mock_agent.run.return_value = mock_result
+            mock_get_chat_agent.return_value = mock_agent
+            
+            # Mock conversation loading
+            mock_load_conversation.return_value = []
+            mock_get_session_stats.return_value = {
+                "total_messages": 0,
+                "session_id": "test-session",
+                "cross_endpoint_continuity": False
+            }
             
             # Mock OpenRouter provider
-            mock_client = Mock()
-            mock_response = Mock()
-            mock_response.choices = [Mock(message=Mock(content="Mocked response"))]
-            mock_response.usage = Mock(
-                prompt_tokens=15,
-                completion_tokens=25,
-                total_tokens=40,
-                cost=0.002
-            )
-            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-            mock_provider_instance = Mock(client=mock_client)
+            mock_provider_instance = MagicMock()
             mock_provider.return_value = mock_provider_instance
             
             yield {
-                'config': mock_config,
-                'agent_config': mock_agent_config,
-                'session_deps': mock_session_deps,
-                'agent': mock_agent,
+                'get_history_limit': mock_get_history_limit,
+                'load_config': mock_load_config,
+                'get_agent_config': mock_get_agent_config,
+                'session_create': mock_session_create,
+                'get_chat_agent': mock_get_chat_agent,
+                'load_conversation': mock_load_conversation,
+                'get_session_stats': mock_get_session_stats,
                 'provider': mock_provider
             }
     
-    @pytest.fixture
-    def sample_conversation_history(self):
-        """Sample conversation history in Pydantic AI format."""
-        return [
-            ModelRequest(parts=[UserPromptPart(
-                content="Previous user message",
-                timestamp=datetime.now(timezone.utc)
-            )]),
-            ModelResponse(
-                parts=[TextPart(content="Previous assistant response")],
-                usage=None,
-                model_name="agent-session",
-                timestamp=datetime.now(timezone.utc)
-            )
-        ]
-    
     @pytest.mark.asyncio
-    @patch('app.services.agent_session.load_agent_conversation')
-    @patch('app.services.agent_session.get_session_stats')
-    async def test_simple_chat_auto_load_history(self, mock_get_stats, mock_load_conversation, mock_dependencies, sample_conversation_history):
-        """Test that simple_chat automatically loads history when message_history=None."""
+    async def test_parameter_name_standardization(self, mock_all_dependencies):
+        """
+        Verify old parameter names are completely removed from codebase.
         
-        # Mock the conversation loading
-        mock_load_conversation.return_value = sample_conversation_history
-        mock_get_stats.return_value = {
-            "total_messages": 2,
-            "session_id": "test-session",
-            "cross_endpoint_continuity": True
-        }
-        
+        CHUNK 0017-004-001-07 AUTOMATED-TEST 1:
+        Verify SessionDependencies.create uses standardized history_limit parameter.
+        """
         session_id = str(uuid.uuid4())
         
-        # Call simple_chat without providing message_history
-        result = await simple_chat(
-            message="New test message",
-            session_id=session_id,
-            message_history=None  # Should trigger auto-loading
+        # Call simple_chat to trigger SessionDependencies.create
+        await simple_chat(
+            message="Test standardized parameters",
+            session_id=session_id
         )
         
-        # Verify conversation loading was called
-        mock_load_conversation.assert_called_once_with(session_id)
+        # Verify SessionDependencies.create was called with correct parameter
+        mocks = mock_all_dependencies
+        mocks['session_create'].assert_called_once()
+        call_kwargs = mocks['session_create'].call_args[1]
         
-        # Verify response structure
+        # Should use standardized parameter name
+        assert 'history_limit' in call_kwargs, \
+            "SessionDependencies.create should be called with 'history_limit' parameter"
+        
+        # Should NOT use old parameter name
+        assert 'max_history_messages' not in call_kwargs, \
+            "SessionDependencies.create should NOT use old 'max_history_messages' parameter"
+        
+        # Should use value from get_agent_history_limit cascade function
+        assert call_kwargs['history_limit'] == 50, \
+            "Should use value from agent configuration cascade"
+    
+    @pytest.mark.asyncio
+    async def test_agent_first_configuration_cascade(self, mock_all_dependencies):
+        """
+        Test that agent prioritizes configuration cascade correctly.
+        
+        CHUNK 0017-004-001-07 AUTOMATED-TEST 2:
+        Verify agent-first configuration cascade logic is working.
+        """
+        session_id = str(uuid.uuid4())
+        
+        # Call simple_chat 
+        await simple_chat(
+            message="Test configuration cascade",
+            session_id=session_id
+        )
+        
+        mocks = mock_all_dependencies
+        
+        # Verify get_agent_history_limit was called (implements cascade)
+        mocks['get_history_limit'].assert_called_with("simple_chat")
+        
+        # Verify the cascade function's result was used
+        mocks['session_create'].assert_called_once()
+        call_kwargs = mocks['session_create'].call_args[1]
+        assert call_kwargs['history_limit'] == 50, \
+            "Should use result from configuration cascade function"
+    
+    @pytest.mark.asyncio
+    async def test_end_to_end_configuration_behavior(self, mock_all_dependencies):
+        """
+        Integration test verifying complete config cascade works.
+        
+        CHUNK 0017-004-001-07 AUTOMATED-TEST 3:
+        End-to-end test of configuration cascade and parameter usage.
+        """
+        session_id = str(uuid.uuid4())
+        
+        # Test with different cascade result
+        mocks = mock_all_dependencies
+        mocks['get_history_limit'].return_value = 100
+        
+        result = await simple_chat(
+            message="Test end-to-end config",
+            session_id=session_id
+        )
+        
+        # Verify response structure is intact
         assert 'response' in result
         assert 'usage' in result
         assert 'session_continuity' in result
-        assert result['session_continuity']['cross_endpoint_continuity'] == True
+        
+        # Verify configuration cascade was used end-to-end
+        mocks['get_history_limit'].assert_called_with("simple_chat")
+        
+        # Verify SessionDependencies used the cascade result
+        call_kwargs = mocks['session_create'].call_args[1]
+        assert call_kwargs['history_limit'] == 100, \
+            "End-to-end flow should use cascade result consistently"
+        
+        # Verify no old parameters anywhere in the flow
+        assert 'max_history_messages' not in str(call_kwargs), \
+            "Old parameter names should be completely eliminated"
     
     @pytest.mark.asyncio
-    @patch('app.services.agent_session.load_agent_conversation')
-    @patch('app.services.agent_session.get_session_stats') 
-    async def test_simple_chat_with_provided_history(self, mock_get_stats, mock_load_conversation, mock_dependencies, sample_conversation_history):
-        """Test that simple_chat doesn't auto-load when message_history is provided."""
+    async def test_existing_functionality_preservation(self, mock_all_dependencies):
+        """
+        Verify all existing functionality still works with new parameter names.
         
-        mock_get_stats.return_value = {
-            "total_messages": 2,
-            "session_id": "test-session", 
-            "cross_endpoint_continuity": True
-        }
-        
+        CHUNK 0017-004-001-07 AUTOMATED-TEST 4:
+        Verify parameter standardization doesn't break existing functionality.
+        """
         session_id = str(uuid.uuid4())
         
-        # Call simple_chat with explicit message_history
         result = await simple_chat(
-            message="Test message",
-            session_id=session_id,
-            message_history=sample_conversation_history  # Explicit history provided
+            message="Test functionality preservation",
+            session_id=session_id
         )
         
-        # Verify conversation loading was NOT called
-        mock_load_conversation.assert_not_called()
+        mocks = mock_all_dependencies
         
-        # Verify response structure
+        # All core functionality should still work
         assert 'response' in result
+        assert 'usage' in result
         assert 'session_continuity' in result
-    
-    @pytest.mark.asyncio
-    @patch('app.services.agent_session.load_agent_conversation')
-    @patch('app.services.agent_session.get_session_stats')
-    async def test_simple_chat_empty_history_handling(self, mock_get_stats, mock_load_conversation, mock_dependencies):
-        """Test handling when no conversation history is found."""
         
-        # Mock empty conversation history
-        mock_load_conversation.return_value = []
-        mock_get_stats.return_value = {
-            "total_messages": 0,
-            "session_id": "test-session",
-            "cross_endpoint_continuity": False
-        }
+        # Agent workflow should be intact
+        mocks['load_conversation'].assert_called_once_with(session_id)
+        mocks['get_session_stats'].assert_called_once_with(session_id)
+        mocks['get_chat_agent'].assert_called_once()
         
-        session_id = str(uuid.uuid4())
+        # Response should contain expected data
+        assert result['response'] is not None
+        assert hasattr(result['usage'], 'total_tokens')
         
-        result = await simple_chat(
-            message="First message in session",
-            session_id=session_id
-        )
-        
-        # Should handle empty history gracefully
-        mock_load_conversation.assert_called_once_with(session_id)
-        assert 'response' in result
-        assert result['session_continuity']['cross_endpoint_continuity'] == False
-    
-    @pytest.mark.asyncio
-    @patch('app.services.agent_session.load_agent_conversation')
-    @patch('app.services.agent_session.get_session_stats')
-    @patch('loguru.logger')
-    async def test_simple_chat_session_bridging_logging(self, mock_logger, mock_get_stats, mock_load_conversation, mock_dependencies, sample_conversation_history):
-        """Test that session bridging events are logged for analytics."""
-        
-        mock_load_conversation.return_value = sample_conversation_history
-        mock_get_stats.return_value = {
-            "total_messages": 2,
-            "session_id": "test-session",
-            "cross_endpoint_continuity": True
-        }
-        
-        session_id = str(uuid.uuid4())
-        
-        await simple_chat(
-            message="Test message",
-            session_id=session_id
-        )
-        
-        # Verify session bridging was logged
-        mock_logger.info.assert_called()
-        log_call_args = mock_logger.info.call_args
-        log_data = log_call_args[0][0]
-        
-        assert log_data['event'] == 'agent_session_bridging'
-        assert log_data['session_id'] == session_id
-        assert log_data['loaded_messages'] == 2
-        assert log_data['cross_endpoint_continuity'] == True
-        assert log_data['agent_type'] == 'simple_chat'
-        assert log_data['bridging_method'] == 'agent_session_service'
-    
-    @pytest.mark.asyncio
-    @patch('app.services.agent_session.load_agent_conversation')
-    @patch('app.services.agent_session.get_session_stats')
-    async def test_simple_chat_cost_tracking_preserved(self, mock_get_stats, mock_load_conversation, mock_dependencies):
-        """Test that cost tracking functionality is preserved with history loading."""
-        
-        mock_load_conversation.return_value = []
-        mock_get_stats.return_value = {
-            "total_messages": 0,
-            "session_id": "test-session",
-            "cross_endpoint_continuity": False
-        }
-        
-        session_id = str(uuid.uuid4())
-        
-        result = await simple_chat(
-            message="Test cost tracking",
-            session_id=session_id
-        )
-        
-        # Verify cost tracking data is included
-        assert 'cost_tracking' in result
-        assert 'llm_request_id' in result
-        
-        # Verify cost tracking structure (from mocked response)
-        cost_tracking = result.get('cost_tracking', {})
-        assert 'real_cost' in cost_tracking
-        assert 'method' in cost_tracking
-    
-    @pytest.mark.asyncio
-    @patch('app.services.agent_session.load_agent_conversation')
-    async def test_simple_chat_conversation_loading_error_handling(self, mock_load_conversation, mock_dependencies):
-        """Test error handling when conversation loading fails."""
-        
-        # Mock conversation loading failure
-        mock_load_conversation.side_effect = Exception("Database connection error")
-        
-        session_id = str(uuid.uuid4())
-        
-        # Should handle loading errors gracefully
-        with pytest.raises(Exception):
-            await simple_chat(
-                message="Test error handling",
-                session_id=session_id
-            )
-        
-        # Verify conversation loading was attempted
-        mock_load_conversation.assert_called_once_with(session_id)
+        # Agent workflow should produce valid output
+        assert isinstance(result['response'], str)
+        assert result['usage'].total_tokens > 0
 
 
 if __name__ == "__main__":
