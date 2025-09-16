@@ -168,6 +168,158 @@ python -m uvicorn backend.app.main:app --reload
 cd /path/to/salient02 && source .venv/bin/activate && uvicorn backend.app.main:app --reload
 ```
 
+## Configuration Management
+
+### Agent Configuration Architecture
+
+The backend uses a **hierarchical configuration cascade** that prioritizes agent-specific settings over global defaults:
+
+```
+Agent Config → Global Config (app.yaml) → Code Defaults
+```
+
+**Priority Order:**
+1. **Agent-specific config**: `backend/config/agent_configs/{agent_type}/config.yaml` (Highest Priority)
+2. **Global config**: `backend/config/app.yaml` (Middle Priority) 
+3. **Code defaults**: Hardcoded fallback values (Lowest Priority)
+
+### Agent Configuration Structure
+
+Agent configurations are organized in dedicated folders under `backend/config/agent_configs/`:
+
+```
+backend/config/agent_configs/
+└── simple_chat/
+    ├── config.yaml          # Agent-specific configuration
+    └── system_prompt.md     # External system prompt file
+```
+
+#### Agent Config Example (`simple_chat/config.yaml`)
+
+```yaml
+agent_type: "simple_chat"
+name: "Simple Chat Agent"
+description: "General-purpose conversational agent with RAG capabilities"
+
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"  # External prompt file
+
+model_settings:
+  model: "openai:gpt-4o"  # Overrides global default
+  temperature: 0.3
+  max_tokens: 2000
+
+# Standardized parameter names  
+context_management:
+  history_limit: 50        # Agent-specific override (was max_history_messages)
+  context_window_tokens: 8000
+  
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+  web_search:
+    enabled: true
+    provider: "exa"
+```
+
+#### System Prompt Files
+
+System prompts are stored in separate `.md` files for better maintainability:
+
+```markdown
+<!-- simple_chat/system_prompt.md -->
+You are a helpful AI assistant with access to knowledge base search and web search tools.
+Always provide accurate, helpful responses with proper citations.
+
+Guidelines:
+- Use vector_search for stored knowledge queries
+- Use web_search for current information
+- Be conversational and helpful while remaining accurate
+```
+
+### Global Configuration (`app.yaml`)
+
+Global configuration provides defaults for all agents:
+
+```yaml
+chat:
+  history_limit: 50         # Global default (standardized parameter name)
+  inactivity_minutes: 30
+
+llm:
+  provider: openrouter
+  model: deepseek/deepseek-chat-v3.1  # Global default model
+  temperature: 0.3
+  max_tokens: 1024
+
+agents:
+  default_agent: simple_chat
+  configs_directory: ./config/agent_configs/
+```
+
+### Configuration Cascade Examples
+
+**Example 1: Agent Override**
+- Agent config: `history_limit: 75`
+- Global config: `history_limit: 50` 
+- **Result**: Uses `75` (agent-specific value)
+
+**Example 2: Global Fallback**
+- Agent config: *(no history_limit specified)*
+- Global config: `history_limit: 50`
+- **Result**: Uses `50` (global default)
+
+**Example 3: Code Fallback**
+- Agent config: *(no history_limit specified)*
+- Global config: *(no history_limit specified)*
+- **Result**: Uses `50` (hardcoded fallback)
+
+### Configuration Troubleshooting
+
+**Common Issues:**
+
+1. **Agent not using custom configuration:**
+   - Verify agent folder exists: `backend/config/agent_configs/{agent_type}/`
+   - Check `config.yaml` file syntax and indentation
+   - Ensure parameter names use standardized conventions
+
+2. **System prompt not loading:**
+   - Check `prompts.system_prompt_file` path in agent config
+   - Verify `.md` file exists and is readable
+   - Paths are resolved relative to agent config directory
+
+3. **Configuration cascade not working:**
+   - Test configuration loading: `python -c "from app.agents.config_loader import get_agent_history_limit; import asyncio; print(asyncio.run(get_agent_history_limit('simple_chat')))"`
+   - Check logs for `config_cascade_source` debug messages
+   - Verify no typos in parameter names (use `history_limit`, not `max_history_messages`)
+
+4. **Legacy parameter names:**
+   - **DEPRECATED**: `max_history_messages` → **USE**: `history_limit`
+   - Update all YAML files to use standardized parameter names
+   - Run tests to verify parameter standardization: `pytest tests/unit/test_simple_chat_agent.py -v`
+
+**Configuration Validation:**
+```bash
+# Test agent configuration loading
+cd /path/to/salient02
+source .venv/bin/activate
+python -c "
+import asyncio
+from backend.app.agents.config_loader import get_agent_config, get_agent_history_limit
+
+async def test_config():
+    config = await get_agent_config('simple_chat')
+    limit = await get_agent_history_limit('simple_chat')
+    print(f'✅ Agent config loaded: {config.name}')
+    print(f'✅ History limit: {limit}')
+    print(f'✅ System prompt: {len(config.system_prompt)} chars')
+
+asyncio.run(test_config())
+"
+```
+
 ## Environment Variables
 
 Required environment variables (set in `.env` at repo root):

@@ -20,14 +20,12 @@ Dependencies:
 
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openrouter import OpenRouterProvider
+from .openrouter import OpenRouterModel, create_openrouter_provider_with_cost_tracking
 from .base.dependencies import SessionDependencies
 from ..config import load_config
-from .config_loader import get_agent_config, get_agent_history_limit  # Fixed: correct function name
+from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
-from ..services.agent_session import load_agent_conversation, get_session_stats
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -36,8 +34,8 @@ import time
 import os
 
 # Global agent instance (lazy loaded)
-_chat_agent = None
-
+# Global caching disabled for production reliability
+# _chat_agent = None  # Removed: Always create fresh agents
 
 async def load_conversation_history(session_id: str, max_messages: Optional[int] = None) -> List[ModelMessage]:
     """
@@ -53,9 +51,11 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
     Returns:
         List of Pydantic AI ModelMessage objects in chronological order
     """
-    # Get max_messages from agent-first configuration cascade if not provided
+    # Get max_messages from config if not provided
     if max_messages is None:
-        max_messages = await get_agent_history_limit("simple_chat")
+        config = load_config()
+        chat_config = config.get("chat", {})
+        max_messages = chat_config.get("history_limit", 20)  # Default to 20 for agent context
     
     message_service = get_message_service()
     
@@ -144,18 +144,37 @@ async def create_simple_chat_agent() -> Agent:  # Fixed: async function
     model_settings = agent_config.model_settings if hasattr(agent_config, 'model_settings') and agent_config.model_settings else {}
     system_prompt = agent_config.system_prompt  # Direct attribute access (AgentConfig is Pydantic model)
     
-    # 🎯 OFFICIAL: Follow Pydantic AI documentation exactly
-    model = OpenAIChatModel(
-        model_name,  # First positional argument, not model_name=
-        provider=OpenRouterProvider(api_key=api_key)
+    # AGENT-FIRST CASCADE: Override model_name with agent-specific model if available
+    if model_settings and model_settings.get("model"):
+        model_name = model_settings.get("model")
+        logger.info({
+            "event": "agent_first_cascade", 
+            "source": "agent_config",
+            "agent_model": model_name,
+            "global_model_overridden": True
+        })
+    else:
+        logger.info({
+            "event": "agent_first_cascade",
+            "source": "global_config_fallback", 
+            "model": model_name,
+            "agent_model_found": False
+        })
+    
+    # Use OpenRouterModel with cost-tracking provider
+    provider = create_openrouter_provider_with_cost_tracking(api_key)
+    model = OpenRouterModel(
+        model_name,  # Now properly uses agent-first cascade
+        provider=provider
     )
     
     logger.info({
-        "event": "agent_openrouter_provider_breakthrough",
+        "event": "agent_openrouter_provider_with_cost_tracking",
         "model_name": model_name,
-        "provider_type": "OpenRouterProvider", 
+        "provider_type": "OpenRouterProvider_CustomClient", 
         "api_key_masked": f"{api_key[:10]}..." if api_key else "none",
-        "cost_tracking": "enabled_via_hybrid_solution"
+        "cost_tracking": "enabled_via_custom_asyncopenai_client",
+        "usage_tracking": "always_included"
     })
     
     # Create agent with OpenRouterProvider (official pattern)
@@ -166,11 +185,16 @@ async def create_simple_chat_agent() -> Agent:  # Fixed: async function
     )
 
 async def get_chat_agent() -> Agent:  # Fixed: async function
-    """Get or create the global chat agent instance."""
-    global _chat_agent
-    if _chat_agent is None:
-        _chat_agent = await create_simple_chat_agent()  # Fixed: await async function
-    return _chat_agent
+    """
+    Create a fresh chat agent instance.
+    
+    Note: Global caching disabled for production reliability.
+    Configuration changes take effect immediately after server restart
+    without requiring session cookie clearing or cache invalidation.
+    """
+    # Always create fresh agent to pick up latest configuration
+    # This ensures config changes work reliably in production
+    return await create_simple_chat_agent()
 
 async def simple_chat(
     message: str, 
@@ -191,9 +215,12 @@ async def simple_chat(
     Returns:
         dict with response, messages, new_messages, and usage data
     """
+    from loguru import logger
     
-    # Get history_limit using agent-first configuration cascade
-    default_history_limit = await get_agent_history_limit("simple_chat")
+    # Get max_history_messages from config for session dependencies
+    config = load_config()
+    chat_config = config.get("chat", {})
+    default_history_limit = chat_config.get("history_limit", 20)
     
     # Create session dependencies properly (Fixed)
     session_deps = await SessionDependencies.create(
@@ -206,100 +233,63 @@ async def simple_chat(
     agent_config = await get_agent_config("simple_chat")
     model_settings = agent_config.model_settings  # Fixed: direct attribute access
     
-    # Load conversation history if not provided (TASK 0017-003-005: Agent Session Service Integration)
+    # Load conversation history if not provided (TASK 0017-003)
     if message_history is None:
-        message_history = await load_agent_conversation(session_id)
+        # Get max_history_messages - check agent config for override, fall back to global config
+        agent_history_limit = None
+        if hasattr(agent_config, 'context_management') and agent_config.context_management:
+            agent_history_limit = agent_config.context_management.get('max_history_messages')
         
-        # TASK 0017-003-005-03: Log session bridging for analytics
-        from loguru import logger
-        logger.info({
-            "event": "agent_session_bridging",
-            "session_id": session_id,
-            "loaded_messages": len(message_history),
-            "cross_endpoint_continuity": len(message_history) > 0,
-            "agent_type": "simple_chat",
-            "bridging_method": "agent_session_service"
-        })
+        # Use agent-specific limit if set, otherwise fall back to global config (or function default)
+        max_messages = agent_history_limit if agent_history_limit is not None else None
+        
+        message_history = await load_conversation_history(
+            session_id=session_id,
+            max_messages=max_messages  # Will use config if None
+        )
     
     # Get the agent (Fixed: await async function)
     agent = await get_chat_agent()
     
-    # STEP 1 & 2: Pydantic AI + OpenRouter Integration with Cost Tracking
+    # Pure Pydantic AI agent execution
     start_time = datetime.utcnow()
     
-    # 🎯 BREAKTHROUGH: Single-call solution with direct OpenRouter client for cost data
-    llm_request_id = None
-    real_cost = 0.0
-    response_text = ""
-    prompt_tokens = 0
-    completion_tokens = 0
-    total_tokens = 0
-    latency_ms = 0
-    
-    # Load global config for OpenRouter settings (still needed for LLM configuration)
-    config = load_config()
-    
-    # Check if we have an OpenRouterProvider to access its client
-    openrouter_api_key = config.get("llm", {}).get("api_key") or os.getenv('OPENROUTER_API_KEY')
-    
     try:
-        if openrouter_api_key:
-            # 🎯 Single-call breakthrough: Direct OpenRouter client with cost data
-            from pydantic_ai.providers.openrouter import OpenRouterProvider
-            provider = OpenRouterProvider(api_key=openrouter_api_key)
-            direct_client = provider.client
+        # Execute agent with Pydantic AI
+        result = await agent.run(message, deps=session_deps, message_history=message_history)
+        end_time = datetime.utcnow()
+        latency_ms = int((end_time - start_time).total_seconds() * 1000)
+        
+        # Extract response and usage data
+        response_text = result.output
+        usage_data = result.usage() if hasattr(result, 'usage') else None
+        
+        if usage_data:
+            prompt_tokens = getattr(usage_data, 'input_tokens', 0)
+            completion_tokens = getattr(usage_data, 'output_tokens', 0)
+            total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
             
-            # Convert message history to API format
-            api_messages = []
-            if message_history:
-                for msg in message_history:
-                    if hasattr(msg, 'parts') and msg.parts:
-                        for part in msg.parts:
-                            if hasattr(part, 'content'):
-                                role = "assistant" if isinstance(msg, ModelResponse) else "user"
-                                api_messages.append({"role": role, "content": part.content})
+            # Extract cost from OpenRouterModel vendor_details
+            real_cost = 0.0
             
-            # Add current message
-            api_messages.append({"role": "user", "content": message})
-            
-            # Make single cost-enabled call
-            response = await direct_client.chat.completions.create(
-                model=config.get("llm", {}).get("model", "anthropic/claude-3.5-sonnet"),
-                messages=api_messages,
-                extra_body={"usage": {"include": True}},  # 🔑 Critical for OpenRouter cost
-                max_tokens=model_settings.get('max_tokens', 1000) if model_settings else 1000,
-                temperature=model_settings.get('temperature', 0.7) if model_settings else 0.7
-            )
-            
-            end_time = datetime.utcnow()
-            latency_ms = int((end_time - start_time).total_seconds() * 1000)
-            
-            # Extract response and accurate cost data
-            response_text = response.choices[0].message.content
-            
-            prompt_tokens = response.usage.prompt_tokens
-            completion_tokens = response.usage.completion_tokens
-            total_tokens = response.usage.total_tokens
-            real_cost = float(response.usage.cost) if hasattr(response.usage, 'cost') else 0.0
-            
+            # Get the latest message response with OpenRouter metadata
+            new_messages = result.new_messages()
+            if new_messages:
+                latest_message = new_messages[-1]  # Last message (assistant response)
+                if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                    vendor_cost = latest_message.provider_details.get('cost')
+                    if vendor_cost is not None:
+                        real_cost = float(vendor_cost)
+                        logger.info(f"✅ OpenRouterModel cost extraction: ${real_cost}")
         else:
-            # Fallback: Use Pydantic AI without cost data
-            result = await agent.run(message, deps=session_deps, message_history=message_history)
-            end_time = datetime.utcnow()
-            latency_ms = int((end_time - start_time).total_seconds() * 1000)
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens = 0
+            real_cost = 0.0
             
-            response_text = result.output
-            usage_data = result.usage() if hasattr(result, 'usage') else None
-            
-            if usage_data:
-                prompt_tokens = getattr(usage_data, 'input_tokens', 0)
-                completion_tokens = getattr(usage_data, 'output_tokens', 0)
-                total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
-            
-        # Log the breakthrough cost tracking results
-        from loguru import logger
+        # Log OpenRouterModel results
         logger.info({
-            "event": "breakthrough_single_call_cost_tracking",
+            "event": "openrouter_model_execution",
             "session_id": session_id,
             "tokens": {
                 "prompt": prompt_tokens,
@@ -307,8 +297,9 @@ async def simple_chat(
                 "total": total_tokens
             },
             "real_cost": real_cost,
+            "method": "openrouter_model_vendor_details",
+            "cost_tracking": "enabled",
             "cost_found": real_cost > 0,
-            "method": "direct_openrouter_client_single_call" if openrouter_api_key else "pydantic_ai_fallback",
             "latency_ms": latency_ms
         })
         
@@ -316,19 +307,24 @@ async def simple_chat(
         if prompt_tokens > 0 or completion_tokens > 0:
             from decimal import Decimal
             tracker = LLMRequestTracker()
+            
+            # Use agent-first cascade for model name in tracking
+            tracking_model = (
+                agent_config.model_settings.get("model") if agent_config.model_settings else None
+            ) or config.get("llm", {}).get("model", "unknown")
+            
             llm_request_id = await tracker.track_llm_request(
                 session_id=UUID(session_id),
                 provider="openrouter",
-                model=config.get("llm", {}).get("model", "unknown"),
+                model=tracking_model,
                 request_body={
                     "message_length": len(message), 
                     "has_history": len(message_history) > 0 if message_history else False,
-                    "method": "breakthrough_single_call_openrouter"
+                    "method": "direct_openrouter"
                 },
                 response_body={
                     "response_length": len(response_text),
-                    "openrouter_cost": real_cost,
-                    "breakthrough_solution": True
+                    "openrouter_cost": real_cost
                 },
                 tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
                 cost_data={
@@ -341,11 +337,16 @@ async def simple_chat(
             
     except Exception as e:
         # Log tracking errors but don't break the response
-        from loguru import logger
-        logger.error(f"Breakthrough cost tracking failed (non-critical): {e}")
+        logger.error(f"Cost tracking failed (non-critical): {e}")
+        import traceback
+        logger.debug(f"Cost tracking error traceback: {traceback.format_exc()}")
         llm_request_id = None
         real_cost = 0.0
         response_text = "Error processing request"
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens = 0
+        latency_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
     
     # Create usage data object for compatibility
     class UsageData:
@@ -358,21 +359,22 @@ async def simple_chat(
     
     usage_obj = UsageData(prompt_tokens, completion_tokens, total_tokens)
     
-    # TASK 0017-003-005-02: Add session continuity stats
+    # Get session stats for continuity monitoring
+    from ..services.agent_session import get_session_stats
     session_stats = await get_session_stats(session_id)
     
     return {
-        'response': response_text,  # Direct response from OpenRouter
+        'response': response_text,  # Response from Pydantic AI
         'usage': usage_obj,  # Compatible usage object
         'llm_request_id': str(llm_request_id) if llm_request_id else None,
-        # 🎯 BREAKTHROUGH: Real OpenRouter cost tracking data
+        # Cost tracking data (via OpenRouterModel)
         'cost_tracking': {
             'real_cost': real_cost,
-            'method': 'breakthrough_single_call_openrouter',
+            'method': 'openrouter_model_vendor_details',
             'provider': 'OpenRouterProvider',
             'cost_found': real_cost > 0,
-            'breakthrough_solution': True
+            'status': 'enabled'
         },
-        # TASK 0017-003-005: Agent Conversation Loading - Session continuity monitoring
+        # Session continuity monitoring
         'session_continuity': session_stats
     }

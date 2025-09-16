@@ -760,6 +760,18 @@ async def sse_stream(request: Request):
         "session_key": session.session_key[:8] + "..." if session.session_key else None,
         "message_preview": seed[:100] + "..." if seed and len(seed) > 100 else seed,
     })
+    
+    # DEBUG: Log config loading details
+    logger.info({
+        "event": "sse_config_debug", 
+        "raw_config": cfg,
+        "llm_config": llm_cfg,
+        "model_from_config": llm_cfg.get("model"),
+        "model_fallback": "openai/gpt-oss-20b:free",
+        "final_model": model,
+        "config_keys": list(cfg.keys()),
+        "llm_config_keys": list(llm_cfg.keys())
+    })
 
     # Save user message to database before streaming starts (if provided)
     message_service = get_message_service()
@@ -808,6 +820,17 @@ async def sse_stream(request: Request):
                     headers["X-Title"] = app_name
                 except Exception:
                     pass
+                
+                # DEBUG: Log exact parameters passed to stream_chat_chunks
+                logger.info({
+                    "event": "stream_chat_chunks_call_debug",
+                    "message": seed,
+                    "model": model,
+                    "temperature": temperature, 
+                    "max_tokens": max_tokens,
+                    "extra_headers": headers or None,
+                    "function": "stream_chat_chunks"
+                })
                 
                 # Stream LLM response while accumulating chunks
                 async for tok in stream_chat_chunks(
@@ -1010,6 +1033,18 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         "session_key": session.session_key[:8] + "..." if session.session_key else None,
         "message_preview": message[:100] + "..." if len(message) > 100 else message,
     })
+    
+    # DEBUG: Log chat_fallback config loading details  
+    logger.info({
+        "event": "chat_fallback_config_debug",
+        "raw_config": cfg,
+        "llm_config": llm_cfg,
+        "model_from_config": llm_cfg.get("model"),
+        "model_fallback": "openai/gpt-oss-20b:free",
+        "final_model": model,
+        "config_keys": list(cfg.keys()),
+        "llm_config_keys": list(llm_cfg.keys())
+    })
 
     # Save user message to database before LLM call
     message_service = get_message_service()
@@ -1054,6 +1089,17 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
 
     # Get LLM response
     try:
+        # DEBUG: Log exact parameters passed to chat_completion_content
+        logger.info({
+            "event": "chat_completion_content_call_debug",
+            "message": message,
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "extra_headers": headers or None,
+            "function": "chat_completion_content"
+        })
+        
         text = await chat_completion_content(
             message=message,
             model=model,

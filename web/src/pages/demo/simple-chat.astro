@@ -419,7 +419,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           method:'POST', 
           headers:{ 'Content-Type':'application/json' }, 
           body: JSON.stringify(requestBody),
-          credentials: 'include' 
+          credentials: 'include'  // Fixed: Allow session cookies for chat history
         });
         const endTime = Date.now();
         const requestTime = endTime - startTime;

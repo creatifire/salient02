@@ -579,14 +579,14 @@ chara  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle pro
     - STATUS: Completed — Updated test_simple_chat_agent.py with comprehensive parameter standardization tests, verified SessionDependencies tests use history_limit, confirmed agent-first configuration cascade tests pass, and validated external prompt file loading tests. All 17 unit tests passing with full coverage of parameter standardization requirements
     - PRIORITY: High — Tests must validate new configuration structure
   
-  - [ ] 0017-004-001-08 - CHUNK - Update documentation and README files (Documentation-focused)
+  - [x] 0017-004-001-08 - CHUNK - Update documentation and README files (Documentation-focused)
     - SUB-TASKS:
       - Update `backend/README.md` to document agent-first configuration cascade
       - Update configuration examples in README to show standardized parameter names
       - Document system prompt file separation approach
       - Update inline YAML comments to reflect new parameter names
       - Add configuration troubleshooting section for cascade behavior
-    - STATUS: Planned — Document standardized configuration approach
+    - STATUS: Completed — Added comprehensive Configuration Management section to backend/README.md documenting agent-first cascade, standardized parameter names (history_limit), system prompt file separation, and configuration troubleshooting guide. Updated YAML comments and validated all examples work correctly
     - PRIORITY: Medium — Developers need clear configuration guidance
   
   - [ ] 0017-004-001-09 - CHUNK - Update memorybank documentation (Documentation-focused)
@@ -616,6 +616,30 @@ chara  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle pro
       - Confirm system remains stable under various configuration states
     - STATUS: Planned — Comprehensive validation of configuration standardization
     - PRIORITY: High — Ensure system reliability with configuration changes
+
+  - [ ] 0017-004-001-11 - CHUNK - Configuration cascade verification tests
+    - SUB-TASKS:
+      - Create comprehensive test suite for config.yaml → app.yaml → hardcoded cascade
+      - Test all configuration parameters that use cascade logic
+      - Verify cascade works correctly when config files are missing/corrupted
+      - Test cascade behavior with partial configuration files
+      - Add performance tests for configuration loading
+    - AUTOMATED-TESTS (8 tests):
+      - `test_history_limit_cascade_agent_priority()` - Agent config overrides global config
+      - `test_history_limit_cascade_global_fallback()` - Global config used when agent config missing
+      - `test_history_limit_cascade_hardcoded_fallback()` - Hardcoded fallback when both configs missing
+      - `test_model_settings_cascade_agent_priority()` - Agent model overrides global model
+      - `test_model_settings_cascade_global_fallback()` - Global model used when agent model missing
+      - `test_cascade_with_corrupted_agent_config()` - Graceful fallback when agent config corrupted
+      - `test_cascade_with_partial_configurations()` - Mixed scenarios with some values present
+      - `test_cascade_performance_benchmarks()` - Configuration loading performance under load
+    - MANUAL-TESTS:
+      - Test configuration cascade behavior in browser with real agent requests
+      - Verify cascade works correctly when switching between different agent configurations
+      - Test system stability when configuration files are modified during runtime
+      - Confirm logging shows correct configuration source for each parameter
+    - STATUS: Planned — Comprehensive cascade verification testing
+    - PRIORITY: High — Critical for reliable configuration behavior
     
 **Current Inconsistencies Identified:**
 ```yaml

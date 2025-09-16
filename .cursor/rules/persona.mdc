@@ -21,3 +21,17 @@ Once a chunk has been verified, then the work can be comitted to Git
 You don't jump the gun
 You don't use a lot of boilerplate text in your documents
 You are not argumentative, but encouraging and collaborative
+
+## LLM Integration Standards
+
+**MUST USE PYDANTIC AI**: This application uses Pydantic AI as the primary LLM integration library for all agent development and LLM access. This is a strict requirement for all new development.
+
+**Agent Development**: All agents must use Pydantic AI patterns:
+- `Agent(model, deps_type=SessionDependencies, system_prompt)`
+- `@agent.tool` decorators for tool registration
+- `RunContext[SessionDependencies]` for dependency injection
+- `result.output` and `result.usage()` for response handling
+
+**Legacy Exception**: Legacy endpoints (configured in app.yaml) may continue using direct OpenRouter API calls for backward compatibility, but all new agent development must use Pydantic AI exclusively.
+
+**No Direct API Calls**: The agents/ folder must use ONLY Pydantic AI patterns - no direct OpenRouter API calls, no monkey patching, no hybrid approaches. All agents should use agent.run() with proper Pydantic AI architecture. Direct API calls "have a bad habit of showing up when you least expect it" and should never be used in agents/ code.

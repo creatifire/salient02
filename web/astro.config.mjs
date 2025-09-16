@@ -17,6 +17,7 @@ export default defineConfig({
         '/events': { target: BACKEND, changeOrigin: true },
         '/health': { target: BACKEND, changeOrigin: true },
         '/api': { target: BACKEND, changeOrigin: true },
+        '/agents': { target: BACKEND, changeOrigin: true },  // Fix: Proxy agent endpoints
         '/dev/logs/tail': { target: BACKEND, changeOrigin: true },
       }
     }

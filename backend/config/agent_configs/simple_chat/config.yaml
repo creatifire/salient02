@@ -7,10 +7,9 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "openai:gpt-4o"  # Can override app.yaml default
+  model: "moonshotai/kimi-k2-0905"  # Reliable model with great Pydantic AI support
   temperature: 0.3
   max_tokens: 2000
-
 tools:
   vector_search:
     enabled: true
@@ -39,7 +38,7 @@ tools:
   conversation_management:
     enabled: true
     auto_summarize_threshold: 10
-    summary_model: "qwen/qwen3-next-80b-a3b-thinking"
+    summary_model: "moonshotai/kimi-k2-0905"
 
 context_management:
   history_limit: 50                         # Standardized parameter name (was max_history_messages)

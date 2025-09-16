@@ -52,18 +52,25 @@ async def simple_chat_endpoint(
         logger.warning(f"Empty message from session {session.id}")
         return JSONResponse({"error": "Empty message"}, status_code=400)
     
-    # 3. CONFIGURATION LOADING
+    # 3. CONFIGURATION LOADING - Use agent-first cascade
+    from ..agents.config_loader import get_agent_config
     config = load_config()
     llm_config = config.get("llm", {})
     
-    # 4. COMPREHENSIVE LOGGING - Request
+    # Get agent-specific model with fallback cascade
+    agent_config = await get_agent_config("simple_chat")
+    agent_model = (
+        agent_config.model_settings.get("model") if agent_config.model_settings else None
+    ) or llm_config.get("model", "deepseek/deepseek-chat-v3.1")
+    
+    # 4. COMPREHENSIVE LOGGING - Request with correct agent model
     logger.info({
         "event": "simple_chat_request",
         "path": "/agents/simple-chat/chat",
         "session_id": str(session.id),
         "session_key": session.session_key[:8] + "..." if session.session_key else None,
         "message_preview": message[:100] + "..." if len(message) > 100 else message,
-        "model": f"{llm_config.get('provider', 'openrouter')}:{llm_config.get('model', 'deepseek/deepseek-chat-v3.1')}",
+        "model": f"openrouter:{agent_model}",  # Show actual agent model
         "temperature": llm_config.get("temperature", 0.3),
         "max_tokens": llm_config.get("max_tokens", 1024)
     })
@@ -160,12 +167,25 @@ async def simple_chat_endpoint(
                 "details": getattr(usage, 'details', {})
             }
         
-        return JSONResponse({
+        # Log the final response data for debugging
+        response_data = {
             "response": result['response'],
             "usage": usage_dict,
             "llm_request_id": result.get('llm_request_id'),
-            "cost_tracking": result.get('cost_tracking', {})
+            "cost_tracking": result.get('cost_tracking', {}),
+            "model": agent_model  # Include actual model name for frontend display
+        }
+        
+        logger.info({
+            "event": "api_response_debug",
+            "session_id": str(session.id),
+            "agent_model": agent_model,
+            "response_preview": result['response'][:100] + "..." if len(result['response']) > 100 else result['response'],
+            "response_length": len(result['response']),
+            "llm_request_id": result.get('llm_request_id')
         })
+        
+        return JSONResponse(response_data)
         
     except Exception as e:
         # ERROR HANDLING & GRACEFUL DEGRADATION - LLM failures
