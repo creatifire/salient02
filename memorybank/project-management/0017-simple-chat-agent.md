@@ -728,68 +728,17 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
     # Format web results for agent consumption
 ```
 
-## 0017-007 - FEATURE - Outbound Email & Conversation Summaries
+## 0017-007 - FEATURE - Email Capture & User Consent
 **Status**: Planned
 
-Enable sending conversation summaries via email using Mailgun integration.
+Capture user email addresses and manage email-related permissions and approvals with standard email validation.
 
-- [ ] 0017-007-001 - TASK - Email Service Integration
-  - [ ] 0017-007-001-01 - CHUNK - Mailgun service setup
-    - SUB-TASKS:
-      - Create MailgunService with configuration from app.yaml
-      - API key management and environment variable setup
-      - Email template system for conversation summaries
-      - Error handling and retry logic for email delivery
-    - AUTOMATED-TESTS:
-      - `test_mailgun_service_initialization()` - Verify service setup with config
-      - `test_email_template_rendering()` - Test conversation summary formatting
-    - MANUAL-TESTS:
-      - Verify Mailgun API credentials work correctly
-      - Test email delivery with sample conversation summary
-    - STATUS: Planned — Core email service foundation
-    - PRIORITY: High — Required for all email functionality
-
-  - [ ] 0017-007-001-02 - CHUNK - Conversation summary generation
-    - SUB-TASKS:
-      - Create conversation summarization logic using LLM
-      - Format summaries with key points, decisions, and action items
-      - Include conversation metadata (duration, message count, cost)
-      - Template system for different summary formats (brief, detailed)
-    - AUTOMATED-TESTS:
-      - `test_conversation_summarization()` - Test summary generation quality
-      - `test_summary_template_formatting()` - Verify email template rendering
-    - MANUAL-TESTS:
-      - Review generated summaries for quality and completeness
-      - Test different conversation lengths and types
-    - STATUS: Planned — Generate meaningful conversation summaries
-    - PRIORITY: Medium — Core functionality for email content
-
-  - [ ] 0017-007-001-03 - CHUNK - Email sending endpoint and triggers
-    - SUB-TASKS:
-      - Create `/agents/simple-chat/send-summary` POST endpoint
-      - Implement automatic summary sending triggers (conversation end, time-based)
-      - Email delivery status tracking and logging
-      - Rate limiting and abuse prevention
-    - AUTOMATED-TESTS:
-      - `test_send_summary_endpoint()` - Test email sending API
-      - `test_automatic_triggers()` - Verify summary triggers work correctly
-    - MANUAL-TESTS:
-      - Test manual summary sending via API
-      - Verify automatic triggers fire correctly
-    - STATUS: Planned — Email delivery mechanism
-    - PRIORITY: High — User-facing functionality
-
-## 0017-008 - FEATURE - Email Capture & User Consent
-**Status**: Planned
-
-Capture user email addresses and manage email-related permissions and approvals.
-
-- [ ] 0017-008-001 - TASK - Email Collection System
-  - [ ] 0017-008-001-01 - CHUNK - Email capture UI and API
+- [ ] 0017-007-001 - TASK - Email Collection System
+  - [ ] 0017-007-001-01 - CHUNK - Email capture UI and API
     - SUB-TASKS:
       - Create email input component for web interface
-      - Add `/api/capture-email` endpoint with validation
-      - Email format validation and domain verification
+      - Add `/api/capture-email` endpoint with HTML5 email validation
+      - Email format validation and domain verification (no external API needed)
       - Integration with session management for email association
     - AUTOMATED-TESTS:
       - `test_email_validation()` - Test email format and domain validation
@@ -800,7 +749,7 @@ Capture user email addresses and manage email-related permissions and approvals.
     - STATUS: Planned — Email collection mechanism
     - PRIORITY: High — Required for authentication and email features
 
-  - [ ] 0017-008-001-02 - CHUNK - Consent and preferences management
+  - [ ] 0017-007-001-02 - CHUNK - Consent and preferences management
     - SUB-TASKS:
       - Create consent tracking database schema (email_consents table)
       - Implement consent checkbox UI with clear privacy messaging
@@ -815,40 +764,91 @@ Capture user email addresses and manage email-related permissions and approvals.
     - STATUS: Planned — User consent and privacy compliance
     - PRIORITY: High — Legal compliance requirement
 
+## 0017-008 - FEATURE - Outbound Email & Conversation Summaries
+**Status**: Planned
+
+Enable sending conversation summaries via email using Twilio SendGrid integration.
+
+- [ ] 0017-008-001 - TASK - Email Service Integration
+  - [ ] 0017-008-001-01 - CHUNK - Twilio SendGrid service setup
+    - SUB-TASKS:
+      - Create SendGridService with configuration from app.yaml
+      - Twilio SendGrid API key management and environment variable setup
+      - Email template system for conversation summaries
+      - Error handling and retry logic for email delivery
+    - AUTOMATED-TESTS:
+      - `test_sendgrid_service_initialization()` - Verify service setup with config
+      - `test_email_template_rendering()` - Test conversation summary formatting
+    - MANUAL-TESTS:
+      - Verify Twilio SendGrid API credentials work correctly
+      - Test email delivery with sample conversation summary
+    - STATUS: Planned — Core email service foundation
+    - PRIORITY: High — Required for all email functionality
+
+  - [ ] 0017-008-001-02 - CHUNK - Conversation summary generation
+    - SUB-TASKS:
+      - Create conversation summarization logic using existing OpenAI/OpenRouter LLM
+      - Format summaries with key points, decisions, and action items
+      - Include conversation metadata (duration, message count, cost)
+      - Template system for different summary formats (brief, detailed)
+    - AUTOMATED-TESTS:
+      - `test_conversation_summarization()` - Test summary generation quality
+      - `test_summary_template_formatting()` - Verify email template rendering
+    - MANUAL-TESTS:
+      - Review generated summaries for quality and completeness
+      - Test different conversation lengths and types
+    - STATUS: Planned — Generate meaningful conversation summaries
+    - PRIORITY: Medium — Core functionality for email content
+
+  - [ ] 0017-008-001-03 - CHUNK - Email sending endpoint and triggers
+    - SUB-TASKS:
+      - Create `/agents/simple-chat/send-summary` POST endpoint
+      - Implement automatic summary sending triggers (conversation end, time-based)
+      - Email delivery status tracking and logging via SendGrid webhooks
+      - Rate limiting and abuse prevention
+    - AUTOMATED-TESTS:
+      - `test_send_summary_endpoint()` - Test email sending API
+      - `test_automatic_triggers()` - Verify summary triggers work correctly
+    - MANUAL-TESTS:
+      - Test manual summary sending via API
+      - Verify automatic triggers fire correctly
+    - STATUS: Planned — Email delivery mechanism
+    - PRIORITY: High — User-facing functionality
+
 ## 0017-009 - FEATURE - OTP Authentication & Email-based Accounts  
 **Status**: Planned
 
-Implement OTP (One-Time Password) authentication system with email-based account creation.
+Implement OTP (One-Time Password) authentication system with email-based account creation using Twilio Verify.
 
 - [ ] 0017-009-001 - TASK - OTP Authentication System
-  - [ ] 0017-009-001-01 - CHUNK - OTP generation and delivery
+  - [ ] 0017-009-001-01 - CHUNK - Twilio Verify OTP integration
     - SUB-TASKS:
-      - Create OTP generation service with configurable expiration
-      - OTP storage in Redis/database with TTL
-      - Email delivery via Mailgun with OTP codes
-      - Rate limiting for OTP requests per email address
+      - Create Twilio Verify service integration with API credentials
+      - Configure OTP generation via Twilio Verify API (email channel)
+      - Implement Twilio Verify verification checks with fraud protection
+      - Rate limiting handled by Twilio Verify (built-in abuse prevention)
     - AUTOMATED-TESTS:
-      - `test_otp_generation()` - Test OTP creation and expiration
-      - `test_otp_rate_limiting()` - Verify abuse prevention
+      - `test_twilio_verify_service_setup()` - Test Twilio Verify service initialization
+      - `test_otp_verification_flow()` - Test OTP creation and verification via Twilio
     - MANUAL-TESTS:
-      - Test OTP email delivery and formatting
-      - Verify rate limiting works correctly
-    - STATUS: Planned — OTP generation and delivery
+      - Test OTP email delivery via Twilio Verify
+      - Verify Twilio's built-in rate limiting and fraud protection
+    - STATUS: Planned — OTP generation and delivery via Twilio Verify
     - PRIORITY: High — Core authentication security
 
   - [ ] 0017-009-001-02 - CHUNK - OTP verification and session upgrade
     - SUB-TASKS:
-      - Create `/api/verify-otp` endpoint with security measures
-      - Upgrade anonymous sessions to authenticated sessions
-      - Account creation for new emails, login for existing
-      - Session persistence across browser restarts
+      - Create `/api/verify-otp` endpoint using Twilio Verify check API
+      - Upgrade anonymous sessions to authenticated sessions after successful verification
+      - Account creation for new emails, login for existing (post-verification)
+      - Session persistence across browser restarts with secure tokens
     - AUTOMATED-TESTS:
-      - `test_otp_verification()` - Test valid/invalid OTP handling
+      - `test_twilio_verify_check()` - Test Twilio Verify OTP validation
       - `test_session_upgrade()` - Verify anonymous → authenticated transition
     - MANUAL-TESTS:
-      - Test complete OTP verification flow
+      - Test complete OTP verification flow with Twilio Verify
       - Verify session persistence works correctly
-    - STATUS: Planned — Authentication verification system
+    - STATUS: Planned — Authentication verification system via Twilio
     - PRIORITY: High — User authentication flow
 
   - [ ] 0017-009-001-03 - CHUNK - Account and session association
