@@ -8,29 +8,29 @@ Implement Pydantic AI-powered chat agent with SessionDependencies integration.
 flowchart TD
     %% External Components
     User["👤 User"] --> FastAPI["📡 FastAPI Endpoint"]
-    Config["📋 Configuration Files"]
+    
+    %% Configuration System (NEW)
+    AgentConfig["🎛️ simple_chat/config.yaml"] --> Agent["🤖 Pydantic AI Agent"]
+    GlobalConfig["📋 app.yaml"] --> Agent
+    SystemPromptFile["📝 system_prompt.md"] --> Agent
     
     %% Core Agent Structure
-    FastAPI --> Agent["🤖 Pydantic AI Agent"]
-    Config --> Agent
+    FastAPI --> Agent
     
     %% Dependencies & Session Management
     Session["🔧 SessionDependencies"] --> Agent
     FastAPI --> Session
     
     %% Agent Components
-    Agent --> SystemPrompt["📝 System Prompt"]
-    Agent --> Tools["🛠️ Agent Tools"]
     Agent --> History["💬 Message History"]
+    Agent --> PlannedTools["🛠️ Tools (Planned)"]
     
-    %% Tool Implementations
-    Tools --> VectorTool["🔍 Vector Search Tool"]
-    Tools --> WebTool["🌐 Web Search Tool"]
+    %% Planned Tool Implementations
+    PlannedTools --> VectorTool["🔍 Vector Search (Planned)"]
+    PlannedTools --> WebTool["🌐 Web Search (Planned)"]
     
-    %% External Services
-    VectorTool --> VectorService["📊 Vector Service"]
-    WebTool --> ExaAPI["🔗 Exa Search API"]
-    Agent --> OpenRouter["🧠 OpenRouter + LLM selected in simple_chat.yaml"]
+    %% Current LLM Integration
+    Agent --> OpenRouter["🧠 OpenRouter + LLM"]
     
     %% Data Flow & Persistence
     FastAPI --> MessageService["💾 Message Service"]
@@ -42,23 +42,16 @@ flowchart TD
     FastAPI --> LegacySession["🔄 Legacy Session"]
     LegacySession --> MessageService
     
+    %% NEW: Email & Authentication Features (Planned)
+    FastAPI --> EmailCapture["📩 Email Capture (Planned)"]
+    EmailCapture --> SendGrid["📧 Twilio SendGrid (Planned)"]
+    FastAPI --> OTPAuth["🔐 OTP Auth (Planned)"]
+    OTPAuth --> TwilioVerify["🔑 Twilio Verify (Planned)"]
+    
     %% Response Flow
     Agent --> Response["✨ Agent Response"]
     Response --> FastAPI
     FastAPI --> User
-
-    %% Styling
-    classDef agent fill:#e1f5fe,stroke:#2196F3,stroke-width:3px
-    classDef dependency fill:#fff3e0,stroke:#ff9800,stroke-width:2px
-    classDef tool fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
-    classDef service fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-    classDef config fill:#fce4ec,stroke:#e91e63,stroke-width:2px
-    
-    class Agent agent
-    class Session,LegacySession dependency
-    class Tools,VectorTool,WebTool tool
-    class MessageService,LLMTracker,VectorService service
-    class Config,SystemPrompt config
 ```
 
 **Key Pydantic AI Patterns:**
@@ -764,13 +757,64 @@ Capture user email addresses and manage email-related permissions and approvals 
     - STATUS: Planned — User consent and privacy compliance
     - PRIORITY: High — Legal compliance requirement
 
-## 0017-008 - FEATURE - Outbound Email & Conversation Summaries
+## 0017-008 - FEATURE - Periodic Conversation Summarization
+**Status**: Planned
+
+Automatically summarize older conversation parts to prevent context window overflow and maintain conversation continuity.
+
+- [ ] 0017-008-001 - TASK - Context Window Management System
+  - [ ] 0017-008-001-01 - CHUNK - Token counting and threshold monitoring
+    - SUB-TASKS:
+      - Create token counting service using tiktoken or similar for accurate LLM token estimation
+      - Configure context window thresholds per model (GPT-4: 8K, DeepSeek: 32K, etc.)
+      - Add conversation monitoring to track approaching context limits
+      - Integration with existing message history loading system
+    - AUTOMATED-TESTS:
+      - `test_token_counting_accuracy()` - Verify token counts match LLM expectations
+      - `test_threshold_detection()` - Test context limit detection triggers correctly
+    - MANUAL-TESTS:
+      - Test token counting with various conversation lengths and message types
+      - Verify threshold monitoring triggers at expected conversation lengths
+    - STATUS: Planned — Foundation for context management
+    - PRIORITY: Critical — Prevents conversation failures
+
+  - [ ] 0017-008-001-02 - CHUNK - Conversation summarization engine
+    - SUB-TASKS:
+      - Create conversation summarization logic using existing OpenAI/OpenRouter LLM
+      - Implement sliding window approach (keep recent N messages, summarize older ones)
+      - Smart summarization that preserves key context, decisions, and user preferences
+      - Configurable summarization strategies (aggressive vs conservative compression)
+    - AUTOMATED-TESTS:
+      - `test_conversation_summarization_quality()` - Test summary preserves key information
+      - `test_sliding_window_logic()` - Verify correct messages selected for summarization
+    - MANUAL-TESTS:
+      - Review generated summaries for quality and context preservation
+      - Test different conversation types (technical, casual, decision-making)
+    - STATUS: Planned — Core summarization functionality
+    - PRIORITY: High — Essential for context preservation
+
+  - [ ] 0017-008-001-03 - CHUNK - Automatic summarization triggers
+    - SUB-TASKS:
+      - Implement automatic triggers when approaching context limits (80% threshold)
+      - Background summarization process that doesn't interrupt user conversations
+      - Message replacement strategy that maintains conversation flow
+      - Logging and monitoring for summarization events and effectiveness
+    - AUTOMATED-TESTS:
+      - `test_automatic_trigger_timing()` - Test triggers activate at correct thresholds
+      - `test_conversation_continuity()` - Verify seamless user experience during summarization
+    - MANUAL-TESTS:
+      - Test automatic summarization during long conversations
+      - Verify conversation quality maintained after summarization events
+    - STATUS: Planned — Seamless user experience
+    - PRIORITY: High — User-facing functionality
+
+## 0017-009 - FEATURE - Outbound Email & Conversation Summaries
 **Status**: Planned
 
 Enable sending conversation summaries via email using Twilio SendGrid integration.
 
-- [ ] 0017-008-001 - TASK - Email Service Integration
-  - [ ] 0017-008-001-01 - CHUNK - Twilio SendGrid service setup
+- [ ] 0017-009-001 - TASK - Email Service Integration
+  - [ ] 0017-009-001-01 - CHUNK - Twilio SendGrid service setup
     - SUB-TASKS:
       - Create SendGridService with configuration from app.yaml
       - Twilio SendGrid API key management and environment variable setup
@@ -785,7 +829,7 @@ Enable sending conversation summaries via email using Twilio SendGrid integratio
     - STATUS: Planned — Core email service foundation
     - PRIORITY: High — Required for all email functionality
 
-  - [ ] 0017-008-001-02 - CHUNK - Conversation summary generation
+  - [ ] 0017-009-001-02 - CHUNK - Conversation summary generation
     - SUB-TASKS:
       - Create conversation summarization logic using existing OpenAI/OpenRouter LLM
       - Format summaries with key points, decisions, and action items
@@ -800,7 +844,7 @@ Enable sending conversation summaries via email using Twilio SendGrid integratio
     - STATUS: Planned — Generate meaningful conversation summaries
     - PRIORITY: Medium — Core functionality for email content
 
-  - [ ] 0017-008-001-03 - CHUNK - Email sending endpoint and triggers
+  - [ ] 0017-009-001-03 - CHUNK - Email sending endpoint and triggers
     - SUB-TASKS:
       - Create `/agents/simple-chat/send-summary` POST endpoint
       - Implement automatic summary sending triggers (conversation end, time-based)
@@ -815,13 +859,13 @@ Enable sending conversation summaries via email using Twilio SendGrid integratio
     - STATUS: Planned — Email delivery mechanism
     - PRIORITY: High — User-facing functionality
 
-## 0017-009 - FEATURE - OTP Authentication & Email-based Accounts  
+## 0017-010 - FEATURE - OTP Authentication & Email-based Accounts  
 **Status**: Planned
 
 Implement OTP (One-Time Password) authentication system with email-based account creation using Twilio Verify.
 
-- [ ] 0017-009-001 - TASK - OTP Authentication System
-  - [ ] 0017-009-001-01 - CHUNK - Twilio Verify OTP integration
+- [ ] 0017-010-001 - TASK - OTP Authentication System
+  - [ ] 0017-010-001-01 - CHUNK - Twilio Verify OTP integration
     - SUB-TASKS:
       - Create Twilio Verify service integration with API credentials
       - Configure OTP generation via Twilio Verify API (email channel)
@@ -836,7 +880,7 @@ Implement OTP (One-Time Password) authentication system with email-based account
     - STATUS: Planned — OTP generation and delivery via Twilio Verify
     - PRIORITY: High — Core authentication security
 
-  - [ ] 0017-009-001-02 - CHUNK - OTP verification and session upgrade
+  - [ ] 0017-010-001-02 - CHUNK - OTP verification and session upgrade
     - SUB-TASKS:
       - Create `/api/verify-otp` endpoint using Twilio Verify check API
       - Upgrade anonymous sessions to authenticated sessions after successful verification
@@ -851,7 +895,7 @@ Implement OTP (One-Time Password) authentication system with email-based account
     - STATUS: Planned — Authentication verification system via Twilio
     - PRIORITY: High — User authentication flow
 
-  - [ ] 0017-009-001-03 - CHUNK - Account and session association
+  - [ ] 0017-010-001-03 - CHUNK - Account and session association
     - SUB-TASKS:
       - Create accounts database schema (users, user_sessions tables)
       - Link conversations to user accounts via email
