@@ -51,12 +51,10 @@ async def load_agent_conversation(session_id: str, max_messages: Optional[int] =
         >>> # Or with custom limit
         >>> history = await load_agent_conversation("123e4567-e89b-12d3-a456-426614174000", max_messages=20)
     """
-    # Get message limit from config if not provided
+    # Get message limit from agent-first configuration cascade if not provided
     if max_messages is None:
-        from ..config import load_config
-        config = load_config()
-        chat_config = config.get("chat", {})
-        max_messages = chat_config.get("history_limit", 50)  # Default to 50 for safety
+        from ..agents.config_loader import get_agent_history_limit
+        max_messages = await get_agent_history_limit("simple_chat")  # Default to simple_chat for now
     
     message_service = get_message_service()
     

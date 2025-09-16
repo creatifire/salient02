@@ -517,7 +517,7 @@ async def simple_chat(
     - STATUS: Completed — SessionDependencies class already properly implemented with history_limit parameter, all automated tests passing, comprehensive test coverage added
     - PRIORITY: High — Core infrastructure change affects all agents
   
-  - [ ] 0017-004-001-04 - CHUNK - Update simple_chat.py agent implementation
+  - [x] 0017-004-001-04 - CHUNK - Update simple_chat.py agent implementation
     - SUB-TASKS:
       - Update agent config loading to read `context_management.history_limit` instead of `max_history_messages`
       - Modify SessionDependencies instantiation: `max_history_messages=limit` → `history_limit=limit`
@@ -530,10 +530,10 @@ async def simple_chat(
       - Test that agent loads config from agent-specific folder first
       - Verify agent uses history_limit parameter instead of old max_history_messages
       - Confirm SessionDependencies instantiation uses new parameter names
-    - STATUS: Planned — Update primary agent implementation to use standardized config
+    - STATUS: Completed — Implemented agent-first configuration cascade with get_agent_history_limit() function, updated simple_chat.py and load_conversation_history(), all automated tests passing, manual verification successful, proper logging shows cascade source
     - PRIORITY: High — Core agent functionality must use proper config cascade
   
-  - [ ] 0017-004-001-05 - CHUNK - Implement agent-first configuration cascade logic
+  - [x] 0017-004-001-05 - CHUNK - Implement agent-first configuration cascade logic
     - SUB-TASKS:
       - Create `get_agent_history_limit(agent_name: str) -> int` function in config_loader.py
       - Implement cascade: agent_config.context_management.history_limit → app.yaml chat.history_limit → fallback (50)
@@ -549,7 +549,7 @@ async def simple_chat(
       - Test cascade fallback when agent config missing, should use app.yaml value
       - Test cascade fallback when both configs missing, should use hardcoded fallback
       - Verify logging shows which configuration source was used for each test
-    - STATUS: Planned — Implement proper configuration hierarchy
+    - STATUS: Completed — Implemented get_agent_history_limit() function in config_loader.py with proper agent→global→fallback cascade, added comprehensive logging with config source tracking, updated agent_session.py to use cascade, manual verification shows correct precedence and source logging working perfectly
     - PRIORITY: High — Core requirement for agent-specific configuration override
   
   - [ ] 0017-004-001-06 - CHUNK - Update configuration loader to handle prompt files
@@ -727,6 +727,144 @@ async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
     # Call Exa API with proper error handling
     # Format web results for agent consumption
 ```
+
+## 0017-007 - FEATURE - Outbound Email & Conversation Summaries
+**Status**: Planned
+
+Enable sending conversation summaries via email using Mailgun integration.
+
+- [ ] 0017-007-001 - TASK - Email Service Integration
+  - [ ] 0017-007-001-01 - CHUNK - Mailgun service setup
+    - SUB-TASKS:
+      - Create MailgunService with configuration from app.yaml
+      - API key management and environment variable setup
+      - Email template system for conversation summaries
+      - Error handling and retry logic for email delivery
+    - AUTOMATED-TESTS:
+      - `test_mailgun_service_initialization()` - Verify service setup with config
+      - `test_email_template_rendering()` - Test conversation summary formatting
+    - MANUAL-TESTS:
+      - Verify Mailgun API credentials work correctly
+      - Test email delivery with sample conversation summary
+    - STATUS: Planned — Core email service foundation
+    - PRIORITY: High — Required for all email functionality
+
+  - [ ] 0017-007-001-02 - CHUNK - Conversation summary generation
+    - SUB-TASKS:
+      - Create conversation summarization logic using LLM
+      - Format summaries with key points, decisions, and action items
+      - Include conversation metadata (duration, message count, cost)
+      - Template system for different summary formats (brief, detailed)
+    - AUTOMATED-TESTS:
+      - `test_conversation_summarization()` - Test summary generation quality
+      - `test_summary_template_formatting()` - Verify email template rendering
+    - MANUAL-TESTS:
+      - Review generated summaries for quality and completeness
+      - Test different conversation lengths and types
+    - STATUS: Planned — Generate meaningful conversation summaries
+    - PRIORITY: Medium — Core functionality for email content
+
+  - [ ] 0017-007-001-03 - CHUNK - Email sending endpoint and triggers
+    - SUB-TASKS:
+      - Create `/agents/simple-chat/send-summary` POST endpoint
+      - Implement automatic summary sending triggers (conversation end, time-based)
+      - Email delivery status tracking and logging
+      - Rate limiting and abuse prevention
+    - AUTOMATED-TESTS:
+      - `test_send_summary_endpoint()` - Test email sending API
+      - `test_automatic_triggers()` - Verify summary triggers work correctly
+    - MANUAL-TESTS:
+      - Test manual summary sending via API
+      - Verify automatic triggers fire correctly
+    - STATUS: Planned — Email delivery mechanism
+    - PRIORITY: High — User-facing functionality
+
+## 0017-008 - FEATURE - Email Capture & User Consent
+**Status**: Planned
+
+Capture user email addresses and manage email-related permissions and approvals.
+
+- [ ] 0017-008-001 - TASK - Email Collection System
+  - [ ] 0017-008-001-01 - CHUNK - Email capture UI and API
+    - SUB-TASKS:
+      - Create email input component for web interface
+      - Add `/api/capture-email` endpoint with validation
+      - Email format validation and domain verification
+      - Integration with session management for email association
+    - AUTOMATED-TESTS:
+      - `test_email_validation()` - Test email format and domain validation
+      - `test_email_session_association()` - Verify email tied to session correctly
+    - MANUAL-TESTS:
+      - Test email capture UI flow in browser
+      - Verify email validation works with various formats
+    - STATUS: Planned — Email collection mechanism
+    - PRIORITY: High — Required for authentication and email features
+
+  - [ ] 0017-008-001-02 - CHUNK - Consent and preferences management
+    - SUB-TASKS:
+      - Create consent tracking database schema (email_consents table)
+      - Implement consent checkbox UI with clear privacy messaging
+      - Email preferences system (summary frequency, content type)
+      - GDPR compliance features (consent withdrawal, data deletion)
+    - AUTOMATED-TESTS:
+      - `test_consent_tracking()` - Test consent storage and retrieval
+      - `test_consent_withdrawal()` - Test GDPR compliance features
+    - MANUAL-TESTS:
+      - Test consent flow UI experience
+      - Verify consent withdrawal works correctly
+    - STATUS: Planned — User consent and privacy compliance
+    - PRIORITY: High — Legal compliance requirement
+
+## 0017-009 - FEATURE - OTP Authentication & Email-based Accounts  
+**Status**: Planned
+
+Implement OTP (One-Time Password) authentication system with email-based account creation.
+
+- [ ] 0017-009-001 - TASK - OTP Authentication System
+  - [ ] 0017-009-001-01 - CHUNK - OTP generation and delivery
+    - SUB-TASKS:
+      - Create OTP generation service with configurable expiration
+      - OTP storage in Redis/database with TTL
+      - Email delivery via Mailgun with OTP codes
+      - Rate limiting for OTP requests per email address
+    - AUTOMATED-TESTS:
+      - `test_otp_generation()` - Test OTP creation and expiration
+      - `test_otp_rate_limiting()` - Verify abuse prevention
+    - MANUAL-TESTS:
+      - Test OTP email delivery and formatting
+      - Verify rate limiting works correctly
+    - STATUS: Planned — OTP generation and delivery
+    - PRIORITY: High — Core authentication security
+
+  - [ ] 0017-009-001-02 - CHUNK - OTP verification and session upgrade
+    - SUB-TASKS:
+      - Create `/api/verify-otp` endpoint with security measures
+      - Upgrade anonymous sessions to authenticated sessions
+      - Account creation for new emails, login for existing
+      - Session persistence across browser restarts
+    - AUTOMATED-TESTS:
+      - `test_otp_verification()` - Test valid/invalid OTP handling
+      - `test_session_upgrade()` - Verify anonymous → authenticated transition
+    - MANUAL-TESTS:
+      - Test complete OTP verification flow
+      - Verify session persistence works correctly
+    - STATUS: Planned — Authentication verification system
+    - PRIORITY: High — User authentication flow
+
+  - [ ] 0017-009-001-03 - CHUNK - Account and session association
+    - SUB-TASKS:
+      - Create accounts database schema (users, user_sessions tables)
+      - Link conversations to user accounts via email
+      - Account profile management (email, preferences, created_at)
+      - Cross-device session synchronization
+    - AUTOMATED-TESTS:
+      - `test_account_creation()` - Test user account creation flow
+      - `test_conversation_association()` - Verify conversations tied to accounts
+    - MANUAL-TESTS:
+      - Test account creation and login flow end-to-end
+      - Verify conversation history persists across devices
+    - STATUS: Planned — Account management foundation
+    - PRIORITY: Medium — User data persistence
 
 ## Definition of Done
 - Agent implements Pydantic AI patterns with SessionDependencies integration

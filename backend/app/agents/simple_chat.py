@@ -24,7 +24,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from .base.dependencies import SessionDependencies
 from ..config import load_config
-from .config_loader import get_agent_config  # Fixed: correct function name
+from .config_loader import get_agent_config, get_agent_history_limit  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
 from ..services.agent_session import load_agent_conversation, get_session_stats
@@ -37,6 +37,7 @@ import os
 
 # Global agent instance (lazy loaded)
 _chat_agent = None
+
 
 async def load_conversation_history(session_id: str, max_messages: Optional[int] = None) -> List[ModelMessage]:
     """
@@ -52,11 +53,9 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
     Returns:
         List of Pydantic AI ModelMessage objects in chronological order
     """
-    # Get max_messages from config if not provided
+    # Get max_messages from agent-first configuration cascade if not provided
     if max_messages is None:
-        config = load_config()
-        chat_config = config.get("chat", {})
-        max_messages = chat_config.get("history_limit", 20)  # Default to 20 for agent context
+        max_messages = await get_agent_history_limit("simple_chat")
     
     message_service = get_message_service()
     
@@ -193,10 +192,8 @@ async def simple_chat(
         dict with response, messages, new_messages, and usage data
     """
     
-    # Get history_limit from config for session dependencies
-    config = load_config()
-    chat_config = config.get("chat", {})
-    default_history_limit = chat_config.get("history_limit", 20)
+    # Get history_limit using agent-first configuration cascade
+    default_history_limit = await get_agent_history_limit("simple_chat")
     
     # Create session dependencies properly (Fixed)
     session_deps = await SessionDependencies.create(
@@ -238,6 +235,9 @@ async def simple_chat(
     completion_tokens = 0
     total_tokens = 0
     latency_ms = 0
+    
+    # Load global config for OpenRouter settings (still needed for LLM configuration)
+    config = load_config()
     
     # Check if we have an OpenRouterProvider to access its client
     openrouter_api_key = config.get("llm", {}).get("api_key") or os.getenv('OPENROUTER_API_KEY')

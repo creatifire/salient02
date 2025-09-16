@@ -245,7 +245,65 @@ class AgentConfigLoader:
                 # Log error but continue with other configs
                 print(f"Warning: Failed to load config for {agent_type}: {e}")
         
-        return configs
+        return config
+
+
+async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
+    """
+    Get history_limit using agent-first configuration cascade.
+    
+    Implements the proper cascade: agent config → global config → fallback (50)
+    
+    Args:
+        agent_name: Agent name for configuration lookup
+        
+    Returns:
+        History limit value using proper cascade logic
+    """
+    from loguru import logger
+    from ..config import load_config
+    
+    try:
+        # STEP 1: Try agent-specific configuration first (highest priority)
+        agent_config = await get_agent_config(agent_name)
+        if hasattr(agent_config, 'context_management') and agent_config.context_management:
+            agent_limit = agent_config.context_management.get('history_limit')
+            if agent_limit is not None:
+                logger.debug({
+                    "event": "config_cascade_source",
+                    "agent_name": agent_name,
+                    "source": "agent_config",
+                    "history_limit": agent_limit
+                })
+                return agent_limit
+    except Exception as e:
+        logger.warning(f"Could not load agent config for {agent_name}: {e}")
+    
+    # STEP 2: Fall back to global configuration (app.yaml)
+    try:
+        global_config = load_config()
+        chat_config = global_config.get("chat", {})
+        global_limit = chat_config.get("history_limit")
+        if global_limit is not None:
+            logger.debug({
+                "event": "config_cascade_source", 
+                "agent_name": agent_name,
+                "source": "global_config",
+                "history_limit": global_limit
+            })
+            return global_limit
+    except Exception as e:
+        logger.warning(f"Could not load global config: {e}")
+    
+    # STEP 3: Use hardcoded fallback (last resort)
+    fallback_limit = 50
+    logger.debug({
+        "event": "config_cascade_source",
+        "agent_name": agent_name, 
+        "source": "hardcoded_fallback",
+        "history_limit": fallback_limit
+    })
+    return fallback_limit
     
     def get_configs_directory(self) -> Path:
         """Get the agent configurations directory path."""
