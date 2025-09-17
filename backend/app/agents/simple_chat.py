@@ -138,27 +138,21 @@ async def create_simple_chat_agent() -> Agent:  # Fixed: async function
             system_prompt=agent_config.system_prompt
         )
     
-    # Load agent-specific configuration to get model settings and system prompt
+    # Load agent-specific configuration for system prompt
     agent_config = await get_agent_config("simple_chat")
-    model_settings = agent_config.model_settings if hasattr(agent_config, 'model_settings') and agent_config.model_settings else {}
     system_prompt = agent_config.system_prompt  # Direct attribute access (AgentConfig is Pydantic model)
     
-    # AGENT-FIRST CASCADE: Override model_name with agent-specific model if available
-    if model_settings and model_settings.get("model"):
-        model_name = model_settings.get("model")
-        logger.info({
-            "event": "agent_first_cascade", 
-            "source": "agent_config",
-            "agent_model": model_name,
-            "global_model_overridden": True
-        })
-    else:
-        logger.info({
-            "event": "agent_first_cascade",
-            "source": "global_config_fallback", 
-            "model": model_name,
-            "agent_model_found": False
-        })
+    # Use centralized model settings cascade with comprehensive monitoring
+    from .config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
+    
+    # Extract model name from cascaded settings
+    model_name = model_settings["model"]
+    logger.info({
+        "event": "centralized_model_cascade",
+        "model_settings": model_settings,
+        "selected_model": model_name
+    })
     
     # Use OpenRouterModel with cost-tracking provider
     provider = create_openrouter_provider_with_cost_tracking(api_key)
@@ -227,9 +221,9 @@ async def simple_chat(
         history_limit=default_history_limit
     )
     
-    # Load agent configuration for model settings (Fixed: async call)
-    agent_config = await get_agent_config("simple_chat")
-    model_settings = agent_config.model_settings  # Fixed: direct attribute access
+    # Load model settings using centralized cascade (Fixed: comprehensive cascade)
+    from .config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
     
     # Load conversation history if not provided (TASK 0017-003)
     if message_history is None:
@@ -299,11 +293,8 @@ async def simple_chat(
             from decimal import Decimal
             tracker = LLMRequestTracker()
             
-            # Use agent-first cascade for model name in tracking
-            global_config = load_config()
-            tracking_model = (
-                agent_config.model_settings.get("model") if agent_config.model_settings else None
-            ) or global_config.get("llm", {}).get("model", "unknown")
+            # Use centralized model settings for tracking consistency
+            tracking_model = model_settings["model"]
             
             llm_request_id = await tracker.track_llm_request(
                 session_id=UUID(session_id),

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 import yaml
 from pydantic import ValidationError
@@ -252,6 +252,7 @@ async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
     """
     Get history_limit using agent-first configuration cascade with enhanced monitoring.
     
+    Now uses the generic cascade infrastructure for consistency.
     Implements the proper cascade: agent config → global config → fallback (50)
     Includes comprehensive audit trail, performance monitoring, and troubleshooting guidance.
     
@@ -261,12 +262,47 @@ async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
     Returns:
         History limit value using proper cascade logic
     """
+    # Use generic cascade infrastructure for consistency
+    return await get_agent_parameter(
+        agent_name=agent_name,
+        parameter_path="context_management.history_limit",
+        fallback=50,
+        global_path="chat.history_limit"
+    )
+
+
+def get_configs_directory() -> Path:
+    """Get the agent configurations directory path."""
+    config_loader = get_config_loader()
+    return config_loader.configs_dir
+
+
+async def get_agent_parameter(agent_name: str, parameter_path: str, fallback: Any = None, 
+                             global_path: str = None) -> Any:
+    """
+    Generic configuration cascade function for any parameter.
+    
+    Implements the agent→global→fallback cascade pattern with comprehensive monitoring.
+    
+    Args:
+        agent_name: Agent name for configuration lookup
+        parameter_path: Dot-notation path to parameter (e.g., "model_settings.temperature")
+        fallback: Fallback value if parameter not found in any source
+        global_path: Optional custom path in global config (defaults to parameter_path)
+        
+    Returns:
+        Parameter value using proper cascade logic with comprehensive audit trail
+        
+    Examples:
+        await get_agent_parameter("simple_chat", "model_settings.temperature", 0.7)
+        await get_agent_parameter("simple_chat", "tools.vector_search.enabled", False)
+        await get_agent_parameter("simple_chat", "context_management.history_limit", 50)
+    """
     from ..config import load_config
     from .cascade_monitor import CascadeAuditTrail, CascadeMetrics
-    from pathlib import Path
     
     # Initialize comprehensive audit trail
-    audit_trail = CascadeAuditTrail(agent_name, "history_limit")
+    audit_trail = CascadeAuditTrail(agent_name, parameter_path)
     
     try:
         # STEP 1: Try agent-specific configuration first (highest priority)
@@ -274,13 +310,13 @@ async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
         try:
             with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
                 agent_config = await get_agent_config(agent_name)
-                if hasattr(agent_config, 'context_management') and agent_config.context_management:
-                    agent_limit = agent_config.context_management.get('history_limit')
-                    if agent_limit is not None:
-                        return attempt.success(agent_limit)
                 
-                # If we reach here, agent config exists but doesn't have history_limit
-                attempt.failure("Agent config exists but missing history_limit parameter")
+                # Navigate through the parameter path
+                value = _get_nested_parameter_from_object(agent_config, parameter_path)
+                if value is not None:
+                    return attempt.success(value)
+                
+                attempt.failure(f"Agent config exists but missing {parameter_path} parameter")
         except Exception as e:
             # Exception will be recorded by the context manager
             pass
@@ -290,36 +326,156 @@ async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
         try:
             with audit_trail.attempt_source("global_config", global_config_path) as attempt:
                 global_config = load_config()
-                chat_config = global_config.get("chat", {})
-                global_limit = chat_config.get("history_limit")
-                if global_limit is not None:
-                    return attempt.success(global_limit)
                 
-                attempt.failure("Global config exists but missing chat.history_limit parameter")
+                # Use custom global path if provided, otherwise use parameter_path
+                lookup_path = global_path or parameter_path
+                value = _get_nested_parameter(global_config, lookup_path)
+                if value is not None:
+                    return attempt.success(value)
+                
+                attempt.failure(f"Global config exists but missing {lookup_path} parameter")
         except Exception as e:
             # Exception will be recorded by the context manager
             pass
         
-        # STEP 3: Use hardcoded fallback (last resort)
+        # STEP 3: Use fallback value (last resort)
         with audit_trail.attempt_source("hardcoded_fallback", "hardcoded in code") as attempt:
-            fallback_limit = 50
-            
-            # Log fallback usage for monitoring
-            CascadeMetrics.log_fallback_usage(
-                agent_name, 
-                "history_limit", 
-                "Both agent and global configs unavailable or missing parameter"
-            )
-            
-            return attempt.success(fallback_limit)
+            if fallback is not None:
+                # Log fallback usage for monitoring if it's not expected
+                if parameter_path != "context_management.history_limit":  # Don't warn for known fallbacks
+                    CascadeMetrics.log_fallback_usage(
+                        agent_name, 
+                        parameter_path, 
+                        f"Both agent and global configs unavailable or missing {parameter_path}"
+                    )
+                
+                return attempt.success(fallback)
+            else:
+                attempt.failure(f"No fallback value provided for {parameter_path}")
+                raise ValueError(f"Parameter {parameter_path} not found in any configuration source and no fallback provided")
             
     finally:
         audit_trail.finalize_and_log()
 
 
-def get_configs_directory() -> Path:
-    """Get the agent configurations directory path."""
-    return AGENT_CONFIG_BASE_DIR
+def _get_nested_parameter(config_dict: dict, parameter_path: str) -> Any:
+    """
+    Navigate through nested dictionary using dot notation.
+    
+    Args:
+        config_dict: Dictionary to navigate
+        parameter_path: Dot-notation path (e.g., "model_settings.temperature")
+        
+    Returns:
+        Parameter value or None if not found
+        
+    Examples:
+        _get_nested_parameter({"model_settings": {"temperature": 0.3}}, "model_settings.temperature") → 0.3
+        _get_nested_parameter({"tools": {"vector_search": {"enabled": True}}}, "tools.vector_search.enabled") → True
+    """
+    try:
+        current = config_dict
+        for key in parameter_path.split('.'):
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+        return current
+    except (KeyError, TypeError, AttributeError):
+        return None
+
+
+def _get_nested_parameter_from_object(config_obj: Any, parameter_path: str) -> Any:
+    """
+    Navigate through nested object attributes using dot notation.
+    
+    Args:
+        config_obj: Object to navigate (Pydantic model or similar)
+        parameter_path: Dot-notation path (e.g., "model_settings.temperature")
+        
+    Returns:
+        Parameter value or None if not found
+        
+    Examples:
+        _get_nested_parameter_from_object(agent_config, "model_settings.temperature") → 0.3
+        _get_nested_parameter_from_object(agent_config, "tools.vector_search.enabled") → True
+    """
+    try:
+        current = config_obj
+        path_parts = parameter_path.split('.')
+        
+        for i, key in enumerate(path_parts):
+            if hasattr(current, key):
+                current = getattr(current, key)
+                # If we got a dictionary and there are more path parts, continue with dict navigation
+                if isinstance(current, dict) and i < len(path_parts) - 1:
+                    remaining_path = '.'.join(path_parts[i + 1:])
+                    return _get_nested_parameter(current, remaining_path)
+            else:
+                return None
+        return current
+    except (AttributeError, TypeError, KeyError):
+        return None
+
+
+async def get_agent_model_settings(agent_name: str) -> dict:
+    """
+    Get model settings using agent-first configuration cascade with mixed inheritance.
+    
+    Implements comprehensive model parameter cascade: agent config → global config → fallbacks
+    Supports mixed inheritance where individual parameters can come from different sources.
+    
+    Args:
+        agent_name: Agent name for configuration lookup
+        
+    Returns:
+        Dictionary with model settings using proper cascade logic for each parameter
+        
+    Example Result:
+        {
+            "model": "moonshotai/kimi-k2-0905",  # From agent config
+            "temperature": 0.3,                  # From agent or global config
+            "max_tokens": 2000                   # From agent or global config
+        }
+    """
+    # Define model parameters with their fallback values and global paths
+    model_parameters = {
+        "model": {
+            "agent_path": "model_settings.model",
+            "global_path": "llm.model", 
+            "fallback": "deepseek/deepseek-chat-v3.1"
+        },
+        "temperature": {
+            "agent_path": "model_settings.temperature",
+            "global_path": "llm.temperature",
+            "fallback": 0.7
+        },
+        "max_tokens": {
+            "agent_path": "model_settings.max_tokens", 
+            "global_path": "llm.max_tokens",
+            "fallback": 1024
+        }
+    }
+    
+    # Use generic cascade for each parameter independently (mixed inheritance)
+    model_settings = {}
+    
+    for param_name, config in model_parameters.items():
+        try:
+            value = await get_agent_parameter(
+                agent_name=agent_name,
+                parameter_path=config["agent_path"],
+                fallback=config["fallback"],
+                global_path=config["global_path"]
+            )
+            model_settings[param_name] = value
+        except Exception as e:
+            # Log error but continue with fallback
+            from loguru import logger
+            logger.warning(f"Error getting {param_name} for {agent_name}: {e}, using fallback")
+            model_settings[param_name] = config["fallback"]
+    
+    return model_settings
 
 
 # Global config loader instance
