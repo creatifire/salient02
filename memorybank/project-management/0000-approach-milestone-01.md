@@ -32,10 +32,12 @@
 - [x] 0017-003-004 - LLM Request Tracking & Cost Management
 - [x] 0017-003-005 - Agent Conversation Loading
 
-### **Priority 2A: Configuration Cascade & Consistency** ✅
+### **Priority 2A: Configuration Cascade & Consistency** 🚧
 - [x] 0017-004-001 - Configuration Parameter Standardization
-- [ ] 0017-004-002 - Agent-First Configuration Cascade
-- [ ] 0017-004-003 - Update Agent Integration Points
+- [x] 0017-004-002 - Agent-First Configuration Cascade
+- [x] 0017-004-003-01 - Model settings cascade implementation (Generic infrastructure + model settings)
+- [ ] 0017-004-003-02 - Tool configuration cascade
+- [ ] 0017-004-003 - Update Agent Integration Points (1/2 chunks completed)
 
 ### **Priority 2B: Vector Search Tool** 📋
 - [ ] 0017-005-001 - Vector Search Tool Implementation
@@ -85,5 +87,5 @@
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 2A completed ✅ - Configuration Parameter Standardization with agent-first cascade  
-**Next**: Priority 2B (Vector Search Tool) - 0017-005-001
+**Current Status**: Priority 2A in progress 🚧 - Generic configuration cascade infrastructure implemented with model settings cascade (1/2 chunks of 0017-004-003 completed)  
+**Next**: Complete Priority 2A with 0017-004-003-02 (Tool configuration cascade), then Priority 2B (Vector Search Tool) - 0017-005-001
