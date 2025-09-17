@@ -20,14 +20,14 @@ class TestSimpleChatParameterStandardization:
     @pytest.fixture
     def mock_all_dependencies(self):
         """Comprehensive mock of all dependencies for parameter standardization tests."""
-        with patch('app.agents.simple_chat.get_agent_history_limit') as mock_get_history_limit, \
+        with patch('app.agents.config_loader.get_agent_history_limit') as mock_get_history_limit, \
              patch('app.agents.simple_chat.load_config') as mock_load_config, \
-             patch('app.agents.simple_chat.get_agent_config') as mock_get_agent_config, \
+             patch('app.agents.config_loader.get_agent_config') as mock_get_agent_config, \
              patch('app.agents.simple_chat.SessionDependencies.create') as mock_session_create, \
              patch('app.agents.simple_chat.get_chat_agent') as mock_get_chat_agent, \
-             patch('app.agents.simple_chat.load_agent_conversation') as mock_load_conversation, \
-             patch('app.agents.simple_chat.get_session_stats') as mock_get_session_stats, \
-             patch('app.agents.simple_chat.OpenRouterProvider') as mock_provider:
+             patch('app.agents.simple_chat.load_conversation_history') as mock_load_conversation, \
+             patch('app.services.agent_session.get_session_stats') as mock_get_session_stats, \
+             patch('app.agents.simple_chat.OpenRouterModel') as mock_provider:
             
             # Mock configuration cascade function
             mock_get_history_limit.return_value = 50

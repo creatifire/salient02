@@ -38,7 +38,7 @@ async def test_agent_reads_from_agent_config_first():
         with patch('app.agents.simple_chat.load_config', return_value=mock_global_config):
             with patch('app.agents.simple_chat.SessionDependencies.create') as mock_session_create:
                 with patch('app.agents.simple_chat.get_chat_agent') as mock_get_chat_agent:
-                    with patch('app.agents.simple_chat.load_agent_conversation', return_value=[]):
+                    with patch('app.agents.simple_chat.load_conversation_history', return_value=[]):
                         # Mock the agent and its run method
                         mock_agent = AsyncMock()
                         mock_result = MagicMock()
@@ -52,7 +52,7 @@ async def test_agent_reads_from_agent_config_first():
                         mock_session_create.return_value = mock_session_deps
                         
                         # Mock get_session_stats to avoid UUID conversion issues
-                        with patch('app.agents.simple_chat.get_session_stats', return_value={}):
+                        with patch('app.services.agent_session.get_session_stats', return_value={}):
                             # Test the agent function with valid UUID
                             result = await simple_chat("test message", "f011fff1-11f9-4b76-8ee9-f23a15d76b74")
                         
@@ -93,7 +93,7 @@ async def test_agent_uses_history_limit_parameter():
         with patch('app.agents.simple_chat.load_config', return_value=mock_global_config):
             with patch('app.agents.simple_chat.SessionDependencies.create') as mock_session_create:
                 with patch('app.agents.simple_chat.get_chat_agent') as mock_get_chat_agent:
-                    with patch('app.agents.simple_chat.load_agent_conversation', return_value=[]):
+                    with patch('app.agents.simple_chat.load_conversation_history', return_value=[]):
                         # Mock agent
                         mock_agent = AsyncMock()
                         mock_result = MagicMock()
@@ -107,7 +107,7 @@ async def test_agent_uses_history_limit_parameter():
                         mock_session_create.return_value = mock_session_deps
                         
                         # Mock get_session_stats to avoid UUID conversion issues
-                        with patch('app.agents.simple_chat.get_session_stats', return_value={}):
+                        with patch('app.services.agent_session.get_session_stats', return_value={}):
                             # Call the agent with valid UUID
                             result = await simple_chat("test", "f011fff1-11f9-4b76-8ee9-f23a15d76b75")
                         

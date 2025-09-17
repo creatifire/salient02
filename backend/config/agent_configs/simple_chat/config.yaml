@@ -38,10 +38,10 @@ tools:
   conversation_management:
     enabled: true
     auto_summarize_threshold: 10
-    summary_model: "moonshotai/kimi-k2-0905"
+    summary_model: "moonshotai/kimi-k2-0905@conf yet - I wi"
 
 context_management:
-  history_limit: 50                         # Standardized parameter name (was max_history_messages)
+  history_limit: 50                         # Standardized parameter name
   context_window_tokens: 8000
   summarization:
     enabled: true

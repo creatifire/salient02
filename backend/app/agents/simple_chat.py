@@ -217,7 +217,7 @@ async def simple_chat(
     """
     from loguru import logger
     
-    # Get max_history_messages from config for session dependencies
+    # Get history_limit from config for session dependencies
     config = load_config()
     chat_config = config.get("chat", {})
     default_history_limit = chat_config.get("history_limit", 20)
@@ -235,10 +235,10 @@ async def simple_chat(
     
     # Load conversation history if not provided (TASK 0017-003)
     if message_history is None:
-        # Get max_history_messages - check agent config for override, fall back to global config
+        # Get history_limit - check agent config for override, fall back to global config
         agent_history_limit = None
         if hasattr(agent_config, 'context_management') and agent_config.context_management:
-            agent_history_limit = agent_config.context_management.get('max_history_messages')
+            agent_history_limit = agent_config.context_management.get('history_limit')
         
         # Use agent-specific limit if set, otherwise fall back to global config (or function default)
         max_messages = agent_history_limit if agent_history_limit is not None else None
