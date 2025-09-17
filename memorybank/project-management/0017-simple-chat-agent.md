@@ -662,52 +662,91 @@ context_management:
 ```
 
 - [ ] 0017-004-002 - TASK - Agent-First Configuration Cascade
-  - [ ] 0017-004-002-01 - CHUNK - Implement proper cascade logic in agent_session.py
+  
+  **CURRENT STATE ANALYSIS**: The core cascade infrastructure is already implemented:
+  - ✅ `get_agent_history_limit()` function exists in config_loader.py with proper agent→global→fallback cascade
+  - ✅ `agent_session.py` uses the centralized cascade function
+  - ❌ `simple_chat.py` has duplicate inline cascade logic instead of using the centralized function
+  - ❌ Inconsistent cascade usage across codebase creates maintenance issues
+  
+  **PLAN UPDATE**: Focus on consolidation and consistency rather than initial implementation
+  - [x] 0017-004-002-01 - CHUNK - Implement proper cascade logic in agent_session.py
     - SUB-TASKS:
-      - Create `get_agent_history_limit(agent_name: str)` function
-      - Check `{agent_name}.yaml` config first, then `app.yaml`, then code fallback
-      - Update `load_agent_conversation()` to use agent-first cascade
-      - Maintain backward compatibility for legacy endpoints (app.yaml first)
-    - STATUS: Planned — Agent configs override global configs with proper fallback chain
-    
-```python
-# New cascade implementation
-async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
-    """Get history limit with proper agent-first cascade."""
-    
-    # 1. FIRST: Check agent-specific config
-    try:
-        agent_config = await get_agent_config(agent_name)
-        context_mgmt = getattr(agent_config, 'context_management', {})
-        if hasattr(context_mgmt, 'history_limit'):
-            return context_mgmt.history_limit
-    except Exception:
-        pass  # Continue to global config
-    
-    # 2. SECOND: Check global app.yaml config
-    config = load_config()
-    chat_config = config.get("chat", {})
-    history_limit = chat_config.get("history_limit")
-    if history_limit is not None:
-        return history_limit
-    
-    # 3. LAST: Code fallback for safety
-    return 50
-```
+      - Create `get_agent_history_limit(agent_name: str)` function ✅ (Already implemented in config_loader.py)
+      - Check `{agent_name}.yaml` config first, then `app.yaml`, then code fallback ✅ (Implemented with proper cascade)
+      - Update `load_agent_conversation()` to use agent-first cascade ✅ (Uses get_agent_history_limit)
+      - Maintain backward compatibility for legacy endpoints (app.yaml first) ✅ (Legacy endpoints unchanged)
+    - STATUS: Completed — Agent session service uses centralized cascade function
+  
+  - [ ] 0017-004-002-02 - CHUNK - Consolidate cascade usage in simple_chat.py
+    - SUB-TASKS:
+      - Replace inline cascade logic with centralized `get_agent_history_limit("simple_chat")` calls
+      - Remove duplicate cascade implementation in simple_chat function
+      - Update SessionDependencies creation to use cascade function
+      - Ensure consistent cascade behavior across all agent entry points
+    - AUTOMATED-TESTS (3 tests):
+      - `test_simple_chat_uses_centralized_cascade()` - Verify simple_chat uses get_agent_history_limit
+      - `test_cascade_consistency_across_entry_points()` - Verify all entry points use same cascade logic
+      - `test_session_dependencies_cascade_integration()` - Test SessionDependencies uses cascade properly
+    - MANUAL-TESTS:
+      - Verify simple_chat behavior matches expected cascade (agent→global→fallback)
+      - Test that different agent configs produce different history limits
+      - Confirm logging shows cascade source for debugging
+    - STATUS: Planned — Consolidate cascade usage for consistency
+    - PRIORITY: Medium — Code consistency and maintainability
+  
+  - [ ] 0017-004-002-03 - CHUNK - Enhanced cascade logging and monitoring
+    - SUB-TASKS:
+      - Add comprehensive logging to show which config source was used for each parameter
+      - Create cascade decision audit trail for debugging configuration issues
+      - Add metrics/monitoring for cascade performance and fallback frequency
+      - Document cascade behavior in logs for troubleshooting
+    - AUTOMATED-TESTS (2 tests):
+      - `test_cascade_logging_shows_source()` - Verify logs indicate config source used
+      - `test_cascade_audit_trail()` - Test comprehensive decision logging
+    - MANUAL-TESTS:
+      - Review logs to confirm cascade decisions are clearly visible
+      - Test cascade logging with various configuration scenarios
+    - STATUS: Planned — Enhanced observability for cascade behavior
+    - PRIORITY: Low — Debugging and monitoring improvement
 
-- [ ] 0017-004-003 - TASK - Update Agent Integration Points  
-  - [ ] 0017-004-003-01 - CHUNK - Update simple_chat.py to use new cascade
+- [ ] 0017-004-003 - TASK - Extend Configuration Cascade to Additional Parameters
+  - [ ] 0017-004-003-01 - CHUNK - Model settings cascade implementation
     - SUB-TASKS:
-      - Replace direct config calls with `get_agent_history_limit("simple_chat")`
-      - Update conversation loading to respect agent-first cascade
-      - Add logging to show which config source was used
-      - Test agent config override functionality
-    - STATUS: Planned — Simple chat agent uses proper configuration hierarchy
+      - Create `get_agent_model_settings(agent_name: str)` function with agent→global→fallback cascade
+      - Implement cascade for temperature, max_tokens, and other model parameters
+      - Update simple_chat.py to use centralized model settings cascade
+      - Ensure consistent model configuration across all agent types
+    - AUTOMATED-TESTS (3 tests):
+      - `test_model_settings_cascade_priority()` - Agent model overrides global model
+      - `test_model_settings_cascade_fallback()` - Global model used when agent missing
+      - `test_model_settings_parameter_inheritance()` - Individual parameters cascade independently
+    - MANUAL-TESTS:
+      - Test model settings cascade with different agent configurations
+      - Verify model changes reflected in agent behavior
+      - Confirm cascade logging shows model source
+    - STATUS: Planned — Extend cascade beyond history_limit to all configuration parameters
+    - PRIORITY: Medium — Consistent configuration pattern across all parameters
+  
+  - [ ] 0017-004-003-02 - CHUNK - Tool configuration cascade
+    - SUB-TASKS:
+      - Implement cascade for vector_search, web_search, and other tool configurations
+      - Create `get_agent_tool_config(agent_name: str, tool_name: str)` function
+      - Update tool initialization to use cascaded configuration
+      - Add per-agent tool enable/disable capability
+    - AUTOMATED-TESTS (2 tests):
+      - `test_tool_configuration_cascade()` - Tool configs cascade properly
+      - `test_per_agent_tool_enablement()` - Agents can have different tool sets
+    - MANUAL-TESTS:
+      - Test tool configuration differences between agents
+      - Verify tool enable/disable works per agent
+    - STATUS: Planned — Per-agent tool configuration control
+    - PRIORITY: Low — Future multi-agent tool differentiation
 
   AUTOMATED-TESTS:
-  - **Unit Tests**: `test_agent_config_cascade()` - Tests proper config resolution order
-  - **Integration Tests**: `test_agent_history_limit_override()` - Tests agent config overrides global config
-  - **Edge Case Tests**: `test_config_cascade_fallbacks()` - Tests fallback behavior when configs are missing
+  - **Unit Tests**: `test_comprehensive_config_cascade()` - Tests cascade for all parameter types
+  - **Integration Tests**: `test_multi_parameter_cascade_integration()` - Tests multiple parameters cascade together
+  - **Performance Tests**: `test_cascade_performance_with_multiple_parameters()` - Ensure cascade scales with more parameters
 
 ## 0017-005 - FEATURE - Vector Search Tool
 **Status**: Planned
