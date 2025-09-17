@@ -678,21 +678,23 @@ context_management:
       - Maintain backward compatibility for legacy endpoints (app.yaml first) ✅ (Legacy endpoints unchanged)
     - STATUS: Completed — Agent session service uses centralized cascade function
   
-  - [ ] 0017-004-002-02 - CHUNK - Consolidate cascade usage in simple_chat.py
+  - [x] 0017-004-002-02 - CHUNK - Consolidate cascade usage in simple_chat.py
     - SUB-TASKS:
-      - Replace inline cascade logic with centralized `get_agent_history_limit("simple_chat")` calls
-      - Remove duplicate cascade implementation in simple_chat function
-      - Update SessionDependencies creation to use cascade function
-      - Ensure consistent cascade behavior across all agent entry points
-    - AUTOMATED-TESTS (3 tests):
-      - `test_simple_chat_uses_centralized_cascade()` - Verify simple_chat uses get_agent_history_limit
-      - `test_cascade_consistency_across_entry_points()` - Verify all entry points use same cascade logic
-      - `test_session_dependencies_cascade_integration()` - Test SessionDependencies uses cascade properly
+      - ✅ Replace inline cascade logic with centralized `get_agent_history_limit("simple_chat")` calls
+      - ✅ Remove duplicate cascade implementation in simple_chat function
+      - ✅ Update SessionDependencies creation to use cascade function
+      - ✅ Ensure consistent cascade behavior across all agent entry points
+    - AUTOMATED-TESTS (5 tests implemented):
+      - ✅ `test_simple_chat_uses_centralized_cascade()` - Verify simple_chat uses get_agent_history_limit
+      - ✅ `test_cascade_consistency_across_entry_points()` - Verify all entry points use same cascade logic
+      - ✅ `test_session_dependencies_cascade_integration()` - Test SessionDependencies uses cascade properly
+      - ✅ `test_no_inline_cascade_logic_in_simple_chat()` - Ensure duplicate cascade implementations removed
+      - ✅ `test_consistent_cascade_function_usage()` - Verify consistent cascade function usage patterns
     - MANUAL-TESTS:
-      - Verify simple_chat behavior matches expected cascade (agent→global→fallback)
-      - Test that different agent configs produce different history limits
-      - Confirm logging shows cascade source for debugging
-    - STATUS: Planned — Consolidate cascade usage for consistency
+      - ✅ Verified simple_chat behavior matches expected cascade (agent→global→fallback)
+      - ✅ Tested cascade function returns correct value (50) from agent config
+      - ✅ Confirmed logging shows cascade source for debugging ("source": "agent_config")
+    - STATUS: Completed — Cascade usage consolidated, duplicate logic removed, 5 automated tests passing
     - PRIORITY: Medium — Code consistency and maintainability
   
   - [ ] 0017-004-002-03 - CHUNK - Enhanced cascade logging and monitoring

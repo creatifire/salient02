@@ -53,9 +53,8 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
     """
     # Get max_messages from config if not provided
     if max_messages is None:
-        config = load_config()
-        chat_config = config.get("chat", {})
-        max_messages = chat_config.get("history_limit", 20)  # Default to 20 for agent context
+        from ..agents.config_loader import get_agent_history_limit
+        max_messages = await get_agent_history_limit("simple_chat")
     
     message_service = get_message_service()
     
@@ -217,10 +216,9 @@ async def simple_chat(
     """
     from loguru import logger
     
-    # Get history_limit from config for session dependencies
-    config = load_config()
-    chat_config = config.get("chat", {})
-    default_history_limit = chat_config.get("history_limit", 20)
+    # Get history_limit from agent-first configuration cascade
+    from .config_loader import get_agent_history_limit
+    default_history_limit = await get_agent_history_limit("simple_chat")
     
     # Create session dependencies properly (Fixed)
     session_deps = await SessionDependencies.create(
@@ -235,17 +233,10 @@ async def simple_chat(
     
     # Load conversation history if not provided (TASK 0017-003)
     if message_history is None:
-        # Get history_limit - check agent config for override, fall back to global config
-        agent_history_limit = None
-        if hasattr(agent_config, 'context_management') and agent_config.context_management:
-            agent_history_limit = agent_config.context_management.get('history_limit')
-        
-        # Use agent-specific limit if set, otherwise fall back to global config (or function default)
-        max_messages = agent_history_limit if agent_history_limit is not None else None
-        
+        # Use centralized cascade function for consistent behavior
         message_history = await load_conversation_history(
             session_id=session_id,
-            max_messages=max_messages  # Will use config if None
+            max_messages=None  # load_conversation_history will use get_agent_history_limit internally
         )
     
     # Get the agent (Fixed: await async function)
@@ -309,9 +300,10 @@ async def simple_chat(
             tracker = LLMRequestTracker()
             
             # Use agent-first cascade for model name in tracking
+            global_config = load_config()
             tracking_model = (
                 agent_config.model_settings.get("model") if agent_config.model_settings else None
-            ) or config.get("llm", {}).get("model", "unknown")
+            ) or global_config.get("llm", {}).get("model", "unknown")
             
             llm_request_id = await tracker.track_llm_request(
                 session_id=UUID(session_id),
