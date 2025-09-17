@@ -721,42 +721,90 @@ context_management:
     - PRIORITY: Low — Debugging and monitoring improvement
 
 - [ ] 0017-004-003 - TASK - Extend Configuration Cascade to Additional Parameters
+
+  **PARAMETER INHERITANCE STRATEGY**:
+  ```yaml
+  # Generic Cascade Pattern for Any Parameter
+  get_agent_parameter(agent_name, "model_settings.temperature", fallback=0.7) →
+    1. Check: agent_configs/{agent_name}/config.yaml → model_settings.temperature
+    2. Check: app.yaml → llm.temperature  
+    3. Use: fallback value (0.7)
+  
+  # Mixed Inheritance Example (agent config partial)
+  agent_configs/simple_chat/config.yaml:
+    model_settings:
+      model: "kimi-k2"        # Agent-specific override
+      # temperature: missing  # Will inherit from global
+  
+  Result: {model: "kimi-k2", temperature: 0.3, max_tokens: 1024}
+         # ↑agent        ↑global         ↑global
+  
+  # Tool Configuration Inheritance
+  get_agent_tool_config("sales_agent", "vector_search") →
+    1. Check: agent_configs/sales_agent/config.yaml → tools.vector_search
+    2. Check: app.yaml → tools.vector_search (if exists)
+    3. Use: tool-specific fallbacks {enabled: false}
+  ```
+  
+  **COMPREHENSIVE MONITORING INTEGRATION**:
+  - All cascade functions use CascadeAuditTrail for consistent logging
+  - Performance tracking for multi-parameter operations
+  - Troubleshooting guidance specific to each parameter type
+  - Audit trails show exact inheritance path for debugging
   - [ ] 0017-004-003-01 - CHUNK - Model settings cascade implementation
     - SUB-TASKS:
-      - Create `get_agent_model_settings(agent_name: str)` function with agent→global→fallback cascade
-      - Implement cascade for temperature, max_tokens, and other model parameters
+      - Create generic `get_agent_parameter(agent_name: str, parameter_path: str, fallback: Any)` function for reusable cascade pattern
+      - Create `get_agent_model_settings(agent_name: str)` function using generic infrastructure
+      - Implement cascade for temperature, max_tokens, and other model parameters with mixed inheritance support
       - Update simple_chat.py to use centralized model settings cascade
+      - Refactor `get_agent_history_limit()` to use generic cascade infrastructure for consistency
+      - Integrate with existing CascadeAuditTrail system for comprehensive logging and monitoring
+      - Define parameter precedence rules and fallback values for each model parameter
       - Ensure consistent model configuration across all agent types
-    - AUTOMATED-TESTS (3 tests):
+    - AUTOMATED-TESTS (5 tests):
+      - `test_generic_cascade_infrastructure()` - Verify reusable get_agent_parameter function works for any parameter
       - `test_model_settings_cascade_priority()` - Agent model overrides global model
       - `test_model_settings_cascade_fallback()` - Global model used when agent missing
-      - `test_model_settings_parameter_inheritance()` - Individual parameters cascade independently
+      - `test_model_settings_parameter_inheritance()` - Individual parameters cascade independently with mixed inheritance
+      - `test_model_settings_monitoring_integration()` - Verify CascadeAuditTrail integration for model parameters
     - MANUAL-TESTS:
       - Test model settings cascade with different agent configurations
       - Verify model changes reflected in agent behavior
-      - Confirm cascade logging shows model source
-    - STATUS: Planned — Extend cascade beyond history_limit to all configuration parameters
-    - PRIORITY: Medium — Consistent configuration pattern across all parameters
+      - Confirm comprehensive cascade logging shows model source with full audit trail
+      - Test mixed inheritance scenarios (some params from agent, others from global)
+      - Verify performance tracking for multi-parameter cascade operations
+    - STATUS: Planned — Extend cascade beyond history_limit with generic, scalable infrastructure
+    - PRIORITY: Medium — Consistent configuration pattern across all parameters with comprehensive monitoring
   
   - [ ] 0017-004-003-02 - CHUNK - Tool configuration cascade
     - SUB-TASKS:
-      - Implement cascade for vector_search, web_search, and other tool configurations
-      - Create `get_agent_tool_config(agent_name: str, tool_name: str)` function
-      - Update tool initialization to use cascaded configuration
-      - Add per-agent tool enable/disable capability
-    - AUTOMATED-TESTS (2 tests):
-      - `test_tool_configuration_cascade()` - Tool configs cascade properly
-      - `test_per_agent_tool_enablement()` - Agents can have different tool sets
+      - Implement cascade for vector_search, web_search, and other tool configurations using generic infrastructure
+      - Create `get_agent_tool_config(agent_name: str, tool_name: str)` function using generic `get_agent_parameter()`
+      - Update tool initialization to use cascaded configuration with comprehensive monitoring
+      - Add per-agent tool enable/disable capability with audit trail support
+      - Define tool configuration inheritance strategy (enabled/disabled state, parameter overrides)
+      - Integrate with CascadeAuditTrail system for tool configuration decisions
+      - Establish tool configuration precedence rules and fallback values
+    - AUTOMATED-TESTS (4 tests):
+      - `test_tool_configuration_cascade()` - Tool configs cascade properly using generic infrastructure
+      - `test_per_agent_tool_enablement()` - Agents can have different tool sets with inheritance
+      - `test_tool_config_monitoring_integration()` - Verify CascadeAuditTrail integration for tool decisions
+      - `test_tool_config_mixed_inheritance()` - Test mixed tool parameter inheritance scenarios
     - MANUAL-TESTS:
       - Test tool configuration differences between agents
-      - Verify tool enable/disable works per agent
-    - STATUS: Planned — Per-agent tool configuration control
-    - PRIORITY: Low — Future multi-agent tool differentiation
+      - Verify tool enable/disable works per agent with comprehensive logging
+      - Test mixed tool inheritance (some tools from agent, others from global)
+      - Confirm tool configuration audit trails provide troubleshooting guidance
+    - STATUS: Planned — Per-agent tool configuration control with generic cascade infrastructure
+    - PRIORITY: Low — Future multi-agent tool differentiation with comprehensive monitoring
 
   AUTOMATED-TESTS:
-  - **Unit Tests**: `test_comprehensive_config_cascade()` - Tests cascade for all parameter types
-  - **Integration Tests**: `test_multi_parameter_cascade_integration()` - Tests multiple parameters cascade together
+  - **Unit Tests**: `test_comprehensive_config_cascade()` - Tests generic cascade infrastructure for all parameter types
+  - **Integration Tests**: `test_multi_parameter_cascade_integration()` - Tests multiple parameters cascade together with mixed inheritance
   - **Performance Tests**: `test_cascade_performance_with_multiple_parameters()` - Ensure cascade scales with more parameters
+  - **Monitoring Tests**: `test_cascade_audit_trail_integration()` - Verify CascadeAuditTrail system works for all parameter types
+  - **Consistency Tests**: `test_cascade_pattern_consistency()` - Ensure all cascade functions use same generic infrastructure
+  - **Troubleshooting Tests**: `test_parameter_troubleshooting_guidance()` - Verify troubleshooting guidance for all parameter types
 
 ## 0017-005 - FEATURE - Vector Search Tool
 **Status**: Planned
