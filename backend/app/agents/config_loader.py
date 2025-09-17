@@ -250,9 +250,10 @@ class AgentConfigLoader:
 
 async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
     """
-    Get history_limit using agent-first configuration cascade.
+    Get history_limit using agent-first configuration cascade with enhanced monitoring.
     
     Implements the proper cascade: agent config → global config → fallback (50)
+    Includes comprehensive audit trail, performance monitoring, and troubleshooting guidance.
     
     Args:
         agent_name: Agent name for configuration lookup
@@ -260,54 +261,65 @@ async def get_agent_history_limit(agent_name: str = "simple_chat") -> int:
     Returns:
         History limit value using proper cascade logic
     """
-    from loguru import logger
     from ..config import load_config
+    from .cascade_monitor import CascadeAuditTrail, CascadeMetrics
+    from pathlib import Path
+    
+    # Initialize comprehensive audit trail
+    audit_trail = CascadeAuditTrail(agent_name, "history_limit")
     
     try:
         # STEP 1: Try agent-specific configuration first (highest priority)
-        agent_config = await get_agent_config(agent_name)
-        if hasattr(agent_config, 'context_management') and agent_config.context_management:
-            agent_limit = agent_config.context_management.get('history_limit')
-            if agent_limit is not None:
-                logger.debug({
-                    "event": "config_cascade_source",
-                    "agent_name": agent_name,
-                    "source": "agent_config",
-                    "history_limit": agent_limit
-                })
-                return agent_limit
-    except Exception as e:
-        logger.warning(f"Could not load agent config for {agent_name}: {e}")
-    
-    # STEP 2: Fall back to global configuration (app.yaml)
-    try:
-        global_config = load_config()
-        chat_config = global_config.get("chat", {})
-        global_limit = chat_config.get("history_limit")
-        if global_limit is not None:
-            logger.debug({
-                "event": "config_cascade_source", 
-                "agent_name": agent_name,
-                "source": "global_config",
-                "history_limit": global_limit
-            })
-            return global_limit
-    except Exception as e:
-        logger.warning(f"Could not load global config: {e}")
-    
-    # STEP 3: Use hardcoded fallback (last resort)
-    fallback_limit = 50
-    logger.debug({
-        "event": "config_cascade_source",
-        "agent_name": agent_name, 
-        "source": "hardcoded_fallback",
-        "history_limit": fallback_limit
-    })
-    return fallback_limit
-    
-    def get_configs_directory(self) -> Path:
-        """Get the agent configurations directory path."""
-        return self.configs_dir
+        agent_config_path = f"backend/config/agent_configs/{agent_name}/config.yaml"
+        try:
+            with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
+                agent_config = await get_agent_config(agent_name)
+                if hasattr(agent_config, 'context_management') and agent_config.context_management:
+                    agent_limit = agent_config.context_management.get('history_limit')
+                    if agent_limit is not None:
+                        return attempt.success(agent_limit)
+                
+                # If we reach here, agent config exists but doesn't have history_limit
+                attempt.failure("Agent config exists but missing history_limit parameter")
+        except Exception as e:
+            # Exception will be recorded by the context manager
+            pass
+        
+        # STEP 2: Fall back to global configuration (app.yaml)
+        global_config_path = "backend/config/app.yaml"
+        try:
+            with audit_trail.attempt_source("global_config", global_config_path) as attempt:
+                global_config = load_config()
+                chat_config = global_config.get("chat", {})
+                global_limit = chat_config.get("history_limit")
+                if global_limit is not None:
+                    return attempt.success(global_limit)
+                
+                attempt.failure("Global config exists but missing chat.history_limit parameter")
+        except Exception as e:
+            # Exception will be recorded by the context manager
+            pass
+        
+        # STEP 3: Use hardcoded fallback (last resort)
+        with audit_trail.attempt_source("hardcoded_fallback", "hardcoded in code") as attempt:
+            fallback_limit = 50
+            
+            # Log fallback usage for monitoring
+            CascadeMetrics.log_fallback_usage(
+                agent_name, 
+                "history_limit", 
+                "Both agent and global configs unavailable or missing parameter"
+            )
+            
+            return attempt.success(fallback_limit)
+            
+    finally:
+        audit_trail.finalize_and_log()
+
+
+def get_configs_directory() -> Path:
+    """Get the agent configurations directory path."""
+    return AGENT_CONFIG_BASE_DIR
 
 
 # Global config loader instance
