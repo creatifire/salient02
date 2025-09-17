@@ -589,14 +589,14 @@ chara  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle pro
     - STATUS: Completed — Added comprehensive Configuration Management section to backend/README.md documenting agent-first cascade, standardized parameter names (history_limit), system prompt file separation, and configuration troubleshooting guide. Updated YAML comments and validated all examples work correctly
     - PRIORITY: Medium — Developers need clear configuration guidance
   
-  - [ ] 0017-004-001-09 - CHUNK - Update memorybank documentation (Documentation-focused)
+  - [x] 0017-004-001-09 - CHUNK - Update memorybank documentation (Documentation-focused)
     - SUB-TASKS:
       - Update `memorybank/architecture/agent-configuration.md` with standardized parameter names
       - Document agent-first configuration cascade in `memorybank/architecture/configuration-reference.md`
       - Update configuration examples in epic documentation to show new parameter names
       - Add system prompt file separation to architectural documentation
       - Update any other memorybank references to old parameter names
-    - STATUS: Planned — Update architectural documentation for configuration changes
+    - STATUS: Completed — Updated architectural documentation with agent-first cascade, standardized parameter names (history_limit), external system prompt files, and comprehensive configuration examples. Fixed all memorybank references to old parameter names
     - PRIORITY: Medium — Maintain accurate project documentation
   
   - [ ] 0017-004-001-10 - CHUNK - Validation and integration testing
@@ -641,15 +641,15 @@ chara  - [x] 0017-004-001-06 - CHUNK - Update configuration loader to handle pro
     - STATUS: Planned — Comprehensive cascade verification testing
     - PRIORITY: High — Critical for reliable configuration behavior
     
-**Current Inconsistencies Identified:**
+**Configuration Standardization Completed:**
 ```yaml
 # app.yaml (STANDARD)
 chat:
   history_limit: 50          # ✅ Standard name
 
-# simple_chat.yaml (NEEDS FIX) 
+# simple_chat/config.yaml (FIXED) 
 context_management:
-  max_history_messages: 50   # ❌ Should be "history_limit"
+  history_limit: 50          # ✅ Now standardized - matches app.yaml convention
 ```
 
 - [ ] 0017-004-002 - TASK - Agent-First Configuration Cascade

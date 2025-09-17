@@ -2,11 +2,15 @@
 
 ## Overview
 
-The system uses a two-tier YAML configuration approach:
-- **Global configuration**: `backend/config/app.yaml` - Application-wide settings
-- **Agent-specific configuration**: `backend/config/agent_configs/{agent_type}.yaml` - Agent behavior overrides
+The system uses an **agent-first configuration cascade** with YAML files:
+- **Agent-specific configuration**: `backend/config/agent_configs/{agent_type}/config.yaml` - **Highest Priority**
+- **Global configuration**: `backend/config/app.yaml` - **Fallback for missing agent settings**
+- **Code constants**: **Last resort** (e.g., `history_limit: 50`)
 
-Agent-specific settings override global settings when both are present.
+**NEW**: Agent configurations now support:
+- **Folder structure**: `simple_chat/config.yaml` + `simple_chat/system_prompt.md`
+- **External system prompts**: Separated into `.md` files for better editing
+- **Standardized parameter names**: `history_limit` (not `max_history_messages`)
 
 ---
 
@@ -46,8 +50,9 @@ chat:
 **New Attribute: `history_limit`**
 - **Purpose**: Controls how many recent messages are loaded from the database for chat history display
 - **Default**: 50 messages
-- **Override**: Can be overridden per agent via `context_management.max_history_messages`
+- **Override**: Can be overridden per agent via `context_management.history_limit` (STANDARDIZED)
 - **Performance**: Higher values may slow page loads but provide more context
+- **Cascade**: Agent config takes priority over global config
 
 ### Session Management
 
@@ -126,27 +131,31 @@ logging:
 
 ---
 
-## Agent-Specific Configuration (`backend/config/agent_configs/{agent_type}.yaml`)
+## Agent-Specific Configuration (`backend/config/agent_configs/{agent_type}/config.yaml`)
 
-Agent configurations override global settings and define agent-specific behavior.
+Agent configurations override global settings and define agent-specific behavior using the **agent-first cascade**.
 
-### Example: Simple Chat Agent (`simple_chat.yaml`)
+### Example: Simple Chat Agent (`simple_chat/config.yaml`)
 
 ```yaml
 # Agent identification
 agent_type: "simple_chat"
-display_name: "Simple Chat Assistant"
+name: "Simple Chat Assistant"
 description: "General-purpose conversational AI assistant"
+
+# System prompt configuration (NEW)
+prompts:
+  system_prompt_file: "./system_prompt.md"  # External prompt file
 
 # Model settings (overrides app.yaml defaults)
 model_settings:
-  model: "openai:gpt-4o"              # Override global model
+  model: "moonshotai/kimi-k2-0905"    # Override global model
   temperature: 0.3                    # Lower temperature for consistency
   max_tokens: 2000                    # Response length limit
 
 # Context and memory management
 context_management:
-  max_history_messages: 50            # OVERRIDES app.yaml chat.history_limit
+  history_limit: 50                   # STANDARDIZED: Overrides app.yaml chat.history_limit
   context_window_tokens: 8000         # Token limit for conversation context
   
   # Conversation summarization
@@ -154,11 +163,6 @@ context_management:
     enabled: true
     trigger_threshold: 10             # Summarize after N messages
     summary_length: 200               # Target summary length in words
-
-# System prompts and personality
-system_prompt: |
-  You are a helpful AI assistant focused on providing clear, accurate, and concise responses.
-  Always be professional yet friendly in your interactions.
 
 # Tool configurations
 tools:
@@ -175,23 +179,27 @@ tools:
     auto_summarize_threshold: 10
 ```
 
-### Configuration Hierarchy
+### Configuration Cascade (Agent-First Priority)
 
-When both global and agent-specific configurations exist:
+**Cascade Order**: Agent Config → Global Config → Code Fallback
 
-1. **Agent config takes precedence** for overlapping settings
-2. **Global config provides defaults** for missing agent settings
-3. **Environment variables** override both YAML configurations
+1. **Agent-specific config** (`simple_chat/config.yaml`) - **Highest Priority**
+2. **Global config** (`app.yaml`) - **Fallback for missing agent settings**  
+3. **Code constants** - **Last resort** (e.g., `history_limit: 50`)
 
-**Example hierarchy for chat history:**
+**Example cascade for `history_limit`:**
 ```
-Environment Variable: CHAT_HISTORY_LIMIT=75
-├── Agent Config: context_management.max_history_messages: 50
-├── Global Config: chat.history_limit: 50
-└── Code Default: 20
+Agent Config: context_management.history_limit: 75     ← WINS (Highest Priority)
+Global Config: chat.history_limit: 50                  ← Ignored when agent config present
+Code Fallback: 50                                      ← Used only when both configs missing
 
-Result: 75 (environment wins)
+Result: 75 (agent config wins)
 ```
+
+**Implementation:**
+- `get_agent_history_limit("simple_chat")` function implements cascade logic
+- Comprehensive logging shows which config source was used
+- Graceful fallback for corrupted/missing configuration files
 
 ---
 
@@ -237,25 +245,28 @@ chat:
 
 **Agent-specific override:**
 ```yaml
-# backend/config/agent_configs/sales.yaml
+# backend/config/agent_configs/sales/config.yaml
 context_management:
-  max_history_messages: 100          # Sales agent uses 100 instead of 75
+  history_limit: 100                 # STANDARDIZED: Sales agent uses 100 instead of 75
 ```
 
 **Code usage:**
 ```python
-# Automatic configuration loading in simple_chat.py
-config = load_config()
-chat_config = config.get("chat", {})
-history_limit = chat_config.get("history_limit", 20)  # Fallback to 20
+# Agent-first cascade implementation
+from app.agents.config_loader import get_agent_history_limit
+
+# This function implements the full cascade: agent → global → fallback (50)
+history_limit = await get_agent_history_limit("simple_chat")
 ```
 
 ### Adding New Agent Types
 
-1. **Create agent config**: `backend/config/agent_configs/my_agent.yaml`
-2. **Set agent_type**: Must match filename (without .yaml)
-3. **Override global settings**: Add agent-specific model, tools, etc.
-4. **Implement agent class**: Reference config via `get_agent_config()`
+1. **Create agent folder**: `backend/config/agent_configs/my_agent/`
+2. **Create config file**: `my_agent/config.yaml` with `agent_type: "my_agent"`
+3. **Create system prompt**: `my_agent/system_prompt.md` with agent personality
+4. **Reference prompt**: Set `prompts.system_prompt_file: "./system_prompt.md"` in config
+5. **Override global settings**: Add agent-specific model, tools, etc.
+6. **Implement agent class**: Reference config via `get_agent_config("my_agent")`
 
 ---
 

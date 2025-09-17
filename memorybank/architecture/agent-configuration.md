@@ -7,21 +7,26 @@ For comprehensive configuration documentation including global `app.yaml` settin
 
 ## Location (Short Term)
 - Backend config directory: `backend/config/agent_configs/`
-- Files by agent type (examples):
-  - `simple_chat.yaml`
-  - `sales.yaml`
-  - `digital_expert.yaml`
-  - `simple_research.yaml`
-  - `deep_research.yaml`
+- Agent-specific folder structure (NEW):
+  - `simple_chat/config.yaml` + `simple_chat/system_prompt.md`
+  - `sales/config.yaml` + `sales/system_prompt.md`
+  - `digital_expert/config.yaml` + `digital_expert/system_prompt.md`
+- Legacy flat structure (backward compatibility):
+  - `simple_chat.yaml`, `sales.yaml`, etc.
 
 See `memorybank/architecture/code-organization.md` for directory layout and project structure.
 
 ## YAML Schema (Minimum Viable)
 ```yaml
-# Example: backend/config/agent_configs/sales.yaml
+# Example: backend/config/agent_configs/sales/config.yaml
 
 agent_type: "sales"                  # simple_chat | sales | simple_research | deep_research | digital_expert
-display_name: "Sales Agent"
+name: "Sales Agent"
+description: "AI sales assistant with CRM integration"
+
+# System prompt configuration (NEW)
+prompts:
+  system_prompt_file: "./system_prompt.md"  # External prompt file
 
 model_settings:
   model: "openai:gpt-4o"            # LLM id via OpenRouter
@@ -30,7 +35,7 @@ model_settings:
 
 context_management:
   # Chat history and memory management (NEW SECTION)
-  max_history_messages: 50           # Override app.yaml chat.history_limit (database queries)
+  history_limit: 50                  # STANDARDIZED: Override app.yaml chat.history_limit (database queries)
   context_window_tokens: 8000        # Token limit for conversation context passed to LLM
   
   # Conversation summarization, titles, and context window policy
@@ -79,9 +84,31 @@ feature_flags:
   sse_enabled: true
 ```
 
+## Configuration Cascade (Agent-First Priority)
+
+**Cascade Order**: Agent Config → Global Config → Code Fallback
+
+1. **Agent-specific config** (`simple_chat/config.yaml`) - **Highest Priority**
+2. **Global config** (`app.yaml`) - **Fallback**  
+3. **Code constants** - **Last Resort** (e.g., `history_limit: 50`)
+
+**Example for `history_limit`:**
+```
+Agent Config: context_management.history_limit: 75    ← WINS
+Global Config: chat.history_limit: 50                 ← Ignored
+Code Fallback: 50                                     ← Not used
+Result: 75
+```
+
+**System Prompt File Separation:**
+- System prompts moved to external `.md` files for better editing
+- Referenced via `prompts.system_prompt_file: "./system_prompt.md"`
+- Paths resolved relative to agent config directory
+
 Notes:
 - Secrets (keys/tokens) stay in environment variables or secret stores, not YAML.
 - YAML values define behavior, thresholds, and toggles to keep code paths generic.
+- Parameter names standardized: use `history_limit` (not `max_history_messages`)
 
 ## Migration Path (Phase 3+)
 - Move YAML configuration into database tables defined in `datamodel.md`:
