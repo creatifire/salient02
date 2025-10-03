@@ -1,6 +1,6 @@
-# Epic 0017 - Simple Chat Agent (Pydantic AI Implementation)
+# Epic 0017 - Simple Chat Agent (InfoBot - Pydantic AI Implementation)
 
-Implement Pydantic AI-powered chat agent with SessionDependencies integration.
+Implement Pydantic AI-powered InfoBot agent that shares information about products/services, captures profile data, and emails conversation summaries.
 
 ## Architecture Overview
 
@@ -9,10 +9,11 @@ flowchart TD
     %% External Components
     User["👤 User"] --> FastAPI["📡 FastAPI Endpoint"]
     
-    %% Configuration System (NEW)
+    %% Configuration System
     AgentConfig["🎛️ simple_chat/config.yaml"] --> Agent["🤖 Pydantic AI Agent"]
-    GlobalConfig["📋 app.yaml"] --> Agent
+    ProfileFields["📋 profile_fields.yaml"] --> Agent
     SystemPromptFile["📝 system_prompt.md"] --> Agent
+    GlobalConfig["⚙️ app.yaml (fallback)"] --> Agent
     
     %% Core Agent Structure
     FastAPI --> Agent
@@ -21,13 +22,28 @@ flowchart TD
     Session["🔧 SessionDependencies"] --> Agent
     FastAPI --> Session
     
-    %% Agent Components
+    %% Agent Workflow Components
     Agent --> History["💬 Message History"]
-    Agent --> PlannedTools["🛠️ Tools (Planned)"]
+    Agent --> AgentTools["🛠️ Agent Tools"]
     
-    %% Planned Tool Implementations
-    PlannedTools --> VectorTool["🔍 Vector Search (Planned)"]
-    PlannedTools --> WebTool["🌐 Web Search (Planned)"]
+    %% Agent Tools (@agent.tool)
+    AgentTools --> VectorTool["🔍 Vector Search Tool"]
+    AgentTools --> ProfileTool["👤 Profile Capture Tool"]
+    AgentTools --> SummaryTool["📧 Email Summary Tool"]
+    
+    %% Profile Management
+    ProfileTool --> ProfileValidation["✅ Validate Against YAML"]
+    ProfileValidation --> ProfileDB[("🗄️ Profiles Table (JSONB)")]
+    ProfileDB --> RequiredFields["required_profile_fields JSONB"]
+    ProfileDB --> CapturedFields["captured_profile_fields JSONB"]
+    ProfileDB --> FieldsUpdated["required_fields_updated_at"]
+    
+    %% Email Summary Workflow
+    SummaryTool --> CheckProfile{"Profile Complete?"}
+    CheckProfile -->|No| RequestInfo["Request Missing Fields"]
+    CheckProfile -->|Yes| GenerateSummary["Generate Summary"]
+    GenerateSummary --> Mailgun["📧 Mailgun API"]
+    Mailgun --> EmailSent["✉️ Email Sent"]
     
     %% Current LLM Integration
     Agent --> OpenRouter["🧠 OpenRouter + LLM"]
@@ -38,15 +54,9 @@ flowchart TD
     MessageService --> Database[("🗄️ PostgreSQL")]
     LLMTracker --> Database
     
-    %% Legacy Integration
-    FastAPI --> LegacySession["🔄 Legacy Session"]
-    LegacySession --> MessageService
-    
-    %% NEW: Email & Authentication Features (Planned)
-    FastAPI --> EmailCapture["📩 Email Capture (Planned)"]
-    EmailCapture --> SendGrid["📧 Twilio SendGrid (Planned)"]
-    FastAPI --> OTPAuth["🔐 OTP Auth (Planned)"]
-    OTPAuth --> TwilioVerify["🔑 Twilio Verify (Planned)"]
+    %% Vector Search Integration
+    VectorTool --> VectorService["🔎 Vector Service"]
+    VectorService --> Pinecone["📊 Pinecone"]
     
     %% Response Flow
     Agent --> Response["✨ Agent Response"]
@@ -55,14 +65,18 @@ flowchart TD
 ```
 
 **Key Pydantic AI Patterns:**
-- **Agent Creation**: `Agent(model_name, deps_type=SessionDependencies, system_prompt)`
-- **Dependency Injection**: `RunContext[SessionDependencies]` provides session and database access
-- **Tool Registration**: `@agent.tool` decorators for vector and web search capabilities
-- **Message History**: Native `ModelMessage` objects with `result.all_messages()` and `result.new_messages()`
+- **Agent Creation**: `Agent(model_name, deps_type=SessionDependencies, output_type=StructuredOutput)`
+- **Dependency Injection**: `RunContext[SessionDependencies]` for session, database, and configuration access
+- **Tool Registration**: `@agent.tool` decorators for vector search, profile capture, email summary
+- **Structured Output**: Pydantic models for validated, type-safe responses
+- **Tool Workflow**: Agent determines when to call tools based on conversation context
 
-## Priority 3 Widget Foundation Ready
-**Backend Complete**: API endpoint, CORS, session bridge, configuration-driven behavior  
-**Next**: Preact Islands integration (`<SalientWidget agent="simple-chat" client:load />`)
+## InfoBot Purpose
+Simple Chat Agent serves as an information bot that:
+- Answers questions about products/services using vector search
+- Captures minimal profile data (email, phone)
+- Emails conversation summaries on request
+- Does NOT include web search capabilities
 
 ## 0017-001 - FEATURE - Cleanup Overengineered Code
 - [x] 0017-001-001 - TASK - Pre-Cleanup Safety & Documentation
@@ -810,8 +824,15 @@ context_management:
   - **Consistency Tests**: `test_cascade_pattern_consistency()` - Ensure all cascade functions use same generic infrastructure
   - **Troubleshooting Tests**: `test_parameter_troubleshooting_guidance()` - Verify troubleshooting guidance for all parameter types
 
+---
+
+# PHASE 1: MVP Core Functionality
+
+Core features that deliver InfoBot's primary value: answering questions using knowledge base, capturing profile data, and emailing summaries.
+
 ## 0017-005 - FEATURE - Vector Search Tool
 **Status**: Planned
+**Priority**: 🎯 **IMMEDIATE NEXT PRIORITY** - Core InfoBot functionality
 
 Enable agent to search knowledge base using existing VectorService integration.
 
@@ -833,35 +854,91 @@ async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str
     return "Knowledge base search results:\n\n" + formatted_results
 ```
 
-## 0017-006 - FEATURE - Web Search Tool (Exa Integration)  
+## 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
 **Status**: Planned
+**Priority**: High - Foundation for profile capture
 
-Enable agent to search web for current information using Exa API integration.
+Configure dynamic profile fields via YAML and migrate profiles table to JSONB storage.
 
-- [ ] 0017-006-001 - TASK - Web Search Tool Implementation
-  - [ ] 0017-006-001-01 - CHUNK - Add web search tool to agent
+- [ ] 0017-006-001 - TASK - Profile Fields YAML Configuration
+  - [ ] 0017-006-001-01 - CHUNK - Create profile_fields.yaml structure
     - SUB-TASKS:
-      - `@agent.tool` decorator for web_search function
-      - Exa API integration with configuration-driven enable/disable
-      - Error handling and timeout management
-      - Rate limiting and API key management
-    - STATUS: Planned — Agent can search web for current information
+      - Define fields with name, type, required, validation, description
+      - Support email and phone field types for simple-chat
+      - Configuration loaded via agent config loader
+    - STATUS: Planned — Profile fields defined externally
+  
+- [ ] 0017-006-002 - TASK - Migrate Profiles Table to JSONB
+  - [ ] 0017-006-002-01 - CHUNK - Add JSONB fields to profiles table
+    - SUB-TASKS:
+      - Add `required_profile_fields` JSONB column
+      - Add `captured_profile_fields` JSONB column  
+      - Add `required_fields_updated_at` timestamp column
+    - STATUS: Planned — JSONB storage for flexible profiles
+    - NOTE: Review and elaborate when implementing migration from hardcoded columns
+  
+  - [ ] 0017-006-002-02 - CHUNK - Remove hardcoded profile columns
+    - SUB-TASKS:
+      - Migrate existing data to JSONB fields
+      - Remove email, phone, and other hardcoded columns
+      - Update SQLAlchemy ORM models
+    - STATUS: Planned — Clean schema using JSONB
+    - NOTE: Review and elaborate migration strategy before implementing
 
-```python
-@agent.tool  
-async def web_search(ctx: RunContext[SessionDependencies], query: str) -> str:
-    # Check if web search enabled in agent config
-    # Call Exa API with proper error handling
-    # Format web results for agent consumption
-```
-
-## 0017-007 - FEATURE - Email Capture & User Consent
+## 0017-007 - FEATURE - Profile Capture Tool
 **Status**: Planned
+**Priority**: High - Conversational profile capture
+
+Implement agent tool to capture and validate profile information during conversation.
+
+- [ ] 0017-007-001 - TASK - Profile Capture Agent Tool
+  - [ ] 0017-007-001-01 - CHUNK - Implement @agent.tool for profile capture
+    - SUB-TASKS:
+      - Tool validates captured data against profile_fields.yaml
+      - Stores data in captured_profile_fields JSONB
+      - Checks required_fields_updated_at and refreshes if stale (24h)
+      - Returns validation results to agent
+    - STATUS: Planned — Agent captures profile during conversation
+
+## 0017-008 - FEATURE - Email Summary Tool with Mailgun
+**Status**: Planned
+**Priority**: High - Complete user workflow
+
+Implement agent tool to generate conversation summary and email via Mailgun.
+
+- [ ] 0017-008-001 - TASK - Mailgun Integration
+  - [ ] 0017-008-001-01 - CHUNK - Mailgun service setup
+    - SUB-TASKS:
+      - Configure Mailgun API credentials
+      - Email template for conversation summaries
+      - Error handling and delivery tracking
+    - STATUS: Planned — Mailgun email service
+
+- [ ] 0017-008-002 - TASK - Email Summary Agent Tool  
+  - [ ] 0017-008-002-01 - CHUNK - Implement @agent.tool for email summary
+    - SUB-TASKS:
+      - Check profile completeness before sending
+      - Request missing required fields if needed
+      - Generate conversation summary using LLM
+      - Send email via Mailgun when profile complete
+      - Configuration setting for auto-send behavior
+    - STATUS: Planned — Agent emails summaries when requested
+
+---
+
+# PHASE 2: Enhanced Functionality
+
+Optional enhancements that extend InfoBot capabilities beyond core MVP.
+
+## 0017-009 - FEATURE - Email Capture & User Consent
+**Status**: Planned
+**Priority**: Medium - UI-based alternative to conversational capture
+**NOTE**: May be superseded by Profile Capture Tool (0017-007) - review requirements during implementation.
 
 Capture user email addresses and manage email-related permissions and approvals with standard email validation.
 
-- [ ] 0017-007-001 - TASK - Email Collection System
-  - [ ] 0017-007-001-01 - CHUNK - Email capture UI and API
+- [ ] 0017-009-001 - TASK - Email Collection System
+  - [ ] 0017-009-001-01 - CHUNK - Email capture UI and API
     - SUB-TASKS:
       - Create email input component for web interface
       - Add `/api/capture-email` endpoint with HTML5 email validation
@@ -876,7 +953,7 @@ Capture user email addresses and manage email-related permissions and approvals 
     - STATUS: Planned — Email collection mechanism
     - PRIORITY: High — Required for authentication and email features
 
-  - [ ] 0017-007-001-02 - CHUNK - Consent and preferences management
+  - [ ] 0017-009-001-02 - CHUNK - Consent and preferences management
     - SUB-TASKS:
       - Create consent tracking database schema (email_consents table)
       - Implement consent checkbox UI with clear privacy messaging
@@ -891,13 +968,14 @@ Capture user email addresses and manage email-related permissions and approvals 
     - STATUS: Planned — User consent and privacy compliance
     - PRIORITY: High — Legal compliance requirement
 
-## 0017-008 - FEATURE - Periodic Conversation Summarization
+## 0017-010 - FEATURE - Periodic Conversation Summarization
 **Status**: Planned
+**Priority**: Medium - Context window management for long conversations
 
 Automatically summarize older conversation parts to prevent context window overflow and maintain conversation continuity.
 
-- [ ] 0017-008-001 - TASK - Context Window Management System
-  - [ ] 0017-008-001-01 - CHUNK - Token counting and threshold monitoring
+- [ ] 0017-010-001 - TASK - Context Window Management System
+  - [ ] 0017-010-001-01 - CHUNK - Token counting and threshold monitoring
     - SUB-TASKS:
       - Create token counting service using tiktoken or similar for accurate LLM token estimation
       - Configure context window thresholds per model (GPT-4: 8K, DeepSeek: 32K, etc.)
@@ -912,7 +990,7 @@ Automatically summarize older conversation parts to prevent context window overf
     - STATUS: Planned — Foundation for context management
     - PRIORITY: Critical — Prevents conversation failures
 
-  - [ ] 0017-008-001-02 - CHUNK - Conversation summarization engine
+  - [ ] 0017-010-001-02 - CHUNK - Conversation summarization engine
     - SUB-TASKS:
       - Create conversation summarization logic using existing OpenAI/OpenRouter LLM
       - Implement sliding window approach (keep recent N messages, summarize older ones)
@@ -927,7 +1005,7 @@ Automatically summarize older conversation parts to prevent context window overf
     - STATUS: Planned — Core summarization functionality
     - PRIORITY: High — Essential for context preservation
 
-  - [ ] 0017-008-001-03 - CHUNK - Automatic summarization triggers
+  - [ ] 0017-010-001-03 - CHUNK - Automatic summarization triggers
     - SUB-TASKS:
       - Implement automatic triggers when approaching context limits (80% threshold)
       - Background summarization process that doesn't interrupt user conversations
@@ -942,64 +1020,14 @@ Automatically summarize older conversation parts to prevent context window overf
     - STATUS: Planned — Seamless user experience
     - PRIORITY: High — User-facing functionality
 
-## 0017-009 - FEATURE - Outbound Email & Conversation Summaries
+## 0017-011 - FEATURE - OTP Authentication & Email-based Accounts  
 **Status**: Planned
-
-Enable sending conversation summaries via email using Twilio SendGrid integration.
-
-- [ ] 0017-009-001 - TASK - Email Service Integration
-  - [ ] 0017-009-001-01 - CHUNK - Twilio SendGrid service setup
-    - SUB-TASKS:
-      - Create SendGridService with configuration from app.yaml
-      - Twilio SendGrid API key management and environment variable setup
-      - Email template system for conversation summaries
-      - Error handling and retry logic for email delivery
-    - AUTOMATED-TESTS:
-      - `test_sendgrid_service_initialization()` - Verify service setup with config
-      - `test_email_template_rendering()` - Test conversation summary formatting
-    - MANUAL-TESTS:
-      - Verify Twilio SendGrid API credentials work correctly
-      - Test email delivery with sample conversation summary
-    - STATUS: Planned — Core email service foundation
-    - PRIORITY: High — Required for all email functionality
-
-  - [ ] 0017-009-001-02 - CHUNK - Conversation summary generation
-    - SUB-TASKS:
-      - Create conversation summarization logic using existing OpenAI/OpenRouter LLM
-      - Format summaries with key points, decisions, and action items
-      - Include conversation metadata (duration, message count, cost)
-      - Template system for different summary formats (brief, detailed)
-    - AUTOMATED-TESTS:
-      - `test_conversation_summarization()` - Test summary generation quality
-      - `test_summary_template_formatting()` - Verify email template rendering
-    - MANUAL-TESTS:
-      - Review generated summaries for quality and completeness
-      - Test different conversation lengths and types
-    - STATUS: Planned — Generate meaningful conversation summaries
-    - PRIORITY: Medium — Core functionality for email content
-
-  - [ ] 0017-009-001-03 - CHUNK - Email sending endpoint and triggers
-    - SUB-TASKS:
-      - Create `/agents/simple-chat/send-summary` POST endpoint
-      - Implement automatic summary sending triggers (conversation end, time-based)
-      - Email delivery status tracking and logging via SendGrid webhooks
-      - Rate limiting and abuse prevention
-    - AUTOMATED-TESTS:
-      - `test_send_summary_endpoint()` - Test email sending API
-      - `test_automatic_triggers()` - Verify summary triggers work correctly
-    - MANUAL-TESTS:
-      - Test manual summary sending via API
-      - Verify automatic triggers fire correctly
-    - STATUS: Planned — Email delivery mechanism
-    - PRIORITY: High — User-facing functionality
-
-## 0017-010 - FEATURE - OTP Authentication & Email-based Accounts  
-**Status**: Planned
+**Priority**: Low - Advanced account management
 
 Implement OTP (One-Time Password) authentication system with email-based account creation using Twilio Verify.
 
-- [ ] 0017-010-001 - TASK - OTP Authentication System
-  - [ ] 0017-010-001-01 - CHUNK - Twilio Verify OTP integration
+- [ ] 0017-011-001 - TASK - OTP Authentication System
+  - [ ] 0017-011-001-01 - CHUNK - Twilio Verify OTP integration
     - SUB-TASKS:
       - Create Twilio Verify service integration with API credentials
       - Configure OTP generation via Twilio Verify API (email channel)
@@ -1014,7 +1042,7 @@ Implement OTP (One-Time Password) authentication system with email-based account
     - STATUS: Planned — OTP generation and delivery via Twilio Verify
     - PRIORITY: High — Core authentication security
 
-  - [ ] 0017-010-001-02 - CHUNK - OTP verification and session upgrade
+  - [ ] 0017-011-001-02 - CHUNK - OTP verification and session upgrade
     - SUB-TASKS:
       - Create `/api/verify-otp` endpoint using Twilio Verify check API
       - Upgrade anonymous sessions to authenticated sessions after successful verification
@@ -1029,7 +1057,7 @@ Implement OTP (One-Time Password) authentication system with email-based account
     - STATUS: Planned — Authentication verification system via Twilio
     - PRIORITY: High — User authentication flow
 
-  - [ ] 0017-010-001-03 - CHUNK - Account and session association
+  - [ ] 0017-011-001-03 - CHUNK - Account and session association
     - SUB-TASKS:
       - Create accounts database schema (users, user_sessions tables)
       - Link conversations to user accounts via email
@@ -1048,6 +1076,9 @@ Implement OTP (One-Time Password) authentication system with email-based account
 - Agent implements Pydantic AI patterns with SessionDependencies integration
 - `/agents/simple-chat/chat` endpoint functional with cost tracking
 - Conversation history continuity across endpoints
-- Vector and web search tools integrated
+- Vector search tool integrated (web search NOT included)
+- Profile capture tool with JSONB storage
+- Email summary tool with Mailgun integration
+- Profile fields configured via YAML with validation
 - Production-ready customer billing with accurate OpenRouter costs
 

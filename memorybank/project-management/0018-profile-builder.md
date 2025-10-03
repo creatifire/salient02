@@ -1,6 +1,16 @@
-# Epic 0020 - Profile Builder (Customer Intelligence & Tracking)
+# Epic 0018 - Profile Builder (Customer Intelligence & Tracking)
 
 Build comprehensive customer profiles by tracking visitor interactions, interests, and behavioral patterns.
+
+## Relationship to Simple Chat Agent (Epic 0017)
+Simple Chat Agent (InfoBot) implements basic profile capture with email and phone fields using JSONB storage. This epic extends that foundation to support:
+- Advanced field types (text, number, date, url, address, company, industry, etc.)
+- Behavioral tracking (page visits, dwell time, navigation patterns)
+- Interest detection from conversations and browsing
+- Lead scoring and qualification
+- CRM integration and export
+
+The profile_fields.yaml approach from Simple Chat informs this epic's design for flexible, configuration-driven profiles.
 
 ## Architecture Overview
 
@@ -60,6 +70,36 @@ flowchart TD
 - **Interest Extraction**: Analyze chat conversations and page visits to identify product/service interests
 - **Behavioral Analysis**: Track navigation patterns, session duration, return visits
 - **Profile Scoring**: Generate lead scores and interest ratings for sales and marketing
+
+## Extended Field Types for Future Agents
+Simple Chat uses basic field types (email, phone). Profile Builder will support:
+
+**Contact Fields:**
+- `email` - Email validation with domain verification
+- `phone` - International phone number with country code
+- `url` - Website URLs with protocol validation
+
+**Identity Fields:**
+- `text` - Free-form text (names, job titles)
+- `number` - Numeric values (age, company size, budget)
+- `date` - Date fields (founding date, contract renewal)
+- `select` - Dropdown selections (industry, role, company size tiers)
+
+**Complex Fields:**
+- `address` - Structured address (street, city, state, zip, country)
+- `company` - Company information (name, size, industry, revenue)
+- `social` - Social media profiles (LinkedIn, Twitter, GitHub)
+
+**Behavioral Fields:**
+- `interest_tags` - Array of interests derived from behavior
+- `engagement_score` - Calculated engagement metrics
+- `lead_score` - Qualification score based on profile completeness and behavior
+
+Each field type includes:
+- Validation rules (regex, format, range)
+- Required/optional flag
+- Description for agent prompts
+- Default values where applicable
 
 ## 0018-001 - FEATURE - Page Tracking & Navigation Analytics
 **Status**: Planned
