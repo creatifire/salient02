@@ -6,27 +6,27 @@
 - [Milestone 2 Tactical Approach](./0000-approach-milestone-02.md) - Future development plan
 
 ## Active Epics
-01. [Preliminary Design](./0001-preliminary-design.md)
-02. [Baseline Connectivity](./0002-baseline-connectivity.md)
-03. [Website & HTMX Chatbot](./0003-website-htmx-chatbot.md)
-04. [Chat Memory & Persistence](./0004-chat-memory.md)
-05. [Multi-Account and Agent Support](./0005-multi-account-and-agent-support.md)
-06. [Public Chat](./0006-public-chat.md)
-07. [Enterprise Chat](./0007-enterprise-chat.md)
-08. [Sales Agent](./0008-sales-agent.md)
-09. [Digital Expert Agent](./0009-digital-expert-agent.md)
-10. [Website Content Ingestion](./0010-website-content-ingestion.md)
-11. [Vector Database Integration](./0011-vector-db-integration.md)
-12. [Outbound Email Integration](./0012-outbound-email.md)
-13. [Scheduling Integration](./0013-scheduling-integration.md)
-14. [CrossFeed MCP Server](./0014-crossfeed.md)
-15. [Simple Research Agent](./0015-simple-research-agent.md)
-16. [Deep Research Agent](./0016-deep-research-agent.md)
-17. [Simple Chat Agent](./0017-simple-chat-agent.md)
-18. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md)
-19. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md)
-20. [OfferBot](./0020-OfferBot.md)
-21. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md)
+01. [Preliminary Design](./0001-preliminary-design.md) - ✅ Completed
+02. [Baseline Connectivity](./0002-baseline-connectivity.md) - ✅ Completed
+03. [Website & HTMX Chatbot](./0003-website-htmx-chatbot.md) - 📋 Planned (Priority 3)
+04. [Chat Memory & Persistence](./0004-chat-memory.md) - ✅ Completed
+05. [Multi-Account and Agent Support](./0005-multi-account-and-agent-support.md) - 📋 Planned (Priorities 4, 6, 7)
+06. [Public Chat](./0006-public-chat.md) - 📋 Planned
+07. [Enterprise Chat](./0007-enterprise-chat.md) - 📋 Planned
+08. [Sales Agent](./0008-sales-agent.md) - 📋 Planned (Priority 5)
+09. [Digital Expert Agent](./0009-digital-expert-agent.md) - 📋 Planned
+10. [Website Content Ingestion](./0010-website-content-ingestion.md) - 📋 Planned
+11. [Vector Database Integration](./0011-vector-db-integration.md) - ✅ Completed (Feature 0011-001)
+12. [Outbound Email Integration](./0012-outbound-email.md) - 📋 Planned
+13. [Scheduling Integration](./0013-scheduling-integration.md) - 📋 Planned
+14. [CrossFeed MCP Server](./0014-crossfeed.md) - 📋 Planned
+15. [Simple Research Agent](./0015-simple-research-agent.md) - 📋 Planned
+16. [Deep Research Agent](./0016-deep-research-agent.md) - 📋 Planned
+17. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade)
+18. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
+19. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md) - 📋 Planned
+20. [OfferBot](./0020-OfferBot.md) - 📋 Planned
+21. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md) - 📋 Planned
 
 ## Epic Backlog
 

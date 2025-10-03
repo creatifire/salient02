@@ -1,4 +1,5 @@
 # Data Model & Entity Relationship Diagram
+> **Last Updated**: August 28, 2025
 
 > Database schema for the Salient chat persistence system, supporting session management, message history, profile accumulation, and LLM cost tracking.
 

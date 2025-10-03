@@ -1,4 +1,5 @@
 # Project Brief
+> **Last Updated**: September 12, 2025
 
 ## Purpose of System
     - Answer questions about a company's products and services, based on:

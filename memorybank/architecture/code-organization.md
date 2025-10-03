@@ -1,4 +1,5 @@
 # Code Organization
+> **Last Updated**: September 17, 2025
 
 ## Goals
 - Keep Python backend and JS frontend decoupled but co-located

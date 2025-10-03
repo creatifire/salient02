@@ -1,3 +1,6 @@
+# Simple Chat Agent Design
+> **Last Updated**: September 09, 2025
+
 ```mermaid
 flowchart TD
     A[User Message] --> B[FastAPI Endpoint]

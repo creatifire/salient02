@@ -1,4 +1,5 @@
 # Agent Configuration (Short-Term YAML → Long-Term Database)
+> **Last Updated**: September 17, 2025
 
 ## Purpose
 Define how agent behavior is configured today (YAML files in the repo) and how it will migrate to database-backed configuration as part of multi-account support. This enables fast iteration now with a clear path to scalable management later.

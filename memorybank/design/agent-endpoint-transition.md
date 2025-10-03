@@ -1,4 +1,5 @@
 # Agent Endpoint Transition Strategy
+> **Last Updated**: August 28, 2025
 
 > Design document for transitioning from legacy chat endpoints to Pydantic AI agent-based endpoints while maintaining backward compatibility and preparing for multi-account, multi-agent architecture.
 
