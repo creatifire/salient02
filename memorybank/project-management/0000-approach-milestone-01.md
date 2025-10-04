@@ -11,7 +11,11 @@
 
 - [ Note: Look for documents as a whole or sections of documents that can be used to provide context to LLMs (beyond Vector Databases) ]
 
-**Approach**: Linear progression through 13 priority items with manageable chunks and automated testing documented in epic files.
+**Approach**: Linear progression through priority items organized into phases, with manageable chunks and automated testing documented in epic files.
+
+---
+
+# PHASE 1: MVP Core Functionality
 
 ## 🎯 DEVELOPMENT PRIORITIES
 
@@ -39,13 +43,54 @@
 - [ ] 0017-004-003-02 - Tool configuration cascade
 - [ ] 0017-004-003 - Update Agent Integration Points (1/2 chunks completed)
 
-### **Priority 2B: Vector Search Tool** 📋
+### **Priority 2B: Vector Search Tool** 📋 🎯 **NEXT PRIORITY**
 - [ ] 0017-005-001 - Vector Search Tool Implementation
+  - Core InfoBot functionality - answers questions using knowledge base
 
-### **Priority 2C: Web Search Tool (Exa Integration)** 📋
-- [ ] 0017-006-001 - Web Search Tool Implementation
+### **Priority 2C: Profile Fields Configuration & Database Schema** 📋
+- [ ] 0017-006-001 - Profile Fields YAML Configuration
+- [ ] 0017-006-002 - Migrate Profiles Table to JSONB
 
-[Note: Rename simple_chat to AnswerBot or InfoBot?]
+### **Priority 2D: Profile Capture Tool** 📋
+- [ ] 0017-007-001 - Profile Capture Agent Tool
+  - Conversational capture of email/phone using @agent.tool
+
+### **Priority 2E: Email Summary Tool with Mailgun** 📋
+- [ ] 0017-008-001 - Mailgun Integration
+- [ ] 0017-008-002 - Email Summary Agent Tool
+  - Completes user workflow: chat → capture → email summary
+
+**Note**: Simple Chat Agent is now called "InfoBot" - information sharing bot (NO web search included)
+
+**Phase 1 MVP Complete**: Priorities 2B through 2E complete the InfoBot MVP: vector search, profile capture, and email summaries.
+
+---
+
+## PHASE 2: Enhanced Functionality
+
+Optional enhancements that extend InfoBot capabilities beyond core MVP.
+
+### **Priority 2F: Email Capture & Consent (Optional)** 📋
+- [ ] 0017-009-001 - Email Collection System
+- [ ] 0017-009-002 - Consent and preferences management
+  - UI-based alternative to conversational capture
+  - May be superseded by Profile Capture Tool - review during implementation
+
+### **Priority 2G: Periodic Summarization** 📋
+- [ ] 0017-010-001 - Context Window Management System
+  - Token counting and threshold monitoring
+  - Conversation summarization engine
+  - Automatic summarization triggers
+
+### **Priority 2H: OTP Authentication** 📋
+- [ ] 0017-011-001 - OTP Authentication System
+  - Twilio Verify integration
+  - Session upgrade and account creation
+  - Cross-device session persistence
+
+---
+
+## PHASE 3: Multi-Agent Platform
 
 ### **Priority 3: Multi-Client Widget Foundation** 📋
 - [ ] 0003-001-001 - Shadow DOM Widget
@@ -88,4 +133,10 @@
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
 **Current Status**: Priority 2A in progress 🚧 - Generic configuration cascade infrastructure implemented with model settings cascade (1/2 chunks of 0017-004-003 completed)  
-**Next**: Complete Priority 2A with 0017-004-003-02 (Tool configuration cascade), then Priority 2B (Vector Search Tool) - 0017-005-001
+
+**Next Steps (Phase 1 MVP):**
+1. Complete Priority 2A: 0017-004-003-02 (Tool configuration cascade) - optional, can defer
+2. **Priority 2B: 0017-005 (Vector Search Tool)** 🎯 - IMMEDIATE NEXT - Core InfoBot value
+3. Priority 2C: 0017-006 (Profile Fields Config & JSONB Migration)
+4. Priority 2D: 0017-007 (Profile Capture Tool)
+5. Priority 2E: 0017-008 (Email Summary with Mailgun)

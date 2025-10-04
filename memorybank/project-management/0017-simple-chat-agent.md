@@ -830,9 +830,10 @@ context_management:
 
 Core features that deliver InfoBot's primary value: answering questions using knowledge base, capturing profile data, and emailing summaries.
 
-## 0017-005 - FEATURE - Vector Search Tool
+## Priority 2B: Vector Search Tool 🎯 **IMMEDIATE NEXT PRIORITY**
+
+### 0017-005 - FEATURE - Vector Search Tool
 **Status**: Planned
-**Priority**: 🎯 **IMMEDIATE NEXT PRIORITY** - Core InfoBot functionality
 
 Enable agent to search knowledge base using existing VectorService integration.
 
@@ -854,9 +855,10 @@ async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str
     return "Knowledge base search results:\n\n" + formatted_results
 ```
 
-## 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
+## Priority 2C: Profile Configuration & Schema
+
+### 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
 **Status**: Planned
-**Priority**: High - Foundation for profile capture
 
 Configure dynamic profile fields via YAML and migrate profiles table to JSONB storage.
 
@@ -885,9 +887,10 @@ Configure dynamic profile fields via YAML and migrate profiles table to JSONB st
     - STATUS: Planned — Clean schema using JSONB
     - NOTE: Review and elaborate migration strategy before implementing
 
-## 0017-007 - FEATURE - Profile Capture Tool
+## Priority 2D: Profile Capture Tool
+
+### 0017-007 - FEATURE - Profile Capture Tool
 **Status**: Planned
-**Priority**: High - Conversational profile capture
 
 Implement agent tool to capture and validate profile information during conversation.
 
@@ -900,9 +903,10 @@ Implement agent tool to capture and validate profile information during conversa
       - Returns validation results to agent
     - STATUS: Planned — Agent captures profile during conversation
 
-## 0017-008 - FEATURE - Email Summary Tool with Mailgun
+## Priority 2E: Email Summary with Mailgun
+
+### 0017-008 - FEATURE - Email Summary Tool with Mailgun
 **Status**: Planned
-**Priority**: High - Complete user workflow
 
 Implement agent tool to generate conversation summary and email via Mailgun.
 
@@ -930,9 +934,10 @@ Implement agent tool to generate conversation summary and email via Mailgun.
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-## 0017-009 - FEATURE - Email Capture & User Consent
+## Priority 2F: Email Capture & Consent (Optional)
+
+### 0017-009 - FEATURE - Email Capture & User Consent
 **Status**: Planned
-**Priority**: Medium - UI-based alternative to conversational capture
 **NOTE**: May be superseded by Profile Capture Tool (0017-007) - review requirements during implementation.
 
 Capture user email addresses and manage email-related permissions and approvals with standard email validation.
@@ -968,9 +973,10 @@ Capture user email addresses and manage email-related permissions and approvals 
     - STATUS: Planned — User consent and privacy compliance
     - PRIORITY: High — Legal compliance requirement
 
-## 0017-010 - FEATURE - Periodic Conversation Summarization
+## Priority 2G: Periodic Summarization
+
+### 0017-010 - FEATURE - Periodic Conversation Summarization
 **Status**: Planned
-**Priority**: Medium - Context window management for long conversations
 
 Automatically summarize older conversation parts to prevent context window overflow and maintain conversation continuity.
 
@@ -1020,9 +1026,10 @@ Automatically summarize older conversation parts to prevent context window overf
     - STATUS: Planned — Seamless user experience
     - PRIORITY: High — User-facing functionality
 
-## 0017-011 - FEATURE - OTP Authentication & Email-based Accounts  
+## Priority 2H: OTP Authentication
+
+### 0017-011 - FEATURE - OTP Authentication & Email-based Accounts  
 **Status**: Planned
-**Priority**: Low - Advanced account management
 
 Implement OTP (One-Time Password) authentication system with email-based account creation using Twilio Verify.
 
