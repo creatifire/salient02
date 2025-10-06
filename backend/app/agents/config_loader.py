@@ -478,6 +478,115 @@ async def get_agent_model_settings(agent_name: str) -> dict:
     return model_settings
 
 
+async def get_agent_tool_config(agent_name: str, tool_name: str) -> dict:
+    """
+    Get tool configuration using agent-first configuration cascade with mixed inheritance.
+    
+    Implements comprehensive tool parameter cascade: agent config → fallbacks
+    Supports mixed inheritance where individual parameters can come from different sources.
+    Enables per-agent tool enable/disable capability with comprehensive monitoring.
+    
+    Args:
+        agent_name: Agent name for configuration lookup
+        tool_name: Tool name (e.g., 'vector_search', 'web_search', 'conversation_management')
+        
+    Returns:
+        Dictionary with tool configuration using proper cascade logic for each parameter
+        
+    Example Result:
+        {
+            "enabled": True,              # From agent config or fallback
+            "max_results": 5,            # From agent config or fallback
+            "similarity_threshold": 0.7   # From agent config or fallback
+        }
+    """
+    # Define tool-specific parameter configurations
+    tool_configs = {
+        "vector_search": {
+            "enabled": {
+                "agent_path": "tools.vector_search.enabled",
+                "fallback": True
+            },
+            "max_results": {
+                "agent_path": "tools.vector_search.max_results",
+                "fallback": 5
+            },
+            "similarity_threshold": {
+                "agent_path": "tools.vector_search.similarity_threshold",
+                "fallback": 0.7
+            },
+            "namespace_isolation": {
+                "agent_path": "tools.vector_search.namespace_isolation",
+                "fallback": True
+            }
+        },
+        "web_search": {
+            "enabled": {
+                "agent_path": "tools.web_search.enabled",
+                "fallback": False
+            },
+            "provider": {
+                "agent_path": "tools.web_search.provider",
+                "fallback": "exa"
+            },
+            "max_results": {
+                "agent_path": "tools.web_search.max_results",
+                "fallback": 10
+            }
+        },
+        "conversation_management": {
+            "enabled": {
+                "agent_path": "tools.conversation_management.enabled",
+                "fallback": True
+            },
+            "auto_summarize_threshold": {
+                "agent_path": "tools.conversation_management.auto_summarize_threshold",
+                "fallback": 10
+            }
+        },
+        "profile_capture": {
+            "enabled": {
+                "agent_path": "tools.profile_capture.enabled",
+                "fallback": False
+            }
+        },
+        "email_summary": {
+            "enabled": {
+                "agent_path": "tools.email_summary.enabled",
+                "fallback": False
+            }
+        }
+    }
+    
+    # Get the parameter configuration for this tool
+    if tool_name not in tool_configs:
+        from loguru import logger
+        logger.warning(f"Unknown tool '{tool_name}' for agent '{agent_name}', returning empty config")
+        return {"enabled": False}
+    
+    parameters = tool_configs[tool_name]
+    
+    # Use generic cascade for each parameter independently (mixed inheritance)
+    tool_config = {}
+    
+    for param_name, config in parameters.items():
+        try:
+            value = await get_agent_parameter(
+                agent_name=agent_name,
+                parameter_path=config["agent_path"],
+                fallback=config["fallback"],
+                global_path=None  # Tools don't have global config equivalents
+            )
+            tool_config[param_name] = value
+        except Exception as e:
+            # Log error but continue with fallback
+            from loguru import logger
+            logger.warning(f"Error getting {param_name} for tool {tool_name} in {agent_name}: {e}, using fallback")
+            tool_config[param_name] = config["fallback"]
+    
+    return tool_config
+
+
 # Global config loader instance
 _config_loader: Optional[AgentConfigLoader] = None
 

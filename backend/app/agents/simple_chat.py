@@ -289,6 +289,7 @@ async def simple_chat(
         })
         
         # Store cost data using LLMRequestTracker
+        llm_request_id = None  # Initialize to None for cases where tracking is skipped
         if prompt_tokens > 0 or completion_tokens > 0:
             from decimal import Decimal
             tracker = LLMRequestTracker()

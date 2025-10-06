@@ -739,10 +739,12 @@ async def sse_stream(request: Request):
     if not (cfg.get("ui") or {}).get("sse_enabled", True):
         return HTMLResponse("SSE disabled", status_code=403)
 
-    llm_cfg = cfg.get("llm") or {}
-    model = llm_cfg.get("model", "openai/gpt-oss-20b:free")
-    temperature = float(llm_cfg.get("temperature", 0.3))
-    max_tokens = int(llm_cfg.get("max_tokens", 256))
+    # Use agent-first configuration cascade for model settings
+    from .agents.config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
+    model = model_settings["model"]
+    temperature = float(model_settings["temperature"])
+    max_tokens = int(model_settings["max_tokens"])
 
     seed = request.query_params.get("message")
     use_llm = request.query_params.get("llm") == "1"
@@ -761,16 +763,12 @@ async def sse_stream(request: Request):
         "message_preview": seed[:100] + "..." if seed and len(seed) > 100 else seed,
     })
     
-    # DEBUG: Log config loading details
+    # DEBUG: Log config loading details (using agent-first cascade)
     logger.info({
         "event": "sse_config_debug", 
-        "raw_config": cfg,
-        "llm_config": llm_cfg,
-        "model_from_config": llm_cfg.get("model"),
-        "model_fallback": "openai/gpt-oss-20b:free",
+        "model_settings": model_settings,
         "final_model": model,
-        "config_keys": list(cfg.keys()),
-        "llm_config_keys": list(llm_cfg.keys())
+        "cascade_source": "agent-first configuration cascade"
     })
 
     # Save user message to database before streaming starts (if provided)
@@ -803,6 +801,7 @@ async def sse_stream(request: Request):
     async def event_generator():
         # Accumulate assistant message chunks for persistence
         assistant_chunks = []
+        start = time.perf_counter()  # Track timing for LLM request
         
         try:
             if use_llm and seed:
@@ -878,6 +877,60 @@ async def sse_stream(request: Request):
                             "content_length": len(complete_response),
                             "chunks_count": len(assistant_chunks)
                         })
+                        
+                        # Track LLM request for billing (estimated token counts for streaming)
+                        try:
+                            from ..services.llm_request_tracker import LLMRequestTracker
+                            from decimal import Decimal
+                            from uuid import UUID
+                            
+                            # Estimate tokens (rough: ~4 chars per token)
+                            estimated_prompt_tokens = len(seed) // 4
+                            estimated_completion_tokens = len(complete_response) // 4
+                            estimated_total = estimated_prompt_tokens + estimated_completion_tokens
+                            
+                            tracker = LLMRequestTracker()
+                            llm_request_id = await tracker.track_llm_request(
+                                session_id=UUID(str(session.id)),
+                                provider="openrouter",
+                                model=model,
+                                request_body={
+                                    "message_length": len(seed),
+                                    "method": "sse_stream",
+                                    "streaming": True
+                                },
+                                response_body={
+                                    "response_length": len(complete_response),
+                                    "chunks_count": len(assistant_chunks)
+                                },
+                                tokens={
+                                    "prompt": estimated_prompt_tokens,
+                                    "completion": estimated_completion_tokens,
+                                    "total": estimated_total
+                                },
+                                cost_data={
+                                    "unit_cost_prompt": 0.0,
+                                    "unit_cost_completion": 0.0,
+                                    "total_cost": Decimal("0.0")  # Streaming doesn't include cost
+                                },
+                                latency_ms=int((time.perf_counter() - start) * 1000)
+                            )
+                            logger.info({
+                                "event": "llm_request_tracked",
+                                "session_id": str(session.id),
+                                "llm_request_id": str(llm_request_id),
+                                "estimated_tokens": estimated_total,
+                                "note": "Token estimates from streaming (no exact counts available)"
+                            })
+                        except Exception as track_error:
+                            # Log tracking error but don't break streaming
+                            logger.warning({
+                                "event": "llm_request_tracking_failed",
+                                "session_id": str(session.id),
+                                "error": str(track_error),
+                                "error_type": type(track_error).__name__
+                            })
+                        
                     except Exception as e:
                         # Log error but don't interrupt streaming
                         logger.error({
@@ -1017,10 +1070,12 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     if not message:
         return PlainTextResponse("", status_code=400)
 
-    llm_cfg = cfg.get("llm") or {}
-    model = llm_cfg.get("model", "openai/gpt-oss-20b:free")
-    temperature = float(llm_cfg.get("temperature", 0.3))
-    max_tokens = int(llm_cfg.get("max_tokens", 256))
+    # Use agent-first configuration cascade for model settings
+    from .agents.config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
+    model = model_settings["model"]
+    temperature = float(model_settings["temperature"])
+    max_tokens = int(model_settings["max_tokens"])
 
     logger.info({
         "event": "chat_fallback_request",
@@ -1034,16 +1089,12 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         "message_preview": message[:100] + "..." if len(message) > 100 else message,
     })
     
-    # DEBUG: Log chat_fallback config loading details  
+    # DEBUG: Log chat_fallback config loading details (using agent-first cascade)
     logger.info({
         "event": "chat_fallback_config_debug",
-        "raw_config": cfg,
-        "llm_config": llm_cfg,
-        "model_from_config": llm_cfg.get("model"),
-        "model_fallback": "openai/gpt-oss-20b:free",
+        "model_settings": model_settings,
         "final_model": model,
-        "config_keys": list(cfg.keys()),
-        "llm_config_keys": list(llm_cfg.keys())
+        "cascade_source": "agent-first configuration cascade"
     })
 
     # Save user message to database before LLM call
@@ -1088,6 +1139,7 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
         pass
 
     # Get LLM response
+    start_time = time.perf_counter()
     try:
         # DEBUG: Log exact parameters passed to chat_completion_content
         logger.info({
@@ -1107,6 +1159,8 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
             max_tokens=max_tokens,
             extra_headers=headers or None,
         )
+        
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
         
         # Save assistant response to database after LLM completion
         try:
@@ -1130,6 +1184,59 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
                 "content_length": len(text),
                 "model": model
             })
+            
+            # Track LLM request for billing (estimated token counts for non-streaming)
+            try:
+                from .services.llm_request_tracker import LLMRequestTracker
+                from decimal import Decimal
+                from uuid import UUID
+                
+                # Estimate tokens (rough: ~4 chars per token)
+                estimated_prompt_tokens = len(message) // 4
+                estimated_completion_tokens = len(text) // 4
+                estimated_total = estimated_prompt_tokens + estimated_completion_tokens
+                
+                tracker = LLMRequestTracker()
+                llm_request_id = await tracker.track_llm_request(
+                    session_id=UUID(str(session.id)),
+                    provider="openrouter",
+                    model=model,
+                    request_body={
+                        "message_length": len(message),
+                        "method": "chat_fallback",
+                        "streaming": False
+                    },
+                    response_body={
+                        "response_length": len(text)
+                    },
+                    tokens={
+                        "prompt": estimated_prompt_tokens,
+                        "completion": estimated_completion_tokens,
+                        "total": estimated_total
+                    },
+                    cost_data={
+                        "unit_cost_prompt": 0.0,
+                        "unit_cost_completion": 0.0,
+                        "total_cost": Decimal("0.0")  # Legacy endpoint doesn't include cost
+                    },
+                    latency_ms=latency_ms
+                )
+                logger.info({
+                    "event": "llm_request_tracked",
+                    "session_id": str(session.id),
+                    "llm_request_id": str(llm_request_id),
+                    "estimated_tokens": estimated_total,
+                    "note": "Token estimates from legacy endpoint (no exact counts available)"
+                })
+            except Exception as track_error:
+                # Log tracking error but don't break response
+                logger.warning({
+                    "event": "llm_request_tracking_failed",
+                    "session_id": str(session.id),
+                    "error": str(track_error),
+                    "error_type": type(track_error).__name__
+                })
+            
         except Exception as e:
             # Log error but don't block response
             logger.error({
@@ -1161,36 +1268,28 @@ async def get_session_info(request: Request) -> JSONResponse:
     if not session:
         return JSONResponse({"error": "No active session"}, status_code=404)
     
-    # Load current configuration to get LLM settings
-    from .config import load_config, get_env, get_config_metadata
-    config = load_config()
-    llm_config = config.get("llm", {})
+    # Use agent-first configuration cascade for model settings
+    from .config import get_config_metadata
+    from .agents.config_loader import get_agent_model_settings
+    
+    model_settings = await get_agent_model_settings("simple_chat")
     config_metadata = get_config_metadata()
     
-    # Determine configuration sources
+    # Configuration sources are now determined by the cascade system
+    # The cascade logs show exact sources via CascadeAuditTrail
     config_sources = {
-        "provider": "yaml" if "llm" in config and "provider" in config["llm"] else "default",
-        "model": "yaml" if "llm" in config and "model" in config["llm"] else "default", 
-        "temperature": "yaml" if "llm" in config and "temperature" in config["llm"] else "default",
-        "max_tokens": "yaml" if "llm" in config and "max_tokens" in config["llm"] else "default"
+        "provider": "yaml",  # Always openrouter for now
+        "model": "yaml",     # From agent config (highest priority)
+        "temperature": "yaml",
+        "max_tokens": "yaml"
     }
     
-    # Check for environment variable overrides
-    if get_env("LLM_PROVIDER"):
-        config_sources["provider"] = "environment"
-    if get_env("LLM_MODEL"):
-        config_sources["model"] = "environment"
-    if get_env("LLM_TEMPERATURE"):
-        config_sources["temperature"] = "environment"
-    if get_env("LLM_MAX_TOKENS"):
-        config_sources["max_tokens"] = "environment"
-    
-    # Prepare LLM configuration display
+    # Prepare LLM configuration display with cascaded values
     llm_info = {
-        "provider": llm_config.get("provider", "openrouter"),
-        "model": llm_config.get("model", "openai/gpt-oss-20b:free"),
-        "temperature": llm_config.get("temperature", 0.3),
-        "max_tokens": llm_config.get("max_tokens", 512),
+        "provider": "openrouter",  # Fixed provider
+        "model": model_settings["model"],
+        "temperature": model_settings["temperature"],
+        "max_tokens": model_settings["max_tokens"],
         "config_sources": config_sources
     }
     

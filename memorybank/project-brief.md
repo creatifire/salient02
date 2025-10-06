@@ -1,6 +1,36 @@
 # Project Brief
 > **Last Updated**: September 12, 2025
 
+## Core Architectural Principles
+
+### 🎯 Pydantic AI is Mandatory for ALL LLM Interactions
+
+**ALL interactions with LLMs MUST use Pydantic AI.** This is non-negotiable and fundamental to the project architecture.
+
+- ✅ **ALL agents**: Simple Chat, Sales Agent, InfoBot, etc.
+- ✅ **ALL endpoints**: No direct OpenRouter/LLM API calls
+- ✅ **ALL cost tracking**: Via Pydantic AI usage data (see [LLM Cost Tracking](./architecture/tracking_llm_costs.md))
+- ✅ **ALL future agents**: Built on Pydantic AI framework
+
+**Why Pydantic AI?**
+- Unified agent development framework
+- Standardized tool registration (`@agent.tool`)
+- Consistent dependency injection (`RunContext[SessionDependencies]`)
+- Automatic usage tracking for billing
+- Type-safe structured outputs
+- Multi-agent orchestration support
+
+**No Exceptions:**
+- Legacy direct API calls are being deprecated
+- All endpoints will migrate to Pydantic AI agents
+- Building a library of Pydantic AI agents is core to this project
+
+**Reference Documentation:**
+- [LLM Cost Tracking Architecture](./architecture/tracking_llm_costs.md) - Implementation details for cost tracking
+- [Endpoint Pydantic AI Matrix](./architecture/endpoint-pydantic-ai-matrix.md) - Complete status of all endpoints and migration plan
+
+---
+
 ## Purpose of System
     - Answer questions about a company's products and services, based on:
         - Company's Website Content (HTML)

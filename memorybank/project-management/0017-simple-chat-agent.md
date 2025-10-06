@@ -734,7 +734,7 @@ context_management:
     - STATUS: Completed — Comprehensive cascade observability with audit trails, performance monitoring, and troubleshooting guidance
     - PRIORITY: Low — Debugging and monitoring improvement
 
-- [ ] 0017-004-003 - TASK - Extend Configuration Cascade to Additional Parameters
+- [x] 0017-004-003 - TASK - Extend Configuration Cascade to Additional Parameters
 
   **PARAMETER INHERITANCE STRATEGY**:
   ```yaml
@@ -794,26 +794,29 @@ context_management:
     - STATUS: Completed — Generic cascade infrastructure implemented with model settings cascade, comprehensive monitoring, and mixed inheritance
     - PRIORITY: Medium — Consistent configuration pattern across all parameters with comprehensive monitoring
   
-  - [ ] 0017-004-003-02 - CHUNK - Tool configuration cascade
+  - [x] 0017-004-003-02 - CHUNK - Tool configuration cascade
     - SUB-TASKS:
-      - Implement cascade for vector_search, web_search, and other tool configurations using generic infrastructure
-      - Create `get_agent_tool_config(agent_name: str, tool_name: str)` function using generic `get_agent_parameter()`
-      - Update tool initialization to use cascaded configuration with comprehensive monitoring
-      - Add per-agent tool enable/disable capability with audit trail support
-      - Define tool configuration inheritance strategy (enabled/disabled state, parameter overrides)
-      - Integrate with CascadeAuditTrail system for tool configuration decisions
-      - Establish tool configuration precedence rules and fallback values
-    - AUTOMATED-TESTS (4 tests):
-      - `test_tool_configuration_cascade()` - Tool configs cascade properly using generic infrastructure
-      - `test_per_agent_tool_enablement()` - Agents can have different tool sets with inheritance
-      - `test_tool_config_monitoring_integration()` - Verify CascadeAuditTrail integration for tool decisions
-      - `test_tool_config_mixed_inheritance()` - Test mixed tool parameter inheritance scenarios
+      - ✅ Implement cascade for vector_search, web_search, and other tool configurations using generic infrastructure
+      - ✅ Create `get_agent_tool_config(agent_name: str, tool_name: str)` function using generic `get_agent_parameter()`
+      - ✅ Update tool initialization to use cascaded configuration with comprehensive monitoring
+      - ✅ Add per-agent tool enable/disable capability with audit trail support
+      - ✅ Define tool configuration inheritance strategy (enabled/disabled state, parameter overrides)
+      - ✅ Integrate with CascadeAuditTrail system for tool configuration decisions
+      - ✅ Establish tool configuration precedence rules and fallback values
+    - AUTOMATED-TESTS (6 tests - 100% pass):
+      - ✅ `test_tool_configuration_cascade()` - Tool configs cascade properly using generic infrastructure
+      - ✅ `test_per_agent_tool_enablement()` - Agents can have different tool sets with inheritance
+      - ✅ `test_tool_config_monitoring_integration()` - Verify CascadeAuditTrail integration for tool decisions
+      - ✅ `test_tool_config_mixed_inheritance()` - Test mixed tool parameter inheritance scenarios
+      - ✅ `test_tool_config_fallback_behavior()` - Test fallback values when agent config missing
+      - ✅ `test_tool_config_parameter_types()` - Test different parameter types (bool, int, float, string)
     - MANUAL-TESTS:
-      - Test tool configuration differences between agents
-      - Verify tool enable/disable works per agent with comprehensive logging
-      - Test mixed tool inheritance (some tools from agent, others from global)
-      - Confirm tool configuration audit trails provide troubleshooting guidance
-    - STATUS: Planned — Per-agent tool configuration control with generic cascade infrastructure
+      - ✅ Verified tool configuration cascade using `get_agent_tool_config("simple_chat", "vector_search")`
+      - ✅ Confirmed per-agent tool enable/disable works with comprehensive audit trail logging
+      - ✅ Tested mixed tool inheritance - some tools from agent config, others use fallbacks
+      - ✅ Verified tool configuration audit trails provide troubleshooting guidance via CascadeAuditTrail
+      - ✅ Tested parameter type handling: boolean (enabled), integer (max_results), float (similarity_threshold), string (provider)
+    - STATUS: Completed — Per-agent tool configuration control with generic cascade infrastructure, comprehensive monitoring, and mixed inheritance support
     - PRIORITY: Low — Future multi-agent tool differentiation with comprehensive monitoring
 
   AUTOMATED-TESTS:
