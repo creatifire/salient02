@@ -217,3 +217,37 @@
 - 1031 - Something like: https://www.dumplingai.com/
   - Turn one Video, Podcast, Webinar into 20 pieces of content
   - INtegrate via MCP Server
+
+### Core Library Optimization (from Big 5 Documentation Review)
+
+- 1032 – FastAPI Lifespan Migration (High Priority)
+  - Migrate from deprecated `@app.on_event()` to modern `@asynccontextmanager` lifespan pattern
+  - Implement startup/shutdown resource management: database connections, config loading, agent initialization
+  - Add graceful cleanup for connection pools and background tasks
+  - DoD: All lifecycle events use lifespan context manager; startup/shutdown logs confirm proper resource management
+
+- 1033 – SQLAlchemy Query Optimization (High Priority)
+  - Add `selectinload()` for eager loading of message relationships to prevent N+1 queries
+  - Optimize conversation history queries with relationship loading strategies
+  - Review and optimize all relationship queries across session, message, and profile models
+  - DoD: Query count reduced for conversation loads; no N+1 query warnings in logs; performance benchmarks improved
+
+- 1034 – Pydantic AI Structured Outputs (Medium Priority)
+  - Define Pydantic models for agent response types (InfoBot, Sales Agent)
+  - Use `output_type` parameter in Agent initialization for guaranteed structured responses
+  - Add response validation and automatic retry on validation failures
+  - DoD: All agent responses use typed Pydantic models; type safety in response handling; validation errors handled gracefully
+
+- 1035 – Pinecone Advanced Features (Medium Priority)
+  - Implement metadata filtering for document type, status, and category searches
+  - Add batch upsert operations for content ingestion (batch_size=100)
+  - Implement `list_paginated()` for admin views of indexed documents
+  - Add namespace-based isolation strategy for Phase 3 multi-account support
+  - DoD: Vector searches support metadata filters; batch operations optimize ingestion; pagination works for large result sets
+
+- 1036 – Astro Islands Architecture (Low Priority)
+  - Implement islands pattern for interactive UI components (chat widget, admin dashboard)
+  - Add `client:load`, `client:visible`, and `client:idle` hydration strategies
+  - Use `server:defer` for user-specific content that doesn't block page render
+  - Configure hybrid rendering for static + server-rendered pages
+  - DoD: Chat widget loads as interactive island; static pages ship minimal JavaScript; user-specific content loads on-demand
