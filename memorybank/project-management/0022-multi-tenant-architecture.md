@@ -554,8 +554,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Check test database after run, verify all records created
       - Review logged SQL queries, verify proper foreign key relationships
       - Test with pytest-xdist for parallel execution
-    - STATUS: Planned — Fast integration tests with mocked LLM (for CI/CD)
-    - PRIORITY: Critical — Primary validation mechanism
+    - STATUS: Planned — Fast integration tests with mocked LLM (manual trigger)
+    - PRIORITY: Critical — Primary validation mechanism for development
   
   - [ ] 0022-001-004-04 - CHUNK - Multi-instance integration tests (REAL LLM)
     - SUB-TASKS:
@@ -574,6 +574,24 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - Conversation history actually influences responses
       - Add retry logic for transient LLM failures
       - Set reasonable timeout (30s per request)
+      - **Test Execution Documentation**:
+        - Create `backend/tests/integration/README.md` with:
+          - "Running Integration Tests" section
+          - **ALL TESTS ARE MANUAL TRIGGER ONLY** - no CI automation
+          - Pytest commands for mocked tests (fast, no API key, for development)
+          - Pytest commands for real LLM tests (slow, requires API key, for integration validation)
+          - Pytest commands for full test suite (mocked + real, for pre-release validation)
+          - Required environment variables (OPENROUTER_API_KEY, DATABASE_URL)
+          - Expected timing (mocked: < 5s, real: < 2min, full: ~2min)
+          - Expected costs (real LLM: < $0.50 per run)
+          - pytest.ini configuration for marks (integration, slow)
+        - Add pytest.ini to backend/ if not exists:
+          ```ini
+          [pytest]
+          markers =
+              integration: Integration tests (may be slow)
+              slow: Slow tests that make real API calls
+          ```
     - AUTOMATED-TESTS:
       - `test_multi_instance_integration_real()` - Main integration test with REAL LLM
       - `test_real_token_counts()` - Verify tokens > 0 and realistic (not 10/20/30)
@@ -584,14 +602,34 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - `test_streaming_endpoint_real()` - Test SSE streaming with real LLM
       - All verification tests from mocked version (sessions, messages, llm_requests, isolation)
     - MANUAL-TESTS:
-      - Run real integration test, verify completes in < 2 minutes
-      - Check test database, verify 12 LLM requests with real usage data
-      - Calculate total cost, verify reasonable (should be < $0.50 for 12 calls)
-      - Review actual LLM responses, verify quality and relevance
-      - Run with OPENROUTER_API_KEY environment variable
-      - Skip in CI if API key not available (mark as xfail)
-    - STATUS: Planned — Real-world validation with actual LLM calls (optional, slow)
-    - PRIORITY: Medium — Validates end-to-end but expensive and slow
+      - **Run mocked tests only (fast, no API key needed)**:
+        ```bash
+        cd backend
+        pytest tests/integration/test_multi_instance_integration_mocked.py -v
+        # Expected: < 5 seconds, all tests pass
+        ```
+      - **Run real LLM tests (slow, requires API key)**:
+        ```bash
+        cd backend
+        export OPENROUTER_API_KEY="your-key-here"
+        pytest tests/integration/test_multi_instance_integration_real.py -v -m "integration and slow"
+        # Expected: < 2 minutes, cost < $0.50
+        ```
+      - **Run all integration tests (mocked + real) - MANUAL TRIGGER**:
+        ```bash
+        cd backend
+        export OPENROUTER_API_KEY="your-key-here"
+        pytest tests/integration/ -v
+        # Expected: ~2 minutes total
+        # USE THIS for full integration validation before releases
+        ```
+      - After real LLM test run:
+        - Check test database: 12 LLM requests with real usage data
+        - Calculate total cost: should be < $0.50 for 12 calls
+        - Review actual LLM responses for quality and relevance
+      - Verify test isolation: can run multiple times without interference
+    - STATUS: Planned — Real-world validation with actual LLM calls (runnable on demand)
+    - PRIORITY: High — Critical for validating real LLM integration
 
 - [ ] 0022-001-005 - TASK - Simple Admin UI (Optional)
   - [ ] 0022-001-005-01 - CHUNK - Account browser page
@@ -804,10 +842,12 @@ Remove legacy code and migrate frontends to new URL structure.
   - [ ] Cost aggregation works by account and by instance
   - [ ] Performance benchmarks met (instance loading < 50ms)
   - [ ] Error handling verified (404 for invalid account/instance)
-- [ ] **Real LLM integration tests pass** (optional, for manual verification):
-  - [ ] Real token counts and costs recorded
+- [ ] **Real LLM integration tests available** (run on demand with `OPENROUTER_API_KEY`):
+  - [ ] Real token counts and costs recorded (not mock values)
   - [ ] Conversation context used across prompts
   - [ ] Different instance configs respected (if using different models)
+  - [ ] Can execute via: `pytest tests/integration/test_multi_instance_integration_real.py -v -m "integration and slow"`
+  - [ ] Documented in test README with cost expectations (< $0.50 per run)
 - [ ] Legacy endpoints continue to work (no breaking changes)
 - [ ] Documentation updated with new URL patterns
 - [ ] Admin SQL queries tested and working (required)
