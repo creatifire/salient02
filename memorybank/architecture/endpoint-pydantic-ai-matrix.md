@@ -127,55 +127,81 @@ text = await chat_completion_content(
 
 ---
 
-## 🚨 Migration Priority
+## 🚨 Migration Strategy
 
-### High Priority (Production)
+**See**: [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md) for the complete migration plan.
 
-1. **`/events/stream`** - Used by localhost:8000 (main chat interface)
-   - Replace with Pydantic AI SSE streaming
-   - Update `backend/templates/index.html` to use new endpoint
-   - Maintain session compatibility
+### Migration Approach: Zero-Risk Parallel Deployment
 
-### Medium Priority (Demos & Widgets)
+The new architecture uses explicit account and agent instance identifiers in URLs:
 
-2. **`/chat`** - Used as fallback by multiple clients
-   - Replace with Pydantic AI non-streaming endpoint
-   - Update all clients using this as primary endpoint
+```
+New: /accounts/{account-slug}/agents/{instance-slug}/chat
+New: /accounts/{account-slug}/agents/{instance-slug}/stream
+```
 
-3. **Shadow DOM Widget** - Embeddable widget
-   - Update to use Pydantic AI endpoints
-   - Maintain backward compatibility via feature flags
+**Key Insight**: The new `/accounts/` URL pattern doesn't conflict with existing endpoints, enabling safe parallel operation.
 
-4. **HTMX Demos** - Demo pages
-   - Update to use Pydantic AI endpoints
-   - Use as testing ground for new patterns
+### Phase 1: Build New Infrastructure (Zero Production Impact)
 
-### Low Priority (Reference Only)
+- Implement new account-instance endpoints alongside existing code
+- Existing endpoints (`/chat`, `/events/stream`) remain completely untouched
+- Can test thoroughly before any production impact
 
-5. **Iframe Demo** - Will inherit once backend is migrated
-   - No direct changes needed
-   - Tests cross-origin embedding
+### Phase 2: Internal Migration (Backward Compatible)
+
+- Migrate existing endpoints to use new infrastructure internally
+- Same URLs, same response formats
+- Legacy endpoints become reverse proxies to default instance:
+  - `/chat` → `/accounts/default/agents/simple-chat/chat`
+  - `/events/stream` → `/accounts/default/agents/simple-chat/stream`
+
+### Phase 3: Deprecation & Cleanup (Optional, Can Be Delayed)
+
+- Update frontend clients to use new URLs
+- Add deprecation warnings
+- Eventually remove legacy code
+
+### Migration Priority
+
+1. **High Priority**: `/events/stream` and `/chat` (used by localhost:8000)
+2. **Medium Priority**: Shadow DOM Widget, HTMX demos
+3. **Low Priority**: Iframe demo (inherits from backend migration)
 
 ---
 
 ## 📋 Migration Checklist
 
-For each endpoint migration:
+For each endpoint migration (see [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md) for details):
 
-- [ ] Create new Pydantic AI agent endpoint (e.g., `/agents/simple-chat/stream`)
-- [ ] Implement proper SSE streaming with Pydantic AI
-- [ ] Add automatic LLM cost tracking via `track_llm_call()`
-- [ ] Update frontend client to use new endpoint
-- [ ] Test session persistence and message history
-- [ ] Verify `llm_requests` table tracking
-- [ ] Add tests for the new endpoint
-- [ ] Update documentation
-- [ ] Deprecate old endpoint (with migration period if needed)
+### Phase 1: New Infrastructure
+- [ ] Add database columns (`account`, `agent_instance`, `agent_type`, `completion_status`)
+- [ ] Create instance loader (`load_agent_instance()`)
+- [ ] Implement `simple_chat_stream()` with Pydantic AI `agent.run_stream()`
+- [ ] Create new endpoints (`/accounts/{account}/agents/{instance}/chat` and `/stream`)
+- [ ] Update `LLMRequestTracker` to record account/instance/type
+- [ ] Add tests for new endpoints
+- [ ] Verify cost tracking in `llm_requests` table
+
+### Phase 2: Legacy Migration
+- [ ] Update `simple_chat()` to accept optional `config` parameter
+- [ ] Create `load_instance_or_default()` helper
+- [ ] Migrate `/chat` endpoint to use instance infrastructure internally
+- [ ] Migrate `/events/stream` endpoint to use instance infrastructure internally
+- [ ] Test backward compatibility
+- [ ] Verify identical response formats
+
+### Phase 3: Frontend Updates
+- [ ] Update frontend clients to use new `/accounts/{account}/agents/{instance}/` URLs
+- [ ] Add deprecation warnings to legacy endpoints
+- [ ] Monitor usage patterns
+- [ ] Remove legacy code when ready
 
 ---
 
 ## 📚 Related Documentation
 
+- [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md) - **Primary migration guide**
 - [LLM Cost Tracking Architecture](./tracking_llm_costs.md) - Detailed cost tracking implementation
 - [Project Brief - Core Principles](../project-brief.md#core-architectural-principles) - Pydantic AI mandate
 - [Simple Chat Agent Design](../design/simple-chat.md) - Agent architecture

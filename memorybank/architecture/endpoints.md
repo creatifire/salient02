@@ -10,9 +10,11 @@ The Salient AI Chat System follows a **parallel endpoint strategy** that ensures
 ```
 Phase 1: Legacy + Simple Chat Agent (Single Account)
 Phase 2: + Sales Agent (Multiple Agents, Single Account) 
-Phase 3: Multi-Account Architecture (Account-scoped endpoints)
-Phase 4: Router Agent (Intelligent agent selection)
+Phase 3: Account-Instance Architecture (Explicit agent instances per account)
+Phase 4: Optional Router Agent (Transparent agent selection if needed)
 ```
+
+**See**: [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md) for detailed implementation plan.
 
 ---
 
@@ -93,43 +95,66 @@ Phase 4: Router Agent (Intelligent agent selection)
 
 ---
 
-## 🏢 **PHASE 3 ENDPOINTS** (Multi-Account Architecture)
+## 🏢 **PHASE 3 ENDPOINTS** (Account-Instance Architecture)
 
-### **Account-Scoped Agent Endpoints**
+### **Account-Scoped Agent Instance Endpoints**
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `POST` | `/accounts/{account-slug}/agents/{agent-type}/chat` | Account-isolated agent access | PlainText | 📋 Future |
-| `GET` | `/accounts/{account-slug}/agents/{agent-type}/stream` | Account-scoped agent streaming | SSE Stream | 📋 Future |
-| `GET` | `/accounts/{account-slug}/agents` | Agent discovery for account | JSON | 📋 Future |
+| `POST` | `/accounts/{account-slug}/agents/{instance-slug}/chat` | Agent instance chat (non-streaming) | JSON | 📋 Future |
+| `GET` | `/accounts/{account-slug}/agents/{instance-slug}/stream` | Agent instance streaming | SSE Stream | 📋 Future |
+| `GET` | `/accounts/{account-slug}/agents` | List agent instances for account | JSON | 📋 Future |
+
+**Key Concept**: `{instance-slug}` identifies a specific agent instance (e.g., "simple-chat-customer-support", "sales-enterprise"), not just the agent type.
+
+**Examples**:
+```
+POST /accounts/acme/agents/simple-chat-customer-support/chat
+POST /accounts/acme/agents/simple-chat-lead-qualification/chat
+GET  /accounts/acme/agents/sales-enterprise/stream
+```
 
 ### **Account Management Endpoints**
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
 | `GET` | `/accounts/{account-slug}/profile` | Account profile and settings | JSON | 📋 Future |
 | `GET` | `/accounts/{account-slug}/usage` | Usage metrics and billing | JSON | 📋 Future |
-| `POST` | `/accounts/{account-slug}/agents/{agent-type}/configure` | Agent instance configuration | JSON | 📋 Future |
+| `POST` | `/accounts/{account-slug}/agents/{instance-slug}/configure` | Update instance configuration | JSON | 📋 Future |
 
-### **Backward Compatibility Mappings**
+### **Legacy Endpoint Migration**
 ```
-POST /agents/simple-chat/chat → POST /accounts/default/agents/simple-chat/chat
-POST /agents/sales/chat       → POST /accounts/default/agents/sales/chat
+# Legacy endpoints become reverse proxies to default instance
+POST /chat          → POST /accounts/default/agents/simple-chat/chat
+GET  /events/stream → GET  /accounts/default/agents/simple-chat/stream
 ```
 
 ---
 
-## 🤖 **PHASE 4 ENDPOINTS** (Router Agent)
+## 🤖 **PHASE 4 ENDPOINTS** (Router Agent - Optional)
 
-### **Intelligent Routing Endpoints**
+**Note**: The account-instance architecture (Phase 3) makes routing optional. URLs explicitly specify the agent instance, eliminating the need for automatic agent selection. However, a router can still be useful for specific use cases.
+
+### **Optional Router Instance**
+A router can be implemented as just another agent instance:
+
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `POST` | `/accounts/{account-slug}/chat` | Router selects appropriate agent | PlainText | 📋 Future |
-| `POST` | `/accounts/default/chat` | Default account router | PlainText | 📋 Future |
-| `GET` | `/accounts/{account-slug}/chat/stream` | Router-managed streaming | SSE Stream | 📋 Future |
+| `POST` | `/accounts/{account-slug}/agents/router-auto/chat` | Router instance selects other agents | JSON | 📋 Optional |
+| `GET` | `/accounts/{account-slug}/agents/router-auto/stream` | Router streaming | SSE Stream | 📋 Optional |
 
-### **Legacy Deprecation Strategy**
+**Example**:
 ```
-POST /chat → POST /accounts/default/chat  # Redirect to router
+# Create a router instance with agent_type: "router"
+POST /accounts/acme/agents/router-auto/chat
+  → Router analyzes request and internally calls:
+  → /accounts/acme/agents/sales-enterprise/chat (for sales queries)
+  → /accounts/acme/agents/simple-chat-customer-support/chat (for support)
 ```
+
+**Benefits of Optional Router**:
+- Transparent to user (no manual agent selection)
+- Logs routing decisions for analytics
+- Can be enabled per-account
+- Doesn't complicate core architecture
 
 ---
 
