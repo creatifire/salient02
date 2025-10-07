@@ -561,8 +561,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - SUB-TASKS:
       - Create `backend/tests/integration/test_multi_instance_integration_real.py`
       - Mark with `@pytest.mark.integration` and `@pytest.mark.slow`
-      - **Load API keys from backend/.env** using python-dotenv or pytest-dotenv
-      - Add conftest.py to load .env if not already loaded by app
+      - **Load API keys from project root .env** (`/path/to/salient02/.env`) using python-dotenv or pytest-dotenv
+      - Add conftest.py to load .env from project root if not already loaded by app
       - Skip tests gracefully if OPENROUTER_API_KEY not in .env (pytest.skip with message)
       - NO MOCKING - use real Pydantic AI agent with OpenRouter
       - Loop through all 3 instances (simple_chat1, simple_chat2, acme_chat1)
@@ -581,7 +581,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - Create `backend/tests/integration/README.md` with:
           - "Running Integration Tests" section
           - **ALL TESTS ARE MANUAL TRIGGER ONLY** - no CI automation
-          - **Environment Setup**: All API keys loaded from `backend/.env` file
+          - **Environment Setup**: All API keys loaded from project root `.env` file (`salient02/.env`)
           - Required .env variables: OPENROUTER_API_KEY, DATABASE_URL
           - Pytest commands for mocked tests (fast, no API key, for development)
           - Pytest commands for real LLM tests (slow, uses .env API key, for integration validation)
@@ -589,7 +589,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
           - Expected timing (mocked: < 5s, real: < 2min, full: ~2min)
           - Expected costs (real LLM: < $0.50 per run)
           - pytest.ini configuration for marks (integration, slow)
-          - Note: Tests use python-dotenv or pytest-dotenv to auto-load .env
+          - Note: Tests use python-dotenv or pytest-dotenv to auto-load .env from project root
         - Add pytest.ini to backend/ if not exists:
           ```ini
           [pytest]
@@ -617,14 +617,14 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - **Run real LLM tests (slow, requires API key from .env)**:
         ```bash
         cd backend
-        # API keys loaded automatically from backend/.env (OPENROUTER_API_KEY)
+        # API keys loaded automatically from project root .env (salient02/.env)
         pytest tests/integration/test_multi_instance_integration_real.py -v -m "integration and slow"
         # Expected: < 2 minutes, cost < $0.50
         ```
       - **Run all integration tests (mocked + real) - MANUAL TRIGGER**:
         ```bash
         cd backend
-        # API keys loaded automatically from backend/.env
+        # API keys loaded automatically from project root .env (salient02/.env)
         pytest tests/integration/ -v
         # Expected: ~2 minutes total
         # USE THIS for full integration validation before releases
@@ -848,11 +848,12 @@ Remove legacy code and migrate frontends to new URL structure.
   - [ ] Cost aggregation works by account and by instance
   - [ ] Performance benchmarks met (instance loading < 50ms)
   - [ ] Error handling verified (404 for invalid account/instance)
-- [ ] **Real LLM integration tests available** (run on demand with `OPENROUTER_API_KEY`):
+- [ ] **Real LLM integration tests available** (run on demand, API keys from project root `.env`):
   - [ ] Real token counts and costs recorded (not mock values)
   - [ ] Conversation context used across prompts
   - [ ] Different instance configs respected (if using different models)
   - [ ] Can execute via: `pytest tests/integration/test_multi_instance_integration_real.py -v -m "integration and slow"`
+  - [ ] Requires OPENROUTER_API_KEY in `salient02/.env` file
   - [ ] Documented in test README with cost expectations (< $0.50 per run)
 - [ ] Legacy endpoints continue to work (no breaking changes)
 - [ ] Documentation updated with new URL patterns
