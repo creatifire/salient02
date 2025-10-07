@@ -45,6 +45,27 @@ flowchart TD
 - **Multi-Tenancy**: Account-scoped data isolation and cost tracking
 - **Instance Flexibility**: Multiple instances of same agent type per account with unique configs
 
+## Design Reference
+
+**📐 Detailed Implementation Guide:** [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md)
+
+This epic implements the architecture described in the design document above. Refer to the design doc for:
+- **Complete SQL schema definitions** with CREATE TABLE statements, indexes, and seed data
+- **Full code implementations** with error handling, logging, and type annotations
+- **SSE format and streaming patterns** using Pydantic AI
+- **Permission checking examples** with account-scoped role validation
+- **Message history conversion** from database to Pydantic AI format
+- **Error handling strategies** (two-level retry logic)
+- **Testing approaches** (unit tests with FunctionModel, integration tests)
+
+**Key Design Sections:**
+- [Database Schema](../design/account-agent-instance-architecture.md#deliverables) - Complete SQL for Phase 1a & 1b
+- [Instance Loader](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Hybrid DB + config file implementation
+- [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Chat, stream, list endpoints
+- [Cost Tracking](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - LLMRequestTracker updates
+- [Streaming Pattern](../design/account-agent-instance-architecture.md#pydantic-ai-streaming-pattern) - SSE with Pydantic AI
+- [Implementation Phases](../design/account-agent-instance-architecture.md#implementation-approach) - Phased deployment strategy
+
 ## Problem Statement
 
 **Current Architecture Issues:**
@@ -133,6 +154,9 @@ context_management:
 Build foundational multi-tenant architecture with account and agent instance support, enabling Pydantic AI migration for all endpoints.
 
 - [ ] 0022-001-001 - TASK - Database Infrastructure
+  
+  **Design Reference:** [Database Schema SQL](../design/account-agent-instance-architecture.md#deliverables) - Complete CREATE TABLE statements, indexes, seed data, and backfill queries for Phase 1a
+  
   - [ ] 0022-001-001-01 - CHUNK - Multi-tenant database schema migration
     - SUB-TASKS:
       - Create Alembic migration for Phase 1a schema
@@ -161,6 +185,9 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - PRIORITY: Critical — All other work depends on this
 
 - [ ] 0022-001-002 - TASK - Configuration & Instance Management
+  
+  **Design Reference:** [Instance Loader Implementation](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Complete AgentInstance dataclass and load_agent_instance() function with hybrid DB + config file approach, error handling, and logging
+  
   - [ ] 0022-001-002-01 - CHUNK - Default instance configuration file
     - SUB-TASKS:
       - Create directory structure: `config/agent_configs/default/simple-chat/`
@@ -226,6 +253,9 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - PRIORITY: Medium — Nice to have for Phase 1a
 
 - [ ] 0022-001-003 - TASK - API Endpoints
+  
+  **Design Reference:** [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Complete implementations for chat, stream, and list endpoints with instance loading, session management, and error handling patterns
+  
   - [ ] 0022-001-003-01 - CHUNK - Account agents router setup
     - SUB-TASKS:
       - Create `backend/app/api/account_agents.py`
@@ -325,6 +355,9 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - PRIORITY: Medium — For future UI features
 
 - [ ] 0022-001-004 - TASK - Cost Tracking & Observability
+  
+  **Design Reference:** [Cost Tracking Updates](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - Complete track_llm_request() signature with hybrid FK + denormalized columns, query examples for fast aggregation
+  
   - [ ] 0022-001-004-01 - CHUNK - LLM request tracker updates
     - SUB-TASKS:
       - Update `backend/app/services/llm_request_tracker.py`
