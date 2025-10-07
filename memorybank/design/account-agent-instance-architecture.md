@@ -186,6 +186,175 @@ async def simple_chat(
     return {"response": result.output, "usage": result.usage(), ...}
 ```
 
+## Implementation Details
+
+### SSE Format & Event Types
+
+**Format**: Enhanced SSE with event types for semantic messages
+
+```python
+# Text chunks
+yield {"event": "message", "data": chunk}
+
+# Completion
+yield {"event": "done", "data": ""}
+
+# Errors  
+yield {"event": "error", "data": json.dumps({"message": "..."})}
+```
+
+**Benefits**: Better semantics than data-only format, standard pattern, supports reconnection and typing indicators.
+
+### Pydantic AI Streaming Pattern
+
+```python
+async def simple_chat_stream(message: str, session_id: str, message_history: Optional[List[ModelMessage]] = None, config: Optional[Dict] = None):
+    """Streaming version using Pydantic AI agent.run_stream()"""
+    agent = await create_simple_chat_agent(config)
+    deps = await SessionDependencies.create(session_id)
+    
+    chunks = []
+    try:
+        async with agent.run_stream(message, deps=deps, message_history=message_history) as result:
+            # Stream with delta=True for incremental chunks only
+            async for chunk in result.stream_text(delta=True):
+                chunks.append(chunk)
+                yield {"event": "message", "data": chunk}
+            
+            # Track cost after stream completes
+            usage = result.usage()
+            await tracker.track_llm_request(
+                account=config.get("account"),
+                agent_instance=config.get("instance_name"),
+                agent_type=config.get("agent_type"),
+                tokens={"prompt": usage.request_tokens, "completion": usage.response_tokens, "total": usage.total_tokens},
+                completion_status="complete"
+            )
+            
+            yield {"event": "done", "data": ""}
+            
+    except Exception as e:
+        # Save partial response and error
+        await tracker.track_llm_request(..., completion_status="partial")
+        yield {"event": "error", "data": json.dumps({"message": str(e)})}
+```
+
+**Key Features**:
+- `delta=True` yields only new content (perfect for SSE)
+- Usage data available after stream completes
+- Context manager for automatic cleanup
+
+### Message History Conversion
+
+**Database Format**: `role` = `"human"` or `"assistant"`  
+**Pydantic AI Format**: `ModelRequest` / `ModelResponse` with typed parts
+
+```python
+from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
+
+def db_message_to_model_message(db_msg) -> ModelMessage:
+    """Convert database message to Pydantic AI ModelMessage format."""
+    if db_msg.role == "human":
+        return ModelRequest(parts=[UserPromptPart(content=db_msg.content)])
+    else:  # assistant
+        return ModelResponse(parts=[TextPart(content=db_msg.content)])
+```
+
+### Error Handling & Retry Logic
+
+**Two-Level Strategy**:
+1. **Transport-level** (handled by Pydantic AI): HTTP errors, connection errors
+2. **Application-level**: Stream-specific failures
+
+```python
+async def simple_chat_stream(..., _retry_count=0):
+    try:
+        async with agent.run_stream(...) as result:
+            # ... stream processing
+    except Exception as e:
+        if _retry_count == 0:
+            # Retry once at application level
+            async for event in simple_chat_stream(..., _retry_count=1):
+                yield event
+        else:
+            # Second failure - save partial and error
+            await save_partial_response(chunks, error=e)
+            yield {"event": "error", "data": json.dumps({"message": str(e)})}
+```
+
+### Partial Response Persistence
+
+Save incomplete responses with metadata:
+
+```python
+await message_service.save_message(
+    session_id=session.id,
+    role="assistant",
+    content="".join(chunks),
+    metadata={
+        "partial": True,
+        "error": str(error),
+        "completion_status": "partial",
+        "chunks_received": len(chunks)
+    }
+)
+```
+
+**UI Treatment**: Display with visual indicator: "⚠️ Response incomplete due to error"
+
+### Frontend Error Handling
+
+```javascript
+// Add SSE event listeners
+sse.addEventListener('error', (ev) => {
+    const error = JSON.parse(ev.data);
+    
+    // Stop streaming indicator
+    setStreaming(false);
+    
+    // Show toast notification
+    showToast('error', 'Connection error. Please try again.');
+    
+    // Preserve partial response if any
+    if (activeBotDiv && activeBotDiv.textContent.trim()) {
+        activeBotDiv.classList.add('partial-response');
+        const warning = document.createElement('div');
+        warning.className = 'error-notice';
+        warning.textContent = '⚠️ Response incomplete';
+        activeBotDiv.appendChild(warning);
+    }
+});
+
+sse.addEventListener('done', () => {
+    setStreaming(false);
+});
+```
+
+### Testing Strategy
+
+**Unit Tests** (fast, always run):
+```python
+from pydantic_ai.models.function import FunctionModel
+
+def test_stream_format():
+    # Use FunctionModel for predictable responses
+    model = FunctionModel(lambda msgs, info: ModelResponse(...))
+    agent = Agent(model)
+    # Test streaming behavior
+```
+
+**Integration Tests** (slow, optional):
+```python
+@pytest.mark.integration
+@pytest.mark.skipif(not os.getenv("RUN_INTEGRATION_TESTS"))
+async def test_real_openrouter_streaming():
+    # Real API call with test key
+    result = await simple_chat_stream("test", session_id)
+    # Verify actual behavior
+```
+
+**CI/CD**: Unit tests every commit, integration tests nightly or on release branches.
+
 ## Cost Tracking
 
 Track per instance, not just per agent type:
