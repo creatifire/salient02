@@ -128,20 +128,31 @@ config/agent_configs/
 
 **Key Principle**: Each account can have **multiple instances of the same agent type**, each with its own configuration.
 
-**Example - Multiple Instances Per Account**:
+**Example - Test Setup with Multiple Instances**:
 ```
 config/agent_configs/
   default_account/
-    simple_chat1/          # First simple_chat instance
+    simple_chat1/          # Instance 1: Backfill target for existing data
       config.yaml
-    simple_chat2/          # Second simple_chat instance  
+      system_prompt.md
+    simple_chat2/          # Instance 2: Test multiple instances per account
       config.yaml
+      system_prompt.md
   acme/
-    simple-chat-customer-support/   # simple_chat instance
+    acme_chat1/            # Instance 3: Test account isolation
       config.yaml
-    simple-chat-lead-qualification/ # Another simple_chat instance
+      system_prompt.md
+```
+
+**Future Examples (Not Implemented in Phase 1a)**:
+```
+config/agent_configs/
+  acme/
+    simple-chat-customer-support/   # Multiple configurations of same agent type
       config.yaml
-    sales-enterprise/               # sales_agent instance
+    simple-chat-lead-qualification/
+      config.yaml
+    sales-enterprise/               # Different agent types per account
       config.yaml
 ```
 
@@ -200,33 +211,48 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - [Instance Loader Implementation](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Hybrid DB + config file approach
   
   **Implementation Clarifications:**
-  - **Primary Keys**: Integer with UUID (existing tables keep UUIDs, new tables use integers)
+  - **Primary Keys**: Integer for new tables (existing tables keep UUIDs)
   - **NOT NULL Constraints**: `sessions.account_id`, `sessions.agent_instance_id`, `messages.agent_instance_id` are NOT NULL
-  - **Default Instance**: account_slug="default_account", instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1"
   - **Config Path**: `config/agent_configs/{account_slug}/{instance_slug}/config.yaml` (base path controlled by `app.yaml`)
   - **Backfill Strategy**: Use default values in migration (all existing data → default_account/simple_chat1)
+  - **Test Data Setup**: Create 2 accounts and 3 instances for comprehensive multi-tenant testing:
+    - **default_account** (id=1): "Default Account"
+      - simple_chat1 (id=1): "Simple Chat 1" - backfill target
+      - simple_chat2 (id=2): "Simple Chat 2" - test multiple instances per account
+    - **acme** (id=2): "Acme Corporation"
+      - acme_chat1 (id=3): "Acme Chat 1" - test account isolation
   
-  - [ ] 0022-001-001-01 - CHUNK - Default instance configuration file
+  - [ ] 0022-001-001-01 - CHUNK - Test instance configuration files
     - SUB-TASKS:
-      - Create directory structure: `config/agent_configs/default_account/simple_chat1/`
-      - Move/copy existing config from `config/agent_configs/simple_chat/` to new location
-      - Create `config.yaml` with agent_type="simple_chat", account="default_account", instance_name="simple_chat1"
+      - Create directory structure for default_account: `config/agent_configs/default_account/simple_chat1/`
+      - Move/copy existing config from `config/agent_configs/simple_chat/` to `default_account/simple_chat1/`
+      - Create `config.yaml` for simple_chat1 with agent_type="simple_chat", account="default_account", instance_name="simple_chat1"
       - Configure llm settings (model, temperature, max_tokens)
       - Configure tool settings (vector_search, conversation_management enabled)
       - Configure context_management (history_limit: 50 - matches app.yaml default)
       - Copy `system_prompt.md` if it exists
       - Add inline documentation comments
+      - Create second instance: `config/agent_configs/default_account/simple_chat2/`
+      - Create `config.yaml` for simple_chat2 (copy from simple_chat1, update instance_name="simple_chat2")
+      - Create acme account directory: `config/agent_configs/acme/acme_chat1/`
+      - Create `config.yaml` for acme_chat1 with account="acme", instance_name="acme_chat1"
+      - Differentiate acme_chat1 config (e.g., different temperature or history_limit for testing)
     - AUTOMATED-TESTS:
-      - `test_default_config_file_exists()` - Verify file exists at correct path
-      - `test_default_config_valid_yaml()` - YAML parses without errors
-      - `test_default_config_required_fields()` - All required fields present (agent_type, account, instance_name)
-      - `test_default_config_matches_schema()` - Matches existing AgentConfig schema
+      - `test_all_config_files_exist()` - Verify all 3 config files exist at correct paths
+      - `test_all_configs_valid_yaml()` - All YAML files parse without errors
+      - `test_all_configs_required_fields()` - All required fields present in each config
+      - `test_configs_match_schema()` - All configs match existing AgentConfig schema
+      - `test_instance_names_unique()` - Each instance has unique account/instance_name combination
     - MANUAL-TESTS:
-      - Verify config file created in `config/agent_configs/default_account/simple_chat1/config.yaml`
-      - Confirm YAML syntax is valid (no parsing errors)
-      - Review config values match existing simple_chat agent configuration
+      - Verify 3 config files created:
+        - `config/agent_configs/default_account/simple_chat1/config.yaml`
+        - `config/agent_configs/default_account/simple_chat2/config.yaml`
+        - `config/agent_configs/acme/acme_chat1/config.yaml`
+      - Confirm all YAML syntax is valid (no parsing errors)
+      - Review config values are appropriate for each instance
+      - Verify acme_chat1 has different settings for easy identification during testing
       - Verify old config path still exists (for backward compatibility during migration)
-    - STATUS: Planned — Config file for default instance (DO THIS FIRST)
+    - STATUS: Planned — Config files for test instances (DO THIS FIRST)
     - PRIORITY: Critical — Foundation for both DB migration and instance loader
   
   - [ ] 0022-001-001-02 - CHUNK - Multi-tenant database schema migration
@@ -239,25 +265,36 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Add columns to `messages` table (agent_instance_id INTEGER FK NOT NULL)
       - Add columns to `llm_requests` table (account_id INTEGER FK, account_slug TEXT, agent_instance_id INTEGER FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
       - Create indexes for performance (account_id, agent_instance_id, slugs)
-      - Seed default account (slug="default_account", name="Default Account", status="active")
-      - Seed default agent instance (account_id=1, instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active")
+      - Seed test accounts:
+        - Account 1: slug="default_account", name="Default Account", status="active"
+        - Account 2: slug="acme", name="Acme Corporation", status="active"
+      - Seed test agent instances:
+        - Instance 1: account_id=1, instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
+        - Instance 2: account_id=1, instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
+        - Instance 3: account_id=2, instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
       - Backfill existing sessions/messages/llm_requests to default account (id=1) and instance (id=1)
       - Add NOT NULL constraints after backfill
     - AUTOMATED-TESTS:
       - `test_migration_creates_all_tables()` - Verify all tables created
       - `test_migration_creates_indexes()` - Verify indexes exist
-      - `test_default_data_seeded()` - Verify default account and instance with correct slugs/names
+      - `test_test_accounts_seeded()` - Verify 2 accounts (default_account, acme) created
+      - `test_test_instances_seeded()` - Verify 3 instances (simple_chat1, simple_chat2, acme_chat1) created
+      - `test_instance_account_references()` - Verify instances correctly reference their accounts
       - `test_backfill_existing_data()` - Verify existing data mapped to default (account_id=1, agent_instance_id=1)
       - `test_foreign_key_constraints()` - Verify referential integrity
       - `test_unique_constraints()` - Verify (account_id, instance_slug) unique in agent_instances
       - `test_not_null_constraints()` - Verify NOT NULL constraints on account_id, agent_instance_id
     - MANUAL-TESTS:
       - Run migration on clean database, verify no errors
-      - Check that default account exists with slug="default_account" in accounts table
-      - Check that default agent instance exists with instance_slug="simple_chat1" and references default account
+      - Check that 2 accounts exist: default_account and acme
+      - Check that 3 agent instances exist:
+        - default_account/simple_chat1 (id=1)
+        - default_account/simple_chat2 (id=2)
+        - acme/acme_chat1 (id=3)
       - Verify existing sessions/messages/llm_requests have account_id=1 and agent_instance_id=1 populated
       - Use psql or Postgres MCP to verify all indexes created correctly
       - Run queries from `backend/scripts/admin_queries.sql` to validate data integrity
+      - Test multi-instance query: SELECT * FROM agent_instances WHERE account_id=1 (should return 2 rows)
     - STATUS: Planned — Foundation database schema for multi-tenancy (DO THIS SECOND)
     - PRIORITY: Critical — Enables instance loader to work
   
@@ -275,6 +312,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Support system_prompt.md loading if specified in config
     - AUTOMATED-TESTS:
       - `test_load_agent_instance_success()` - Successful instance loading for default_account/simple_chat1
+      - `test_load_multiple_instances_same_account()` - Load simple_chat1 and simple_chat2 from default_account
+      - `test_load_instance_different_account()` - Load acme/acme_chat1 successfully
       - `test_load_agent_instance_updates_timestamp()` - Verify last_used_at updated
       - `test_load_agent_instance_invalid_account()` - ValueError for invalid account
       - `test_load_agent_instance_invalid_instance()` - ValueError for invalid instance
@@ -284,8 +323,10 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - `test_config_path_from_app_yaml()` - Reads configs_directory from app.yaml
     - MANUAL-TESTS:
       - Load default_account/simple_chat1 instance, verify returns correct config
+      - Load default_account/simple_chat2 instance, verify different config
+      - Load acme/acme_chat1 instance, verify correct account attribution
       - Try loading non-existent instance, verify proper error message
-      - Check database that last_used_at timestamp updated
+      - Check database that last_used_at timestamp updated for each load
       - Verify logging shows instance loading details (account, instance, config path)
       - Test with modified app.yaml configs_directory, verify uses correct path
     - STATUS: Planned — Core instance loading infrastructure (DO THIS THIRD)
@@ -300,15 +341,18 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Error handling for invalid accounts (raise ValueError)
       - Add logging for discovery operations
     - AUTOMATED-TESTS:
-      - `test_list_account_instances()` - Lists instances correctly for default_account
+      - `test_list_account_instances_default()` - Lists 2 instances for default_account (simple_chat1, simple_chat2)
+      - `test_list_account_instances_acme()` - Lists 1 instance for acme (acme_chat1)
       - `test_list_empty_account()` - Handles account with no instances
       - `test_list_filters_inactive()` - Only shows active instances
-      - `test_get_instance_metadata()` - Returns metadata correctly
+      - `test_get_instance_metadata()` - Returns metadata correctly for each instance
       - `test_list_invalid_account()` - ValueError for invalid account
+      - `test_instance_isolation()` - Verify default_account instances don't appear in acme list
     - MANUAL-TESTS:
-      - List instances for default_account, verify shows simple_chat1
-      - Create second instance in database (simple_chat2), verify both appear
-      - Mark instance as inactive, verify doesn't appear in list
+      - List instances for default_account, verify shows 2 instances (simple_chat1, simple_chat2)
+      - List instances for acme, verify shows 1 instance (acme_chat1)
+      - Verify instance isolation: acme results don't include default_account instances
+      - Mark simple_chat2 as inactive, verify only simple_chat1 appears in default_account list
       - Test with invalid account slug, verify error message
     - STATUS: Planned — Instance discovery for UI (DO THIS FOURTH)
     - PRIORITY: Medium — Nice to have for Phase 1a
