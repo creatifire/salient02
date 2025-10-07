@@ -21,33 +21,65 @@ erDiagram
         varchar name "Account name or organization"
         varchar slug UK "URL-safe account identifier"
         varchar subscription_tier "free|standard|premium|enterprise"
-        boolean is_active "Account status"
+        varchar status "active|suspended|deleted"
+        boolean is_active "Legacy: Account status (deprecated, use status)"
         timestamp created_at
         timestamp updated_at
+    }
+    
+    users {
+        uuid id PK
+        varchar email UK "User email for authentication"
+        varchar password_hash "Nullable for OAuth/SSO users"
+        varchar full_name "User display name"
+        varchar status "active|suspended|deleted"
+        timestamp created_at
+        timestamp updated_at
+        timestamp last_login_at
+    }
+    
+    roles {
+        uuid id PK
+        varchar name UK "owner|admin|member|viewer"
+        text description "Role description"
+        jsonb permissions "Role capabilities"
+        timestamp created_at
+    }
+    
+    user_roles {
+        uuid id PK
+        uuid user_id FK
+        uuid account_id FK
+        uuid role_id FK
+        timestamp created_at
+        uuid created_by FK "Who granted this role"
     }
     
     sessions {
         uuid id PK
         uuid account_id FK
+        uuid agent_instance_id FK "Current/last used instance"
+        uuid user_id FK "Nullable for anonymous sessions"
+        varchar account_slug "Denormalized for performance"
         varchar session_key UK "Browser session cookie value"
-        varchar email "Nullable, when provided by user"
-        boolean is_anonymous "True until email provided"
+        varchar email "Nullable, when provided by user (legacy)"
+        boolean is_anonymous "True until email provided (legacy)"
         timestamp created_at
         timestamp last_activity_at
+        timestamp updated_at
         jsonb metadata "Extensible session data"
     }
     
     agent_instances {
         uuid id PK
         uuid account_id FK
-        varchar agent_type "sales|research|rag|digital_expert"
-        varchar instance_name "human_health|finance_research|etc"
-        varchar display_name "Human Health Sales Agent"
-        jsonb configuration "Instance-specific config overrides"
+        varchar instance_slug "Unique within account (e.g. simple-chat-customer-support)"
+        varchar agent_type "simple_chat|sales_agent|research|rag"
+        varchar display_name "User-friendly name for UI"
         varchar status "active|inactive|archived"
         timestamp created_at
         timestamp updated_at
-        timestamp last_used_at
+        timestamp last_used_at "For cache warmth tracking"
     }
     
     messages {
@@ -63,7 +95,12 @@ erDiagram
     llm_requests {
         uuid id PK
         uuid session_id FK
+        uuid account_id FK
         uuid agent_instance_id FK "Which agent made this request"
+        varchar account_slug "Denormalized for performance"
+        varchar agent_instance_slug "Denormalized for performance"
+        varchar agent_type "simple_chat|sales_agent|etc"
+        varchar completion_status "complete|partial|error"
         varchar provider "openrouter"
         varchar model "Model identifier"
         jsonb request_body "Sanitized request payload"
@@ -154,13 +191,24 @@ erDiagram
     %% Relationships
     accounts ||--o{ sessions : "has many"
     accounts ||--o{ agent_instances : "has many"
+    accounts ||--o{ user_roles : "has members"
+    accounts ||--o{ llm_requests : "tracks costs"
     accounts ||--o{ agent_performance_metrics : "tracks performance"
     accounts ||--o{ agent_usage_log : "tracks usage"
     accounts ||--o{ vector_db_configs : "has many"
+    users ||--o{ user_roles : "belongs to accounts"
+    users ||--o{ sessions : "authenticated sessions"
+    roles ||--o{ user_roles : "assigned to users"
+    user_roles }o--|| users : "user"
+    user_roles }o--|| accounts : "account"
+    user_roles }o--|| roles : "role"
+    user_roles }o--o| users : "created by"
     sessions ||--o{ messages : "has many"
     sessions ||--o{ llm_requests : "tracks usage"
     sessions ||--o| profiles : "may have profile"
     sessions ||--o{ agent_usage_log : "generates usage"
+    sessions }o--o| agent_instances : "current instance"
+    sessions }o--o| users : "user (nullable)"
     agent_instances ||--o{ messages : "handles"
     agent_instances ||--o{ llm_requests : "makes requests"
     agent_instances ||--o{ agent_performance_metrics : "performance tracked"
@@ -176,50 +224,135 @@ Primary entity for multi-account support, enabling organization-level isolation.
 
 **Key Features:**
 - `name`: Human-readable account/organization name
-- `slug`: URL-safe identifier for routing (e.g., `/accounts/acme-corp/chat`)
-- `subscription_tier`: Determines feature access and resource limits
-- `is_active`: Global account enable/disable flag
+- `slug`: URL-safe identifier for routing (e.g., `/accounts/acme-corp/agents/instance-name/chat`)
+- `subscription_tier`: Determines feature access and resource limits (free|standard|premium|enterprise)
+- `status`: Account status (active|suspended|deleted) - preferred over legacy `is_active`
+- `is_active`: Legacy boolean flag (deprecated, use `status` instead)
 
 **Usage:**
 - Account-level billing and usage tracking
+- Multi-tenancy data isolation
 - Feature access control based on subscription tier
 - Agent instance provisioning and limits
-- Data isolation boundary for all account resources
+- User membership via account-scoped roles
+
+**Relationships:**
+- Has many `agent_instances` (each with unique config)
+- Has many `sessions` (both anonymous and authenticated)
+- Has many `user_roles` (users with account-scoped permissions)
+
+### users
+User accounts for authentication and identity management.
+
+**Key Features:**
+- `email`: Unique identifier for authentication
+- `password_hash`: Nullable for OAuth/SSO users
+- `full_name`: Display name
+- `status`: User status (active|suspended|deleted)
+- `last_login_at`: Track login activity
+
+**Usage:**
+- Authentication (login/logout)
+- User identity across multiple accounts
+- Permission management via account-scoped roles
+- Session attribution (nullable for anonymous sessions)
+
+**Relationships:**
+- Belongs to many `accounts` via `user_roles` (many-to-many)
+- Has many `sessions` (nullable, supports anonymous sessions)
+- Same user can have different roles in different accounts
+
+### roles
+Define available permission sets for account-scoped authorization.
+
+**Key Features:**
+- `name`: Unique role identifier (owner|admin|member|viewer)
+- `permissions`: JSONB of capabilities (e.g., `{"all": true}` or `{"use_agents": true}`)
+- `description`: Human-readable role description
+
+**Usage:**
+- Permission checking (e.g., "can this user use agents in this account?")
+- Account-scoped roles (user is "admin" in account A, "viewer" in account B)
+- Flexible permission model via JSONB
+
+**Standard Roles:**
+- `owner`: Full account ownership (`{"all": true}`)
+- `admin`: Manage instances and users (`{"manage_instances": true, "manage_users": true}`)
+- `member`: Use agents and view history (`{"use_agents": true, "view_history": true}`)
+- `viewer`: Read-only access (`{"view_history": true}`)
+
+### user_roles
+Many-to-many mapping between users, accounts, and roles. Account-scoped role assignments.
+
+**Key Features:**
+- `user_id`: User receiving the role
+- `account_id`: Account where role applies
+- `role_id`: Role being granted
+- `created_by`: Audit trail of who granted the role
+- Unique constraint on `(user_id, account_id)`: One role per user per account
+
+**Usage:**
+- Permission checking: "Does user X have permission Y in account Z?"
+- User management: Grant/revoke roles, list users in account
+- Audit trail: Track who granted permissions and when
+
+**Example:**
+- User "alice@example.com" is "admin" in account "acme" (can manage instances)
+- Same user is "viewer" in account "demo" (read-only)
 
 ### agent_instances
-Dynamic agent instances per account, each configured for specific use cases.
+Dynamic agent instances per account, each with unique configuration. **Hybrid approach: DB table (metadata) + config files (configuration).**
 
 **Key Features:**
-- `agent_type`: Template type (sales, research, rag, digital_expert)
-- `instance_name`: Unique within account (human_health, finance_research)
-- `display_name`: User-friendly name shown in UI
-- `configuration`: JSONB overrides for template configuration
-- `status`: Instance lifecycle management
-- `last_used_at`: For caching and cleanup decisions
+- `instance_slug`: Unique within account (e.g., `simple-chat-customer-support`, `sales-enterprise`)
+- `agent_type`: Type of agent (simple_chat, sales_agent, research, rag)
+- `display_name`: User-friendly name shown in UI (e.g., "Customer Support Chat")
+- `status`: Instance status (active|inactive|archived)
+- `last_used_at`: For cache warmth tracking and usage analytics
+
+**Hybrid Approach:**
+- **Database**: Metadata, validation, discovery, tracking
+  - Query available instances: `SELECT * FROM agent_instances WHERE account_id = ?`
+  - Validate instance exists before loading config
+  - Track `last_used_at` for intelligent caching
+  - Manage status (active/inactive/archived) without deleting configs
+- **Config Files**: Actual configuration (model, tools, prompts, parameters)
+  - Location: `config/agent_configs/{account_slug}/{instance_slug}/config.yaml`
+  - Fast to load, easy to version control
+  - No JSONB parsing overhead
 
 **Usage:**
-- Multiple sales agents per account (different product lines)
-- Multiple research agents with different vector databases
+- Multiple instances of same agent type per account (e.g., 4 simple-chat agents with different configs)
+- Instance discovery: `GET /accounts/{account}/agents`
+- Cost tracking per instance (FK ensures instance exists)
 - Instance-specific tool configurations and prompts
-- Resource usage tracking per agent instance
-- Hot/cold instance management for performance
+- Hot/cold instance management based on `last_used_at`
 
 ### sessions
-Browser sessions within an account context for user continuity.
+Browser sessions within an account context, supporting both anonymous and authenticated users.
 
 **Key Features:**
-- `account_id`: Links session to specific account
+- `account_id`: Links session to specific account (FK)
+- `account_slug`: Denormalized for fast queries without joins
+- `agent_instance_id`: Current or last used agent instance (FK, nullable)
+- `user_id`: Authenticated user (FK, nullable for anonymous sessions)
 - `session_key`: Unique identifier stored in browser cookie
-- `email`: Captured when user provides it during conversation
-- `is_anonymous`: Flips to false when email is provided
+- `email`: Legacy field - captured when user provides email (Phase 1a anonymous sessions)
+- `is_anonymous`: Legacy field - flips to false when email provided
 - `last_activity_at`: Updated on each request for session timeout
-- `metadata`: JSONB field for future extensibility
+- `metadata`: JSONB field for extensible session data
 
 **Usage:**
+- **Anonymous sessions**: `user_id` is NULL, session identified by `session_key` cookie
+- **Authenticated sessions**: `user_id` references user, enables cross-device/cross-session continuity
 - Session resumption: Match browser cookie to `session_key` within account
-- Email linking: Find sessions with same `email` value within account
-- Analytics: Track session duration and activity patterns per account
+- Agent tracking: Record which instance is handling this session
+- Analytics: Track session duration, activity patterns, agent usage per account
 - Account-scoped session isolation and security
+
+**Phase 1a vs Phase 1b:**
+- Phase 1a: All sessions anonymous (`user_id` NULL, use `email`/`is_anonymous` legacy fields)
+- Phase 1b: Add authentication, `user_id` populated for logged-in users
 
 ### messages
 Complete chat history with agent tracking and RAG citation support.
@@ -250,22 +383,43 @@ Complete chat history with agent tracking and RAG citation support.
 - Multi-agent conversation handoff tracking
 
 ### llm_requests
-Comprehensive LLM usage tracking for cost management and analytics with agent attribution.
+Comprehensive LLM usage tracking for cost management and analytics with agent attribution. **Hybrid FK + denormalized columns for performance.**
 
 **Key Features:**
-- `agent_instance_id`: Links request to specific agent instance for cost attribution
+- `account_id`: Account reference (FK for integrity)
+- `account_slug`: Denormalized for fast aggregation queries without joins
+- `agent_instance_id`: Agent instance reference (FK for integrity)
+- `agent_instance_slug`: Denormalized for fast queries (e.g., cost per instance)
+- `agent_type`: Type of agent (simple_chat, sales_agent, etc.) for analytics
+- `completion_status`: Request outcome (complete|partial|error) for tracking stream failures
 - `provider`/`model`: Track which LLM service and model used
 - Token counting: Separate prompt, completion, and total tokens
 - Cost calculation: Unit costs and computed total cost
 - `latency_ms`: Performance monitoring
 - `request_body`/`response_body`: Sanitized payloads for debugging
 
+**Hybrid Approach:**
+- **FKs**: Referential integrity (ensure account/instance exists)
+- **Denormalized slugs**: Fast queries without joins
+  ```sql
+  -- Fast: No joins needed
+  SELECT SUM(computed_cost) FROM llm_requests 
+  WHERE account_slug = 'acme' AND agent_instance_slug = 'sales-enterprise';
+  
+  -- Validated: With FK integrity
+  SELECT COUNT(*) FROM llm_requests llm
+  JOIN agent_instances ai ON llm.agent_instance_id = ai.id
+  WHERE ai.status = 'active';
+  ```
+
 **Usage:**
-- Session-level cost reporting
-- Agent instance cost attribution and billing
-- Model performance comparison per agent type
-- Account-level usage analytics and billing
-- Debugging LLM interactions by agent instance
+- **Account-level billing**: Aggregate costs per account using `account_slug`
+- **Instance-level cost tracking**: Compare costs across agent instances
+- **Agent type analytics**: Model performance comparison per agent type
+- **Session-level reporting**: Track costs for individual conversations
+- **Partial response tracking**: Identify stream failures via `completion_status`
+- **Debugging**: Inspect sanitized request/response payloads per agent instance
+- **Performance monitoring**: Latency tracking per instance and model
 
 ### profiles
 Incremental customer data collection supporting "dribs and drabs" accumulation.
