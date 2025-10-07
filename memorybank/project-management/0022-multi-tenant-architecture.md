@@ -497,39 +497,101 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance loader test coverage
     - PRIORITY: High — Core infrastructure testing
   
-  - [ ] 0022-001-004-02 - CHUNK - Integration tests for new endpoints
+  - [ ] 0022-001-004-02 - CHUNK - Integration test fixtures and utilities
     - SUB-TASKS:
-      - Create `backend/tests/test_account_agents_endpoints.py`
-      - Test POST /accounts/{account}/agents/{instance}/chat with real database
-      - Test GET /accounts/{account}/agents/{instance}/stream
-      - Test GET /accounts/{account}/agents
-      - Verify database persistence (messages, llm_requests)
-      - Test error scenarios (invalid account/instance)
-      - Test session creation and continuity
-    - STATUS: Planned — Endpoint integration testing
-    - PRIORITY: High — Ensure endpoints work end-to-end
-  
-  - [ ] 0022-001-004-03 - CHUNK - End-to-end validation
-    - SUB-TASKS:
-      - Create validation test suite covering full workflow
-      - Test: Create account → Create instance config → Load instance → Chat → Verify tracking
-      - Test multi-instance scenario: Two instances in same account
-      - Test cost tracking attribution to correct account/instance
-      - Test conversation continuity across multiple calls
-      - Performance benchmarks: Instance loading < 50ms, endpoint response < 2s
+      - Create `backend/tests/fixtures/multi_tenant_prompts.py` with test prompts
+      - Define 4 prompts per instance (12 total):
+        - default_account/simple_chat1: Return policy, international shipping, shipping time, order tracking
+        - default_account/simple_chat2: Company history, business hours, bulk discounts, payment methods
+        - acme/acme_chat1: Password reset, system requirements, mobile app, contact support
+      - Create `backend/tests/utils/multi_tenant_verification.py`
+      - Implement `verify_sessions_created(db, expected_count=3)` - check account_id, account_slug, agent_instance_id
+      - Implement `verify_messages_created(db, expected_count=24)` - 8 per instance (4 user + 4 assistant)
+      - Implement `verify_llm_requests_created(db, expected_count=12)` - check attribution, tokens, costs
+      - Implement `verify_data_isolation(db)` - verify account-scoped queries
+      - Implement `verify_conversation_continuity(db, session_id)` - check message ordering
+      - Implement `get_account_total_cost(db, account_id)` - aggregate cost helper
+      - Add test database reset utilities
     - AUTOMATED-TESTS:
-      - `test_full_workflow_new_account()` - Complete workflow for new account
-      - `test_multi_instance_isolation()` - Multiple instances work independently
-      - `test_cost_attribution_accuracy()` - Costs tracked to correct instance
-      - `test_conversation_continuity()` - History works across calls
-      - `test_performance_benchmarks()` - Meets performance targets
+      - `test_verification_utils()` - Test each verification function works correctly
+      - `test_prompts_unique_per_instance()` - Verify prompts differentiated
     - MANUAL-TESTS:
-      - Run full workflow manually, verify each step
-      - Check database state at each step
-      - Verify cost tracking in llm_requests table
-      - Test with real OpenRouter LLM calls
-    - STATUS: Planned — Comprehensive validation
-    - PRIORITY: High — Ensure system works end-to-end
+      - Review prompt content, ensure they're reasonable test cases
+      - Verify verification utilities can be imported and used
+    - STATUS: Planned — Test infrastructure for integration tests
+    - PRIORITY: High — Foundation for comprehensive testing
+  
+  - [ ] 0022-001-004-03 - CHUNK - Multi-instance integration tests (MOCKED LLM)
+    - SUB-TASKS:
+      - Create `backend/tests/integration/test_multi_instance_integration_mocked.py`
+      - Mock Pydantic AI Agent.run() to return deterministic responses
+      - Mock usage data: Usage(prompt_tokens=10, completion_tokens=20, total_tokens=30)
+      - Loop through all 3 instances (simple_chat1, simple_chat2, acme_chat1)
+      - For each instance, send 4 prompts from fixtures
+      - Reuse session across prompts for conversation continuity
+      - After all prompts sent, run verification suite:
+        - `verify_sessions_created()` - 3 sessions, correct attribution
+        - `verify_messages_created()` - 24 messages (12 user + 12 assistant)
+        - `verify_llm_requests_created()` - 12 LLM requests with correct account/instance IDs
+        - `verify_data_isolation()` - default_account has 16 messages, acme has 8
+        - `verify_conversation_continuity()` - messages ordered correctly per session
+      - Test performance: instance loading < 50ms
+      - Test error handling: invalid account/instance returns 404
+    - AUTOMATED-TESTS:
+      - `test_multi_instance_integration_mocked()` - Main integration test with mocked LLM
+      - `test_sessions_attribution_correct()` - All 3 sessions have correct account_id, account_slug, agent_instance_id
+      - `test_messages_attribution_correct()` - All 24 messages have correct agent_instance_id
+      - `test_llm_requests_attribution_correct()` - All 12 requests have account/instance slugs populated
+      - `test_cost_tracking_by_account()` - Can aggregate costs by account_id
+      - `test_cost_tracking_by_instance()` - Can aggregate costs by agent_instance_id
+      - `test_data_isolation_queries()` - Account-scoped queries return only that account's data
+      - `test_instance_loading_performance()` - load_agent_instance() < 50ms
+      - `test_invalid_account_404()` - Invalid account slug returns 404
+      - `test_invalid_instance_404()` - Invalid instance slug returns 404
+      - `test_conversation_history_loads()` - Verify history passed to agent on subsequent calls
+    - MANUAL-TESTS:
+      - Run mocked integration test, verify passes in < 5 seconds
+      - Check test database after run, verify all records created
+      - Review logged SQL queries, verify proper foreign key relationships
+      - Test with pytest-xdist for parallel execution
+    - STATUS: Planned — Fast integration tests with mocked LLM (for CI/CD)
+    - PRIORITY: Critical — Primary validation mechanism
+  
+  - [ ] 0022-001-004-04 - CHUNK - Multi-instance integration tests (REAL LLM)
+    - SUB-TASKS:
+      - Create `backend/tests/integration/test_multi_instance_integration_real.py`
+      - Mark with `@pytest.mark.integration` and `@pytest.mark.slow`
+      - NO MOCKING - use real Pydantic AI agent with OpenRouter
+      - Loop through all 3 instances (simple_chat1, simple_chat2, acme_chat1)
+      - For each instance, send 4 prompts from fixtures
+      - Reuse session across prompts for conversation continuity
+      - After all prompts sent, run same verification suite as mocked tests
+      - Additionally verify:
+        - Real LLM responses are coherent and contextual
+        - Token counts are realistic (not mock values)
+        - Costs are > 0 and calculated correctly
+        - Different instances can use different models (if configured)
+        - Conversation history actually influences responses
+      - Add retry logic for transient LLM failures
+      - Set reasonable timeout (30s per request)
+    - AUTOMATED-TESTS:
+      - `test_multi_instance_integration_real()` - Main integration test with REAL LLM
+      - `test_real_token_counts()` - Verify tokens > 0 and realistic (not 10/20/30)
+      - `test_real_costs_calculated()` - Verify cost_data.total_cost > 0
+      - `test_real_responses_coherent()` - Basic sanity check on response content
+      - `test_conversation_context_used()` - Verify LLM references previous prompts
+      - `test_different_models_per_instance()` - If configs differ, verify model field differs
+      - `test_streaming_endpoint_real()` - Test SSE streaming with real LLM
+      - All verification tests from mocked version (sessions, messages, llm_requests, isolation)
+    - MANUAL-TESTS:
+      - Run real integration test, verify completes in < 2 minutes
+      - Check test database, verify 12 LLM requests with real usage data
+      - Calculate total cost, verify reasonable (should be < $0.50 for 12 calls)
+      - Review actual LLM responses, verify quality and relevance
+      - Run with OPENROUTER_API_KEY environment variable
+      - Skip in CI if API key not available (mark as xfail)
+    - STATUS: Planned — Real-world validation with actual LLM calls (optional, slow)
+    - PRIORITY: Medium — Validates end-to-end but expensive and slow
 
 - [ ] 0022-001-005 - TASK - Simple Admin UI (Optional)
   - [ ] 0022-001-005-01 - CHUNK - Account browser page
@@ -727,12 +789,25 @@ Remove legacy code and migrate frontends to new URL structure.
 
 ### Phase 1a Complete When:
 - [ ] All database migrations run successfully
-- [ ] Default account and instance created and loadable
+- [ ] 2 test accounts created (default_account, acme) and loadable
+- [ ] 3 test instances created (simple_chat1, simple_chat2, acme_chat1) with config files
 - [ ] New endpoints work with real Pydantic AI agents
 - [ ] Cost tracking records account/instance attribution
 - [ ] Multiple instances can coexist in same account
-- [ ] All automated tests pass
-- [ ] Integration tests verify end-to-end functionality
+- [ ] All automated tests pass (unit tests for instance loader)
+- [ ] **Mocked integration tests pass** (3 instances × 4 prompts = 12 calls):
+  - [ ] 3 sessions created with correct account/instance attribution
+  - [ ] 24 messages created (8 per instance: 4 user + 4 assistant)
+  - [ ] 12 LLM requests tracked with account_id, account_slug, agent_instance_id, agent_instance_slug
+  - [ ] Data isolation verified (default_account has 16 messages, acme has 8)
+  - [ ] Conversation continuity verified (history loads correctly)
+  - [ ] Cost aggregation works by account and by instance
+  - [ ] Performance benchmarks met (instance loading < 50ms)
+  - [ ] Error handling verified (404 for invalid account/instance)
+- [ ] **Real LLM integration tests pass** (optional, for manual verification):
+  - [ ] Real token counts and costs recorded
+  - [ ] Conversation context used across prompts
+  - [ ] Different instance configs respected (if using different models)
 - [ ] Legacy endpoints continue to work (no breaking changes)
 - [ ] Documentation updated with new URL patterns
 - [ ] Admin SQL queries tested and working (required)
