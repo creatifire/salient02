@@ -116,18 +116,40 @@ GET  /accounts/acme/agents
 
 ## Configuration Structure
 
+**Base Path**: Controlled by `app.yaml` → `agents.configs_directory` (default: `./config/agent_configs/`)
+
 ```
 config/agent_configs/
   {account-slug}/
     {agent-instance-slug}/
       config.yaml
+      system_prompt.md (optional)
 ```
 
-**Example Config** (`config/agent_configs/acme/simple-chat-customer-support/config.yaml`):
+**Key Principle**: Each account can have **multiple instances of the same agent type**, each with its own configuration.
+
+**Example - Multiple Instances Per Account**:
+```
+config/agent_configs/
+  default_account/
+    simple_chat1/          # First simple_chat instance
+      config.yaml
+    simple_chat2/          # Second simple_chat instance  
+      config.yaml
+  acme/
+    simple-chat-customer-support/   # simple_chat instance
+      config.yaml
+    simple-chat-lead-qualification/ # Another simple_chat instance
+      config.yaml
+    sales-enterprise/               # sales_agent instance
+      config.yaml
+```
+
+**Example Config** (`config/agent_configs/default_account/simple_chat1/config.yaml`):
 ```yaml
 agent_type: "simple_chat"              # Which agent function to call
-account: "acme"
-instance_name: "simple-chat-customer-support"
+account: "default_account"
+instance_name: "simple_chat1"
 
 llm:
   model: "moonshotai/kimi-k2-0905"
@@ -171,110 +193,131 @@ Build foundational multi-tenant architecture with account and agent instance sup
 
 **📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
-- [ ] 0022-001-001 - TASK - Database Infrastructure
+- [ ] 0022-001-001 - TASK - Database & Configuration Infrastructure
   
-  **Design Reference:** [Database Schema SQL](../design/account-agent-instance-architecture.md#deliverables) - Complete CREATE TABLE statements, indexes, seed data, and backfill queries for Phase 1a
+  **Design References:**
+  - [Database Schema SQL](../design/account-agent-instance-architecture.md#deliverables) - Complete CREATE TABLE statements, indexes, seed data
+  - [Instance Loader Implementation](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Hybrid DB + config file approach
   
-  - [ ] 0022-001-001-01 - CHUNK - Multi-tenant database schema migration
+  **Implementation Clarifications:**
+  - **Primary Keys**: Integer with UUID (existing tables keep UUIDs, new tables use integers)
+  - **NOT NULL Constraints**: `sessions.account_id`, `sessions.agent_instance_id`, `messages.agent_instance_id` are NOT NULL
+  - **Default Instance**: account_slug="default_account", instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1"
+  - **Config Path**: `config/agent_configs/{account_slug}/{instance_slug}/config.yaml` (base path controlled by `app.yaml`)
+  - **Backfill Strategy**: Use default values in migration (all existing data → default_account/simple_chat1)
+  
+  - [ ] 0022-001-001-01 - CHUNK - Default instance configuration file
     - SUB-TASKS:
-      - Create Alembic migration for Phase 1a schema
-      - Create `accounts` table (id, slug, name, status, subscription_tier, created_at, updated_at)
-      - Create `agent_instances` table (id, account_id, instance_slug, agent_type, display_name, status, last_used_at)
-      - Add columns to `sessions` table (account_id, account_slug, agent_instance_id, user_id nullable)
-      - Add columns to `messages` table (agent_instance_id)
-      - Add columns to `llm_requests` table (account_id, account_slug, agent_instance_id, agent_instance_slug, agent_type, completion_status)
-      - Create indexes for performance (account_id, agent_instance_id, slugs)
-      - Seed default account ("default", "Default Account", "active")
-      - Seed default agent instance (default/simple-chat)
-      - Backfill existing data to default account and instance
-    - AUTOMATED-TESTS:
-      - `test_migration_creates_all_tables()` - Verify all tables created
-      - `test_migration_creates_indexes()` - Verify indexes exist
-      - `test_default_data_seeded()` - Verify default account and instance
-      - `test_backfill_existing_data()` - Verify existing data mapped to default
-      - `test_foreign_key_constraints()` - Verify referential integrity
-    - MANUAL-TESTS:
-      - Run migration on clean database, verify no errors
-      - Check that default account exists in accounts table
-      - Check that default agent instance exists and references default account
-      - Verify existing sessions/messages/llm_requests have account_id populated
-      - Use psql to verify all indexes created correctly
-    - STATUS: Planned — Foundation database schema for multi-tenancy
-    - PRIORITY: Critical — All other work depends on this
-
-- [ ] 0022-001-002 - TASK - Configuration & Instance Management
-  
-  **Design Reference:** [Instance Loader Implementation](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Complete AgentInstance dataclass and load_agent_instance() function with hybrid DB + config file approach, error handling, and logging
-  
-  - [ ] 0022-001-002-01 - CHUNK - Default instance configuration file
-    - SUB-TASKS:
-      - Create directory structure: `config/agent_configs/default/simple-chat/`
-      - Create `config.yaml` with agent_type, account, instance_name
+      - Create directory structure: `config/agent_configs/default_account/simple_chat1/`
+      - Move/copy existing config from `config/agent_configs/simple_chat/` to new location
+      - Create `config.yaml` with agent_type="simple_chat", account="default_account", instance_name="simple_chat1"
       - Configure llm settings (model, temperature, max_tokens)
-      - Configure tool settings (vector_search, email_summary enabled)
-      - Configure context_management (history_limit: 10)
+      - Configure tool settings (vector_search, conversation_management enabled)
+      - Configure context_management (history_limit: 50 - matches app.yaml default)
+      - Copy `system_prompt.md` if it exists
       - Add inline documentation comments
     - AUTOMATED-TESTS:
       - `test_default_config_file_exists()` - Verify file exists at correct path
       - `test_default_config_valid_yaml()` - YAML parses without errors
-      - `test_default_config_required_fields()` - All required fields present
+      - `test_default_config_required_fields()` - All required fields present (agent_type, account, instance_name)
+      - `test_default_config_matches_schema()` - Matches existing AgentConfig schema
     - MANUAL-TESTS:
-      - Verify config file created in correct location
+      - Verify config file created in `config/agent_configs/default_account/simple_chat1/config.yaml`
       - Confirm YAML syntax is valid (no parsing errors)
-      - Review config values match design specifications
-    - STATUS: Planned — Config file for default instance
-    - PRIORITY: High — Required for instance loader
+      - Review config values match existing simple_chat agent configuration
+      - Verify old config path still exists (for backward compatibility during migration)
+    - STATUS: Planned — Config file for default instance (DO THIS FIRST)
+    - PRIORITY: Critical — Foundation for both DB migration and instance loader
   
-  - [ ] 0022-001-002-02 - CHUNK - Agent instance loader implementation
+  - [ ] 0022-001-001-02 - CHUNK - Multi-tenant database schema migration
+    - SUB-TASKS:
+      - Create Alembic migration for Phase 1a schema
+      - Create `accounts` table (id INTEGER PRIMARY KEY, slug TEXT UNIQUE, name TEXT, status TEXT, subscription_tier TEXT, created_at, updated_at)
+      - Create `agent_instances` table (id INTEGER PRIMARY KEY, account_id INTEGER FK, instance_slug TEXT, agent_type TEXT, display_name TEXT, status TEXT, last_used_at)
+      - Add unique constraint on (account_id, instance_slug) in agent_instances
+      - Add columns to `sessions` table (account_id INTEGER FK NOT NULL, account_slug TEXT NOT NULL, agent_instance_id INTEGER FK NOT NULL, user_id INTEGER FK NULL)
+      - Add columns to `messages` table (agent_instance_id INTEGER FK NOT NULL)
+      - Add columns to `llm_requests` table (account_id INTEGER FK, account_slug TEXT, agent_instance_id INTEGER FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
+      - Create indexes for performance (account_id, agent_instance_id, slugs)
+      - Seed default account (slug="default_account", name="Default Account", status="active")
+      - Seed default agent instance (account_id=1, instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active")
+      - Backfill existing sessions/messages/llm_requests to default account (id=1) and instance (id=1)
+      - Add NOT NULL constraints after backfill
+    - AUTOMATED-TESTS:
+      - `test_migration_creates_all_tables()` - Verify all tables created
+      - `test_migration_creates_indexes()` - Verify indexes exist
+      - `test_default_data_seeded()` - Verify default account and instance with correct slugs/names
+      - `test_backfill_existing_data()` - Verify existing data mapped to default (account_id=1, agent_instance_id=1)
+      - `test_foreign_key_constraints()` - Verify referential integrity
+      - `test_unique_constraints()` - Verify (account_id, instance_slug) unique in agent_instances
+      - `test_not_null_constraints()` - Verify NOT NULL constraints on account_id, agent_instance_id
+    - MANUAL-TESTS:
+      - Run migration on clean database, verify no errors
+      - Check that default account exists with slug="default_account" in accounts table
+      - Check that default agent instance exists with instance_slug="simple_chat1" and references default account
+      - Verify existing sessions/messages/llm_requests have account_id=1 and agent_instance_id=1 populated
+      - Use psql or Postgres MCP to verify all indexes created correctly
+      - Run queries from `backend/scripts/admin_queries.sql` to validate data integrity
+    - STATUS: Planned — Foundation database schema for multi-tenancy (DO THIS SECOND)
+    - PRIORITY: Critical — Enables instance loader to work
+  
+  - [ ] 0022-001-001-03 - CHUNK - Agent instance loader implementation
     - SUB-TASKS:
       - Create `backend/app/agents/instance_loader.py`
-      - Implement `AgentInstance` dataclass (id, account_slug, instance_slug, agent_type, display_name, status, config)
+      - Implement `AgentInstance` dataclass (id, account_id, account_slug, instance_slug, agent_type, display_name, status, config)
       - Implement `load_agent_instance(account_slug, instance_slug)` async function
-      - Database query: validate instance exists and is active
-      - Config file loading: read YAML from correct path
+      - Database query: validate instance exists and is active (with account lookup)
+      - Config file loading: read YAML from `{configs_dir}/{account_slug}/{instance_slug}/config.yaml`
+      - Read configs_directory from app.yaml (agents.configs_directory)
       - Update `last_used_at` timestamp in database
       - Error handling: ValueError for missing/inactive instances, FileNotFoundError for missing configs
-      - Add comprehensive logging for debugging
+      - Add comprehensive logging for debugging (account, instance, config path)
+      - Support system_prompt.md loading if specified in config
     - AUTOMATED-TESTS:
-      - `test_load_agent_instance_success()` - Successful instance loading
+      - `test_load_agent_instance_success()` - Successful instance loading for default_account/simple_chat1
       - `test_load_agent_instance_updates_timestamp()` - Verify last_used_at updated
       - `test_load_agent_instance_invalid_account()` - ValueError for invalid account
       - `test_load_agent_instance_invalid_instance()` - ValueError for invalid instance
       - `test_load_agent_instance_inactive_instance()` - ValueError for inactive instance
-      - `test_load_agent_instance_missing_config()` - FileNotFoundError for missing config
+      - `test_load_agent_instance_missing_config()` - FileNotFoundError for missing config file
       - `test_agent_instance_dataclass_validation()` - Dataclass properly structured
+      - `test_config_path_from_app_yaml()` - Reads configs_directory from app.yaml
     - MANUAL-TESTS:
-      - Load default/simple-chat instance, verify returns correct config
+      - Load default_account/simple_chat1 instance, verify returns correct config
       - Try loading non-existent instance, verify proper error message
       - Check database that last_used_at timestamp updated
-      - Verify logging shows instance loading details
-    - STATUS: Planned — Core instance loading infrastructure
+      - Verify logging shows instance loading details (account, instance, config path)
+      - Test with modified app.yaml configs_directory, verify uses correct path
+    - STATUS: Planned — Core instance loading infrastructure (DO THIS THIRD)
     - PRIORITY: Critical — Required for all endpoints
   
-  - [ ] 0022-001-002-03 - CHUNK - Instance discovery and listing
+  - [ ] 0022-001-001-04 - CHUNK - Instance discovery and listing
     - SUB-TASKS:
-      - Add `list_account_instances(account_slug)` function
-      - Query database for all active instances in account
+      - Add `list_account_instances(account_slug)` function to instance_loader.py
+      - Query database for all active instances in account (JOIN with accounts table)
       - Return list with instance_slug, agent_type, display_name, last_used_at
       - Add `get_instance_metadata(account_slug, instance_slug)` helper
-      - Error handling for invalid accounts
+      - Error handling for invalid accounts (raise ValueError)
+      - Add logging for discovery operations
     - AUTOMATED-TESTS:
-      - `test_list_account_instances()` - Lists instances correctly
+      - `test_list_account_instances()` - Lists instances correctly for default_account
       - `test_list_empty_account()` - Handles account with no instances
       - `test_list_filters_inactive()` - Only shows active instances
       - `test_get_instance_metadata()` - Returns metadata correctly
+      - `test_list_invalid_account()` - ValueError for invalid account
     - MANUAL-TESTS:
-      - List instances for default account, verify shows simple-chat
-      - Create second instance in database, verify both appear
+      - List instances for default_account, verify shows simple_chat1
+      - Create second instance in database (simple_chat2), verify both appear
       - Mark instance as inactive, verify doesn't appear in list
-    - STATUS: Planned — Instance discovery for UI
+      - Test with invalid account slug, verify error message
+    - STATUS: Planned — Instance discovery for UI (DO THIS FOURTH)
     - PRIORITY: Medium — Nice to have for Phase 1a
 
-- [ ] 0022-001-003 - TASK - API Endpoints
+- [ ] 0022-001-002 - TASK - API Endpoints
   
   **Design Reference:** [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Complete implementations for chat, stream, and list endpoints with instance loading, session management, and error handling patterns
   
-  - [ ] 0022-001-003-01 - CHUNK - Account agents router setup
+  - [ ] 0022-001-002-01 - CHUNK - Account agents router setup
     - SUB-TASKS:
       - Create `backend/app/api/account_agents.py`
       - Create FastAPI APIRouter instance
@@ -290,7 +333,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Router infrastructure
     - PRIORITY: High — Foundation for all endpoints
   
-  - [ ] 0022-001-003-02 - CHUNK - Non-streaming chat endpoint
+  - [ ] 0022-001-002-02 - CHUNK - Non-streaming chat endpoint
     - SUB-TASKS:
       - Implement `POST /accounts/{account}/agents/{instance}/chat`
       - Extract account_slug and instance_slug from URL
@@ -321,7 +364,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Primary chat endpoint
     - PRIORITY: Critical — Core functionality
   
-  - [ ] 0022-001-003-03 - CHUNK - Streaming chat endpoint
+  - [ ] 0022-001-002-03 - CHUNK - Streaming chat endpoint
     - SUB-TASKS:
       - Implement `GET /accounts/{account}/agents/{instance}/stream`
       - Extract account_slug, instance_slug, message from request
@@ -352,7 +395,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Streaming chat endpoint
     - PRIORITY: High — Real-time user experience
   
-  - [ ] 0022-001-003-04 - CHUNK - Instance listing endpoint
+  - [ ] 0022-001-002-04 - CHUNK - Instance listing endpoint
     - SUB-TASKS:
       - Implement `GET /accounts/{account}/agents`
       - Extract account_slug from URL
@@ -372,11 +415,11 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance discovery API
     - PRIORITY: Medium — For future UI features
 
-- [ ] 0022-001-004 - TASK - Cost Tracking & Observability
+- [ ] 0022-001-003 - TASK - Cost Tracking & Observability
   
   **Design Reference:** [Cost Tracking Updates](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - Complete track_llm_request() signature with hybrid FK + denormalized columns, query examples for fast aggregation
   
-  - [ ] 0022-001-004-01 - CHUNK - LLM request tracker updates
+  - [ ] 0022-001-003-01 - CHUNK - LLM request tracker updates
     - SUB-TASKS:
       - Update `backend/app/services/llm_request_tracker.py`
       - Add parameters to `track_llm_request()`: account_id, account_slug, agent_instance_id, agent_instance_slug, agent_type, completion_status
@@ -398,8 +441,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Enhanced cost tracking
     - PRIORITY: High — Required for proper billing
 
-- [ ] 0022-001-005 - TASK - Testing & Validation
-  - [ ] 0022-001-005-01 - CHUNK - Unit tests for instance loader
+- [ ] 0022-001-004 - TASK - Testing & Validation
+  - [ ] 0022-001-004-01 - CHUNK - Unit tests for instance loader
     - SUB-TASKS:
       - Create `backend/tests/test_instance_loader.py`
       - Mock database queries for fast unit tests
@@ -410,7 +453,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance loader test coverage
     - PRIORITY: High — Core infrastructure testing
   
-  - [ ] 0022-001-005-02 - CHUNK - Integration tests for new endpoints
+  - [ ] 0022-001-004-02 - CHUNK - Integration tests for new endpoints
     - SUB-TASKS:
       - Create `backend/tests/test_account_agents_endpoints.py`
       - Test POST /accounts/{account}/agents/{instance}/chat with real database
@@ -422,7 +465,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Endpoint integration testing
     - PRIORITY: High — Ensure endpoints work end-to-end
   
-  - [ ] 0022-001-005-03 - CHUNK - End-to-end validation
+  - [ ] 0022-001-004-03 - CHUNK - End-to-end validation
     - SUB-TASKS:
       - Create validation test suite covering full workflow
       - Test: Create account → Create instance config → Load instance → Chat → Verify tracking
@@ -444,8 +487,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Comprehensive validation
     - PRIORITY: High — Ensure system works end-to-end
 
-- [ ] 0022-001-006 - TASK - Simple Admin UI (Optional)
-  - [ ] 0022-001-006-01 - CHUNK - Account browser page
+- [ ] 0022-001-005 - TASK - Simple Admin UI (Optional)
+  - [ ] 0022-001-005-01 - CHUNK - Account browser page
     - SUB-TASKS:
       - Create `web/src/pages/dev/accounts.astro`
       - Add page to dev navigation (similar to `/dev/logs`)
@@ -466,7 +509,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Optional admin UI
     - PRIORITY: Low — Nice to have, not required for Phase 1a completion
   
-  - [ ] 0022-001-006-02 - CHUNK - Agent instance drill-down
+  - [ ] 0022-001-005-02 - CHUNK - Agent instance drill-down
     - SUB-TASKS:
       - Add expandable instance list per account
       - Show instance details: slug, type, status, last_used_at
@@ -484,7 +527,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance browsing
     - PRIORITY: Low — Optional enhancement
   
-  - [ ] 0022-001-006-03 - CHUNK - Session and cost tracking views
+  - [ ] 0022-001-005-03 - CHUNK - Session and cost tracking views
     - SUB-TASKS:
       - Add "View Sessions" modal/expansion for each instance
       - Show recent sessions: session_key, message_count, last_activity_at
