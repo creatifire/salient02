@@ -426,6 +426,67 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Comprehensive validation
     - PRIORITY: High — Ensure system works end-to-end
 
+- [ ] 0022-001-006 - TASK - Simple Admin UI (Optional)
+  - [ ] 0022-001-006-01 - CHUNK - Account browser page
+    - SUB-TASKS:
+      - Create `web/src/pages/dev/accounts.astro`
+      - Add page to dev navigation (similar to `/dev/logs`)
+      - Display accounts list with basic stats (instances, sessions, cost)
+      - Make accounts clickable to expand/show details
+      - Use HTMX for dynamic content loading (no full page reloads)
+      - Style with existing CSS (Basecoat + Tailwind)
+      - Add backend API endpoint `GET /api/dev/accounts` for data
+    - AUTOMATED-TESTS:
+      - `test_dev_accounts_page_loads()` - Page renders without errors
+      - `test_dev_accounts_api_endpoint()` - API returns account data
+      - `test_dev_accounts_requires_dev_mode()` - Only available in dev
+    - MANUAL-TESTS:
+      - Navigate to localhost:4321/dev/accounts
+      - Verify accounts list displays
+      - Click on account, verify expansion shows instances
+      - Check styling matches existing dev pages
+    - STATUS: Planned — Optional admin UI
+    - PRIORITY: Low — Nice to have, not required for Phase 1a completion
+  
+  - [ ] 0022-001-006-02 - CHUNK - Agent instance drill-down
+    - SUB-TASKS:
+      - Add expandable instance list per account
+      - Show instance details: slug, type, status, last_used_at
+      - Display session count and message count per instance
+      - Add backend API endpoint `GET /api/dev/accounts/{account}/instances`
+      - Use HTMX `hx-get` to load instance details on demand
+      - Add "View Sessions" button per instance
+    - AUTOMATED-TESTS:
+      - `test_instance_drill_down_api()` - API returns instance data
+      - `test_instance_stats_accurate()` - Counts match database
+    - MANUAL-TESTS:
+      - Expand account, verify instances shown
+      - Check instance stats are accurate
+      - Verify HTMX loads data without full page refresh
+    - STATUS: Planned — Instance browsing
+    - PRIORITY: Low — Optional enhancement
+  
+  - [ ] 0022-001-006-03 - CHUNK - Session and cost tracking views
+    - SUB-TASKS:
+      - Add "View Sessions" modal/expansion for each instance
+      - Show recent sessions: session_key, message_count, last_activity_at
+      - Add cost summary card: total requests, total cost, tokens used
+      - Create backend API `GET /api/dev/instances/{instance_id}/sessions`
+      - Create backend API `GET /api/dev/instances/{instance_id}/costs`
+      - Add simple search/filter by date range
+      - Display in collapsible sections to keep page clean
+    - AUTOMATED-TESTS:
+      - `test_session_list_api()` - Returns session data correctly
+      - `test_cost_summary_api()` - Returns accurate cost calculations
+      - `test_date_filter_works()` - Date filtering applies correctly
+    - MANUAL-TESTS:
+      - Click "View Sessions" on an instance
+      - Verify sessions display with accurate counts
+      - Check cost summary matches SQL query results
+      - Test date filtering functionality
+    - STATUS: Planned — Session and cost browsing
+    - PRIORITY: Low — Optional for debugging
+
 ## 0022-002 - FEATURE - Phase 1b: Authentication & Authorization
 **Status**: Planned - Deferred (implement when authentication needed)
 
@@ -569,6 +630,8 @@ Remove legacy code and migrate frontends to new URL structure.
 - [ ] Integration tests verify end-to-end functionality
 - [ ] Legacy endpoints continue to work (no breaking changes)
 - [ ] Documentation updated with new URL patterns
+- [ ] Admin SQL queries tested and working (required)
+- [ ] Simple admin UI at `/dev/accounts` (optional - can defer)
 
 ### Phase 1b Complete When:
 - [ ] User registration and login work
