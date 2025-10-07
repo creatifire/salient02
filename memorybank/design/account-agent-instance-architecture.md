@@ -39,20 +39,28 @@ accounts (1) ──< (M) user_roles (M) >── (1) users
     │                    │
     │                    └──> (1) roles
     │
-    ├──< (M) sessions
-    │           └──< (M) messages
+    ├──< (M) agent_instances (DB table + config files)
+    │           │
+    │           ├──< (M) messages
+    │           └──< (M) llm_requests
     │
-    ├──< (M) llm_requests
-    │
-    └──< (M) agent_instances (config files)
+    └──< (M) sessions
+                │
+                ├──> (1) agent_instances (current instance)
+                ├──> (1) users (optional)
+                └──< (M) messages
 ```
 
 **Key Relationships**:
 - **Account ↔ User**: Many-to-many through `user_roles` (user can belong to multiple accounts)
 - **User ↔ Account ↔ Role**: Account-scoped roles (user is "admin" in account A, "viewer" in account B)
+- **Account → Agent Instances**: One-to-many (account has many agent instances with metadata in DB + config files)
+- **Agent Instance → Messages**: One-to-many (tracks which instance handled each message)
+- **Agent Instance → LLM Requests**: One-to-many (tracks costs per instance)
 - **Account → Sessions**: One-to-many (account has many sessions, both anonymous and authenticated)
-- **Account → Agent Instances**: One-to-many (account has many agent instance configs)
+- **Session → Agent Instance**: Many-to-one (session tracks current/last used instance)
 - **Session → User**: Optional (nullable for anonymous sessions)
+- **Session → Messages**: One-to-many (conversation history)
 
 ### Permission Checking Pattern
 
@@ -594,6 +602,36 @@ INSERT INTO roles (name, description, permissions) VALUES
 ('admin', 'Manage instances and users', '{"manage_instances": true, "manage_users": true, "view_billing": true}'::jsonb),
 ('member', 'Use agents and view history', '{"use_agents": true, "view_history": true}'::jsonb),
 ('viewer', 'Read-only access', '{"view_history": true}'::jsonb);
+
+-- Agent instances table (metadata for config files)
+CREATE TABLE agent_instances (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    instance_slug VARCHAR(100) NOT NULL,        -- Matches config directory name
+    agent_type VARCHAR(50) NOT NULL,            -- simple_chat, sales_agent, research, etc.
+    display_name VARCHAR(255),                  -- User-friendly name for UI
+    status VARCHAR(20) DEFAULT 'active',        -- active, inactive, archived
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    last_used_at TIMESTAMP,                     -- For cache warmth tracking
+    
+    UNIQUE(account_id, instance_slug)           -- No duplicate instance slugs per account
+);
+
+-- Indexes for agent instances
+CREATE INDEX idx_agent_instances_account_id ON agent_instances(account_id);
+CREATE INDEX idx_agent_instances_status ON agent_instances(status);
+CREATE INDEX idx_agent_instances_last_used ON agent_instances(last_used_at) WHERE status = 'active';
+
+-- Seed default instance
+INSERT INTO agent_instances (account_id, instance_slug, agent_type, display_name, status)
+VALUES (
+    (SELECT id FROM accounts WHERE slug = 'default'),
+    'simple-chat',
+    'simple_chat',
+    'Simple Chat Agent',
+    'active'
+);
 ```
 
 **Update Existing Tables**:
@@ -601,65 +639,98 @@ INSERT INTO roles (name, description, permissions) VALUES
 -- Sessions: Support both anonymous and authenticated sessions
 ALTER TABLE sessions 
     ADD COLUMN account_id UUID REFERENCES accounts(id),
-    ADD COLUMN account_slug VARCHAR(100),          -- Denormalized for query performance
-    ADD COLUMN agent_instance VARCHAR(100),
-    ADD COLUMN user_id UUID REFERENCES users(id);  -- Nullable for anonymous sessions
+    ADD COLUMN account_slug VARCHAR(100),                       -- Denormalized for query performance
+    ADD COLUMN agent_instance_id UUID REFERENCES agent_instances(id),  -- FK for current instance
+    ADD COLUMN user_id UUID REFERENCES users(id);               -- Nullable for anonymous sessions
 
--- LLM Requests: Track costs per account/instance
+-- Messages: Link to agent instance that handled the message
+ALTER TABLE messages
+    ADD COLUMN agent_instance_id UUID REFERENCES agent_instances(id);
+
+-- LLM Requests: Track costs per account/instance with hybrid approach
 ALTER TABLE llm_requests 
     ADD COLUMN account_id UUID REFERENCES accounts(id),
-    ADD COLUMN account_slug VARCHAR(100),          -- Denormalized for query performance
-    ADD COLUMN agent_instance VARCHAR(100),
+    ADD COLUMN account_slug VARCHAR(100),                       -- Denormalized for query performance
+    ADD COLUMN agent_instance_id UUID REFERENCES agent_instances(id),  -- FK for referential integrity
+    ADD COLUMN agent_instance_slug VARCHAR(100),                -- Denormalized for query performance
     ADD COLUMN agent_type VARCHAR(50),
     ADD COLUMN completion_status VARCHAR(20) DEFAULT 'complete';
 
 -- Indexes for common queries
 CREATE INDEX idx_sessions_account_id ON sessions(account_id);
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_agent_instance_id ON sessions(agent_instance_id);
+CREATE INDEX idx_messages_agent_instance_id ON messages(agent_instance_id);
 CREATE INDEX idx_llm_requests_account_id ON llm_requests(account_id);
-CREATE INDEX idx_llm_requests_agent_instance ON llm_requests(agent_instance);
+CREATE INDEX idx_llm_requests_agent_instance_id ON llm_requests(agent_instance_id);
+CREATE INDEX idx_llm_requests_agent_instance_slug ON llm_requests(agent_instance_slug);
 
--- Backfill existing data to default account
+-- Backfill existing data to default account and instance
 UPDATE sessions SET 
     account_id = (SELECT id FROM accounts WHERE slug = 'default'),
-    account_slug = 'default'
+    account_slug = 'default',
+    agent_instance_id = (SELECT id FROM agent_instances WHERE instance_slug = 'simple-chat' AND account_id = (SELECT id FROM accounts WHERE slug = 'default'))
 WHERE account_id IS NULL;
+
+UPDATE messages SET 
+    agent_instance_id = (SELECT id FROM agent_instances WHERE instance_slug = 'simple-chat' AND account_id = (SELECT id FROM accounts WHERE slug = 'default'))
+WHERE agent_instance_id IS NULL;
 
 UPDATE llm_requests SET 
     account_id = (SELECT id FROM accounts WHERE slug = 'default'),
-    account_slug = 'default'
+    account_slug = 'default',
+    agent_instance_id = (SELECT id FROM agent_instances WHERE instance_slug = 'simple-chat' AND account_id = (SELECT id FROM accounts WHERE slug = 'default')),
+    agent_instance_slug = 'simple-chat'
 WHERE account_id IS NULL;
 ```
 
 **Design Decisions**:
 - **accounts table**: Required for proper multi-tenancy, account management, and cost tracking
-- **Hybrid FKs + denormalized slugs**: `account_id` (FK for integrity) + `account_slug` (for query performance)
+- **agent_instances table**: Metadata for tracking, validation, and discovery (works with config files)
+- **Hybrid approach**: Database records (metadata) + config files (actual configuration)
+  - DB: tracking, validation, discovery, status management
+  - Config files: model settings, tools, prompts, parameters
+- **Hybrid FKs + denormalized slugs**: 
+  - `account_id` (FK) + `account_slug` (denormalized) for accounts
+  - `agent_instance_id` (FK) + `agent_instance_slug` (denormalized) for instances
+  - Query performance without sacrificing referential integrity
 - **Account-scoped roles**: User can be "admin" in one account, "viewer" in another
 - **Anonymous sessions**: `user_id` is nullable, allowing unauthenticated usage
-- **Backward compatibility**: Existing data maps to "default" account automatically
+- **Backward compatibility**: Existing data maps to "default" account and "simple-chat" instance
 
 ### Phasing Strategy for User/Role Infrastructure
 
-**Phase 1a: Accounts Only (Immediate)**
-- Create `accounts` table
-- Add `account_id`/`account_slug` to `sessions` and `llm_requests`
-- Seed "default" account
+**Phase 1a: Core Multi-Tenancy (Immediate)**
+- Create `accounts` table for multi-tenancy
+- Create `agent_instances` table for tracking and validation
+- Add `account_id`/`account_slug` and `agent_instance_id`/`agent_instance_slug` to related tables
+- Seed "default" account and "simple-chat" instance
+- Create config file: `config/agent_configs/default/simple-chat/config.yaml`
 - **Skip authentication**: Leave `users`, `roles`, `user_roles` tables for Phase 1b
-- All sessions remain anonymous initially
-- Focus: Enable account-instance URL structure and cost tracking
+- All sessions remain anonymous initially (no `user_id`)
+- **Focus**: Enable account-instance URL structure, cost tracking, instance discovery
 
-**Phase 1b: Users & Roles (When Authentication Needed)**
+**Phase 1b: Authentication & Authorization (When Needed)**
 - Create `users`, `roles`, `user_roles` tables
 - Add `user_id` to `sessions` (nullable)
 - Implement authentication endpoints (`/auth/login`, `/auth/register`)
 - Add permission checking to agent endpoints
+- Account management UI (list users, grant roles)
 - **Trigger**: When you need to distinguish users or enforce permissions
 
 **Why Separate**:
 - Can deploy account-instance architecture immediately without auth complexity
-- Anonymous usage still works (sessions without `user_id`)
-- Add authentication when business needs it (e.g., paid tiers, user management)
+- Anonymous usage continues to work (sessions without `user_id`)
+- Add authentication when business needs it (paid tiers, user management)
 - Reduces Phase 1 scope and risk
+
+**Hybrid Approach Benefits**:
+- **Database records**: Validation, discovery, tracking, status management
+- **Config files**: Actual configuration (model, tools, prompts)
+- **Together**: `load_agent_instance()` validates DB record exists, then loads config file
+- **Instance discovery**: Query database for `GET /accounts/{account}/agents`
+- **Cost tracking**: FK ensures instance exists, denormalized slug for fast queries
+- **Cache warmth**: Update `last_used_at` in DB for intelligent caching
 
 **2. Default Instance Configuration**
 
@@ -683,8 +754,82 @@ context_management:
 
 Create: `backend/app/agents/instance_loader.py`
 - `AgentInstance` data class
-- `load_agent_instance(account, instance)` function
+- `load_agent_instance(account, instance)` function (validates DB + loads config)
 - Config loading and validation
+
+**Implementation**:
+```python
+from dataclasses import dataclass
+from typing import Dict, Optional
+import yaml
+from pathlib import Path
+
+@dataclass
+class AgentInstance:
+    id: UUID                      # Database ID
+    account_slug: str
+    instance_slug: str
+    agent_type: str              # From database
+    display_name: str            # From database
+    status: str                  # From database
+    config: Dict                 # From config file
+
+async def load_agent_instance(account_slug: str, instance_slug: str) -> AgentInstance:
+    """
+    Load agent instance with hybrid DB + config file approach.
+    
+    1. Query database to validate instance exists and get metadata
+    2. Load config file for actual configuration
+    3. Update last_used_at timestamp for cache tracking
+    
+    Raises:
+        ValueError: If instance not found in database
+        FileNotFoundError: If config file missing
+    """
+    # 1. Validate instance exists in database and get metadata
+    query = """
+        SELECT ai.id, ai.agent_type, ai.display_name, ai.status, a.slug as account_slug
+        FROM agent_instances ai
+        JOIN accounts a ON ai.account_id = a.id
+        WHERE a.slug = $1 AND ai.instance_slug = $2 AND ai.status = 'active'
+    """
+    
+    row = await db.fetchrow(query, account_slug, instance_slug)
+    if not row:
+        raise ValueError(f"Agent instance not found or inactive: {account_slug}/{instance_slug}")
+    
+    # 2. Load configuration from file
+    config_path = Path(f"config/agent_configs/{account_slug}/{instance_slug}/config.yaml")
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file missing: {config_path}")
+    
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    
+    # 3. Update last_used_at for cache warmth tracking
+    await db.execute(
+        "UPDATE agent_instances SET last_used_at = NOW() WHERE id = $1",
+        row['id']
+    )
+    
+    # 4. Return combined metadata + config
+    return AgentInstance(
+        id=row['id'],
+        account_slug=account_slug,
+        instance_slug=instance_slug,
+        agent_type=row['agent_type'],
+        display_name=row['display_name'],
+        status=row['status'],
+        config=config
+    )
+```
+
+**Benefits of Hybrid Approach**:
+- ✅ **Validation**: FK ensures instance exists before loading config
+- ✅ **Discovery**: Query DB for `GET /accounts/{account}/agents`
+- ✅ **Tracking**: Update `last_used_at` for cache decisions
+- ✅ **Management**: Change status to 'inactive' without deleting config
+- ✅ **Performance**: Config files are fast to read, no JSONB parsing
 
 **4. Streaming Function**
 
@@ -699,20 +844,106 @@ Add to: `backend/app/agents/simple_chat.py`
 Create: `backend/app/api/account_agents.py`
 ```python
 @router.post("/accounts/{account}/agents/{instance}/chat")
-async def agent_instance_chat(...)
-
+async def agent_instance_chat(
+    account: str,
+    instance: str,
+    chat_request: ChatRequest,
+    request: Request
+):
+    """Non-streaming chat with specific agent instance."""
+    # Load and validate instance (DB + config file)
+    agent_inst = await load_agent_instance(account, instance)
+    
+    # ... rest of implementation
+    
 @router.get("/accounts/{account}/agents/{instance}/stream")
-async def agent_instance_stream(...)
+async def agent_instance_stream(
+    account: str,
+    instance: str,
+    message: str,
+    request: Request
+):
+    """Streaming chat with specific agent instance."""
+    # Load and validate instance (DB + config file)
+    agent_inst = await load_agent_instance(account, instance)
+    
+    # ... rest of implementation
 
 @router.get("/accounts/{account}/agents")
-async def list_account_agents(...)
+async def list_account_agents(account: str):
+    """List all active agent instances for an account."""
+    query = """
+        SELECT ai.instance_slug, ai.agent_type, ai.display_name, 
+               ai.status, ai.last_used_at
+        FROM agent_instances ai
+        JOIN accounts a ON ai.account_id = a.id
+        WHERE a.slug = $1 AND ai.status = 'active'
+        ORDER BY ai.display_name
+    """
+    
+    rows = await db.fetch(query, account)
+    
+    instances = [
+        {
+            "slug": row['instance_slug'],
+            "type": row['agent_type'],
+            "name": row['display_name'],
+            "last_used": row['last_used_at']
+        }
+        for row in rows
+    ]
+    
+    return {"account": account, "instances": instances}
 ```
 
 **6. Cost Tracking Updates**
 
 Update: `backend/app/services/llm_request_tracker.py`
-- Record `account`, `agent_instance`, `agent_type`
-- Support new schema columns
+- Record `account_id`, `account_slug`, `agent_instance_id`, `agent_instance_slug`, `agent_type`
+- Support new schema columns with hybrid FK + denormalized approach
+
+**Implementation**:
+```python
+async def track_llm_request(
+    self,
+    session_id: UUID,
+    agent_instance_id: UUID,           # FK for referential integrity
+    agent_instance_slug: str,          # Denormalized for fast queries
+    account_id: UUID,
+    account_slug: str,
+    agent_type: str,
+    model: str,
+    tokens: Dict[str, int],
+    cost_data: Dict[str, Decimal],
+    completion_status: str = "complete",
+    **kwargs
+) -> UUID:
+    """Track LLM request with full account and instance context."""
+    query = """
+        INSERT INTO llm_requests (
+            session_id, agent_instance_id, agent_instance_slug,
+            account_id, account_slug, agent_type,
+            provider, model, prompt_tokens, completion_tokens,
+            total_tokens, computed_cost, completion_status, ...
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, ...)
+        RETURNING id
+    """
+    # ... implementation
+```
+
+**Query Examples**:
+```sql
+-- Fast query using denormalized slug (no join needed)
+SELECT SUM(computed_cost) 
+FROM llm_requests 
+WHERE account_slug = 'acme' AND agent_instance_slug = 'sales-enterprise';
+
+-- Validated query using FK (referential integrity)
+SELECT COUNT(*) 
+FROM llm_requests llm
+JOIN agent_instances ai ON llm.agent_instance_id = ai.id
+WHERE ai.status = 'active';
+```
 
 **7. Tests**
 - Unit tests for instance loader
