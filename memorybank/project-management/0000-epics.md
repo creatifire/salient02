@@ -22,11 +22,12 @@
 14. [CrossFeed MCP Server](./0014-crossfeed.md) - 📋 Planned
 15. [Simple Research Agent](./0015-simple-research-agent.md) - 📋 Planned
 16. [Deep Research Agent](./0016-deep-research-agent.md) - 📋 Planned
-17. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade)
+17. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade Complete)
 18. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
 19. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md) - 📋 Planned
 20. [OfferBot](./0020-OfferBot.md) - 📋 Planned
 21. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md) - 📋 Planned
+22. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 📋 Planned (Priority 2B - Foundational Infrastructure)
 
 ## Epic Backlog
 
