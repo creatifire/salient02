@@ -45,6 +45,12 @@ flowchart TD
 - **Multi-Tenancy**: Account-scoped data isolation and cost tracking
 - **Instance Flexibility**: Multiple instances of same agent type per account with unique configs
 
+## Prerequisites & Documentation
+
+**📚 Required Reading Before Implementation:**
+- [Library Documentation Review](../analysis/epic-0022-library-review.md) - Alembic & SQLAlchemy 2.0 async patterns (573+ code snippets analyzed)
+- [Design Document](../design/account-agent-instance-architecture.md) - Complete implementation details with SQL and code
+
 ## Design Reference
 
 **📐 Detailed Implementation Guide:** [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md)
@@ -65,6 +71,16 @@ This epic implements the architecture described in the design document above. Re
 - [Cost Tracking](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - LLMRequestTracker updates
 - [Streaming Pattern](../design/account-agent-instance-architecture.md#pydantic-ai-streaming-pattern) - SSE with Pydantic AI
 - [Implementation Phases](../design/account-agent-instance-architecture.md#implementation-approach) - Phased deployment strategy
+
+## Library Documentation Review
+
+**📚 Critical Libraries Analysis:** [Epic 0022 Library Review](../analysis/epic-0022-library-review.md)
+
+Before implementing Phase 1a, review this comprehensive analysis of Alembic and SQLAlchemy 2.0 async patterns:
+- **Alembic**: Async migration patterns, autogenerate best practices, FK dependency handling
+- **SQLAlchemy 2.0**: Async session patterns, eager loading strategies, relationship definitions
+- **Key Gotchas**: Lazy loading issues, constraint naming, denormalized column sync
+- **Implementation Checklist**: Pre-implementation verification steps
 
 ## Problem Statement
 
@@ -152,6 +168,8 @@ context_management:
 **Status**: Planned
 
 Build foundational multi-tenant architecture with account and agent instance support, enabling Pydantic AI migration for all endpoints.
+
+**📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
 - [ ] 0022-001-001 - TASK - Database Infrastructure
   
