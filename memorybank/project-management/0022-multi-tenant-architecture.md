@@ -561,6 +561,9 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - SUB-TASKS:
       - Create `backend/tests/integration/test_multi_instance_integration_real.py`
       - Mark with `@pytest.mark.integration` and `@pytest.mark.slow`
+      - **Load API keys from backend/.env** using python-dotenv or pytest-dotenv
+      - Add conftest.py to load .env if not already loaded by app
+      - Skip tests gracefully if OPENROUTER_API_KEY not in .env (pytest.skip with message)
       - NO MOCKING - use real Pydantic AI agent with OpenRouter
       - Loop through all 3 instances (simple_chat1, simple_chat2, acme_chat1)
       - For each instance, send 4 prompts from fixtures
@@ -578,13 +581,15 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - Create `backend/tests/integration/README.md` with:
           - "Running Integration Tests" section
           - **ALL TESTS ARE MANUAL TRIGGER ONLY** - no CI automation
+          - **Environment Setup**: All API keys loaded from `backend/.env` file
+          - Required .env variables: OPENROUTER_API_KEY, DATABASE_URL
           - Pytest commands for mocked tests (fast, no API key, for development)
-          - Pytest commands for real LLM tests (slow, requires API key, for integration validation)
+          - Pytest commands for real LLM tests (slow, uses .env API key, for integration validation)
           - Pytest commands for full test suite (mocked + real, for pre-release validation)
-          - Required environment variables (OPENROUTER_API_KEY, DATABASE_URL)
           - Expected timing (mocked: < 5s, real: < 2min, full: ~2min)
           - Expected costs (real LLM: < $0.50 per run)
           - pytest.ini configuration for marks (integration, slow)
+          - Note: Tests use python-dotenv or pytest-dotenv to auto-load .env
         - Add pytest.ini to backend/ if not exists:
           ```ini
           [pytest]
@@ -593,6 +598,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
               slow: Slow tests that make real API calls
           ```
     - AUTOMATED-TESTS:
+      - `test_env_file_loaded()` - Verify .env file loads and OPENROUTER_API_KEY available (or skip)
       - `test_multi_instance_integration_real()` - Main integration test with REAL LLM
       - `test_real_token_counts()` - Verify tokens > 0 and realistic (not 10/20/30)
       - `test_real_costs_calculated()` - Verify cost_data.total_cost > 0
@@ -608,17 +614,17 @@ Build foundational multi-tenant architecture with account and agent instance sup
         pytest tests/integration/test_multi_instance_integration_mocked.py -v
         # Expected: < 5 seconds, all tests pass
         ```
-      - **Run real LLM tests (slow, requires API key)**:
+      - **Run real LLM tests (slow, requires API key from .env)**:
         ```bash
         cd backend
-        export OPENROUTER_API_KEY="your-key-here"
+        # API keys loaded automatically from backend/.env (OPENROUTER_API_KEY)
         pytest tests/integration/test_multi_instance_integration_real.py -v -m "integration and slow"
         # Expected: < 2 minutes, cost < $0.50
         ```
       - **Run all integration tests (mocked + real) - MANUAL TRIGGER**:
         ```bash
         cd backend
-        export OPENROUTER_API_KEY="your-key-here"
+        # API keys loaded automatically from backend/.env
         pytest tests/integration/ -v
         # Expected: ~2 minutes total
         # USE THIS for full integration validation before releases
