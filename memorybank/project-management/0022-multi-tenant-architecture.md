@@ -339,29 +339,38 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ Complete — Core instance loading infrastructure (Hybrid DB + config files)
     - PRIORITY: Critical — Required for all endpoints
   
-  - [ ] 0022-001-001-04 - CHUNK - Instance discovery and listing
+  - [x] 0022-001-001-04 - CHUNK - Instance discovery and listing
     - SUB-TASKS:
-      - Add `list_account_instances(account_slug)` function to instance_loader.py
-      - Query database for all active instances in account (JOIN with accounts table)
-      - Return list with instance_slug, agent_type, display_name, last_used_at
-      - Add `get_instance_metadata(account_slug, instance_slug)` helper
-      - Error handling for invalid accounts (raise ValueError)
-      - Add logging for discovery operations
-    - AUTOMATED-TESTS: `backend/tests/integration/test_instance_loader.py`
-      - `test_list_account_instances_default()` - Lists 2 instances for default_account (simple_chat1, simple_chat2)
-      - `test_list_account_instances_acme()` - Lists 1 instance for acme (acme_chat1)
-      - `test_list_empty_account()` - Handles account with no instances
-      - `test_list_filters_inactive()` - Only shows active instances
-      - `test_get_instance_metadata()` - Returns metadata correctly for each instance
-      - `test_list_invalid_account()` - ValueError for invalid account
-      - `test_instance_isolation()` - Verify default_account instances don't appear in acme list
+      - ✅ Add `list_account_instances(account_slug, session=None)` function to instance_loader.py
+      - ✅ Query database for all active instances in account (JOIN with accounts table for validation)
+      - ✅ Return list with instance_slug, agent_type, display_name, status, last_used_at
+      - ✅ Add `get_instance_metadata(account_slug, instance_slug, session=None)` helper
+      - ✅ Error handling for invalid accounts (raise ValueError with clear messages)
+      - ✅ Add logging for discovery operations (info/warning/debug levels)
+      - ✅ Optional session parameter for both functions (creates new if not provided)
+      - ✅ Proper session cleanup with finally blocks
+      - ✅ Filter by status='active' for list_account_instances
+      - ✅ Created_at ordering for consistent instance lists
+    - AUTOMATED-TESTS: `backend/tests/integration/test_instance_loader.py` ✅ **ALL 10 TESTS PASSING** (test runtime: 0.69s)
+      - ✅ `test_list_account_instances_default()` - Lists 2 instances for default_account (simple_chat1, simple_chat2)
+      - ✅ `test_list_account_instances_acme()` - Lists 1 instance for acme (acme_chat1)
+      - ✅ `test_list_empty_account()` - Handles account with no instances (returns empty list)
+      - ✅ `test_list_filters_inactive()` - Only shows active instances (inactive instances filtered out)
+      - ✅ `test_get_instance_metadata()` - Returns metadata correctly for both default_account and acme instances
+      - ✅ `test_list_invalid_account()` - ValueError with "not found" message for nonexistent account
+      - ✅ `test_get_metadata_invalid_account()` - ValueError for invalid account in get_instance_metadata
+      - ✅ `test_get_metadata_invalid_instance()` - ValueError for invalid instance slug
+      - ✅ `test_get_metadata_inactive_instance()` - ValueError for inactive instance with "inactive" in message
+      - ✅ `test_instance_isolation()` - Verifies default_account and acme instances are properly isolated
     - MANUAL-TESTS:
-      - List instances for default_account, verify shows 2 instances (simple_chat1, simple_chat2)
-      - List instances for acme, verify shows 1 instance (acme_chat1)
-      - Verify instance isolation: acme results don't include default_account instances
-      - Mark simple_chat2 as inactive, verify only simple_chat1 appears in default_account list
-      - Test with invalid account slug, verify error message
-    - STATUS: Planned — Instance discovery for UI (DO THIS FOURTH)
+      - ✅ List instances for default_account, verified shows 2 instances (simple_chat1, simple_chat2)
+      - ✅ List instances for acme, verified shows 1 instance (acme_chat1)
+      - ✅ Verified instance isolation: acme results don't include default_account instances
+      - ✅ Mark simple_chat2 as inactive, verified only simple_chat1 appears in default_account list
+      - ✅ Test with invalid account slug, verified clear error message
+      - ✅ Get metadata for valid instances, verified all fields present (id, account_id, slugs, timestamps)
+      - ✅ Test error conditions, verified proper ValueError exceptions raised
+    - STATUS: ✅ Complete — Instance discovery and listing (21 total tests passing: 11 original + 10 new)
     - PRIORITY: Medium — Nice to have for Phase 1a
 
 - [ ] 0022-001-002 - TASK - API Endpoints
