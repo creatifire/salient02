@@ -50,6 +50,10 @@
 
 - [ ] 0022-001 - Phase 1a: Core Multi-Tenancy Infrastructure
   - [ ] 0022-001-001 - Database & Configuration Infrastructure (config files → DB migration → instance loader → discovery)
+    - [x] 0022-001-001-01 - Test instance configuration files ✅
+    - [x] 0022-001-001-02 - Multi-tenant database schema migration ✅
+    - [x] 0022-001-001-03 - Agent instance loader implementation ✅
+    - [ ] 0022-001-001-04 - Instance discovery and listing 🎯 **NEXT**
   - [ ] 0022-001-002 - API Endpoints (/accounts/{account}/agents/{instance}/*)
   - [ ] 0022-001-003 - Frontend Widget Migration (Astro/Preact components, embedded widgets, demo pages)
   - [ ] 0022-001-004 - Cost Tracking & Observability

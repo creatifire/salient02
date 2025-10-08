@@ -238,7 +238,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - ✅ Create acme account directory: `config/agent_configs/acme/acme_chat1/`
       - ✅ Create `config.yaml` for acme_chat1 with account="acme", instance_name="acme_chat1"
       - ✅ Differentiate acme_chat1 config (e.g., different temperature or history_limit for testing)
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/unit/test_config_files.py`
       - ✅ `test_all_config_files_exist()` - Verified all 3 config files exist at correct paths
       - ✅ `test_all_configs_valid_yaml()` - All YAML files parse without errors
       - ✅ `test_all_configs_required_fields()` - All required fields present in each config
@@ -275,7 +275,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - Query default_account UUID, INSERT agent_instance: instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
         - Query default_account UUID, INSERT agent_instance: instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
         - Query acme UUID, INSERT agent_instance: instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
-    - AUTOMATED-TESTS: ✅ **ALL 31 TESTS PASSING** (test runtime: 1.01s)
+    - AUTOMATED-TESTS: `backend/tests/integration/test_migration_schema.py` ✅ **ALL 31 TESTS PASSING** (test runtime: 1.01s)
       - ✅ `TestMigrationClearsData` (4 tests) - Verified all existing data truncated (sessions: 0, messages: 0, llm_requests: 0, profiles: 0)
       - ✅ `TestMigrationCreatesAllTables` (2 tests) - Verified accounts and agent_instances tables created
       - ✅ `TestMigrationAddsColumns` (3 tests) - Verified new columns added to sessions, messages, llm_requests
@@ -302,38 +302,41 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ Complete — Foundation database schema for multi-tenancy migrated successfully
     - PRIORITY: Critical — Enables instance loader to work
   
-  - [ ] 0022-001-001-03 - CHUNK - Agent instance loader implementation
+  - [x] 0022-001-001-03 - CHUNK - Agent instance loader implementation
     - SUB-TASKS:
-      - Create `backend/app/agents/instance_loader.py`
-      - Implement `AgentInstance` dataclass (id, account_id, account_slug, instance_slug, agent_type, display_name, status, config)
-      - Implement `load_agent_instance(account_slug, instance_slug)` async function
-      - Database query: validate instance exists and is active (with account lookup)
-      - Config file loading: read YAML from `{configs_dir}/{account_slug}/{instance_slug}/config.yaml`
-      - Read configs_directory from app.yaml (agents.configs_directory)
-      - Update `last_used_at` timestamp in database
-      - Error handling: ValueError for missing/inactive instances, FileNotFoundError for missing configs
-      - Add comprehensive logging for debugging (account, instance, config path)
-      - Support system_prompt.md loading if specified in config
-    - AUTOMATED-TESTS:
-      - `test_load_agent_instance_success()` - Successful instance loading for default_account/simple_chat1
-      - `test_load_multiple_instances_same_account()` - Load simple_chat1 and simple_chat2 from default_account
-      - `test_load_instance_different_account()` - Load acme/acme_chat1 successfully
-      - `test_load_agent_instance_updates_timestamp()` - Verify last_used_at updated
-      - `test_load_agent_instance_invalid_account()` - ValueError for invalid account
-      - `test_load_agent_instance_invalid_instance()` - ValueError for invalid instance
-      - `test_load_agent_instance_inactive_instance()` - ValueError for inactive instance
-      - `test_load_agent_instance_missing_config()` - FileNotFoundError for missing config file
-      - `test_agent_instance_dataclass_validation()` - Dataclass properly structured
-      - `test_config_path_from_app_yaml()` - Reads configs_directory from app.yaml
+      - ✅ Create `backend/app/agents/instance_loader.py`
+      - ✅ Implement `AgentInstance` dataclass (id, account_id, account_slug, instance_slug, agent_type, display_name, status, config, system_prompt, last_used_at)
+      - ✅ Implement `load_agent_instance(account_slug, instance_slug)` async function
+      - ✅ Database query: validate instance exists and is active (with account lookup via JOIN)
+      - ✅ Config file loading: read YAML from `{configs_dir}/{account_slug}/{instance_slug}/config.yaml`
+      - ✅ Read configs_directory from app.yaml (agents.configs_directory via load_config())
+      - ✅ Update `last_used_at` timestamp in database (async UPDATE with func.now())
+      - ✅ Error handling: ValueError for missing/inactive instances, FileNotFoundError for missing configs
+      - ✅ Add comprehensive logging for debugging (account, instance, config path, status)
+      - ✅ Support system_prompt.md loading if specified in config
+      - ✅ Create SQLAlchemy models: Account, AgentInstanceModel
+      - ✅ Update Session and Message models with account/instance relationships
+    - AUTOMATED-TESTS: `backend/tests/integration/test_instance_loader.py` ✅ **ALL 11 TESTS PASSING** (test runtime: 0.60s)
+      - ✅ `test_load_default_account_simple_chat1()` - Successfully loads default_account/simple_chat1 with all metadata
+      - ✅ `test_load_multiple_instances_same_account()` - Loads simple_chat1 and simple_chat2 from default_account independently
+      - ✅ `test_load_instance_different_account()` - Loads acme/acme_chat1 with correct account attribution
+      - ✅ `test_load_updates_last_used_at()` - Verified last_used_at timestamp updates on each load
+      - ✅ `test_load_invalid_account()` - Raises ValueError with message "Account 'invalid_account' not found"
+      - ✅ `test_load_invalid_instance()` - Raises ValueError with message "Agent instance 'invalid' not found"
+      - ✅ `test_load_inactive_instance()` - Raises ValueError for inactive instance
+      - ✅ `test_load_missing_config()` - Raises FileNotFoundError for missing config.yaml
+      - ✅ `test_dataclass_validation()` - AgentInstance dataclass properly structured with all 10 fields
+      - ✅ `test_config_path_construction()` - _get_config_path() builds correct paths
+      - ✅ `test_config_path_exists_for_test_instances()` - All 3 test instance configs exist
     - MANUAL-TESTS:
-      - Load default_account/simple_chat1 instance, verify returns correct config
-      - Load default_account/simple_chat2 instance, verify different config
-      - Load acme/acme_chat1 instance, verify correct account attribution
-      - Try loading non-existent instance, verify proper error message
-      - Check database that last_used_at timestamp updated for each load
-      - Verify logging shows instance loading details (account, instance, config path)
-      - Test with modified app.yaml configs_directory, verify uses correct path
-    - STATUS: Planned — Core instance loading infrastructure (DO THIS THIRD)
+      - ✅ Load default_account/simple_chat1 instance, verified returns correct config (temp: 0.3, history: 50)
+      - ✅ Load default_account/simple_chat2 instance, verified different config (same as simple_chat1 for now)
+      - ✅ Load acme/acme_chat1 instance, verified correct account attribution and differentiated config (temp: 0.5, history: 30)
+      - ✅ Try loading non-existent instance, verified proper error message: ValueError with "Agent instance 'invalid' not found"
+      - ✅ Check database that last_used_at timestamp updated for each load (verified with direct DB query)
+      - ✅ Verify logging shows instance loading details (account, instance, config path, status='active')
+      - ✅ Test with app.yaml configs_directory, verified uses correct path from load_config()
+    - STATUS: ✅ Complete — Core instance loading infrastructure (Hybrid DB + config files)
     - PRIORITY: Critical — Required for all endpoints
   
   - [ ] 0022-001-001-04 - CHUNK - Instance discovery and listing
@@ -344,7 +347,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Add `get_instance_metadata(account_slug, instance_slug)` helper
       - Error handling for invalid accounts (raise ValueError)
       - Add logging for discovery operations
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_instance_loader.py`
       - `test_list_account_instances_default()` - Lists 2 instances for default_account (simple_chat1, simple_chat2)
       - `test_list_account_instances_acme()` - Lists 1 instance for acme (acme_chat1)
       - `test_list_empty_account()` - Handles account with no instances
@@ -372,7 +375,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Import required dependencies (instance_loader, session middleware, etc.)
       - Add router to main.py application
       - Add basic health check endpoint for testing
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_account_agents_endpoints.py`
       - `test_router_registered()` - Router added to app
       - `test_health_endpoint()` - Basic endpoint works
     - MANUAL-TESTS:
@@ -394,7 +397,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Track LLM request with account/instance attribution
       - Return JSON response with message and usage data
       - Comprehensive error handling and logging
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_account_agents_endpoints.py`
       - `test_chat_endpoint_simple_chat()` - Works with simple_chat agent
       - `test_chat_endpoint_creates_session()` - Session created with account/instance
       - `test_chat_endpoint_loads_history()` - History loaded correctly
@@ -426,7 +429,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Track LLM request with completion_status (complete/partial/error)
       - Save messages after stream completes
       - Error handling for partial responses
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_account_agents_endpoints.py`
       - `test_stream_endpoint_yields_events()` - SSE events emitted
       - `test_stream_endpoint_completion_event()` - Done event sent
       - `test_stream_endpoint_saves_messages()` - Messages saved after stream
@@ -451,7 +454,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Format response as JSON array of instances
       - Include instance metadata: slug, type, display_name, last_used_at
       - Error handling for invalid accounts
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_account_agents_endpoints.py`
       - `test_list_endpoint_returns_instances()` - Returns instance array
       - `test_list_endpoint_default_account()` - Works for default account
       - `test_list_endpoint_invalid_account()` - 404 for invalid account
@@ -478,7 +481,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Add prop validation and TypeScript types for account/instance slugs
       - Add JSDoc documentation for new props
       - Ensure session cookies still work correctly with new endpoints
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `web/tests/test_widgets.spec.ts` (Playwright or Vitest)
       - `test_widget_default_props()` - Default to default_account/simple_chat1
       - `test_widget_custom_props()` - Accept custom account/instance slugs
       - `test_widget_api_calls()` - Verify correct endpoint URLs generated
@@ -503,7 +506,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Ensure iframe postMessage communication passes account/instance correctly
       - Update widget embed documentation/examples
       - Add fallback to default_account/simple_chat1 if no config provided
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `web/tests/test_embed_widgets.spec.ts` (Playwright)
       - `test_iframe_data_attributes()` - Config from data-account/data-agent
       - `test_iframe_query_params()` - Config from URL params
       - `test_js_api_init()` - Config from init() call
@@ -528,7 +531,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Update demo page documentation/comments to explain account/instance config
       - Verify all demo pages work correctly with new endpoints
       - Update localhost:8000 main chat page (if applicable) to use default_account/simple_chat1
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `web/tests/test_demo_pages.spec.ts` (Playwright)
       - `test_demo_pages_render()` - All demo pages render without errors
       - `test_demo_widgets_configured()` - Widgets have account/instance props set
       - `test_multi_tenant_demo()` - Multi-tenant demo page shows 3 different instances
@@ -553,7 +556,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Maintain backward compatibility (all new params optional with defaults)
       - Add helper method `track_agent_request()` for agent-specific tracking
       - Update logging to show account/instance attribution
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/unit/test_llm_request_tracker.py`
       - `test_track_request_with_account_instance()` - New fields saved
       - `test_track_request_backward_compatible()` - Old calls still work
       - `test_track_agent_request_helper()` - Helper method works
@@ -570,12 +573,16 @@ Build foundational multi-tenant architecture with account and agent instance sup
 - [ ] 0022-001-005 - TASK - Testing & Validation
   - [ ] 0022-001-005-01 - CHUNK - Unit tests for instance loader
     - SUB-TASKS:
-      - Create `backend/tests/test_instance_loader.py`
+      - Create `backend/tests/unit/test_instance_loader_unit.py`
       - Mock database queries for fast unit tests
       - Test all error conditions (missing instance, inactive, missing config)
       - Test successful loading path
       - Test timestamp update logic
       - Test AgentInstance dataclass validation
+    - AUTOMATED-TESTS: `backend/tests/unit/test_instance_loader_unit.py` (note: separate from integration tests)
+      - `test_instance_loader_mocked_db()` - Mocked database queries
+      - `test_error_conditions_mocked()` - All error paths with mocks
+      - `test_dataclass_validation_unit()` - Dataclass structure tests
     - STATUS: Planned — Instance loader test coverage
     - PRIORITY: High — Core infrastructure testing
   
@@ -594,7 +601,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Implement `verify_conversation_continuity(db, session_id)` - check message ordering
       - Implement `get_account_total_cost(db, account_id)` - aggregate cost helper
       - Add test database reset utilities
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/unit/test_multi_tenant_utilities.py`
       - `test_verification_utils()` - Test each verification function works correctly
       - `test_prompts_unique_per_instance()` - Verify prompts differentiated
     - MANUAL-TESTS:
@@ -619,7 +626,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - `verify_conversation_continuity()` - messages ordered correctly per session
       - Test performance: instance loading < 50ms
       - Test error handling: invalid account/instance returns 404
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_multi_instance_integration_mocked.py`
       - `test_multi_instance_integration_mocked()` - Main integration test with mocked LLM
       - `test_sessions_attribution_correct()` - All 3 sessions have correct account_id, account_slug, agent_instance_id
       - `test_messages_attribution_correct()` - All 24 messages have correct agent_instance_id
@@ -679,7 +686,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
               integration: Integration tests (may be slow)
               slow: Slow tests that make real API calls
           ```
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_multi_instance_integration_real.py`
       - `test_env_file_loaded()` - Verify .env file loads and OPENROUTER_API_KEY available (or skip)
       - `test_multi_instance_integration_real()` - Main integration test with REAL LLM
       - `test_real_token_counts()` - Verify tokens > 0 and realistic (not 10/20/30)
@@ -729,7 +736,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Use HTMX for dynamic content loading (no full page reloads)
       - Style with existing CSS (Basecoat + Tailwind)
       - Add backend API endpoint `GET /api/dev/accounts` for data
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `web/tests/test_admin_pages.spec.ts` (Playwright)
       - `test_dev_accounts_page_loads()` - Page renders without errors
       - `test_dev_accounts_api_endpoint()` - API returns account data
       - `test_dev_accounts_requires_dev_mode()` - Only available in dev
@@ -749,7 +756,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Add backend API endpoint `GET /api/dev/accounts/{account}/instances`
       - Use HTMX `hx-get` to load instance details on demand
       - Add "View Sessions" button per instance
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `web/tests/test_admin_pages.spec.ts` (Playwright)
       - `test_instance_drill_down_api()` - API returns instance data
       - `test_instance_stats_accurate()` - Counts match database
     - MANUAL-TESTS:
@@ -768,7 +775,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Create backend API `GET /api/dev/instances/{instance_id}/costs`
       - Add simple search/filter by date range
       - Display in collapsible sections to keep page clean
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `web/tests/test_admin_pages.spec.ts` (Playwright)
       - `test_session_list_api()` - Returns session data correctly
       - `test_cost_summary_api()` - Returns accurate cost calculations
       - `test_date_filter_works()` - Date filtering applies correctly
@@ -796,7 +803,7 @@ Add user authentication, role-based permissions, and account management capabili
       - Create indexes for performance
       - Seed default roles (owner, admin, member, viewer)
       - Add user_id to sessions table (nullable for anonymous sessions)
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_auth_migration.py`
       - `test_auth_migration_creates_tables()` - All auth tables created
       - `test_default_roles_seeded()` - Four default roles exist
       - `test_user_roles_unique_constraint()` - One role per user per account
@@ -818,7 +825,7 @@ Add user authentication, role-based permissions, and account management capabili
       - Implement `POST /auth/logout` (clear session cookie)
       - Update last_login_at on successful login
       - Email validation and duplicate checking
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_auth_endpoints.py`
       - `test_register_new_user()` - User registration works
       - `test_register_duplicate_email()` - Prevents duplicate emails
       - `test_login_success()` - Login with valid credentials
@@ -840,7 +847,7 @@ Add user authentication, role-based permissions, and account management capabili
       - Add `get_current_user()` dependency for FastAPI
       - Add `get_current_user_optional()` for backward compatibility
       - Add permission checking decorators
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/unit/test_permissions.py`
       - `test_check_permission_owner()` - Owner has all permissions
       - `test_check_permission_specific()` - Specific permission checked
       - `test_check_permission_denied()` - Returns False for missing permission
@@ -860,7 +867,7 @@ Add user authentication, role-based permissions, and account management capabili
       - Implement `DELETE /accounts/{account_slug}/users/{user_id}` - removes user from account
       - Permission checking: Only owners/admins can manage users
       - Audit trail: Record created_by for role grants
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_account_management.py`
       - `test_create_account()` - Account created, creator becomes owner
       - `test_list_users_requires_permission()` - Permission check enforced
       - `test_grant_role()` - Role granted correctly
@@ -881,7 +888,7 @@ Add user authentication, role-based permissions, and account management capabili
       - Associate sessions with user_id when authenticated
       - Support anonymous sessions (user_id NULL) for backward compatibility
       - Add user context to LLM request tracking
-    - AUTOMATED-TESTS:
+    - AUTOMATED-TESTS: `backend/tests/integration/test_protected_agent_endpoints.py`
       - `test_agent_endpoint_anonymous()` - Works without authentication
       - `test_agent_endpoint_authenticated()` - Works with valid user
       - `test_agent_endpoint_permission_denied()` - Blocks user without permission
