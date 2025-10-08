@@ -213,7 +213,12 @@ Build foundational multi-tenant architecture with account and agent instance sup
   **Implementation Clarifications:**
   - **Primary Keys**: UUID for ALL tables (new and existing) - consistent throughout system
   - **UUID Generation**: Let database generate UUIDs (uuid_generate_v4() or DEFAULT gen_random_uuid()) - no hardcoded UUIDs
-  - **NOT NULL Constraints**: `sessions.account_id`, `sessions.agent_instance_id`, `messages.agent_instance_id` are NOT NULL (added immediately, no backfill needed)
+  - **Session Context Flow**: Sessions start with NULL account/instance context, then gain context progressively:
+    1. Session middleware creates session with account_id=NULL, agent_instance_id=NULL (first request)
+    2. Endpoint updates session with account/instance context when user navigates to specific agent
+    3. Subsequent requests load existing session with remembered context
+  - **Nullable Session Fields**: `sessions.account_id` and `sessions.agent_instance_id` are NULLABLE (allows session creation before context known)
+  - **NOT NULL Constraints**: `messages.agent_instance_id` is NOT NULL (messages always tied to specific agent)
   - **Config Path**: `config/agent_configs/{account_slug}/{instance_slug}/config.yaml` (base path controlled by `app.yaml`)
   - **Data Migration Strategy**: CLEAR all existing data (TRUNCATE sessions, messages, llm_requests, profiles) - start fresh with clean multi-tenant architecture
   - **Test Data Setup**: Create 2 accounts and 3 instances for comprehensive multi-tenant testing:
@@ -264,6 +269,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - ✅ Create `agent_instances` table (id UUID PRIMARY KEY, account_id UUID FK, instance_slug TEXT, agent_type TEXT, display_name TEXT, status TEXT, last_used_at)
       - ✅ Add unique constraint on (account_id, instance_slug) in agent_instances
       - ✅ Add columns to `sessions` table (account_id UUID FK NOT NULL, account_slug TEXT NOT NULL, agent_instance_id UUID FK NOT NULL, user_id UUID FK NULL)
+      - ⚠️ **NOTE**: Sessions fields initially added as NOT NULL, but revised to nullable in chunk 0022-001-002-01a for progressive context flow
       - ✅ Add columns to `messages` table (agent_instance_id UUID FK NOT NULL)
       - ✅ Add columns to `llm_requests` table (account_id UUID FK, account_slug TEXT, agent_instance_id UUID FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
       - ✅ Create indexes for performance (18 indexes for account_id, agent_instance_id, slugs)
@@ -396,12 +402,48 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ Complete — Router infrastructure functional
     - PRIORITY: High — Foundation for all endpoints
   
+  - [ ] 0022-001-002-01a - CHUNK - Session context migration (nullable fields)
+    - **RATIONALE**: Session middleware creates sessions BEFORE account/instance context is known (first request), but the initial migration (0022-001-001-02) added these fields as NOT NULL. This causes `NotNullViolationError` on all session creation. Making fields nullable enables progressive context flow: session starts anonymous, gains context when user navigates to specific agent.
+    - SUB-TASKS:
+      - Create Alembic migration to ALTER sessions table
+      - Change `account_id` from NOT NULL to NULLABLE (ALTER COLUMN DROP NOT NULL)
+      - Change `account_slug` from NOT NULL to NULLABLE (ALTER COLUMN DROP NOT NULL)
+      - Change `agent_instance_id` from NOT NULL to NULLABLE (ALTER COLUMN DROP NOT NULL)
+      - Keep foreign key constraints intact (still reference accounts/agent_instances tables)
+      - Document session context flow in migration docstring:
+        ```
+        Progressive Session Context Flow:
+        1. First request → session created with NULL account/instance
+        2. User navigates to /accounts/{account}/agents/{instance}/chat
+        3. Endpoint updates session with account_id, account_slug, agent_instance_id
+        4. Subsequent requests → session loaded with remembered context
+        ```
+      - Add inline SQL comments explaining nullable rationale
+    - AUTOMATED-TESTS: `backend/tests/integration/test_session_context_migration.py`
+      - `test_session_fields_nullable()` - Verify account_id, account_slug, agent_instance_id allow NULL
+      - `test_create_session_without_context()` - Session creation succeeds with NULL values
+      - `test_create_session_with_context()` - Session creation succeeds with valid account/instance
+      - `test_update_session_context()` - Can UPDATE session to add account/instance after creation
+      - `test_foreign_keys_still_enforced()` - Cannot insert invalid UUIDs for account_id/agent_instance_id
+      - `test_session_middleware_works()` - Session middleware creates session without errors
+    - MANUAL-TESTS:
+      - Run migration, verify no errors (alembic upgrade head)
+      - Check schema: `\d sessions` in psql, verify columns show nullable
+      - Test session creation: Start server, make any request, verify session created with NULL context
+      - Insert test session with NULL context: `INSERT INTO sessions (id, session_key, account_id, agent_instance_id) VALUES (gen_random_uuid(), 'test123', NULL, NULL)` - should succeed
+      - Verify FK constraint still works: Try inserting invalid UUID for account_id - should fail
+      - Hit health endpoint, verify no session errors in logs
+    - STATUS: Planned — Fix blocking architectural issue
+    - PRIORITY: CRITICAL — **BLOCKS** chunk 0022-001-002-02 (chat endpoint) - session creation must work before endpoints can function
+  
   - [ ] 0022-001-002-02 - CHUNK - Non-streaming chat endpoint
+    - **PREREQUISITE**: Chunk 0022-001-002-01a must be complete (session fields nullable) before implementing this chunk
     - SUB-TASKS:
       - Implement `POST /accounts/{account}/agents/{instance}/chat`
       - Extract account_slug and instance_slug from URL
       - Load agent instance using instance_loader
-      - Get current session (create if needed with account/instance context)
+      - Get current session from middleware (may have NULL account/instance context)
+      - **Update session context if NULL**: If session.account_id is NULL, UPDATE session with account_id, account_slug, agent_instance_id from loaded instance
       - Load conversation history with instance-specific history_limit
       - Route to appropriate agent function based on agent_type (simple_chat, sales_agent, etc.)
       - Pass instance config to agent function
@@ -412,6 +454,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - AUTOMATED-TESTS: `backend/tests/integration/test_account_agents_endpoints.py`
       - `test_chat_endpoint_simple_chat()` - Works with simple_chat agent
       - `test_chat_endpoint_creates_session()` - Session created with account/instance
+      - `test_chat_endpoint_updates_session_context()` - Session with NULL context gets updated on first chat request
+      - `test_chat_endpoint_preserves_session_context()` - Existing session context not overwritten
       - `test_chat_endpoint_loads_history()` - History loaded correctly
       - `test_chat_endpoint_saves_messages()` - Messages persisted
       - `test_chat_endpoint_tracks_cost()` - LLM request tracked
@@ -419,11 +463,15 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - `test_chat_endpoint_invalid_instance()` - 404 for invalid instance
       - `test_chat_endpoint_unknown_agent_type()` - 400 for unknown agent type
     - MANUAL-TESTS:
-      - Send POST to /accounts/default/agents/simple-chat/chat with message
+      - Clear browser cookies (or use incognito mode) to start with no session
+      - Send POST to /accounts/default_account/agents/simple_chat1/chat with message
       - Verify response contains agent reply
-      - Check database that message saved with correct agent_instance_id
-      - Check llm_requests table has entry with account/instance attribution
+      - Check database: session created with account_id and agent_instance_id populated
+      - Send second POST with same session cookie, verify session context preserved
+      - Check database that messages saved with correct agent_instance_id
+      - Check llm_requests table has entries with account/instance attribution
       - Test with invalid account/instance slugs, verify error responses
+      - Test session context update: Create session with NULL context via direct INSERT, then send chat request, verify session gets updated
     - STATUS: Planned — Primary chat endpoint
     - PRIORITY: Critical — Core functionality
   
@@ -432,7 +480,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Implement `GET /accounts/{account}/agents/{instance}/stream`
       - Extract account_slug, instance_slug, message from request
       - Load agent instance using instance_loader
-      - Get current session (create if needed)
+      - Get current session from middleware (may have NULL account/instance context)
+      - **Update session context if NULL**: If session.account_id is NULL, UPDATE session with account_id, account_slug, agent_instance_id from loaded instance
       - Load conversation history
       - Route to streaming agent function based on agent_type
       - Yield SSE events: `{"event": "message", "data": chunk}`

@@ -32,10 +32,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from loguru import logger
 from typing import Optional, List, Dict, Any
+from uuid import UUID
 
 from ..agents.instance_loader import load_agent_instance, list_account_instances
 from ..middleware.simple_session_middleware import get_current_session
 from ..database import get_database_service
+from ..services.message_service import get_message_service
 
 # Create router instance with prefix and tags
 router = APIRouter(
@@ -46,6 +48,45 @@ router = APIRouter(
         500: {"description": "Internal server error"}
     }
 )
+
+
+# ============================================================================
+# PYDANTIC MODELS
+# ============================================================================
+
+class ChatRequest(BaseModel):
+    """Request model for chat endpoint."""
+    message: str = Field(..., description="User message to send to agent", min_length=1)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "Hello, can you help me with a question?"
+            }
+        }
+
+
+class ChatResponse(BaseModel):
+    """Response model for chat endpoint."""
+    response: str = Field(..., description="Agent's response message")
+    usage: Optional[Dict[str, Any]] = Field(None, description="Token usage statistics")
+    llm_request_id: Optional[str] = Field(None, description="LLM request tracking ID")
+    cost_tracking: Optional[Dict[str, Any]] = Field(None, description="Cost tracking information")
+    model: Optional[str] = Field(None, description="LLM model used")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "response": "I'd be happy to help! What would you like to know?",
+                "usage": {
+                    "input_tokens": 15,
+                    "output_tokens": 12,
+                    "total_tokens": 27
+                },
+                "llm_request_id": "550e8400-e29b-41d4-a716-446655440000",
+                "model": "moonshotai/kimi-k2-0905"
+            }
+        }
 
 
 # ============================================================================
@@ -88,4 +129,205 @@ async def health_check(
             "stream": "GET /accounts/{account}/agents/{instance}/stream"
         }
     })
+
+
+# ============================================================================
+# CHAT ENDPOINT (NON-STREAMING)
+# ============================================================================
+
+@router.post("/{account_slug}/agents/{instance_slug}/chat")
+async def chat_endpoint(
+    chat_request: ChatRequest,
+    request: Request,
+    account_slug: str = Path(..., description="Account identifier slug"),
+    instance_slug: str = Path(..., description="Agent instance identifier slug")
+) -> JSONResponse:
+    """
+    Non-streaming chat endpoint for multi-tenant agent instances.
+    
+    Handles complete chat interactions with comprehensive session management,
+    message persistence, cost tracking, and error handling.
+    
+    Flow:
+    1. Load agent instance (DB + config file)
+    2. Get/create session with account/instance context
+    3. Load conversation history
+    4. Route to appropriate agent based on agent_type
+    5. Save user message and assistant response
+    6. Track LLM request costs
+    7. Return JSON response
+    
+    Args:
+        chat_request: User message and optional parameters
+        request: FastAPI request object (for session middleware)
+        account_slug: Account identifier from URL
+        instance_slug: Agent instance identifier from URL
+        
+    Returns:
+        JSONResponse with agent response, usage stats, and tracking IDs
+        
+    Raises:
+        HTTPException 404: Account or instance not found
+        HTTPException 400: Invalid agent type or bad request
+        HTTPException 500: Internal server error
+        
+    Example:
+        POST /accounts/default_account/agents/simple_chat1/chat
+        {"message": "Hello, can you help me?"}
+        
+        -> {
+            "response": "Of course! What would you like help with?",
+            "usage": {"input_tokens": 10, "output_tokens": 8, "total_tokens": 18},
+            "llm_request_id": "550e8400-...",
+            "model": "moonshotai/kimi-k2-0905"
+        }
+    """
+    user_message = chat_request.message.strip()
+    
+    logger.info({
+        "event": "chat_request",
+        "account": account_slug,
+        "instance": instance_slug,
+        "message_preview": user_message[:100] + "..." if len(user_message) > 100 else user_message
+    })
+    
+    # ========================================================================
+    # STEP 1: LOAD AGENT INSTANCE
+    # ========================================================================
+    
+    try:
+        instance = await load_agent_instance(account_slug, instance_slug)
+        logger.debug({
+            "event": "instance_loaded",
+            "instance_id": str(instance.id),
+            "agent_type": instance.agent_type,
+            "display_name": instance.display_name
+        })
+    except ValueError as e:
+        # Account or instance not found
+        logger.warning({
+            "event": "instance_not_found",
+            "account": account_slug,
+            "instance": instance_slug,
+            "error": str(e)
+        })
+        raise HTTPException(status_code=404, detail=f"Agent instance not found: {account_slug}/{instance_slug}")
+    except Exception as e:
+        logger.error({
+            "event": "instance_load_failed",
+            "account": account_slug,
+            "instance": instance_slug,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        raise HTTPException(status_code=500, detail="Failed to load agent instance")
+    
+    # ========================================================================
+    # STEP 2: GET/CREATE SESSION
+    # ========================================================================
+    
+    session = get_current_session(request)
+    if not session:
+        logger.error("No session available for chat request")
+        raise HTTPException(status_code=500, detail="Session error")
+    
+    logger.debug({
+        "event": "session_retrieved",
+        "session_id": str(session.id),
+        "session_key": session.session_key[:8] + "..." if session.session_key else None
+    })
+    
+    # ========================================================================
+    # STEP 3: ROUTE TO APPROPRIATE AGENT
+    # ========================================================================
+    
+    agent_type = instance.agent_type
+    
+    try:
+        if agent_type == "simple_chat":
+            # Import and call simple_chat agent
+            from ..agents.simple_chat import simple_chat
+            
+            result = await simple_chat(
+                message=user_message,
+                session_id=str(session.id)
+            )
+            
+        # Future agent types can be added here:
+        # elif agent_type == "sales_agent":
+        #     from ..agents.sales_agent import sales_agent
+        #     result = await sales_agent(message=user_message, session_id=str(session.id))
+        
+        else:
+            logger.error({
+                "event": "unknown_agent_type",
+                "agent_type": agent_type,
+                "instance": instance_slug
+            })
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown agent type: {agent_type}. Supported types: simple_chat"
+            )
+        
+        logger.info({
+            "event": "agent_response_generated",
+            "session_id": str(session.id),
+            "agent_type": agent_type,
+            "response_length": len(result['response']),
+            "llm_request_id": result.get('llm_request_id')
+        })
+        
+    except HTTPException:
+        # Re-raise HTTPExceptions
+        raise
+    except Exception as e:
+        logger.error({
+            "event": "agent_call_failed",
+            "session_id": str(session.id),
+            "agent_type": agent_type,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        raise HTTPException(
+            status_code=500,
+            detail=f"Agent processing failed: {str(e)}"
+        )
+    
+    # ========================================================================
+    # STEP 4: RETURN RESPONSE
+    # ========================================================================
+    
+    # Format usage data for response
+    usage = result.get('usage')
+    usage_dict = None
+    if usage:
+        usage_dict = {
+            "input_tokens": getattr(usage, 'input_tokens', 0),
+            "output_tokens": getattr(usage, 'output_tokens', 0),
+            "total_tokens": getattr(usage, 'total_tokens', 0),
+            "requests": getattr(usage, 'requests', 1)
+        }
+    
+    # Get model from instance config
+    model_settings = instance.config.get("model_settings", {})
+    model = model_settings.get("model", "unknown")
+    
+    response_data = {
+        "response": result['response'],
+        "usage": usage_dict,
+        "llm_request_id": result.get('llm_request_id'),
+        "cost_tracking": result.get('cost_tracking', {}),
+        "model": model
+    }
+    
+    logger.info({
+        "event": "chat_response_complete",
+        "session_id": str(session.id),
+        "account": account_slug,
+        "instance": instance_slug,
+        "response_length": len(result['response']),
+        "llm_request_id": result.get('llm_request_id')
+    })
+    
+    return JSONResponse(response_data)
 
