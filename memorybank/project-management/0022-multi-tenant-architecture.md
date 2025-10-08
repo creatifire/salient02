@@ -275,17 +275,18 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - Query default_account UUID, INSERT agent_instance: instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
         - Query default_account UUID, INSERT agent_instance: instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
         - Query acme UUID, INSERT agent_instance: instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
-    - AUTOMATED-TESTS:
-      - ✅ `test_migration_clears_data()` - Verified all existing data truncated (sessions: 0, messages: 0, llm_requests: 0, profiles: 0)
-      - ✅ `test_migration_creates_all_tables()` - Verified accounts and agent_instances tables created
-      - ✅ `test_migration_adds_columns()` - Verified new columns added to sessions, messages, llm_requests
-      - ✅ `test_migration_creates_indexes()` - Verified 18 indexes exist
-      - ✅ `test_test_accounts_seeded()` - Verified 2 accounts (default_account, acme) created with UUID primary keys
-      - ✅ `test_test_instances_seeded()` - Verified 3 instances (simple_chat1, simple_chat2, acme_chat1) created with UUID primary keys
-      - ✅ `test_instance_account_references()` - Verified instances correctly reference their accounts via UUID FKs
-      - ✅ `test_foreign_key_constraints()` - Verified referential integrity (fk_sessions_account_id, fk_sessions_agent_instance_id, etc.)
-      - ✅ `test_unique_constraints()` - Verified (account_id, instance_slug) unique in agent_instances
-      - ✅ `test_not_null_constraints()` - Verified NOT NULL constraints on account_id, agent_instance_id
+    - AUTOMATED-TESTS: ✅ **ALL 31 TESTS PASSING** (test runtime: 1.01s)
+      - ✅ `TestMigrationClearsData` (4 tests) - Verified all existing data truncated (sessions: 0, messages: 0, llm_requests: 0, profiles: 0)
+      - ✅ `TestMigrationCreatesAllTables` (2 tests) - Verified accounts and agent_instances tables created
+      - ✅ `TestMigrationAddsColumns` (3 tests) - Verified new columns added to sessions, messages, llm_requests
+      - ✅ `TestMigrationCreatesIndexes` (3 tests) - Verified 18 indexes created on accounts, agent_instances, sessions
+      - ✅ `TestTestAccountsSeeded` (4 tests) - Verified 2 accounts (default_account, acme) created with UUID primary keys
+      - ✅ `TestTestInstancesSeeded` (3 tests) - Verified 3 instances (simple_chat1, simple_chat2, acme_chat1) created with UUID primary keys
+      - ✅ `TestInstanceAccountReferences` (2 tests) - Verified instances correctly reference their accounts via UUID FKs
+      - ✅ `TestForeignKeyConstraints` (3 tests) - Verified referential integrity (fk_sessions_account_id, fk_sessions_agent_instance_id, fk_agent_instances_account_id)
+      - ✅ `TestUniqueConstraints` (2 tests) - Verified (account_id, instance_slug) unique in agent_instances, accounts.slug unique
+      - ✅ `TestNotNullConstraints` (4 tests) - Verified NOT NULL constraints on account_id, agent_instance_id in sessions/messages
+      - ✅ `test_sessions_user_id_nullable` (1 test) - Verified user_id is nullable for anonymous sessions
     - MANUAL-TESTS:
       - ✅ Run migration, verify no errors (alembic upgrade head succeeded)
       - ✅ Verify all existing data cleared: SELECT COUNT(*) FROM sessions (returned 0)
