@@ -70,16 +70,22 @@ class TestMigrationCreatesAllTables:
     async def test_accounts_table_exists(self, db_engine):
         """Verify accounts table was created."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            tables = inspector.get_table_names()
+            def get_tables(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_table_names()
+            
+            tables = await conn.run_sync(get_tables)
             assert 'accounts' in tables, "accounts table should exist"
     
     @pytest.mark.asyncio
     async def test_agent_instances_table_exists(self, db_engine):
         """Verify agent_instances table was created."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            tables = inspector.get_table_names()
+            def get_tables(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_table_names()
+            
+            tables = await conn.run_sync(get_tables)
             assert 'agent_instances' in tables, "agent_instances table should exist"
 
 
@@ -90,9 +96,11 @@ class TestMigrationAddsColumns:
     async def test_sessions_new_columns(self, db_engine):
         """Verify new columns added to sessions table."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name'] for col in inspector.get_columns('sessions')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name'] for col in inspector.get_columns('sessions')}
             
+            columns = await conn.run_sync(get_columns)
             required_columns = {'account_id', 'account_slug', 'agent_instance_id', 'user_id', 'updated_at'}
             assert required_columns.issubset(columns), f"Missing columns in sessions: {required_columns - columns}"
     
@@ -100,18 +108,22 @@ class TestMigrationAddsColumns:
     async def test_messages_new_columns(self, db_engine):
         """Verify new columns added to messages table."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name'] for col in inspector.get_columns('messages')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name'] for col in inspector.get_columns('messages')}
             
+            columns = await conn.run_sync(get_columns)
             assert 'agent_instance_id' in columns, "messages table should have agent_instance_id column"
     
     @pytest.mark.asyncio
     async def test_llm_requests_new_columns(self, db_engine):
         """Verify new columns added to llm_requests table."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name'] for col in inspector.get_columns('llm_requests')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name'] for col in inspector.get_columns('llm_requests')}
             
+            columns = await conn.run_sync(get_columns)
             required_columns = {
                 'account_id', 'account_slug', 'agent_instance_id', 
                 'agent_instance_slug', 'agent_type', 'completion_status'
@@ -126,9 +138,11 @@ class TestMigrationCreatesIndexes:
     async def test_accounts_indexes(self, db_engine):
         """Verify indexes created on accounts table."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            indexes = {idx['name'] for idx in inspector.get_indexes('accounts')}
+            def get_indexes(sync_conn):
+                inspector = inspect(sync_conn)
+                return {idx['name'] for idx in inspector.get_indexes('accounts')}
             
+            indexes = await conn.run_sync(get_indexes)
             required_indexes = {'ix_accounts_slug', 'ix_accounts_status'}
             assert required_indexes.issubset(indexes), f"Missing indexes on accounts: {required_indexes - indexes}"
     
@@ -136,9 +150,11 @@ class TestMigrationCreatesIndexes:
     async def test_agent_instances_indexes(self, db_engine):
         """Verify indexes created on agent_instances table."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            indexes = {idx['name'] for idx in inspector.get_indexes('agent_instances')}
+            def get_indexes(sync_conn):
+                inspector = inspect(sync_conn)
+                return {idx['name'] for idx in inspector.get_indexes('agent_instances')}
             
+            indexes = await conn.run_sync(get_indexes)
             required_indexes = {
                 'ix_agent_instances_account_id',
                 'ix_agent_instances_account_slug',
@@ -151,9 +167,11 @@ class TestMigrationCreatesIndexes:
     async def test_sessions_indexes(self, db_engine):
         """Verify indexes created on sessions table."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            indexes = {idx['name'] for idx in inspector.get_indexes('sessions')}
+            def get_indexes(sync_conn):
+                inspector = inspect(sync_conn)
+                return {idx['name'] for idx in inspector.get_indexes('sessions')}
             
+            indexes = await conn.run_sync(get_indexes)
             required_indexes = {
                 'ix_sessions_account_id',
                 'ix_sessions_account_slug',
@@ -303,9 +321,11 @@ class TestForeignKeyConstraints:
     async def test_agent_instances_fk_to_accounts(self, db_engine):
         """Verify agent_instances has FK to accounts."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            fks = inspector.get_foreign_keys('agent_instances')
+            def get_fks(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_foreign_keys('agent_instances')
             
+            fks = await conn.run_sync(get_fks)
             account_fks = [fk for fk in fks if 'account_id' in fk['constrained_columns']]
             assert len(account_fks) > 0, "agent_instances should have FK to accounts"
     
@@ -313,9 +333,11 @@ class TestForeignKeyConstraints:
     async def test_sessions_fk_to_accounts(self, db_engine):
         """Verify sessions has FK to accounts."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            fks = inspector.get_foreign_keys('sessions')
+            def get_fks(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_foreign_keys('sessions')
             
+            fks = await conn.run_sync(get_fks)
             account_fks = [fk for fk in fks if 'account_id' in fk['constrained_columns']]
             assert len(account_fks) > 0, "sessions should have FK to accounts"
     
@@ -323,9 +345,11 @@ class TestForeignKeyConstraints:
     async def test_sessions_fk_to_agent_instances(self, db_engine):
         """Verify sessions has FK to agent_instances."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            fks = inspector.get_foreign_keys('sessions')
+            def get_fks(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_foreign_keys('sessions')
             
+            fks = await conn.run_sync(get_fks)
             instance_fks = [fk for fk in fks if 'agent_instance_id' in fk['constrained_columns']]
             assert len(instance_fks) > 0, "sessions should have FK to agent_instances"
 
@@ -337,9 +361,11 @@ class TestUniqueConstraints:
     async def test_accounts_slug_unique(self, db_engine):
         """Verify accounts.slug has unique constraint."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            unique_constraints = inspector.get_unique_constraints('accounts')
+            def get_unique_constraints(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_unique_constraints('accounts')
             
+            unique_constraints = await conn.run_sync(get_unique_constraints)
             slug_constraints = [uc for uc in unique_constraints if 'slug' in uc['column_names']]
             assert len(slug_constraints) > 0, "accounts.slug should have unique constraint"
     
@@ -347,9 +373,11 @@ class TestUniqueConstraints:
     async def test_agent_instances_account_slug_unique(self, db_engine):
         """Verify (account_id, instance_slug) is unique in agent_instances."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            unique_constraints = inspector.get_unique_constraints('agent_instances')
+            def get_unique_constraints(sync_conn):
+                inspector = inspect(sync_conn)
+                return inspector.get_unique_constraints('agent_instances')
             
+            unique_constraints = await conn.run_sync(get_unique_constraints)
             composite_constraints = [
                 uc for uc in unique_constraints 
                 if 'account_id' in uc['column_names'] and 'instance_slug' in uc['column_names']
@@ -364,34 +392,42 @@ class TestNotNullConstraints:
     async def test_sessions_account_id_not_null(self, db_engine):
         """Verify sessions.account_id is NOT NULL."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name']: col for col in inspector.get_columns('sessions')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name']: col for col in inspector.get_columns('sessions')}
             
+            columns = await conn.run_sync(get_columns)
             assert not columns['account_id']['nullable'], "sessions.account_id should be NOT NULL"
     
     @pytest.mark.asyncio
     async def test_sessions_agent_instance_id_not_null(self, db_engine):
         """Verify sessions.agent_instance_id is NOT NULL."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name']: col for col in inspector.get_columns('sessions')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name']: col for col in inspector.get_columns('sessions')}
             
+            columns = await conn.run_sync(get_columns)
             assert not columns['agent_instance_id']['nullable'], "sessions.agent_instance_id should be NOT NULL"
     
     @pytest.mark.asyncio
     async def test_messages_agent_instance_id_not_null(self, db_engine):
         """Verify messages.agent_instance_id is NOT NULL."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name']: col for col in inspector.get_columns('messages')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name']: col for col in inspector.get_columns('messages')}
             
+            columns = await conn.run_sync(get_columns)
             assert not columns['agent_instance_id']['nullable'], "messages.agent_instance_id should be NOT NULL"
     
     @pytest.mark.asyncio
     async def test_sessions_user_id_nullable(self, db_engine):
         """Verify sessions.user_id is nullable (for anonymous sessions)."""
         async with db_engine.connect() as conn:
-            inspector = inspect(conn.sync_connection)
-            columns = {col['name']: col for col in inspector.get_columns('sessions')}
+            def get_columns(sync_conn):
+                inspector = inspect(sync_conn)
+                return {col['name']: col for col in inspector.get_columns('sessions')}
             
+            columns = await conn.run_sync(get_columns)
             assert columns['user_id']['nullable'], "sessions.user_id should be nullable"
