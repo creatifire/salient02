@@ -51,12 +51,15 @@ class TestSimpleChatParameterStandardization:
             # Mock agent and response
             mock_agent = AsyncMock()
             mock_result = MagicMock()
-            mock_result.data = "Test response from agent"
-            mock_result.usage.return_value = {
-                "input_tokens": 15,
-                "output_tokens": 25, 
-                "total_tokens": 40
-            }
+            mock_result.output = "Test response from agent"  # Fixed: use .output not .data
+            
+            # Mock usage as a callable that returns an object with attributes
+            mock_usage = MagicMock()
+            mock_usage.input_tokens = 15
+            mock_usage.output_tokens = 25
+            mock_usage.total_tokens = 40
+            mock_result.usage.return_value = mock_usage
+            
             mock_agent.run.return_value = mock_result
             mock_get_chat_agent.return_value = mock_agent
             
@@ -202,7 +205,7 @@ class TestSimpleChatParameterStandardization:
         assert 'session_continuity' in result
         
         # Agent workflow should be intact
-        mocks['load_conversation'].assert_called_once_with(session_id)
+        mocks['load_conversation'].assert_called_once_with(session_id=session_id, max_messages=None)
         mocks['get_session_stats'].assert_called_once_with(session_id)
         mocks['get_chat_agent'].assert_called_once()
         
