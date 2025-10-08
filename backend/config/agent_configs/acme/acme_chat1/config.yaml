@@ -1,0 +1,61 @@
+# Acme Chat Instance 1 - Acme Account
+# Test instance for account isolation verification
+# Differentiated settings for easy identification during testing
+
+agent_type: "simple_chat"
+account: "acme"
+instance_name: "acme_chat1"
+name: "Acme Chat Agent"
+description: "Acme Corporation's conversational agent with RAG capabilities and web search"
+
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"
+
+model_settings:
+  model: "moonshotai/kimi-k2-0905"  # Reliable model with great Pydantic AI support
+  temperature: 0.5                   # Higher than default (0.3) for testing differentiation
+  max_tokens: 2000
+
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+    similarity_threshold: 0.7
+    namespace_isolation: true
+    pinecone:
+      index_name: "salient-dev-01"
+      index_host: "https://salient-dev-01-e1nildl.svc.aped-4627-b74a.pinecone.io"
+      namespace: "acme"                # Account-specific namespace
+      embedding_model: "text-embedding-3-small"
+      dimensions: 1536
+      metric: "cosine"
+  
+  web_search:
+    enabled: true
+    provider: "exa"
+    engines:
+      exa:
+        api_key_env: "EXA_API_KEY"
+        max_results: 10
+      tavily:
+        api_key_env: "TAVILY_API_KEY"
+        max_results: 10
+  
+  conversation_management:
+    enabled: true
+    auto_summarize_threshold: 10
+    summary_model: "moonshotai/kimi-k2-0905"
+
+context_management:
+  history_limit: 30                       # Lower than default (50) for testing differentiation
+  context_window_tokens: 8000
+  summarization:
+    enabled: true
+    trigger_threshold: 10
+    summary_length: 200
+
+dependencies:
+  vector_db_required: true
+  session_required: true
+  account_context: true  # Multi-tenant architecture enabled

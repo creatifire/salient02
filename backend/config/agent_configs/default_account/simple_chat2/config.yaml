@@ -1,0 +1,60 @@
+# Simple Chat Instance 2 - Default Account
+# Second test instance to verify multiple instances per account work correctly
+
+agent_type: "simple_chat"
+account: "default_account"
+instance_name: "simple_chat2"
+name: "Simple Chat Agent 2"
+description: "General-purpose conversational agent with RAG capabilities and web search"
+
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"
+
+model_settings:
+  model: "moonshotai/kimi-k2-0905"  # Reliable model with great Pydantic AI support
+  temperature: 0.3
+  max_tokens: 2000
+
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+    similarity_threshold: 0.7
+    namespace_isolation: true
+    pinecone:
+      index_name: "salient-dev-01"
+      index_host: "https://salient-dev-01-e1nildl.svc.aped-4627-b74a.pinecone.io"
+      namespace: "development"
+      embedding_model: "text-embedding-3-small"
+      dimensions: 1536
+      metric: "cosine"
+  
+  web_search:
+    enabled: true
+    provider: "exa"
+    engines:
+      exa:
+        api_key_env: "EXA_API_KEY"
+        max_results: 10
+      tavily:
+        api_key_env: "TAVILY_API_KEY"
+        max_results: 10
+  
+  conversation_management:
+    enabled: true
+    auto_summarize_threshold: 10
+    summary_model: "moonshotai/kimi-k2-0905"
+
+context_management:
+  history_limit: 50                         # Standardized parameter name (matches app.yaml default)
+  context_window_tokens: 8000
+  summarization:
+    enabled: true
+    trigger_threshold: 10
+    summary_length: 200
+
+dependencies:
+  vector_db_required: true
+  session_required: true
+  account_context: true  # Multi-tenant architecture enabled
