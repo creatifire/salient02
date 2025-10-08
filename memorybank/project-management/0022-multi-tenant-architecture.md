@@ -223,37 +223,37 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - **acme** (generated UUID): "Acme Corporation"
       - acme_chat1 (generated UUID): "Acme Chat 1" - test account isolation
   
-  - [ ] 0022-001-001-01 - CHUNK - Test instance configuration files
+  - [x] 0022-001-001-01 - CHUNK - Test instance configuration files
     - SUB-TASKS:
-      - Create directory structure for default_account: `config/agent_configs/default_account/simple_chat1/`
-      - Move/copy existing config from `config/agent_configs/simple_chat/` to `default_account/simple_chat1/`
-      - Create `config.yaml` for simple_chat1 with agent_type="simple_chat", account="default_account", instance_name="simple_chat1"
-      - Configure llm settings (model, temperature, max_tokens)
-      - Configure tool settings (vector_search, conversation_management enabled)
-      - Configure context_management (history_limit: 50 - matches app.yaml default)
-      - Copy `system_prompt.md` if it exists
-      - Add inline documentation comments
-      - Create second instance: `config/agent_configs/default_account/simple_chat2/`
-      - Create `config.yaml` for simple_chat2 (copy from simple_chat1, update instance_name="simple_chat2")
-      - Create acme account directory: `config/agent_configs/acme/acme_chat1/`
-      - Create `config.yaml` for acme_chat1 with account="acme", instance_name="acme_chat1"
-      - Differentiate acme_chat1 config (e.g., different temperature or history_limit for testing)
+      - ✅ Create directory structure for default_account: `config/agent_configs/default_account/simple_chat1/`
+      - ✅ Move/copy existing config from `config/agent_configs/simple_chat/` to `default_account/simple_chat1/`
+      - ✅ Create `config.yaml` for simple_chat1 with agent_type="simple_chat", account="default_account", instance_name="simple_chat1"
+      - ✅ Configure llm settings (model, temperature, max_tokens)
+      - ✅ Configure tool settings (vector_search, conversation_management enabled)
+      - ✅ Configure context_management (history_limit: 50 - matches app.yaml default)
+      - ✅ Copy `system_prompt.md` if it exists
+      - ✅ Add inline documentation comments
+      - ✅ Create second instance: `config/agent_configs/default_account/simple_chat2/`
+      - ✅ Create `config.yaml` for simple_chat2 (copy from simple_chat1, update instance_name="simple_chat2")
+      - ✅ Create acme account directory: `config/agent_configs/acme/acme_chat1/`
+      - ✅ Create `config.yaml` for acme_chat1 with account="acme", instance_name="acme_chat1"
+      - ✅ Differentiate acme_chat1 config (e.g., different temperature or history_limit for testing)
     - AUTOMATED-TESTS:
-      - `test_all_config_files_exist()` - Verify all 3 config files exist at correct paths
-      - `test_all_configs_valid_yaml()` - All YAML files parse without errors
-      - `test_all_configs_required_fields()` - All required fields present in each config
-      - `test_configs_match_schema()` - All configs match existing AgentConfig schema
-      - `test_instance_names_unique()` - Each instance has unique account/instance_name combination
+      - ✅ `test_all_config_files_exist()` - Verified all 3 config files exist at correct paths
+      - ✅ `test_all_configs_valid_yaml()` - All YAML files parse without errors
+      - ✅ `test_all_configs_required_fields()` - All required fields present in each config
+      - ⏭️ `test_configs_match_schema()` - Will verify when AgentConfig schema updated
+      - ✅ `test_instance_names_unique()` - Each instance has unique account/instance_name combination
     - MANUAL-TESTS:
-      - Verify 3 config files created:
+      - ✅ Verify 3 config files created:
         - `config/agent_configs/default_account/simple_chat1/config.yaml`
         - `config/agent_configs/default_account/simple_chat2/config.yaml`
         - `config/agent_configs/acme/acme_chat1/config.yaml`
-      - Confirm all YAML syntax is valid (no parsing errors)
-      - Review config values are appropriate for each instance
-      - Verify acme_chat1 has different settings for easy identification during testing
-      - Verify old config path still exists (for backward compatibility during migration)
-    - STATUS: Planned — Config files for test instances (DO THIS FIRST)
+      - ✅ Confirm all YAML syntax is valid (no parsing errors)
+      - ✅ Review config values are appropriate for each instance
+      - ✅ Verify acme_chat1 has different settings for easy identification during testing (temp: 0.5, history: 30)
+      - ✅ Verify old config path still exists (for backward compatibility during migration)
+    - STATUS: ✅ Complete — Config files for test instances created and validated
     - PRIORITY: Critical — Foundation for both DB migration and instance loader
   
   - [ ] 0022-001-001-02 - CHUNK - Multi-tenant database schema migration
