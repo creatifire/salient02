@@ -37,7 +37,7 @@ Dependencies:
 from typing import Dict, Any, Optional, Tuple
 from uuid import UUID
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 
 from loguru import logger
 
@@ -116,7 +116,7 @@ class LLMRequestTracker:
             unit_cost_completion=cost_data.get("unit_cost_completion", 0.0),
             computed_cost=cost_data.get("total_cost", 0.0),
             latency_ms=latency_ms,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(UTC)
         )
         
         # Save to database using existing database service pattern

@@ -7,7 +7,11 @@ import yaml
 from pathlib import Path
 
 # Base path for agent configs
-CONFIG_BASE = Path(__file__).parent.parent / "config" / "agent_configs"
+# Path(__file__) = backend/tests/unit/test_config_files.py
+# .parent = backend/tests/unit/
+# .parent.parent = backend/tests/
+# .parent.parent.parent = backend/
+CONFIG_BASE = Path(__file__).parent.parent.parent / "config" / "agent_configs"
 
 # Test instances
 TEST_INSTANCES = [

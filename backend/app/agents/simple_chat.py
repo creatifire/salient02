@@ -29,7 +29,7 @@ from ..services.llm_request_tracker import LLMRequestTracker
 from typing import List, Optional
 import uuid
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, UTC
 import time
 import os
 
@@ -237,12 +237,12 @@ async def simple_chat(
     agent = await get_chat_agent()
     
     # Pure Pydantic AI agent execution
-    start_time = datetime.utcnow()
+    start_time = datetime.now(UTC)
     
     try:
         # Execute agent with Pydantic AI
         result = await agent.run(message, deps=session_deps, message_history=message_history)
-        end_time = datetime.utcnow()
+        end_time = datetime.now(UTC)
         latency_ms = int((end_time - start_time).total_seconds() * 1000)
         
         # Extract response and usage data
