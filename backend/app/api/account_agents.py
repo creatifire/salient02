@@ -223,7 +223,7 @@ async def chat_endpoint(
         raise HTTPException(status_code=500, detail="Failed to load agent instance")
     
     # ========================================================================
-    # STEP 2: GET/CREATE SESSION
+    # STEP 2: GET/CREATE SESSION WITH CONTEXT UPDATE
     # ========================================================================
     
     session = get_current_session(request)
@@ -234,29 +234,86 @@ async def chat_endpoint(
     logger.debug({
         "event": "session_retrieved",
         "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None
+        "session_key": session.session_key[:8] + "..." if session.session_key else None,
+        "account_id": str(session.account_id) if session.account_id else None
+    })
+    
+    # Update session context if NULL (progressive context flow)
+    if session.account_id is None:
+        from sqlalchemy import update as sql_update
+        from ..models import Session as SessionModel
+        
+        async with get_database_service().get_session() as db_session:
+            await db_session.execute(
+                sql_update(SessionModel)
+                .where(SessionModel.id == session.id)
+                .values(
+                    account_id=instance.account_id,
+                    account_slug=instance.account_slug,
+                    agent_instance_id=instance.id
+                )
+            )
+            await db_session.commit()
+        
+        logger.info({
+            "event": "session_context_updated",
+            "session_id": str(session.id),
+            "account_id": str(instance.account_id),
+            "agent_instance_id": str(instance.id)
+        })
+        
+        # Update local session object for use in this request
+        session.account_id = instance.account_id
+        session.account_slug = instance.account_slug
+        session.agent_instance_id = instance.id
+    
+    # ========================================================================
+    # STEP 3: LOAD CONVERSATION HISTORY
+    # ========================================================================
+    
+    # Get history_limit from instance config
+    context_management = instance.config.get("context_management", {})
+    history_limit = context_management.get("history_limit", 50)
+    
+    # Load conversation history for this session
+    from ..services.agent_session import load_agent_conversation
+    message_history = await load_agent_conversation(
+        session_id=str(session.id),
+        max_messages=history_limit
+    )
+    
+    logger.debug({
+        "event": "history_loaded",
+        "session_id": str(session.id),
+        "history_count": len(message_history),
+        "history_limit": history_limit
     })
     
     # ========================================================================
-    # STEP 3: ROUTE TO APPROPRIATE AGENT
+    # STEP 4: ROUTE TO APPROPRIATE AGENT
     # ========================================================================
     
     agent_type = instance.agent_type
     
     try:
         if agent_type == "simple_chat":
-            # Import and call simple_chat agent
+            # Import and call simple_chat agent with pre-loaded history
             from ..agents.simple_chat import simple_chat
             
             result = await simple_chat(
                 message=user_message,
-                session_id=str(session.id)
+                session_id=str(session.id),
+                message_history=message_history  # Pass pre-loaded history
             )
             
         # Future agent types can be added here:
         # elif agent_type == "sales_agent":
         #     from ..agents.sales_agent import sales_agent
-        #     result = await sales_agent(message=user_message, session_id=str(session.id))
+        #     result = await sales_agent(
+        #         message=user_message,
+        #         session_id=str(session.id),
+        #         message_history=message_history
+        #     )
         
         else:
             logger.error({
@@ -276,6 +333,9 @@ async def chat_endpoint(
             "response_length": len(result['response']),
             "llm_request_id": result.get('llm_request_id')
         })
+        
+        # NOTE: Messages and cost tracking are handled by the agent (simple_chat)
+        # which uses Pydantic AI's native tracking and saves via MessageService
         
     except HTTPException:
         # Re-raise HTTPExceptions

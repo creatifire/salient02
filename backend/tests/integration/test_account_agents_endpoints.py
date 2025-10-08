@@ -25,7 +25,7 @@ from httpx import AsyncClient
 from fastapi import FastAPI
 
 from app.main import app
-from app.database import initialize_database, shutdown_database
+from app.database import initialize_database, shutdown_database, get_database_service
 
 # Suppress known SQLAlchemy async connection cleanup warnings
 # These are unraisable exceptions from SQLAlchemy's internal connection pool cleanup
@@ -37,29 +37,21 @@ pytestmark = pytest.mark.filterwarnings("ignore::RuntimeWarning")
 # FIXTURES
 # ============================================================================
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture
 async def client():
     """
     Create async HTTP client for testing endpoints.
     
-    Module-scoped fixture that initializes database once for all tests
-    and properly cleans up database connections after all tests complete.
-    This prevents multiple database initializations and connection warnings.
+    Function-scoped fixture for maximum test isolation.
+    Each test gets a fresh client instance.
     """
-    # Initialize database once for all tests in this module
+    # Initialize database (idempotent - safe to call multiple times)
     await initialize_database()
     
     # Create ASGI transport for httpx AsyncClient
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
-    # Explicit cleanup after all tests - properly close database connections
-    await shutdown_database()
-    
-    # Give pending async tasks time to complete cleanup
-    # This prevents "coroutine never awaited" warnings from connection pool cleanup
-    await asyncio.sleep(0.1)
 
 
 # ============================================================================

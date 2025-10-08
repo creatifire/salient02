@@ -24,6 +24,56 @@ Use manual tests when you want to:
 
 ## Available Tests
 
+### `test_chat_endpoint.py`
+
+Tests the multi-tenant chat endpoint with a real HTTP request to verify end-to-end functionality.
+
+**What it tests:**
+- POST `/accounts/{account}/agents/{instance}/chat` endpoint
+- Real LLM integration via OpenRouter
+- Response structure (response, usage, model fields)
+- Token usage tracking
+- Actual AI model responses
+
+**Prerequisites:**
+- FastAPI server must be running (`uvicorn app.main:app --reload`)
+- Database initialized with seed data
+- OpenRouter API key in `.env`
+
+**How to run:**
+```bash
+# Terminal 1: Start the server
+cd backend
+uvicorn app.main:app --reload
+
+# Terminal 2: Run the test
+cd backend
+python tests/manual/test_chat_endpoint.py
+```
+
+**Expected output:**
+```
+📍 Endpoint: http://localhost:8000/accounts/default_account/agents/simple_chat1/chat
+💬 Message: What LLM are you and what is your knowledge cutoff date?
+
+✅ Response received in 2.34s
+
+🤖 LLM Response:
+--------------------------------------------------------------------------------
+I am Kimi, an AI assistant powered by Moonshot AI. My knowledge cutoff date 
+is September 2024...
+--------------------------------------------------------------------------------
+
+📦 Model: moonshotai/kimi-k2-0905
+📈 Token Usage:
+  - input_tokens: 45
+  - output_tokens: 89
+  - total_tokens: 134
+
+✅ All required fields present
+✅ TEST PASSED
+```
+
 ### `test_config_loader.py`
 
 Verifies that agent instance configuration loading works correctly across multiple accounts and instances.
