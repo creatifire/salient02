@@ -462,11 +462,89 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance discovery API
     - PRIORITY: Medium — For future UI features
 
-- [ ] 0022-001-003 - TASK - Cost Tracking & Observability
+- [ ] 0022-001-003 - TASK - Frontend Widget Migration
+  
+  Migrate all frontend chat widgets to use new multi-tenant endpoint structure (`/accounts/{account}/agents/{instance}/*`), making widgets easily configurable for different accounts and agent instances.
+  
+  - [ ] 0022-001-003-01 - CHUNK - Update Astro/Preact chat components
+    - SUB-TASKS:
+      - Add `accountSlug` prop to all chat components (default: "default_account")
+      - Add `agentInstanceSlug` prop to all chat components (default: "simple_chat1")
+      - Update `SimpleChatWidget.tsx`: Replace `/events/stream` → `/accounts/${accountSlug}/agents/${agentInstanceSlug}/stream`
+      - Update `SimpleChatWidget.tsx`: Replace `/chat` → `/accounts/${accountSlug}/agents/${agentInstanceSlug}/chat`
+      - Update `ChatInterface.astro`: Pass account/instance props to widgets
+      - Update any other Preact/Astro chat components in `web/src/components/`
+      - Add prop validation and TypeScript types for account/instance slugs
+      - Add JSDoc documentation for new props
+      - Ensure session cookies still work correctly with new endpoints
+    - AUTOMATED-TESTS:
+      - `test_widget_default_props()` - Default to default_account/simple_chat1
+      - `test_widget_custom_props()` - Accept custom account/instance slugs
+      - `test_widget_api_calls()` - Verify correct endpoint URLs generated
+      - `test_widget_prop_types()` - TypeScript types enforce string slugs
+      - `test_widget_invalid_slugs()` - Handle empty/null slugs gracefully
+    - MANUAL-TESTS:
+      - Load chat widget, verify connects to default_account/simple_chat1
+      - Set accountSlug="acme", agentInstanceSlug="acme_chat1", verify uses correct endpoint
+      - Check browser network tab: confirm requests go to /accounts/acme/agents/acme_chat1/stream
+      - Test chat functionality: send message, receive response, verify session persists
+      - Verify multiple widgets on same page can use different accounts/instances
+    - STATUS: Planned — Core widget components
+    - PRIORITY: Critical — Required for frontend to work with new architecture
+  
+  - [ ] 0022-001-003-02 - CHUNK - Update embedded widgets (iframe, shadow DOM)
+    - SUB-TASKS:
+      - Update iframe widget loader (`web/public/widget.html` or similar)
+      - Support config via data attributes: `<div id="salient-chat" data-account="acme" data-agent="sales-chat">`
+      - Support config via query params: `widget.html?account=acme&instance=sales-chat`
+      - Update JavaScript widget API: `window.SalientChat.init({account: 'acme', instance: 'sales-chat'})`
+      - Update shadow DOM widget to read config from host element attributes
+      - Ensure iframe postMessage communication passes account/instance correctly
+      - Update widget embed documentation/examples
+      - Add fallback to default_account/simple_chat1 if no config provided
+    - AUTOMATED-TESTS:
+      - `test_iframe_data_attributes()` - Config from data-account/data-agent
+      - `test_iframe_query_params()` - Config from URL params
+      - `test_js_api_init()` - Config from init() call
+      - `test_shadow_dom_attributes()` - Shadow DOM reads host attributes
+      - `test_widget_defaults()` - Falls back to default_account/simple_chat1
+      - `test_postmessage_config()` - iframe communication includes account/instance
+    - MANUAL-TESTS:
+      - Embed widget with: `<div data-account="acme" data-agent="acme_chat1">`, verify correct endpoint
+      - Load widget.html?account=acme&instance=acme_chat1, verify query params work
+      - Use JS API: `SalientChat.init({account: 'acme'})`, verify config applied
+      - Test iframe embedding on external page, verify cross-origin communication
+      - Embed multiple widgets with different configs, verify isolation
+    - STATUS: Planned — Embeddable widget configuration
+    - PRIORITY: High — Enable multi-tenant widget embedding
+  
+  - [ ] 0022-001-003-03 - CHUNK - Update demo pages
+    - SUB-TASKS:
+      - Update `web/src/pages/demo/simple-chat.astro` to use default_account/simple_chat1
+      - Update any HTMX demo pages in `web/src/pages/demo/` or `web/src/pages/test/`
+      - Add demo page examples showing different account/instance configs
+      - Create `web/src/pages/demo/multi-tenant-examples.astro` with 3 widgets (simple_chat1, simple_chat2, acme_chat1)
+      - Update demo page documentation/comments to explain account/instance config
+      - Verify all demo pages work correctly with new endpoints
+      - Update localhost:8000 main chat page (if applicable) to use default_account/simple_chat1
+    - AUTOMATED-TESTS:
+      - `test_demo_pages_render()` - All demo pages render without errors
+      - `test_demo_widgets_configured()` - Widgets have account/instance props set
+      - `test_multi_tenant_demo()` - Multi-tenant demo page shows 3 different instances
+    - MANUAL-TESTS:
+      - Navigate to /demo/simple-chat, verify chat works with default_account/simple_chat1
+      - Navigate to /demo/multi-tenant-examples, verify 3 widgets with different instances
+      - Test each demo widget: send message, verify correct agent responds
+      - Verify localhost:8000 main page (if applicable) uses new endpoints
+      - Check that each widget maintains separate session/conversation
+    - STATUS: Planned — Demo page migration
+    - PRIORITY: Medium — Required for testing and demonstrations
+
+- [ ] 0022-001-004 - TASK - Cost Tracking & Observability
   
   **Design Reference:** [Cost Tracking Updates](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - Complete track_llm_request() signature with hybrid FK + denormalized columns, query examples for fast aggregation
   
-  - [ ] 0022-001-003-01 - CHUNK - LLM request tracker updates
+  - [ ] 0022-001-004-01 - CHUNK - LLM request tracker updates
     - SUB-TASKS:
       - Update `backend/app/services/llm_request_tracker.py`
       - Add parameters to `track_llm_request()`: account_id, account_slug, agent_instance_id, agent_instance_slug, agent_type, completion_status
@@ -488,8 +566,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Enhanced cost tracking
     - PRIORITY: High — Required for proper billing
 
-- [ ] 0022-001-004 - TASK - Testing & Validation
-  - [ ] 0022-001-004-01 - CHUNK - Unit tests for instance loader
+- [ ] 0022-001-005 - TASK - Testing & Validation
+  - [ ] 0022-001-005-01 - CHUNK - Unit tests for instance loader
     - SUB-TASKS:
       - Create `backend/tests/test_instance_loader.py`
       - Mock database queries for fast unit tests
@@ -500,7 +578,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance loader test coverage
     - PRIORITY: High — Core infrastructure testing
   
-  - [ ] 0022-001-004-02 - CHUNK - Integration test fixtures and utilities
+  - [ ] 0022-001-005-02 - CHUNK - Integration test fixtures and utilities
     - SUB-TASKS:
       - Create `backend/tests/fixtures/multi_tenant_prompts.py` with test prompts
       - Define 4 prompts per instance (12 total):
@@ -524,7 +602,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Test infrastructure for integration tests
     - PRIORITY: High — Foundation for comprehensive testing
   
-  - [ ] 0022-001-004-03 - CHUNK - Multi-instance integration tests (MOCKED LLM)
+  - [ ] 0022-001-005-03 - CHUNK - Multi-instance integration tests (MOCKED LLM)
     - SUB-TASKS:
       - Create `backend/tests/integration/test_multi_instance_integration_mocked.py`
       - Mock Pydantic AI Agent.run() to return deterministic responses
@@ -560,7 +638,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Fast integration tests with mocked LLM (manual trigger)
     - PRIORITY: Critical — Primary validation mechanism for development
   
-  - [ ] 0022-001-004-04 - CHUNK - Multi-instance integration tests (REAL LLM)
+  - [ ] 0022-001-005-04 - CHUNK - Multi-instance integration tests (REAL LLM)
     - SUB-TASKS:
       - Create `backend/tests/integration/test_multi_instance_integration_real.py`
       - Mark with `@pytest.mark.integration` and `@pytest.mark.slow`
@@ -640,8 +718,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Real-world validation with actual LLM calls (runnable on demand)
     - PRIORITY: High — Critical for validating real LLM integration
 
-- [ ] 0022-001-005 - TASK - Simple Admin UI (Optional)
-  - [ ] 0022-001-005-01 - CHUNK - Account browser page
+- [ ] 0022-001-006 - TASK - Simple Admin UI (Optional)
+  - [ ] 0022-001-006-01 - CHUNK - Account browser page
     - SUB-TASKS:
       - Create `web/src/pages/dev/accounts.astro`
       - Add page to dev navigation (similar to `/dev/logs`)
@@ -662,7 +740,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Optional admin UI
     - PRIORITY: Low — Nice to have, not required for Phase 1a completion
   
-  - [ ] 0022-001-005-02 - CHUNK - Agent instance drill-down
+  - [ ] 0022-001-006-02 - CHUNK - Agent instance drill-down
     - SUB-TASKS:
       - Add expandable instance list per account
       - Show instance details: slug, type, status, last_used_at
@@ -680,7 +758,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance browsing
     - PRIORITY: Low — Optional enhancement
   
-  - [ ] 0022-001-005-03 - CHUNK - Session and cost tracking views
+  - [ ] 0022-001-006-03 - CHUNK - Session and cost tracking views
     - SUB-TASKS:
       - Add "View Sessions" modal/expansion for each instance
       - Show recent sessions: session_key, message_count, last_activity_at
