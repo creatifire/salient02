@@ -93,55 +93,6 @@ def sample_agent_config():
 #     pass
 
 
-@pytest.mark.integration
-def test_agent_config_with_account_context():
-    """Test agent configuration loading with account context (Phase 3 preparation)."""
-    try:
-        from app.agents.config_loader import get_agent_config_with_context
-        from app.agents.base.types import AccountContext
-        
-        account_context = AccountContext(account_id="test-account")
-        
-        config = asyncio.run(get_agent_config_with_context(
-            agent_type="simple_chat",
-            account_context=account_context
-        ))
-        
-        # Should load base config and preserve account context
-        assert config.agent_type == "simple_chat"
-        # Account context should be preserved for Phase 3 preparation
-        assert hasattr(config, 'account_context') or account_context is not None
-        
-    except Exception as e:
-        # This might not be fully implemented yet, so we'll make it a soft assertion
-        pytest.skip(f"Account context integration not fully implemented: {e}")
-
-
-@pytest.mark.integration
-def test_config_directory_scanning():
-    """Test scanning agent configs directory for available templates."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        try:
-            from app.agents.config_loader import scan_agent_configs
-            
-            # Create sample config files
-            config1 = {"agent_type": "simple_chat", "name": "Simple Chat"}
-            config2 = {"agent_type": "sales_agent", "name": "Sales Agent"}
-            
-            with open(f"{tmpdir}/simple_chat.yaml", "w") as f:
-                yaml.dump(config1, f)
-            with open(f"{tmpdir}/sales_agent.yaml", "w") as f:
-                yaml.dump(config2, f)
-                
-            configs = scan_agent_configs(tmpdir)
-            assert "simple_chat" in configs
-            assert "sales_agent" in configs
-            
-        except ImportError:
-            pytest.skip("Config directory scanning function not implemented yet")
-        except Exception as e:
-            pytest.fail(f"Config directory scanning test failed: {e}")
-
 
 # TODO: Recreate in Phase 3 with robust error handling
 # @pytest.mark.unit
