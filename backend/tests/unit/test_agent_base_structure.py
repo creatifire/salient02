@@ -1,6 +1,6 @@
 """
-Unit tests for CHUNK 0005-001-001-02 - Base Agent Module Structure
-Tests the base agent infrastructure and dependency injection patterns.
+Unit tests for Agent Module Structure (Pydantic AI Architecture)
+Tests the Pydantic AI-based agent infrastructure and dependency injection patterns.
 """
 import pytest
 from unittest.mock import MagicMock
@@ -8,15 +8,17 @@ from unittest.mock import MagicMock
 
 @pytest.mark.unit
 def test_agents_module_imports():
-    """Test that all base agent modules import correctly without errors."""
+    """Test that all agent modules import correctly without errors."""
     try:
-        from app.agents import BaseAgent, BaseDependencies
-        from app.agents.base import AccountScopedDependencies, SessionDependencies
+        # Test Pydantic AI agent imports
+        from app.agents import OpenRouterModel
+        from app.agents.base.dependencies import SessionDependencies
+        from app.agents.simple_chat import simple_chat, create_simple_chat_agent
         
-        assert BaseAgent is not None
-        assert BaseDependencies is not None  
-        assert AccountScopedDependencies is not None
+        assert OpenRouterModel is not None
         assert SessionDependencies is not None
+        assert simple_chat is not None
+        assert create_simple_chat_agent is not None
         
     except ImportError as e:
         pytest.fail(f"Agent module import failed: {e}")
