@@ -1459,6 +1459,11 @@ async def tail_logs(request: Request, format: str = "json", count: int = 10) -> 
 from .api.agents import router as agents_router
 app.include_router(agents_router)
 
+# Multi-Tenant Account-Agent Instance Router Registration
+# Include multi-tenant endpoints for account-scoped agent instances
+from .api.account_agents import router as account_agents_router
+app.include_router(account_agents_router)
+
 # Conditional Legacy Endpoint Registration  
 # Register legacy endpoints only if enabled in configuration
 # This enables parallel development of new agents without disrupting existing functionality

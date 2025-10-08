@@ -377,20 +377,23 @@ Build foundational multi-tenant architecture with account and agent instance sup
   
   **Design Reference:** [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Complete implementations for chat, stream, and list endpoints with instance loading, session management, and error handling patterns
   
-  - [ ] 0022-001-002-01 - CHUNK - Account agents router setup
+  - [x] 0022-001-002-01 - CHUNK - Account agents router setup
     - SUB-TASKS:
-      - Create `backend/app/api/account_agents.py`
-      - Create FastAPI APIRouter instance
-      - Import required dependencies (instance_loader, session middleware, etc.)
-      - Add router to main.py application
-      - Add basic health check endpoint for testing
+      - ✅ Create `backend/app/api/account_agents.py`
+      - ✅ Create FastAPI APIRouter instance
+      - ✅ Import required dependencies (instance_loader, session middleware, etc.)
+      - ✅ Add router to main.py application
+      - ✅ Add basic health check endpoint for testing
     - AUTOMATED-TESTS: `backend/tests/integration/test_account_agents_endpoints.py`
-      - `test_router_registered()` - Router added to app
-      - `test_health_endpoint()` - Basic endpoint works
+      - ✅ `test_router_registered()` - Router added to app
+      - ✅ `test_health_endpoint()` - Basic endpoint works
+      - ✅ `test_health_endpoint_different_accounts()` - Works for multiple accounts
+      - ✅ `test_router_prefix()` - Prefix enforcement verified
+      - ✅ `test_health_response_structure()` - Response structure validated
     - MANUAL-TESTS:
-      - Start server, verify no import errors
-      - Hit health endpoint, verify 200 OK
-    - STATUS: Planned — Router infrastructure
+      - ✅ Start server, verify no import errors
+      - ✅ Hit health endpoint, verify 200 OK
+    - STATUS: ✅ Complete — Router infrastructure functional
     - PRIORITY: High — Foundation for all endpoints
   
   - [ ] 0022-001-002-02 - CHUNK - Non-streaming chat endpoint
