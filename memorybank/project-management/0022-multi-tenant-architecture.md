@@ -198,13 +198,21 @@ context_management:
 - `user_roles`: Many-to-many user-account-role mapping
 
 ## 0022-001 - FEATURE - Phase 1a: Core Multi-Tenancy Infrastructure
-**Status**: Planned
+**Status**: 🚧 In Progress - Foundation Complete, Building Endpoints
 
 Build foundational multi-tenant architecture with account and agent instance support, enabling Pydantic AI migration for all endpoints.
 
+**Progress Summary:**
+- ✅ Task 0022-001-001 - Database & Configuration Infrastructure (4/4 chunks complete)
+- 🚧 Task 0022-001-002 - API Endpoints (2/4 chunks complete)
+- ⏳ Task 0022-001-003 - Frontend Widget Migration (not started)
+- ⏳ Task 0022-001-004 - Cost Tracking & Observability (not started)
+- ⏳ Task 0022-001-005 - Testing & Validation (not started)
+
 **📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
-- [ ] 0022-001-001 - TASK - Database & Configuration Infrastructure
+- [x] 0022-001-001 - TASK - Database & Configuration Infrastructure
+  **Status**: ✅ Complete - All 4 chunks implemented and tested
   
   **Design References:**
   - [Database Schema SQL](../design/account-agent-instance-architecture.md#deliverables) - Complete CREATE TABLE statements, indexes, seed data
@@ -380,6 +388,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - PRIORITY: Medium — Nice to have for Phase 1a
 
 - [ ] 0022-001-002 - TASK - API Endpoints
+  **Status**: 🚧 In Progress - 2 of 4 chunks complete (router setup + session migration)
   
   **Design Reference:** [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Complete implementations for chat, stream, and list endpoints with instance loading, session management, and error handling patterns
   
