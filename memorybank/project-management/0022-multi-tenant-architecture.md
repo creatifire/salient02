@@ -211,16 +211,16 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - [Instance Loader Implementation](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Hybrid DB + config file approach
   
   **Implementation Clarifications:**
-  - **Primary Keys**: Integer for new tables (existing tables keep UUIDs)
+  - **Primary Keys**: UUID for ALL tables (new and existing) - consistent throughout system
   - **NOT NULL Constraints**: `sessions.account_id`, `sessions.agent_instance_id`, `messages.agent_instance_id` are NOT NULL
   - **Config Path**: `config/agent_configs/{account_slug}/{instance_slug}/config.yaml` (base path controlled by `app.yaml`)
   - **Backfill Strategy**: Use default values in migration (all existing data → default_account/simple_chat1)
   - **Test Data Setup**: Create 2 accounts and 3 instances for comprehensive multi-tenant testing:
-    - **default_account** (id=1): "Default Account"
-      - simple_chat1 (id=1): "Simple Chat 1" - backfill target
-      - simple_chat2 (id=2): "Simple Chat 2" - test multiple instances per account
-    - **acme** (id=2): "Acme Corporation"
-      - acme_chat1 (id=3): "Acme Chat 1" - test account isolation
+    - **default_account** (UUID): "Default Account"
+      - simple_chat1 (UUID): "Simple Chat 1" - backfill target
+      - simple_chat2 (UUID): "Simple Chat 2" - test multiple instances per account
+    - **acme** (UUID): "Acme Corporation"
+      - acme_chat1 (UUID): "Acme Chat 1" - test account isolation
   
   - [ ] 0022-001-001-01 - CHUNK - Test instance configuration files
     - SUB-TASKS:
@@ -258,43 +258,43 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - [ ] 0022-001-001-02 - CHUNK - Multi-tenant database schema migration
     - SUB-TASKS:
       - Create Alembic migration for Phase 1a schema
-      - Create `accounts` table (id INTEGER PRIMARY KEY, slug TEXT UNIQUE, name TEXT, status TEXT, subscription_tier TEXT, created_at, updated_at)
-      - Create `agent_instances` table (id INTEGER PRIMARY KEY, account_id INTEGER FK, instance_slug TEXT, agent_type TEXT, display_name TEXT, status TEXT, last_used_at)
+      - Create `accounts` table (id UUID PRIMARY KEY, slug TEXT UNIQUE, name TEXT, status TEXT, subscription_tier TEXT, created_at, updated_at)
+      - Create `agent_instances` table (id UUID PRIMARY KEY, account_id UUID FK, instance_slug TEXT, agent_type TEXT, display_name TEXT, status TEXT, last_used_at)
       - Add unique constraint on (account_id, instance_slug) in agent_instances
-      - Add columns to `sessions` table (account_id INTEGER FK NOT NULL, account_slug TEXT NOT NULL, agent_instance_id INTEGER FK NOT NULL, user_id INTEGER FK NULL)
-      - Add columns to `messages` table (agent_instance_id INTEGER FK NOT NULL)
-      - Add columns to `llm_requests` table (account_id INTEGER FK, account_slug TEXT, agent_instance_id INTEGER FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
+      - Add columns to `sessions` table (account_id UUID FK NOT NULL, account_slug TEXT NOT NULL, agent_instance_id UUID FK NOT NULL, user_id UUID FK NULL)
+      - Add columns to `messages` table (agent_instance_id UUID FK NOT NULL)
+      - Add columns to `llm_requests` table (account_id UUID FK, account_slug TEXT, agent_instance_id UUID FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
       - Create indexes for performance (account_id, agent_instance_id, slugs)
       - Seed test accounts:
         - Account 1: slug="default_account", name="Default Account", status="active"
         - Account 2: slug="acme", name="Acme Corporation", status="active"
       - Seed test agent instances:
-        - Instance 1: account_id=1, instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
-        - Instance 2: account_id=1, instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
-        - Instance 3: account_id=2, instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
-      - Backfill existing sessions/messages/llm_requests to default account (id=1) and instance (id=1)
+        - Instance 1: account_id=<default_account_uuid>, instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
+        - Instance 2: account_id=<default_account_uuid>, instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
+        - Instance 3: account_id=<acme_account_uuid>, instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
+      - Backfill existing sessions/messages/llm_requests to default_account and simple_chat1 instance (using their UUIDs)
       - Add NOT NULL constraints after backfill
     - AUTOMATED-TESTS:
       - `test_migration_creates_all_tables()` - Verify all tables created
       - `test_migration_creates_indexes()` - Verify indexes exist
-      - `test_test_accounts_seeded()` - Verify 2 accounts (default_account, acme) created
-      - `test_test_instances_seeded()` - Verify 3 instances (simple_chat1, simple_chat2, acme_chat1) created
-      - `test_instance_account_references()` - Verify instances correctly reference their accounts
-      - `test_backfill_existing_data()` - Verify existing data mapped to default (account_id=1, agent_instance_id=1)
+      - `test_test_accounts_seeded()` - Verify 2 accounts (default_account, acme) created with UUID primary keys
+      - `test_test_instances_seeded()` - Verify 3 instances (simple_chat1, simple_chat2, acme_chat1) created with UUID primary keys
+      - `test_instance_account_references()` - Verify instances correctly reference their accounts via UUID FKs
+      - `test_backfill_existing_data()` - Verify existing data mapped to default_account and simple_chat1 (using UUIDs)
       - `test_foreign_key_constraints()` - Verify referential integrity
       - `test_unique_constraints()` - Verify (account_id, instance_slug) unique in agent_instances
       - `test_not_null_constraints()` - Verify NOT NULL constraints on account_id, agent_instance_id
     - MANUAL-TESTS:
       - Run migration on clean database, verify no errors
-      - Check that 2 accounts exist: default_account and acme
-      - Check that 3 agent instances exist:
-        - default_account/simple_chat1 (id=1)
-        - default_account/simple_chat2 (id=2)
-        - acme/acme_chat1 (id=3)
-      - Verify existing sessions/messages/llm_requests have account_id=1 and agent_instance_id=1 populated
+      - Check that 2 accounts exist: default_account and acme (both with UUID primary keys)
+      - Check that 3 agent instances exist (all with UUID primary keys):
+        - default_account/simple_chat1
+        - default_account/simple_chat2
+        - acme/acme_chat1
+      - Verify existing sessions/messages/llm_requests have account_id and agent_instance_id populated with UUIDs
       - Use psql or Postgres MCP to verify all indexes created correctly
       - Run queries from `backend/scripts/admin_queries.sql` to validate data integrity
-      - Test multi-instance query: SELECT * FROM agent_instances WHERE account_id=1 (should return 2 rows)
+      - Test multi-instance query: SELECT * FROM agent_instances WHERE account_id = (SELECT id FROM accounts WHERE slug='default_account') (should return 2 rows)
     - STATUS: Planned — Foundation database schema for multi-tenancy (DO THIS SECOND)
     - PRIORITY: Critical — Enables instance loader to work
   
