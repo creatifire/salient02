@@ -222,3 +222,197 @@ def _get_config_path(account_slug: str, instance_slug: str) -> Path:
     config_path = configs_dir / account_slug / instance_slug / "config.yaml"
     
     return config_path
+
+
+async def list_account_instances(
+    account_slug: str,
+    session: Optional[AsyncSession] = None
+) -> list[dict]:
+    """
+    List all active agent instances for an account.
+    
+    Queries the database for all active instances in the specified account,
+    returning metadata without loading full configuration files.
+    
+    Args:
+        account_slug: Account slug to list instances for
+        session: Optional database session (creates new if not provided)
+    
+    Returns:
+        List of instance metadata dictionaries with fields:
+        - id: Instance UUID
+        - instance_slug: Instance identifier
+        - agent_type: Agent type (e.g., 'simple_chat')
+        - display_name: Human-readable name
+        - status: Instance status (should be 'active')
+        - last_used_at: Last usage timestamp (optional)
+    
+    Raises:
+        ValueError: If account_slug is invalid or account doesn't exist
+    
+    Example:
+        instances = await list_account_instances('default_account')
+        # Returns: [
+        #     {'id': UUID(...), 'instance_slug': 'simple_chat1', ...},
+        #     {'id': UUID(...), 'instance_slug': 'simple_chat2', ...}
+        # ]
+    """
+    from ..models.account import Account
+    from ..models.agent_instance import AgentInstanceModel
+    
+    # Create session if not provided
+    should_close = session is None
+    if session is None:
+        session = await anext(get_db_session())
+    
+    try:
+        # Validate account exists
+        account_result = await session.execute(
+            select(Account).where(Account.slug == account_slug)
+        )
+        account = account_result.scalar_one_or_none()
+        
+        if not account:
+            logger.warning(f"Account not found for listing instances: {account_slug}")
+            raise ValueError(f"Account '{account_slug}' not found")
+        
+        logger.info(f"Listing instances for account: {account_slug} (id={account.id})")
+        
+        # Query all active instances for this account
+        stmt = (
+            select(AgentInstanceModel)
+            .where(
+                AgentInstanceModel.account_id == account.id,
+                AgentInstanceModel.status == "active"
+            )
+            .order_by(AgentInstanceModel.created_at)
+        )
+        
+        result = await session.execute(stmt)
+        instances = result.scalars().all()
+        
+        # Convert to list of dicts
+        instance_list = [
+            {
+                "id": inst.id,
+                "instance_slug": inst.instance_slug,
+                "agent_type": inst.agent_type,
+                "display_name": inst.display_name,
+                "status": inst.status,
+                "last_used_at": inst.last_used_at
+            }
+            for inst in instances
+        ]
+        
+        logger.info(
+            f"Found {len(instance_list)} active instances for account {account_slug}: "
+            f"{[i['instance_slug'] for i in instance_list]}"
+        )
+        
+        return instance_list
+        
+    finally:
+        if should_close:
+            await session.close()
+
+
+async def get_instance_metadata(
+    account_slug: str,
+    instance_slug: str,
+    session: Optional[AsyncSession] = None
+) -> dict:
+    """
+    Get metadata for a specific agent instance without loading config.
+    
+    Returns database metadata only - useful for quick lookups without
+    the overhead of loading and parsing configuration files.
+    
+    Args:
+        account_slug: Account slug
+        instance_slug: Instance slug
+        session: Optional database session (creates new if not provided)
+    
+    Returns:
+        Dictionary with instance metadata:
+        - id: Instance UUID
+        - account_id: Account UUID
+        - account_slug: Account slug
+        - instance_slug: Instance identifier
+        - agent_type: Agent type
+        - display_name: Human-readable name
+        - status: Instance status
+        - last_used_at: Last usage timestamp (optional)
+        - created_at: Creation timestamp
+        - updated_at: Last update timestamp
+    
+    Raises:
+        ValueError: If account or instance not found, or if instance is inactive
+    
+    Example:
+        metadata = await get_instance_metadata('default_account', 'simple_chat1')
+        # Returns: {'id': UUID(...), 'account_slug': 'default_account', ...}
+    """
+    from ..models.account import Account
+    from ..models.agent_instance import AgentInstanceModel
+    
+    # Create session if not provided
+    should_close = session is None
+    if session is None:
+        session = await anext(get_db_session())
+    
+    try:
+        # Query instance with account join for validation
+        stmt = (
+            select(AgentInstanceModel, Account)
+            .join(Account, AgentInstanceModel.account_id == Account.id)
+            .where(
+                Account.slug == account_slug,
+                AgentInstanceModel.instance_slug == instance_slug
+            )
+        )
+        
+        result = await session.execute(stmt)
+        row = result.one_or_none()
+        
+        if not row:
+            logger.warning(
+                f"Instance metadata not found: {account_slug}/{instance_slug}"
+            )
+            raise ValueError(
+                f"Agent instance '{instance_slug}' not found in account '{account_slug}'"
+            )
+        
+        instance, account = row
+        
+        # Check if instance is active
+        if instance.status != "active":
+            logger.warning(
+                f"Attempted to get metadata for inactive instance: "
+                f"{account_slug}/{instance_slug} (status={instance.status})"
+            )
+            raise ValueError(
+                f"Agent instance '{instance_slug}' is inactive (status={instance.status})"
+            )
+        
+        logger.debug(
+            f"Retrieved metadata for instance: {account_slug}/{instance_slug} "
+            f"(id={instance.id}, type={instance.agent_type})"
+        )
+        
+        # Return metadata dict
+        return {
+            "id": instance.id,
+            "account_id": account.id,
+            "account_slug": account.slug,
+            "instance_slug": instance.instance_slug,
+            "agent_type": instance.agent_type,
+            "display_name": instance.display_name,
+            "status": instance.status,
+            "last_used_at": instance.last_used_at,
+            "created_at": instance.created_at,
+            "updated_at": instance.updated_at
+        }
+        
+    finally:
+        if should_close:
+            await session.close()

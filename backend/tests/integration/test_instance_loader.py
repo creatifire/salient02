@@ -258,3 +258,220 @@ class TestConfigPathFromAppYaml:
         
         for path in paths:
             assert path.exists(), f"Config file should exist: {path}"
+
+
+class TestInstanceDiscovery:
+    """Tests for instance discovery and listing functions."""
+    
+    @pytest.mark.asyncio
+    async def test_list_account_instances_default(self, db_session):
+        """List instances for default_account - should show 2 instances."""
+        from app.agents.instance_loader import list_account_instances
+        
+        instances = await list_account_instances("default_account", session=db_session)
+        
+        # Should have 2 instances: simple_chat1, simple_chat2
+        assert len(instances) == 2, f"Expected 2 instances, got {len(instances)}"
+        
+        # Extract slugs for easier testing
+        slugs = [inst["instance_slug"] for inst in instances]
+        assert "simple_chat1" in slugs, "simple_chat1 should be in list"
+        assert "simple_chat2" in slugs, "simple_chat2 should be in list"
+        
+        # Verify all instances are active and have correct agent_type
+        for inst in instances:
+            assert inst["status"] == "active", f"Instance {inst['instance_slug']} should be active"
+            assert inst["agent_type"] == "simple_chat", f"Instance should be simple_chat type"
+            assert "id" in inst, "Instance should have id field"
+            assert "display_name" in inst, "Instance should have display_name field"
+    
+    @pytest.mark.asyncio
+    async def test_list_account_instances_acme(self, db_session):
+        """List instances for acme account - should show 1 instance."""
+        from app.agents.instance_loader import list_account_instances
+        
+        instances = await list_account_instances("acme", session=db_session)
+        
+        # Should have 1 instance: acme_chat1
+        assert len(instances) == 1, f"Expected 1 instance, got {len(instances)}"
+        
+        inst = instances[0]
+        assert inst["instance_slug"] == "acme_chat1", "Should have acme_chat1"
+        assert inst["agent_type"] == "simple_chat", "Should be simple_chat type"
+        assert inst["status"] == "active", "Should be active"
+        assert inst["display_name"] == "Acme Chat 1", "Should have correct display name"
+    
+    @pytest.mark.asyncio
+    async def test_list_empty_account(self, db_session):
+        """Handle listing instances for account with no instances."""
+        from app.agents.instance_loader import list_account_instances
+        from app.models.account import Account
+        
+        # Create a temporary account with no instances
+        new_account = Account(
+            slug="empty_test_account",
+            name="Empty Test Account",
+            status="active"
+        )
+        db_session.add(new_account)
+        await db_session.commit()
+        
+        try:
+            instances = await list_account_instances("empty_test_account", session=db_session)
+            
+            # Should return empty list
+            assert len(instances) == 0, f"Expected 0 instances, got {len(instances)}"
+            assert isinstance(instances, list), "Should return a list"
+        
+        finally:
+            # Cleanup: delete test account
+            result = await db_session.execute(
+                select(Account).where(Account.slug == "empty_test_account")
+            )
+            account = result.scalar_one_or_none()
+            if account:
+                await db_session.delete(account)
+                await db_session.commit()
+    
+    @pytest.mark.asyncio
+    async def test_list_filters_inactive(self, db_session):
+        """Verify only active instances are listed (inactive filtered out)."""
+        from app.agents.instance_loader import list_account_instances
+        from app.models.agent_instance import AgentInstanceModel
+        from sqlalchemy import update
+        
+        # Mark simple_chat2 as inactive
+        await db_session.execute(
+            update(AgentInstanceModel)
+            .where(AgentInstanceModel.instance_slug == "simple_chat2")
+            .values(status="inactive")
+        )
+        await db_session.commit()
+        
+        try:
+            instances = await list_account_instances("default_account", session=db_session)
+            
+            # Should only show simple_chat1 (active)
+            assert len(instances) == 1, f"Expected 1 active instance, got {len(instances)}"
+            assert instances[0]["instance_slug"] == "simple_chat1", "Should only show active instance"
+        
+        finally:
+            # Restore simple_chat2 to active status
+            await db_session.execute(
+                update(AgentInstanceModel)
+                .where(AgentInstanceModel.instance_slug == "simple_chat2")
+                .values(status="active")
+            )
+            await db_session.commit()
+    
+    @pytest.mark.asyncio
+    async def test_get_instance_metadata(self, db_session):
+        """Get metadata for specific instances."""
+        from app.agents.instance_loader import get_instance_metadata
+        
+        # Test default_account/simple_chat1
+        metadata = await get_instance_metadata("default_account", "simple_chat1", session=db_session)
+        
+        assert metadata["instance_slug"] == "simple_chat1", "Should have correct slug"
+        assert metadata["account_slug"] == "default_account", "Should have correct account"
+        assert metadata["agent_type"] == "simple_chat", "Should have correct type"
+        assert metadata["status"] == "active", "Should be active"
+        assert "id" in metadata, "Should have id"
+        assert "account_id" in metadata, "Should have account_id"
+        assert "created_at" in metadata, "Should have created_at"
+        assert "updated_at" in metadata, "Should have updated_at"
+        
+        # Test acme/acme_chat1
+        metadata2 = await get_instance_metadata("acme", "acme_chat1", session=db_session)
+        
+        assert metadata2["instance_slug"] == "acme_chat1", "Should have correct slug"
+        assert metadata2["account_slug"] == "acme", "Should have correct account"
+        assert metadata2["display_name"] == "Acme Chat 1", "Should have display name"
+    
+    @pytest.mark.asyncio
+    async def test_list_invalid_account(self, db_session):
+        """Verify error when listing instances for invalid account."""
+        from app.agents.instance_loader import list_account_instances
+        
+        with pytest.raises(ValueError) as exc_info:
+            await list_account_instances("nonexistent_account", session=db_session)
+        
+        assert "not found" in str(exc_info.value).lower(), "Should have 'not found' in error"
+        assert "nonexistent_account" in str(exc_info.value), "Should mention the account slug"
+    
+    @pytest.mark.asyncio
+    async def test_get_metadata_invalid_account(self, db_session):
+        """Verify error when getting metadata for invalid account."""
+        from app.agents.instance_loader import get_instance_metadata
+        
+        with pytest.raises(ValueError) as exc_info:
+            await get_instance_metadata("nonexistent_account", "simple_chat1", session=db_session)
+        
+        assert "not found" in str(exc_info.value).lower(), "Should have 'not found' in error"
+    
+    @pytest.mark.asyncio
+    async def test_get_metadata_invalid_instance(self, db_session):
+        """Verify error when getting metadata for invalid instance."""
+        from app.agents.instance_loader import get_instance_metadata
+        
+        with pytest.raises(ValueError) as exc_info:
+            await get_instance_metadata("default_account", "nonexistent_instance", session=db_session)
+        
+        assert "not found" in str(exc_info.value).lower(), "Should have 'not found' in error"
+        assert "nonexistent_instance" in str(exc_info.value), "Should mention the instance slug"
+    
+    @pytest.mark.asyncio
+    async def test_get_metadata_inactive_instance(self, db_session):
+        """Verify error when getting metadata for inactive instance."""
+        from app.agents.instance_loader import get_instance_metadata
+        from app.models.agent_instance import AgentInstanceModel
+        from sqlalchemy import update
+        
+        # Mark simple_chat2 as inactive
+        await db_session.execute(
+            update(AgentInstanceModel)
+            .where(AgentInstanceModel.instance_slug == "simple_chat2")
+            .values(status="inactive")
+        )
+        await db_session.commit()
+        
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                await get_instance_metadata("default_account", "simple_chat2", session=db_session)
+            
+            assert "inactive" in str(exc_info.value).lower(), "Should mention inactive status"
+        
+        finally:
+            # Restore simple_chat2 to active status
+            await db_session.execute(
+                update(AgentInstanceModel)
+                .where(AgentInstanceModel.instance_slug == "simple_chat2")
+                .values(status="active")
+            )
+            await db_session.commit()
+    
+    @pytest.mark.asyncio
+    async def test_instance_isolation(self, db_session):
+        """Verify instances are properly isolated by account."""
+        from app.agents.instance_loader import list_account_instances
+        
+        # Get instances for both accounts
+        default_instances = await list_account_instances("default_account", session=db_session)
+        acme_instances = await list_account_instances("acme", session=db_session)
+        
+        # Extract slugs
+        default_slugs = [inst["instance_slug"] for inst in default_instances]
+        acme_slugs = [inst["instance_slug"] for inst in acme_instances]
+        
+        # Verify no overlap - acme instances shouldn't appear in default
+        for slug in acme_slugs:
+            assert slug not in default_slugs, f"Acme instance {slug} should not appear in default_account"
+        
+        # Verify default instances don't appear in acme
+        for slug in default_slugs:
+            assert slug not in acme_slugs, f"Default instance {slug} should not appear in acme account"
+        
+        # Verify expected instances are present
+        assert "simple_chat1" in default_slugs, "default_account should have simple_chat1"
+        assert "simple_chat2" in default_slugs, "default_account should have simple_chat2"
+        assert "acme_chat1" in acme_slugs, "acme should have acme_chat1"
