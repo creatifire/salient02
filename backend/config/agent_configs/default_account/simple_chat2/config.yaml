@@ -12,7 +12,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "moonshotai/kimi-k2-0905"  # Reliable model with great Pydantic AI support
+  model: "openai/gpt-oss-120b"  # Reliable model with great Pydantic AI support
   temperature: 0.3
   max_tokens: 2000
 
