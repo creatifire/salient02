@@ -212,15 +212,16 @@ Build foundational multi-tenant architecture with account and agent instance sup
   
   **Implementation Clarifications:**
   - **Primary Keys**: UUID for ALL tables (new and existing) - consistent throughout system
+  - **UUID Generation**: Let database generate UUIDs (uuid_generate_v4() or DEFAULT gen_random_uuid()) - no hardcoded UUIDs
   - **NOT NULL Constraints**: `sessions.account_id`, `sessions.agent_instance_id`, `messages.agent_instance_id` are NOT NULL
   - **Config Path**: `config/agent_configs/{account_slug}/{instance_slug}/config.yaml` (base path controlled by `app.yaml`)
-  - **Backfill Strategy**: Use default values in migration (all existing data → default_account/simple_chat1)
+  - **Backfill Strategy**: Query generated UUIDs by slug, then UPDATE existing data (all existing data → default_account/simple_chat1)
   - **Test Data Setup**: Create 2 accounts and 3 instances for comprehensive multi-tenant testing:
-    - **default_account** (UUID): "Default Account"
-      - simple_chat1 (UUID): "Simple Chat 1" - backfill target
-      - simple_chat2 (UUID): "Simple Chat 2" - test multiple instances per account
-    - **acme** (UUID): "Acme Corporation"
-      - acme_chat1 (UUID): "Acme Chat 1" - test account isolation
+    - **default_account** (generated UUID): "Default Account"
+      - simple_chat1 (generated UUID): "Simple Chat 1" - backfill target
+      - simple_chat2 (generated UUID): "Simple Chat 2" - test multiple instances per account
+    - **acme** (generated UUID): "Acme Corporation"
+      - acme_chat1 (generated UUID): "Acme Chat 1" - test account isolation
   
   - [ ] 0022-001-001-01 - CHUNK - Test instance configuration files
     - SUB-TASKS:
@@ -265,14 +266,17 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Add columns to `messages` table (agent_instance_id UUID FK NOT NULL)
       - Add columns to `llm_requests` table (account_id UUID FK, account_slug TEXT, agent_instance_id UUID FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
       - Create indexes for performance (account_id, agent_instance_id, slugs)
-      - Seed test accounts:
-        - Account 1: slug="default_account", name="Default Account", status="active"
-        - Account 2: slug="acme", name="Acme Corporation", status="active"
-      - Seed test agent instances:
-        - Instance 1: account_id=<default_account_uuid>, instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
-        - Instance 2: account_id=<default_account_uuid>, instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
-        - Instance 3: account_id=<acme_account_uuid>, instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
-      - Backfill existing sessions/messages/llm_requests to default_account and simple_chat1 instance (using their UUIDs)
+      - Seed test accounts (generate UUIDs dynamically):
+        - INSERT accounts with slug="default_account", name="Default Account", status="active" (let DB generate UUID)
+        - INSERT accounts with slug="acme", name="Acme Corporation", status="active" (let DB generate UUID)
+        - Query back generated UUIDs for foreign key references
+      - Seed test agent instances (use generated account UUIDs):
+        - Query default_account UUID, INSERT agent_instance: instance_slug="simple_chat1", agent_type="simple_chat", display_name="Simple Chat 1", status="active"
+        - Query default_account UUID, INSERT agent_instance: instance_slug="simple_chat2", agent_type="simple_chat", display_name="Simple Chat 2", status="active"
+        - Query acme UUID, INSERT agent_instance: instance_slug="acme_chat1", agent_type="simple_chat", display_name="Acme Chat 1", status="active"
+      - Backfill existing sessions/messages/llm_requests:
+        - Query default_account UUID and simple_chat1 UUID
+        - UPDATE existing records with these UUIDs
       - Add NOT NULL constraints after backfill
     - AUTOMATED-TESTS:
       - `test_migration_creates_all_tables()` - Verify all tables created
