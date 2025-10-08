@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime, String, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -132,8 +132,58 @@ class Session(Base):
         comment="Extensible session metadata in JSON format"
     )
     
+    # Multi-tenant architecture columns
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Account this session belongs to"
+    )
+    
+    account_slug: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+        comment="Denormalized account slug for query performance"
+    )
+    
+    agent_instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_instances.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Agent instance handling this session"
+    )
+    
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="User ID when authenticated (null for anonymous sessions)"
+    )
+    
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=func.now(),
+        onupdate=func.now(),
+        comment="Last session update timestamp"
+    )
+    
     # Relationships - defined with string references to avoid circular imports
     # CASCADE DELETE ensures data consistency when sessions are removed
+    
+    # Multi-tenant relationships
+    account: Mapped["Account"] = relationship(
+        "Account",
+        back_populates="sessions",
+        doc="Account that owns this session"
+    )
+    
+    agent_instance: Mapped["AgentInstanceModel"] = relationship(
+        "AgentInstanceModel",
+        doc="Agent instance handling this session"
+    )
     
     # One-to-many: Session → Messages (chat history)
     messages: Mapped[list["Message"]] = relationship(

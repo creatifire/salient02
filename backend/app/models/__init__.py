@@ -29,11 +29,15 @@ from .session import Session
 from .message import Message
 from .llm_request import LLMRequest
 from .profile import Profile
+from .account import Account
+from .agent_instance import AgentInstanceModel
 
 __all__ = [
     "Base",
     "Session", 
     "Message",
     "LLMRequest", 
-    "Profile"
+    "Profile",
+    "Account",
+    "AgentInstanceModel"
 ]

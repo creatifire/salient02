@@ -41,6 +41,15 @@ class Message(Base):
     # Foreign key to sessions table
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, index=True)
     
+    # Foreign key to agent_instances table (multi-tenant)
+    agent_instance_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_instances.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Agent instance that handled this message"
+    )
+    
     # Message role - supports OpenAI/Anthropic message patterns
     # Valid values: human, assistant, system, tool, developer
     role = Column(String(20), nullable=False)
@@ -58,8 +67,9 @@ class Message(Base):
     # Timestamp
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     
-    # Relationship back to session
+    # Relationships
     session = relationship("Session", back_populates="messages")
+    agent_instance = relationship("AgentInstanceModel", back_populates="messages")
     
     def __repr__(self) -> str:
         content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
