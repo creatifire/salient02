@@ -51,9 +51,10 @@
 - [ ] 0022-001 - Phase 1a: Core Multi-Tenancy Infrastructure
   - [ ] 0022-001-001 - Database & Configuration Infrastructure (config files → DB migration → instance loader → discovery)
   - [ ] 0022-001-002 - API Endpoints (/accounts/{account}/agents/{instance}/*)
-  - [ ] 0022-001-003 - Cost Tracking & Observability
-  - [ ] 0022-001-004 - Testing & Validation
-  - [ ] 0022-001-005 - Simple Admin UI (Optional)
+  - [ ] 0022-001-003 - Frontend Widget Migration (Astro/Preact components, embedded widgets, demo pages)
+  - [ ] 0022-001-004 - Cost Tracking & Observability
+  - [ ] 0022-001-005 - Testing & Validation
+  - [ ] 0022-001-006 - Simple Admin UI (Optional)
 - [ ] 0022-002 - Phase 1b: Authentication & Authorization (Deferred - when needed)
 
 ### **Priority 3: Vector Search Tool** 📋
