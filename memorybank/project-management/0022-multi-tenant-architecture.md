@@ -204,14 +204,15 @@ Build foundational multi-tenant architecture with account and agent instance sup
 
 **Progress Summary:**
 - ✅ Task 0022-001-001 - Database & Configuration Infrastructure (4/4 chunks complete)
-- ⏳ Task 0022-001-002 - Multi-Provider Infrastructure (0/6 chunks complete - **NEXT TASK**)
+- ⏳ Task 0022-001-002 - Multi-Provider Infrastructure (0/7 chunks complete - **NEXT TASK**)
+  - Starting with 0022-001-002-00: Enhanced logging (prerequisite for diagnosis)
 - 🚧 Task 0022-001-003 - API Endpoints (2.5/4 chunks complete - chat endpoint functional but needs multi-provider support)
 - ⏳ Task 0022-001-004 - Frontend Widget Migration (not started)
 - ⏳ Task 0022-001-005 - Cost Tracking & Observability (not started)
 - ⏳ Task 0022-001-006 - Testing & Validation (not started)
 - ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
 
-**Current Focus:** Implementing multi-provider infrastructure (Task 0022-001-002) to unblock chat endpoint completion. Estimated ~5 hours, 6 chunks.
+**Current Focus:** Implementing enhanced logging infrastructure (Task 0022-001-002-00) to diagnose OpenRouter behavior, then multi-provider architecture. Estimated ~6 hours total, 7 chunks.
 
 **📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
@@ -404,6 +405,64 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - **Future-Proof**: Easy to add new providers (OpenAI direct, Anthropic, Cohere, etc.)
   
   **Current Issue**: All agents return "Kimi" despite different configured models. Root cause: Only OpenRouter supported, and OpenRouter may be routing/falling back. Multi-provider support will enable direct provider access and better debugging.
+  
+  **Prerequisite**: Enhanced logging infrastructure to diagnose OpenRouter behavior before implementing multi-provider architecture.
+  
+  - [ ] 0022-001-002-00 - CHUNK - Enhanced logging for LLM request/response tracing (PREREQUISITE)
+    - **RATIONALE**: Currently cannot trace individual test calls through the system or see what OpenRouter actually returns. Need correlation IDs and enhanced OpenRouter response logging to diagnose why all agents return "Kimi" despite different configured models.
+    - **GOAL**: Enable end-to-end tracing from test script → endpoint → agent → OpenRouter → response
+    - SUB-TASKS:
+      - **Add Correlation ID Support**:
+        - Import `uuid` in `account_agents.py`
+        - Generate unique `correlation_id = str(uuid.uuid4())` at start of `chat_endpoint()`
+        - Add correlation_id to all log statements in `chat_endpoint()`
+        - Pass `correlation_id` parameter to `simple_chat()` function
+        - Add `correlation_id` parameter to `simple_chat()` signature
+        - Include correlation_id in all `simple_chat()` log statements
+        - Pass correlation_id through to `create_simple_chat_agent()` if needed
+      - **Enhanced OpenRouter Response Logging** (in `simple_chat.py` around line 288-292):
+        - Replace existing `openrouter_provider_details_debug` log with comprehensive version
+        - Log `correlation_id` to tie response back to request
+        - Log `session_id` to tie response to user session
+        - Log `requested_model` (what we asked for)
+        - Log `returned_model` from `provider_details.get('model')` (what OpenRouter used) 🔥 KEY
+        - Log `generation_id`, `provider`, `routing_info`, `fallback_used` from provider_details
+        - Log token counts and cost
+        - Log full `provider_details` dict for debugging
+      - **Test Script Enhancements** (in `test_chat_endpoint.py`):
+        - Add `X-Request-ID` header to HTTP requests
+        - Generate unique request ID per test: `request_id = str(uuid.uuid4())`
+        - Print request ID in test output for manual log correlation
+        - Include request_id in test result summary
+      - **Request Preparation Logging** (in `simple_chat.py` around line 165):
+        - Add log before calling `agent.run()` with correlation_id
+        - Log model_name, provider_type, api_endpoint
+        - Log request configuration: temperature, max_tokens, messages_count
+      - **Documentation**:
+        - Update `backend/tests/manual/README.md` with:
+          - How to use correlation IDs for debugging
+          - How to search logs for specific requests
+          - Example log flow for a single request
+          - How to interpret OpenRouter provider_details
+    - AUTOMATED-TESTS: Not applicable - this is logging infrastructure
+    - MANUAL-TESTS:
+      - ✅ Run `python backend/tests/manual/test_chat_endpoint.py`
+      - ✅ Copy a correlation_id from test output
+      - ✅ Search logs: `grep "correlation_id.*<id>" backend/logs/*.log`
+      - ✅ Verify can see full request flow: chat_request → instance_loaded → agent_creation → openrouter_request → openrouter_response
+      - ✅ Verify OpenRouter response log shows:
+        - `requested_model`: What we asked for (e.g., "openai/gpt-oss-120b")
+        - `returned_model`: What OpenRouter used (e.g., "moonshotai/kimi-k2-0905")
+        - Evidence of routing/fallback if applicable
+      - ✅ Run test for all 3 instances, verify each has unique correlation_id
+      - ✅ Confirm can distinguish between test calls in logs
+      - ✅ Test with structured JSON logs (if using): `jq 'select(.correlation_id == "<id>")' logs/app.log`
+    - **EXPECTED OUTCOME**: 
+      - **Prove or disprove**: Is OpenRouter routing/falling back to Kimi?
+      - **Evidence**: Log will show `requested_model` vs `returned_model` mismatch
+      - **Next Step**: If OpenRouter IS changing models, we know to implement multi-provider. If NOT, debug config loading.
+    - STATUS: Planned — Prerequisite for multi-provider implementation
+    - PRIORITY: CRITICAL — Must diagnose before building multi-provider architecture
   
   - [ ] 0022-001-002-01 - CHUNK - Provider factory and base infrastructure
     - SUB-TASKS:
