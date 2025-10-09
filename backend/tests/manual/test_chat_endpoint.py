@@ -20,7 +20,8 @@ Usage:
 Expected behavior:
 - All endpoints respond with 200 status
 - Each response contains 'response', 'usage', and 'model' fields
-- Different LLMs provide different responses to the same question
+- Different LLMs provide different responses to the same question,
+  identifying themselves and their knowledge cutoff dates correctly
 """
 
 import sys
@@ -223,8 +224,15 @@ def run_all_tests():
     print()
     
     # Table header
-    print(f"{'Agent Instance':<30} {'Model':<40} {'Tokens':<12} {'Cost':<12} {'Status'}")
+    print(f"{'Agent Instance':<30} {'LLM Identified':<20} {'Tokens':<12} {'Cost':<12} {'Status'}")
     print("─" * 100)
+    
+    # Expected LLM indicators for each instance
+    llm_indicators = {
+        "default_account/simple_chat1": ["Kimi", "April 2025"],
+        "default_account/simple_chat2": ["ChatGPT", "GPT", "June 2024"],
+        "acme/acme_chat1": ["Qwen", "October 2024"]
+    }
     
     all_passed = True
     for config, result in results:
@@ -236,6 +244,13 @@ def run_all_tests():
             total_tokens = usage.get("total_tokens", 0)
             cost_tracking = result.get("cost_tracking", {})
             cost = cost_tracking.get("real_cost", 0) if cost_tracking.get("cost_found") else 0
+            response_text = result.get("response", "")
+            
+            # VALIDATE: Check for LLM indicators in response text
+            expected_indicators = llm_indicators.get(agent_name, [])
+            found_indicators = [ind for ind in expected_indicators if ind in response_text]
+            llm_identified_str = "✅" if len(found_indicators) >= 1 else "❌"
+            llm_name_display = found_indicators[0] if found_indicators else "Unknown"
             
             # VALIDATE: Check if the returned model matches the expected model
             expected_model = config.get("expected_model", "")
@@ -246,10 +261,13 @@ def run_all_tests():
             all_fields_present = all(f in result for f in required_fields)
             
             # VALIDATE: Check if we got actual content
-            has_content = bool(result.get("response", "").strip())
+            has_content = bool(response_text.strip())
+            
+            # VALIDATE: Check if LLM identified itself
+            has_llm_match = len(found_indicators) >= 1
             
             # Determine status based on validations
-            if model_correct and all_fields_present and has_content:
+            if model_correct and all_fields_present and has_content and has_llm_match:
                 status = "✅ PASS"
             else:
                 status = "❌ FAIL"
@@ -257,22 +275,23 @@ def run_all_tests():
                 # Add failure reason
                 reasons = []
                 if not model_correct:
-                    reasons.append(f"wrong_model(expected:{expected_model})")
+                    reasons.append(f"wrong_model")
                 if not all_fields_present:
                     reasons.append("missing_fields")
                 if not has_content:
                     reasons.append("no_content")
+                if not has_llm_match:
+                    reasons.append("llm_not_identified")
                 status += f" ({', '.join(reasons)})"
-            
-            model_display = model[:38]  # Truncate for display
         else:
-            model_display = "N/A"
+            llm_identified_str = "❌"
+            llm_name_display = "N/A"
             total_tokens = 0
             cost = 0
             status = "❌ FAIL (no_response)"
             all_passed = False
         
-        print(f"{agent_name:<30} {model_display:<40} {total_tokens:<12} ${cost:<11.6f} {status}")
+        print(f"{agent_name:<30} {llm_identified_str} {llm_name_display:<17} {total_tokens:<12} ${cost:<11.6f} {status}")
     
     print()
     print("=" * 100)
