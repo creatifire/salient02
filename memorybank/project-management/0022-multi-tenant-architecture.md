@@ -65,7 +65,7 @@ This epic implements the architecture described in the design document above. Re
 - **Testing approaches** (unit tests with FunctionModel, integration tests)
 
 **Key Design Sections:**
-- [Database Schema](../design/account-agent-instance-architecture.md#deliverables) - Complete SQL for Phase 1a & 1b
+- [Database Schema](../design/account-agent-instance-architecture.md#deliverables) - Complete SQL for Features 0022-001 & 0022-002
 - [Instance Loader](../design/account-agent-instance-architecture.md#3-agent-instance-infrastructure) - Hybrid DB + config file implementation
 - [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Chat, stream, list endpoints
 - [Cost Tracking](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - LLMRequestTracker updates
@@ -76,7 +76,7 @@ This epic implements the architecture described in the design document above. Re
 
 **📚 Critical Libraries Analysis:** [Epic 0022 Library Review](../analysis/epic-0022-library-review.md)
 
-Before implementing Phase 1a, review this comprehensive analysis of Alembic and SQLAlchemy 2.0 async patterns:
+Before implementing Feature 0022-001, review this comprehensive analysis of Alembic and SQLAlchemy 2.0 async patterns:
 - **Alembic**: Async migration patterns, autogenerate best practices, FK dependency handling
 - **SQLAlchemy 2.0**: Async session patterns, eager loading strategies, relationship definitions
 - **Key Gotchas**: Lazy loading issues, constraint naming, denormalized column sync
@@ -144,7 +144,7 @@ config/agent_configs/
       system_prompt.md
 ```
 
-**Future Examples (Not Implemented in Phase 1a)**:
+**Future Examples (Not Implemented Yet)**:
 ```
 config/agent_configs/
   acme/
@@ -179,7 +179,7 @@ context_management:
 
 ## Database Schema
 
-### Phase 1a Tables
+### Core Multi-Tenancy Tables
 
 **New Tables:**
 - `accounts`: Multi-tenant account management
@@ -190,14 +190,14 @@ context_management:
 - `messages`: Add `agent_instance_id`
 - `llm_requests`: Add `account_id`, `account_slug`, `agent_instance_id`, `agent_instance_slug`, `agent_type`, `completion_status`
 
-### Phase 1b Tables (Authentication - When Needed)
+### Authentication Tables (Feature 0022-002 - When Needed)
 
 **New Tables:**
 - `users`: User authentication and identity
 - `roles`: Permission definitions (owner, admin, member, viewer)
 - `user_roles`: Many-to-many user-account-role mapping
 
-## 0022-001 - FEATURE - Phase 1a: Core Multi-Tenancy Infrastructure
+## 0022-001 - FEATURE - Core Multi-Tenancy Infrastructure
 **Status**: 🚧 In Progress - Chat Endpoint ✅ WORKING (All 3 agents validated)
 
 Build foundational multi-tenant architecture with account and agent instance support, enabling Pydantic AI migration for all endpoints.
@@ -207,7 +207,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
 - ✅ Task 0022-001-002 - Multi-Provider Infrastructure (1/7 chunks complete - **Logfire COMPLETE, remaining chunks OPTIONAL**)
   - ✅ 0022-001-002-00: Logfire observability integration (COMPLETE - traces verified working)
   - **VERIFIED**: Multi-tenant model routing working correctly - OpenRouter using requested models
-  - ⏸️ Chunks 01-06: Multi-provider architecture (OPTIONAL - deferred, not needed for Phase 1a)
+  - ⏸️ Chunks 01-06: Multi-provider architecture (DEFERRED to Priority 6A - after email summary)
 - ✅ Task 0022-001-003 - API Endpoints (3/4 chunks complete - non-streaming chat endpoint FULLY FUNCTIONAL)
   - ✅ Router setup complete
   - ✅ Session context migration complete (nullable fields)
@@ -285,7 +285,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
   
   - [x] 0022-001-001-02 - CHUNK - Multi-tenant database schema migration
     - SUB-TASKS:
-      - ✅ Create Alembic migration for Phase 1a schema (d7f01eb864b8)
+      - ✅ Create Alembic migration for multi-tenant schema (d7f01eb864b8)
       - ✅ **CLEAR existing data**: TRUNCATE llm_requests, messages, profiles, sessions (CASCADE to handle foreign keys)
       - ✅ Create `accounts` table (id UUID PRIMARY KEY, slug TEXT UNIQUE, name TEXT, status TEXT, subscription_tier TEXT, created_at, updated_at)
       - ✅ Create `agent_instances` table (id UUID PRIMARY KEY, account_id UUID FK, instance_slug TEXT, agent_type TEXT, display_name TEXT, status TEXT, last_used_at)
@@ -399,7 +399,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - ✅ Get metadata for valid instances, verified all fields present (id, account_id, slugs, timestamps)
       - ✅ Test error conditions, verified proper ValueError exceptions raised
     - STATUS: ✅ Complete — Instance discovery and listing (21 total tests passing: 11 original + 10 new)
-    - PRIORITY: Medium — Nice to have for Phase 1a
+    - PRIORITY: Medium — Nice to have for Feature 0022-001
 
 - [ ] 0022-001-002 - TASK - Multi-Provider Infrastructure
   **Status**: Planned - Required to unblock chat endpoint completion
@@ -584,24 +584,33 @@ Build foundational multi-tenant architecture with account and agent instance sup
         - Keep `inference_provider: "openrouter"` (or add if missing)
         - Keep existing model: "moonshotai/kimi-k2-0905"
       - Update `backend/config/agent_configs/default_account/simple_chat2/config.yaml`
-        - Change to `inference_provider: "together"`
-        - Change model to valid Together.ai model: "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+        - Keep `inference_provider: "openrouter"` for now
+        - Keep existing model: "openai/gpt-oss-120b"
       - Update `backend/config/agent_configs/acme/acme_chat1/config.yaml`
-        - Change to `inference_provider: "together"`
-        - Change model to valid Together.ai model: "Qwen/Qwen2.5-72B-Instruct-Turbo"
+        - Keep `inference_provider: "openrouter"` for now
+        - Keep existing model: "qwen/qwen3-vl-235b-a22b-instruct"
+      - **Create 4th agent**: `backend/config/agent_configs/acme/simple_chat2/`
+        - Create `config.yaml` with `inference_provider: "together"`
+        - Use completely different model family: "meta-llama/Llama-3.3-70B-Instruct-Turbo" (Llama vs Kimi/GPT/Qwen)
+        - Configure for testing Together.ai consistency vs OpenRouter's random switching
+      - **Create 4th database entry**: Seed `acme/simple_chat2` instance in agent_instances table
       - Add inline YAML comments documenting provider choices
-      - Add TOGETHER_API_KEY to `.env.example` and project root `.env`
+      - Verify TOGETHER_API_KEY exists in project root `.env` (already present)
+      - Add TOGETHER_API_KEY to `.env.example` if missing
       - Document provider setup in config file comments
     - AUTOMATED-TESTS: `backend/tests/unit/test_config_files.py` (extend existing)
       - `test_all_configs_have_inference_provider()` - All configs specify provider
       - `test_provider_values_valid()` - Provider values in SUPPORTED_PROVIDERS
       - `test_config_provider_model_combinations()` - Verify provider/model pairings make sense
     - MANUAL-TESTS:
-      - Review all 3 config files, verify inference_provider field present
-      - Verify simple_chat1 uses openrouter, simple_chat2 and acme_chat1 use together
-      - Check .env has TOGETHER_API_KEY=sk-...
+      - Review all 4 config files, verify inference_provider field present
+      - Verify simple_chat1, simple_chat2, acme_chat1 use openrouter
+      - Verify acme/simple_chat2 uses together
+      - Check .env has TOGETHER_API_KEY (already present)
+      - Verify 4th instance in database: acme/simple_chat2 with status='active'
       - Validate YAML syntax with `python -c "import yaml; yaml.safe_load(open('config.yaml'))"`
-    - STATUS: Planned — Config file updates
+      - Verify 4th agent uses different model family (Llama vs Kimi/GPT/Qwen)
+    - STATUS: Planned — Config file updates with 4th agent for Together.ai testing
     - PRIORITY: High — Test instances need valid provider configs
   
   - [ ] 0022-001-002-05 - CHUNK - Provider-specific cost tracking
@@ -649,15 +658,17 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - `test_cost_tracking_per_provider()` - Costs calculated correctly per provider
       - `test_provider_failure_handling()` - Graceful error if provider unavailable
     - MANUAL-TESTS: `backend/tests/manual/test_chat_endpoint.py`
-      - ✅ Run test script: `python backend/tests/manual/test_chat_endpoint.py`
-      - ✅ Verify simple_chat1 response from Kimi (OpenRouter)
-      - ✅ Verify simple_chat2 response from Llama (Together.ai) - should NOT be Kimi
-      - ✅ Verify acme_chat1 response from Qwen (Together.ai) - should NOT be Kimi
-      - ✅ Check logs for provider selection messages
-      - ✅ Compare responses: should see different LLM personalities/capabilities
-      - ✅ Verify database: llm_requests has provider/model attribution
-    - STATUS: Planned — End-to-end validation
-    - PRIORITY: Critical — Proves multi-provider works
+      - Run test script: `python backend/tests/manual/test_chat_endpoint.py`
+      - Verify simple_chat1 response from Kimi (OpenRouter)
+      - Verify simple_chat2 response from GPT (OpenRouter)
+      - Verify acme_chat1 response from Qwen (OpenRouter)
+      - Verify acme/simple_chat2 response from Llama (Together.ai) - should NOT be Kimi/GPT/Qwen
+      - Check logs for provider selection messages (OpenRouter vs Together.ai)
+      - Compare responses: should see different LLM personalities/capabilities
+      - Verify database: llm_requests has provider/model attribution for all 4 agents
+      - Test consistency: acme/simple_chat2 (Together.ai) should NOT randomly switch models like OpenRouter
+    - STATUS: Planned — End-to-end validation with 4 agents (3 OpenRouter + 1 Together.ai)
+    - PRIORITY: Critical — Proves multi-provider works and Together.ai provides consistency
 
 - [ ] 0022-001-003 - TASK - API Endpoints
   **Status**: 🚧 In Progress - 2.5 of 4 chunks complete (router setup + session migration + chat endpoint basic implementation)
@@ -1099,7 +1110,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Click on account, verify expansion shows instances
       - Check styling matches existing dev pages
     - STATUS: Planned — Optional admin UI
-    - PRIORITY: Low — Nice to have, not required for Phase 1a completion
+    - PRIORITY: Low — Nice to have, not required for Feature 0022-001 completion
   
   - [ ] 0022-001-007-02 - CHUNK - Agent instance drill-down
     - SUB-TASKS:
@@ -1140,7 +1151,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Session and cost browsing
     - PRIORITY: Low — Optional for debugging
 
-## 0022-002 - FEATURE - Phase 1b: Authentication & Authorization
+## 0022-002 - FEATURE - Authentication & Authorization
 **Status**: Planned - Deferred (implement when authentication needed)
 
 Add user authentication, role-based permissions, and account management capabilities.
@@ -1148,7 +1159,7 @@ Add user authentication, role-based permissions, and account management capabili
 - [ ] 0022-002-001 - TASK - Authentication Database Schema
   - [ ] 0022-002-001-01 - CHUNK - User and role tables migration
     - SUB-TASKS:
-      - Create Alembic migration for Phase 1b schema
+      - Create Alembic migration for authentication schema
       - Create `users` table (id, email, password_hash, full_name, status, created_at, updated_at, last_login_at)
       - Create `roles` table (id, name, description, permissions JSONB, created_at)
       - Create `user_roles` table (id, user_id, account_id, role_id, created_at, created_by)
@@ -1253,7 +1264,7 @@ Add user authentication, role-based permissions, and account management capabili
     - STATUS: Planned — Optional authentication for agents
     - PRIORITY: Low — Backward compatibility maintained
 
-## 0022-003 - FEATURE - Phase 2: Internal Migration (Deferred)
+## 0022-003 - FEATURE - Legacy Endpoint Migration (Deferred)
 **Status**: Planned - Deferred (implement when ready to deprecate legacy endpoints)
 
 Migrate existing legacy endpoints to use new infrastructure internally while maintaining backward compatibility.
@@ -1262,7 +1273,7 @@ Migrate existing legacy endpoints to use new infrastructure internally while mai
   - Implementation: Make `/chat` and `/events/stream` reverse proxies to `/accounts/default/agents/simple-chat/*`
   - Status: Deferred until ready to remove legacy code
 
-## 0022-004 - FEATURE - Phase 3: Deprecation & Cleanup (Optional)
+## 0022-004 - FEATURE - Legacy Code Cleanup (Optional)
 **Status**: Planned - Optional (can defer indefinitely)
 
 Remove legacy code and migrate frontends to new URL structure.
@@ -1273,7 +1284,7 @@ Remove legacy code and migrate frontends to new URL structure.
 
 ## Definition of Done
 
-### Phase 1a Complete When:
+### Feature 0022-001 (Core Multi-Tenancy) Complete When:
 - [ ] All database migrations run successfully
 - [ ] 2 test accounts created (default_account, acme) and loadable
 - [ ] 3 test instances created (simple_chat1, simple_chat2, acme_chat1) with config files
@@ -1302,7 +1313,7 @@ Remove legacy code and migrate frontends to new URL structure.
 - [ ] Admin SQL queries tested and working (required)
 - [ ] Simple admin UI at `/dev/accounts` (optional - can defer)
 
-### Phase 1b Complete When:
+### Feature 0022-002 (Authentication) Complete When:
 - [ ] User registration and login work
 - [ ] Permission checking enforces role-based access
 - [ ] Account management endpoints functional

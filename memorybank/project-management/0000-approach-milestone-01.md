@@ -48,15 +48,15 @@
 
 **Why Priority 2B**: All endpoints must use Pydantic AI (core architecture principle). Current legacy endpoints use direct OpenRouter calls. Epic 0022 provides the multi-tenant infrastructure to properly migrate ALL endpoints to Pydantic AI without breaking existing functionality.
 
-- [ ] 0022-001 - Phase 1a: Core Multi-Tenancy Infrastructure
+- [ ] 0022-001 - Core Multi-Tenancy Infrastructure
   - [x] 0022-001-001 - Database & Configuration Infrastructure ✅
     - [x] 0022-001-001-01 - Test instance configuration files ✅
     - [x] 0022-001-001-02 - Multi-tenant database schema migration ✅
     - [x] 0022-001-001-03 - Agent instance loader implementation ✅
     - [x] 0022-001-001-04 - Instance discovery and listing ✅
-  - [x] 0022-001-002 - Multi-Provider Infrastructure (Logfire complete, rest optional) ✅
+  - [x] 0022-001-002 - Multi-Provider Infrastructure (Logfire complete, rest deferred to after Priority 6) ✅
     - [x] 0022-001-002-00 - Logfire observability integration ✅
-    - Chunks 01-06 (Provider factory, Together.ai) - DEFERRED (optional, not required)
+    - Chunks 01-06 (Provider factory, Together.ai) - DEFERRED to after Priority 6
   - [ ] 0022-001-003 - API Endpoints (3/4 complete) 🚧
     - [x] 0022-001-003-01 - Account agents router setup ✅
     - [x] 0022-001-003-01a - Session context migration (nullable fields) ✅
@@ -67,7 +67,7 @@
   - [ ] 0022-001-005 - Cost Tracking & Observability
   - [ ] 0022-001-006 - Testing & Validation
   - [ ] 0022-001-007 - Simple Admin UI (Optional)
-- [ ] 0022-002 - Phase 1b: Authentication & Authorization (Deferred - when needed)
+- [ ] 0022-002 - Authentication & Authorization (Deferred - when needed)
 
 ### **Priority 3: Vector Search Tool** 📋
 - [ ] 0017-005-001 - Vector Search Tool Implementation
@@ -86,9 +86,20 @@
 - [ ] 0017-008-002 - Email Summary Agent Tool
   - Completes user workflow: chat → capture → email summary
 
+### **Priority 6A: Multi-Provider Infrastructure** 📋
+- [ ] 0022-001-002-01 - Provider factory and base infrastructure
+- [ ] 0022-001-002-02 - Config schema and validation
+- [ ] 0022-001-002-03 - Update simple_chat agent to use factory
+- [ ] 0022-001-002-04 - Update test instance configs (4th agent: acme/simple_chat2 with Together.ai + different model family)
+- [ ] 0022-001-002-05 - Provider-specific cost tracking
+- [ ] 0022-001-002-06 - Integration testing and validation
+  - **Rationale**: OpenRouter randomly switches LLMs which can cause glitches; Together.ai provides consistency
+  - **Test Strategy**: 4th agent (acme/simple_chat2) uses Together.ai with different model family (e.g., Llama vs Kimi/GPT/Qwen)
+  - **Regression Testing**: All unit/integration/manual tests must pass after implementation
+
 **Note**: Simple Chat Agent is now called "InfoBot" - information sharing bot (NO web search included)
 
-**Phase 1 MVP Complete**: Priorities 3 through 6 complete the InfoBot MVP: vector search, profile capture, and email summaries.
+**Phase 1 MVP Complete**: Priorities 3 through 6A complete the InfoBot MVP: vector search, profile capture, email summaries, and multi-provider support.
 
 ---
 
@@ -166,3 +177,4 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 3. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
 4. Priority 5: 0017-007 (Profile Capture Tool)
 5. Priority 6: 0017-008 (Email Summary with Mailgun)
+6. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
