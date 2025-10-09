@@ -28,6 +28,7 @@
 20. [OfferBot](./0020-OfferBot.md) - 📋 Planned
 21. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md) - 📋 Planned
 22. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 📋 Planned (Priority 2B - Foundational Infrastructure)
+23. [Profile Search Tool](./0023-profile-search-tool.md) - 📋 Planned (Priority 7 - Demo Feature)
 
 ## Epic Backlog
 

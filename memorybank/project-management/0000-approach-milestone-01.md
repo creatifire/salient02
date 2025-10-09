@@ -97,9 +97,34 @@
   - **Test Strategy**: 4th agent (acme/simple_chat2) uses Together.ai with different model family (e.g., Llama vs Kimi/GPT/Qwen)
   - **Regression Testing**: All unit/integration/manual tests must pass after implementation
 
+### **Priority 7: Profile Search Tool** 📋 🎯 **DEMO FEATURE**
+**Epic 0023 - Generic Profile Search for LLM Agents**
+
+**Why Priority 7**: Enables agents to search professional profiles (doctors, nurses, sales reps, consultants) via natural language queries. Demonstrates real-world tool usage with structured data. Positioned after email tool to complete core workflow tools first.
+
+**Dependencies**: Requires `accounts` and `agent_instances` tables from Epic 0022 (already complete in Priority 2B).
+
+- [ ] 0023-001 - Core Profile Infrastructure
+  - [ ] 0023-001-001 - Database Schema Design & Migration (profile_lists, profiles, agent_profile_lists with UUIDs)
+  - [ ] 0023-001-002 - CSV Import & Data Seeding (doctors_profile.csv → PostgreSQL)
+  - [ ] 0023-001-003 - Profile Service (CRUD Operations with SQLAlchemy)
+- [ ] 0023-002 - Profile Search Tool (Pydantic AI)
+  - [ ] 0023-002-001 - Pydantic AI Tool Implementation (@agent.tool decorator with agent-level access control)
+  - [ ] 0023-002-002 - Tool Integration & Testing (manual + automated tests)
+- [ ] 0023-003 - Semantic Search Enhancement (Pinecone) - DEFERRED to post-demo
+
+**Architecture Highlights**:
+- Multi-list support per account (e.g., doctors, nurses, sales_east, sales_west)
+- Agent-level access control (agents can access one or more profile lists)
+- Hybrid schema: Core columns + JSONB for type-specific fields
+- PostgreSQL structured queries (Phase 1), Pinecone semantic search (Phase 2 - deferred)
+
+**Initial Use Case**: Hospital doctor profiles (320 records)
+**Demo Query**: "Find me a Spanish-speaking cardiologist"
+
 **Note**: Simple Chat Agent is now called "InfoBot" - information sharing bot (NO web search included)
 
-**Phase 1 MVP Complete**: Priorities 3 through 6A complete the InfoBot MVP: vector search, profile capture, email summaries, and multi-provider support.
+**Phase 1 MVP Complete**: Priorities 3 through 7 complete the InfoBot MVP: vector search, profile capture, email summaries, multi-provider support, and profile search.
 
 ---
 
@@ -107,19 +132,19 @@
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-### **Priority 7: Email Capture & Consent (Optional)** 📋
+### **Priority 8: Email Capture & Consent (Optional)** 📋
 - [ ] 0017-009-001 - Email Collection System
 - [ ] 0017-009-002 - Consent and preferences management
   - UI-based alternative to conversational capture
   - May be superseded by Profile Capture Tool - review during implementation
 
-### **Priority 8: Periodic Summarization** 📋
+### **Priority 9: Periodic Summarization** 📋
 - [ ] 0017-010-001 - Context Window Management System
   - Token counting and threshold monitoring
   - Conversation summarization engine
   - Automatic summarization triggers
 
-### **Priority 9: OTP Authentication** 📋
+### **Priority 10: OTP Authentication** 📋
 - [ ] 0017-011-001 - OTP Authentication System
   - Twilio Verify integration
   - Session upgrade and account creation
@@ -129,31 +154,31 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 ## PHASE 3: Multi-Agent Platform
 
-### **Priority 10: Multi-Client Widget Foundation** 📋
+### **Priority 11: Multi-Client Widget Foundation** 📋
 - [ ] 0003-001-001 - Shadow DOM Widget
 - [ ] 0003-001-002 - Preact Islands Integration  
 - [ ] 0003-001-003 - HTMX UI Examples
 
-### **Priority 11: Agent Type Plumbing** 📋
+### **Priority 12: Agent Type Plumbing** 📋
 **Note**: Epic 0022 replaces old multi-account/multi-instance epics with unified architecture
 - [ ] 0005-002-001 - Agent type registration and discovery system
 - [ ] 0005-002-002 - Configuration validation for different agent types
 - [ ] 0005-002-003 - Routing enhancement for multiple agent types
 - [ ] 0005-002-004 - Health checks and status monitoring
 
-### **Priority 12: Sales Agent Addition** 📋
+### **Priority 13: Sales Agent Addition** 📋
 - [ ] 0008-001-001 - Sales agent foundation with business tools
 - [ ] 0008-001-002 - RAG integration with business knowledge
 - [ ] 0008-001-003 - Email integration (Mailgun)
 - [ ] 0008-001-004 - Scheduling integration (Nylas/Calendly)
 - [ ] 0008-001-005 - Profile data collection and lead qualification
 
-### **Priority 13: React and Vue Chat Widgets** 📋
+### **Priority 14: React and Vue Chat Widgets** 📋
 - [ ] 0003-002-001 - React Widget Component with TypeScript
 - [ ] 0003-002-002 - Vue 3 Widget Component with Composition API
 - [ ] 0003-002-003 - NPM Package Distribution (@salient/widget-react, @salient/widget-vue)
 
-### **Priority 14: Advanced Widget Features** 📋
+### **Priority 15: Advanced Widget Features** 📋
 - [ ] 0003-003-001 - Iframe Adapter for security isolation
 - [ ] 0003-003-002 - API-Only Mode for mobile integration
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
@@ -178,3 +203,4 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 4. Priority 5: 0017-007 (Profile Capture Tool)
 5. Priority 6: 0017-008 (Email Summary with Mailgun)
 6. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
+7. **Priority 7: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
