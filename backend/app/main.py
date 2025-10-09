@@ -127,6 +127,15 @@ STATIC_DIR = BASE_DIR / "static"
 # Configure with GFM-like features including tables for comprehensive markdown support
 markdown_renderer = MarkdownIt("default", {"breaks": True, "html": False}).enable(['table'])
 
+# Configure Logfire observability at module level (before app creation)
+# This must happen early to properly initialize OpenTelemetry instrumentation
+try:
+    logfire.configure()
+except Exception:
+    # Silently ignore Logfire configuration errors
+    # App can run without observability if token is missing or invalid
+    pass
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -174,17 +183,6 @@ async def lifespan(app: FastAPI):
     """
     # Startup sequence: Initialize all application services and dependencies
     _setup_logger()
-    
-    # Configure Logfire observability for LLM tracing and request monitoring
-    # This must happen early to capture all FastAPI and Pydantic AI activity
-    try:
-        logfire.configure()
-        logger.info("Logfire observability configured successfully")
-    except Exception as e:
-        # Log Logfire configuration errors but don't fail startup
-        # App can run without Logfire (logging is optional)
-        logger.warning(f"Logfire configuration failed (app will continue without observability): {e}")
-    
     logger.info("Starting Salient Sales Bot application...")
     
     try:
@@ -212,17 +210,17 @@ async def lifespan(app: FastAPI):
 
 # FastAPI application instance with comprehensive configuration
 # Title and lifespan management for production deployment
-app = FastAPI(title="SalesBot Backend", lifespan=lifespan)
+app = FastAPI(title="Salient Backend", lifespan=lifespan)
 
 # Logfire Instrumentation: Automatic tracing for FastAPI and Pydantic AI
 # This captures all HTTP requests, LLM calls, and OpenTelemetry GenAI attributes
 try:
     logfire.instrument_fastapi(app)
     logfire.instrument_pydantic_ai()
-    logger.info("Logfire instrumentation enabled for FastAPI and Pydantic AI")
-except Exception as e:
-    # Log instrumentation errors but don't fail app startup
-    logger.warning(f"Logfire instrumentation failed (app will continue): {e}")
+except Exception:
+    # Silently ignore instrumentation errors
+    # App can run without Logfire instrumentation if configuration failed
+    pass
 
 # CORS Middleware Configuration: Enable cross-origin requests for development
 # Allows frontend (localhost:4321) to communicate with backend (localhost:8000)
