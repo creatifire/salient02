@@ -101,6 +101,7 @@ def test_streaming_endpoint(base_url: str, account: str, instance: str, message:
                 current_event = None
                 for line in response.iter_lines():
                     if not line:
+                        # Empty line resets state in SSE
                         continue
                     
                     # SSE format: "event: <type>" or "data: <content>"
@@ -109,13 +110,16 @@ def test_streaming_endpoint(base_url: str, account: str, instance: str, message:
                     elif line.startswith("data:"):
                         data = line[5:].strip()
                         
+                        # Process based on current event type
                         if current_event == "message":
                             # Print chunk in real-time (without newline)
                             print(data, end="", flush=True)
                             chunks.append(data)
+                            events.append({"event": current_event, "data": data})
                         elif current_event == "done":
                             completion_status = "complete"
                             print()  # New line after stream ends
+                            events.append({"event": current_event, "data": data})
                         elif current_event == "error":
                             completion_status = "error"
                             try:
@@ -123,8 +127,11 @@ def test_streaming_endpoint(base_url: str, account: str, instance: str, message:
                                 error_message = error_data.get("message", data)
                             except:
                                 error_message = data
+                            events.append({"event": current_event, "data": data})
+                        elif current_event:
+                            # Unknown event type, but still track it
+                            events.append({"event": current_event, "data": data})
                         
-                        events.append({"event": current_event, "data": data})
                         current_event = None
         
         end_time = datetime.now()
@@ -198,6 +205,17 @@ def print_stream_summary(config: Dict, result: Optional[Dict], index: int, total
         preview = full_response[:200] + "..." if len(full_response) > 200 else full_response
         print(preview)
         print("─" * 100)
+    
+    # Debug: Show event summary
+    events = result.get('events', [])
+    event_counts = {}
+    for event in events:
+        event_type = event.get('event', 'unknown')
+        event_counts[event_type] = event_counts.get(event_type, 0) + 1
+    
+    if event_counts:
+        print(f"\n📊 Events received: ", end="")
+        print(", ".join([f"{k}={v}" for k, v in event_counts.items()]))
     
     # Check for error message
     if result.get('error_message'):
@@ -284,8 +302,15 @@ def run_all_tests():
     print()
     
     # Table header
-    print(f"{'Agent Instance':<30} {'Chunks':<10} {'Length':<10} {'Duration':<12} {'Status'}")
+    print(f"{'Agent Instance':<30} {'LLM Identified':<20} {'Chunks':<10} {'Length':<10} {'Status'}")
     print("─" * 100)
+    
+    # Expected LLM indicators for each instance
+    llm_indicators = {
+        "default_account/simple_chat1": ["Kimi", "April 2025"],
+        "default_account/simple_chat2": ["ChatGPT", "GPT", "June 2024"],
+        "acme/acme_chat1": ["Qwen", "October 2024"]
+    }
     
     all_passed = True
     for config, result in results:
@@ -296,30 +321,43 @@ def run_all_tests():
             response_length = len(result.get("full_response", ""))
             duration = result.get("duration", 0)
             completion_status = result.get("completion_status", "unknown")
+            full_response = result.get("full_response", "")
+            
+            # Check for LLM indicators
+            expected_indicators = llm_indicators.get(agent_name, [])
+            found_indicators = [ind for ind in expected_indicators if ind in full_response]
+            llm_identified = "✅" if len(found_indicators) >= 1 else "❌"
+            llm_name = found_indicators[0] if found_indicators else "Unknown"
             
             # Determine status
-            if completion_status == "complete" and chunk_count > 0 and response_length > 0:
+            has_llm_match = len(found_indicators) >= 1
+            has_content = chunk_count > 0 and response_length > 0
+            is_complete = completion_status == "complete"
+            
+            if is_complete and has_content and has_llm_match:
                 status = "✅ PASS"
             else:
                 status = "❌ FAIL"
                 all_passed = False
                 # Add failure reason
                 reasons = []
-                if completion_status != "complete":
+                if not is_complete:
                     reasons.append(f"status={completion_status}")
-                if chunk_count == 0:
-                    reasons.append("no_chunks")
-                if response_length == 0:
+                if not has_content:
                     reasons.append("no_content")
+                if not has_llm_match:
+                    reasons.append("wrong_llm")
                 status += f" ({', '.join(reasons)})"
         else:
+            llm_identified = "❌"
+            llm_name = "N/A"
             chunk_count = 0
             response_length = 0
             duration = 0
             status = "❌ FAIL (error)"
             all_passed = False
         
-        print(f"{agent_name:<30} {chunk_count:<10} {response_length:<10} {duration:<12.2f}s {status}")
+        print(f"{agent_name:<30} {llm_identified} {llm_name:<17} {chunk_count:<10} {response_length:<10} {status}")
     
     print()
     print("=" * 100)

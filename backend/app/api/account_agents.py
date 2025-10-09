@@ -570,6 +570,7 @@ async def stream_endpoint(
                 async for event in simple_chat_stream(
                     message=message,
                     session_id=str(session.id),
+                    agent_instance_id=instance.id,
                     message_history=message_history,
                     instance_config=instance.config
                 ):
