@@ -105,7 +105,7 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
 async def create_simple_chat_agent() -> Agent:  # Fixed: async function
     """Create a simple chat agent with OpenRouter provider for cost tracking."""
     config = load_config()
-    llm_config = config.get("llm", {})
+    llm_config = config.get("model_settings", {})
     
     # Get OpenRouter configuration
     model_name = llm_config.get("model", "anthropic/claude-3.5-sonnet")
