@@ -43,22 +43,30 @@
   - [x] 0017-004-003-01 - Model settings cascade implementation
   - [x] 0017-004-003-02 - Tool configuration cascade
 
-### **Priority 2B: Multi-Tenant Account-Instance Architecture** 📋 🎯 **NEXT PRIORITY**
+### **Priority 2B: Multi-Tenant Account-Instance Architecture** 🚧 🎯 **IN PROGRESS**
 **Epic 0022 - Foundational Infrastructure for Pydantic AI Migration**
 
 **Why Priority 2B**: All endpoints must use Pydantic AI (core architecture principle). Current legacy endpoints use direct OpenRouter calls. Epic 0022 provides the multi-tenant infrastructure to properly migrate ALL endpoints to Pydantic AI without breaking existing functionality.
 
 - [ ] 0022-001 - Phase 1a: Core Multi-Tenancy Infrastructure
-  - [ ] 0022-001-001 - Database & Configuration Infrastructure (config files → DB migration → instance loader → discovery)
+  - [x] 0022-001-001 - Database & Configuration Infrastructure ✅
     - [x] 0022-001-001-01 - Test instance configuration files ✅
     - [x] 0022-001-001-02 - Multi-tenant database schema migration ✅
     - [x] 0022-001-001-03 - Agent instance loader implementation ✅
-    - [ ] 0022-001-001-04 - Instance discovery and listing 🎯 **NEXT**
-  - [ ] 0022-001-002 - API Endpoints (/accounts/{account}/agents/{instance}/*)
-  - [ ] 0022-001-003 - Frontend Widget Migration (Astro/Preact components, embedded widgets, demo pages)
-  - [ ] 0022-001-004 - Cost Tracking & Observability
-  - [ ] 0022-001-005 - Testing & Validation
-  - [ ] 0022-001-006 - Simple Admin UI (Optional)
+    - [x] 0022-001-001-04 - Instance discovery and listing ✅
+  - [x] 0022-001-002 - Multi-Provider Infrastructure (Logfire complete, rest optional) ✅
+    - [x] 0022-001-002-00 - Logfire observability integration ✅
+    - Chunks 01-06 (Provider factory, Together.ai) - DEFERRED (optional, not required)
+  - [ ] 0022-001-003 - API Endpoints (3/4 complete) 🚧
+    - [x] 0022-001-003-01 - Account agents router setup ✅
+    - [x] 0022-001-003-01a - Session context migration (nullable fields) ✅
+    - [x] 0022-001-003-02 - Non-streaming chat endpoint ✅
+    - [ ] 0022-001-003-03 - Streaming chat endpoint 🎯 **NEXT**
+    - [ ] 0022-001-003-04 - Instance listing endpoint
+  - [ ] 0022-001-004 - Frontend Widget Migration (Astro/Preact components, embedded widgets, demo pages)
+  - [ ] 0022-001-005 - Cost Tracking & Observability
+  - [ ] 0022-001-006 - Testing & Validation
+  - [ ] 0022-001-007 - Simple Admin UI (Optional)
 - [ ] 0022-002 - Phase 1b: Authentication & Authorization (Deferred - when needed)
 
 ### **Priority 3: Vector Search Tool** 📋
@@ -140,12 +148,20 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 2A complete ✅ - Starting Priority 2B (Multi-Tenant Architecture) 🎯
+**Current Status**: Priority 2B in progress 🚧 - Multi-tenant chat endpoint complete ✅, Logfire verified ✅
+
+**Progress Summary (Priority 2B - Epic 0022):**
+- ✅ Database & Configuration Infrastructure (4/4 chunks)
+- ✅ Multi-Provider Infrastructure (Logfire complete, verified working)
+- 🚧 API Endpoints (3/4 chunks) - Non-streaming chat endpoint fully functional
+- 📋 Frontend Widget Migration (not started)
+- 📋 Testing & Validation (not started)
 
 **Next Steps (Phase 1 MVP):**
-1. **Priority 2B: Epic 0022 (Multi-Tenant Architecture)** 🎯 - IMMEDIATE NEXT - Foundational infrastructure for Pydantic AI migration
-   - Build account-instance infrastructure (Phase 1a)
-   - Authentication when needed (Phase 1b)
+1. **Priority 2B: Epic 0022 (Multi-Tenant Architecture)** 🎯 - IN PROGRESS
+   - Complete remaining API endpoints (streaming + listing)
+   - Frontend widget migration
+   - Integration testing
 2. **Priority 3: 0017-005 (Vector Search Tool)** - Core InfoBot value
 3. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
 4. Priority 5: 0017-007 (Profile Capture Tool)
