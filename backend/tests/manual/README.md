@@ -144,6 +144,61 @@ When creating new manual tests:
 | **Pytest Unit Tests** | Isolated component testing | Every commit (CI/CD) | Pass/fail, coverage stats |
 | **Pytest Integration Tests** | End-to-end workflows | Every commit (CI/CD) | Pass/fail, detailed logs |
 
+## Logfire Observability
+
+The application uses **Logfire** for LLM tracing and request monitoring. Logfire automatically captures:
+
+- 🔍 **Full request traces**: HTTP → chat endpoint → agent → Pydantic AI → OpenRouter
+- 🤖 **LLM interactions**: See what model was requested vs. what model OpenRouter actually used
+- 💰 **Cost tracking**: Token usage and costs for each LLM call
+- ⏱️ **Performance**: End-to-end latency and bottleneck identification
+- 🔗 **Correlation**: All spans for a single request share the same trace ID
+
+### Accessing Logfire UI
+
+1. **Open Logfire Dashboard**: https://logfire.pydantic.dev
+2. **Find Your Traces**: Look for traces from your recent test runs
+3. **Inspect LLM Calls**: Click on any trace to see the full execution flow
+
+### Key OpenTelemetry GenAI Attributes
+
+Logfire automatically captures these critical attributes for every LLM call:
+
+| Attribute | Description | Example |
+|-----------|-------------|---------|
+| `gen_ai.request.model` | Model we asked OpenRouter to use | `"qwen/qwen3-vl-235b-a22b-instruct"` |
+| `gen_ai.response.model` | Model OpenRouter actually used | `"moonshotai/kimi-k2-0905"` ⚠️ |
+| `gen_ai.usage.input_tokens` | Tokens in the prompt | `45` |
+| `gen_ai.usage.output_tokens` | Tokens in the response | `89` |
+| `gen_ai.usage.total_tokens` | Total tokens used | `134` |
+| `gen_ai.usage.total_cost` | Cost in USD | `0.00023` |
+
+### Debugging Model Routing Issues
+
+**Problem**: Agent configured for Model A but responds as Model B?
+
+**Solution**: Use Logfire to compare `gen_ai.request.model` vs `gen_ai.response.model`:
+
+1. Run manual test: `python tests/manual/test_chat_endpoint.py`
+2. Open Logfire UI: https://logfire.pydantic.dev
+3. Find the trace for your test (search by timestamp or trace ID)
+4. Click on the LLM span to see GenAI attributes
+5. Compare:
+   - **Request model** = what we asked for in `config.yaml`
+   - **Response model** = what OpenRouter actually used
+6. If they differ → OpenRouter is routing/falling back to different models
+
+### Logfire Setup (for reference)
+
+The app is already configured for Logfire. If you need to set it up from scratch:
+
+1. Sign up for free account: https://logfire.pydantic.dev (1M spans/month free tier)
+2. Get your `LOGFIRE_TOKEN` from account settings
+3. Add to `.env` file: `LOGFIRE_TOKEN=your-token-here`
+4. Restart the server
+
+**Privacy Note**: Logfire data is stored in Pydantic's cloud (US/EU regions available). For on-premise deployments, you can use a local OpenTelemetry collector instead.
+
 ## Example Workflow
 
 ```bash
@@ -153,15 +208,18 @@ vim app/agents/instance_loader.py
 # 2. Quick manual verification
 python tests/manual/test_config_loader.py
 
-# 3. Run full test suite
+# 3. Check traces in Logfire UI (if testing LLM interactions)
+open https://logfire.pydantic.dev
+
+# 4. Run full test suite
 pytest tests/ -v
 
-# 4. Commit if all pass
+# 5. Commit if all pass
 git add -A
 git commit -m "feat: improve instance loader"
 ```
 
 ---
 
-**Note**: These tests require a running database and valid configuration files. Ensure your `.env` is properly configured and the database is initialized.
+**Note**: These tests require a running database and valid configuration files. Ensure your `.env` is properly configured and the database is initialized. For LLM tracing, ensure `LOGFIRE_TOKEN` is set in `.env`.
 
