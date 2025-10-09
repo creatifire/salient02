@@ -57,12 +57,12 @@
   - [x] 0022-001-002 - Multi-Provider Infrastructure (Logfire complete, rest deferred to after Priority 6) ✅
     - [x] 0022-001-002-00 - Logfire observability integration ✅
     - Chunks 01-06 (Provider factory, Together.ai) - DEFERRED to after Priority 6
-  - [ ] 0022-001-003 - API Endpoints (3/4 complete) 🚧
+  - [ ] 0022-001-003 - API Endpoints (4/5 complete) 🚧
     - [x] 0022-001-003-01 - Account agents router setup ✅
     - [x] 0022-001-003-01a - Session context migration (nullable fields) ✅
     - [x] 0022-001-003-02 - Non-streaming chat endpoint ✅
-    - [ ] 0022-001-003-03 - Streaming chat endpoint 🎯 **NEXT**
-    - [ ] 0022-001-003-04 - Instance listing endpoint
+    - [x] 0022-001-003-03 - Streaming chat endpoint ✅
+    - [ ] 0022-001-003-04 - Instance listing endpoint 🎯 **NEXT**
   - [ ] 0022-001-004 - Frontend Widget Migration (Astro/Preact components, embedded widgets, demo pages)
   - [ ] 0022-001-005 - Cost Tracking & Observability
   - [ ] 0022-001-006 - Testing & Validation
@@ -184,18 +184,18 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 2B in progress 🚧 - Multi-tenant chat endpoint complete ✅, Logfire verified ✅
+**Current Status**: Priority 2B in progress 🚧 - Both chat endpoints complete ✅, Logfire verified ✅
 
 **Progress Summary (Priority 2B - Epic 0022):**
 - ✅ Database & Configuration Infrastructure (4/4 chunks)
 - ✅ Multi-Provider Infrastructure (Logfire complete, verified working)
-- 🚧 API Endpoints (3/4 chunks) - Non-streaming chat endpoint fully functional
+- 🚧 API Endpoints (4/5 chunks) - Non-streaming & streaming chat endpoints fully functional
 - 📋 Frontend Widget Migration (not started)
 - 📋 Testing & Validation (not started)
 
 **Next Steps (Phase 1 MVP):**
 1. **Priority 2B: Epic 0022 (Multi-Tenant Architecture)** 🎯 - IN PROGRESS
-   - Complete remaining API endpoints (streaming + listing)
+   - Complete remaining API endpoint (listing endpoint for instance discovery)
    - Frontend widget migration
    - Integration testing
 2. **Priority 3: 0017-005 (Vector Search Tool)** - Core InfoBot value
