@@ -17,3 +17,9 @@ pinecone==7.3.0
 httpx==0.28.1
 sse-starlette==3.0.2
 
+# OpenTelemetry instrumentation packages (required by Logfire)
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-httpx
+opentelemetry-instrumentation-asyncpg
+opentelemetry-instrumentation-sqlalchemy
+
