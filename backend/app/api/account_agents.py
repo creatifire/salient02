@@ -392,3 +392,238 @@ async def chat_endpoint(
     
     return JSONResponse(response_data)
 
+
+# ============================================================================
+# STREAMING ENDPOINT (SSE)
+# ============================================================================
+
+@router.get("/{account_slug}/agents/{instance_slug}/stream")
+async def stream_endpoint(
+    request: Request,
+    message: str = Query(..., description="User message to send to agent", min_length=1),
+    account_slug: str = Path(..., description="Account identifier slug"),
+    instance_slug: str = Path(..., description="Agent instance identifier slug")
+):
+    """
+    Streaming chat endpoint using Server-Sent Events (SSE).
+    
+    Streams agent responses in real-time as they're generated, providing
+    a better user experience for longer responses.
+    
+    SSE Event Format:
+        - event: message, data: <text chunk>
+        - event: done, data: ""
+        - event: error, data: {"message": "<error>"}
+    
+    Flow:
+    1. Load agent instance (DB + config file)
+    2. Get/create session with account/instance context
+    3. Load conversation history
+    4. Route to streaming agent based on agent_type
+    5. Yield SSE events as chunks arrive
+    6. Save messages and track costs after completion
+    7. Return completion event
+    
+    Args:
+        request: FastAPI request object (for session middleware)
+        message: User message from query parameter
+        account_slug: Account identifier from URL
+        instance_slug: Agent instance identifier from URL
+        
+    Returns:
+        StreamingResponse with SSE events
+        
+    Raises:
+        HTTPException 404: Account or instance not found
+        HTTPException 400: Invalid agent type or bad request
+        HTTPException 500: Internal server error
+        
+    Example:
+        GET /accounts/default_account/agents/simple_chat1/stream?message=Hello
+        
+        -> event: message\ndata: Hello\n\n
+        -> event: message\ndata: ! How can\n\n
+        -> event: message\ndata:  I help you?\n\n
+        -> event: done\ndata: \n\n
+    """
+    from fastapi.responses import StreamingResponse
+    import json
+    
+    logger.info({
+        "event": "stream_request",
+        "account": account_slug,
+        "instance": instance_slug,
+        "message_preview": message[:100] + "..." if len(message) > 100 else message
+    })
+    
+    # ========================================================================
+    # STEP 1: LOAD AGENT INSTANCE
+    # ========================================================================
+    
+    try:
+        instance = await load_agent_instance(account_slug, instance_slug)
+        logger.debug({
+            "event": "instance_loaded",
+            "instance_id": str(instance.id),
+            "agent_type": instance.agent_type,
+            "display_name": instance.display_name
+        })
+    except ValueError as e:
+        logger.warning({
+            "event": "instance_not_found",
+            "account": account_slug,
+            "instance": instance_slug,
+            "error": str(e)
+        })
+        raise HTTPException(status_code=404, detail=f"Agent instance not found: {account_slug}/{instance_slug}")
+    except Exception as e:
+        logger.error({
+            "event": "instance_load_failed",
+            "account": account_slug,
+            "instance": instance_slug,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        raise HTTPException(status_code=500, detail="Failed to load agent instance")
+    
+    # ========================================================================
+    # STEP 2: GET/CREATE SESSION WITH CONTEXT UPDATE
+    # ========================================================================
+    
+    session = get_current_session(request)
+    if not session:
+        logger.error("No session available for stream request")
+        raise HTTPException(status_code=500, detail="Session error")
+    
+    logger.debug({
+        "event": "session_retrieved",
+        "session_id": str(session.id),
+        "session_key": session.session_key[:8] + "..." if session.session_key else None,
+        "account_id": str(session.account_id) if session.account_id else None
+    })
+    
+    # Update session context if NULL (progressive context flow)
+    if session.account_id is None:
+        from sqlalchemy import update as sql_update
+        from ..models import Session as SessionModel
+        
+        async with get_database_service().get_session() as db_session:
+            await db_session.execute(
+                sql_update(SessionModel)
+                .where(SessionModel.id == session.id)
+                .values(
+                    account_id=instance.account_id,
+                    account_slug=instance.account_slug,
+                    agent_instance_id=instance.id
+                )
+            )
+            await db_session.commit()
+        
+        logger.info({
+            "event": "session_context_updated",
+            "session_id": str(session.id),
+            "account_id": str(instance.account_id),
+            "agent_instance_id": str(instance.id)
+        })
+        
+        # Update local session object for use in this request
+        session.account_id = instance.account_id
+        session.account_slug = instance.account_slug
+        session.agent_instance_id = instance.id
+    
+    # ========================================================================
+    # STEP 3: LOAD CONVERSATION HISTORY
+    # ========================================================================
+    
+    # Get history_limit from instance config
+    context_management = instance.config.get("context_management", {})
+    history_limit = context_management.get("history_limit", 50)
+    
+    # Load conversation history for this session
+    from ..services.agent_session import load_agent_conversation
+    message_history = await load_agent_conversation(
+        session_id=str(session.id),
+        max_messages=history_limit
+    )
+    
+    logger.debug({
+        "event": "history_loaded",
+        "session_id": str(session.id),
+        "history_count": len(message_history),
+        "history_limit": history_limit
+    })
+    
+    # ========================================================================
+    # STEP 4: STREAMING GENERATOR FUNCTION
+    # ========================================================================
+    
+    async def event_generator():
+        """Generate SSE events from agent stream."""
+        agent_type = instance.agent_type
+        
+        try:
+            if agent_type == "simple_chat":
+                # Import streaming function
+                from ..agents.simple_chat import simple_chat_stream
+                
+                # Stream events from agent
+                async for event in simple_chat_stream(
+                    message=message,
+                    session_id=str(session.id),
+                    message_history=message_history,
+                    instance_config=instance.config
+                ):
+                    # Format as SSE
+                    event_type = event.get("event", "message")
+                    event_data = event.get("data", "")
+                    
+                    # SSE format: "event: <type>\ndata: <data>\n\n"
+                    yield f"event: {event_type}\ndata: {event_data}\n\n"
+                
+            # Future agent types can be added here:
+            # elif agent_type == "sales_agent":
+            #     from ..agents.sales_agent import sales_agent_stream
+            #     async for event in sales_agent_stream(...):
+            #         yield f"event: {event['event']}\ndata: {event['data']}\n\n"
+            
+            else:
+                logger.error({
+                    "event": "unknown_agent_type",
+                    "agent_type": agent_type,
+                    "instance": instance_slug
+                })
+                error_data = json.dumps({"message": f"Unknown agent type: {agent_type}"})
+                yield f"event: error\ndata: {error_data}\n\n"
+                
+        except Exception as e:
+            logger.error({
+                "event": "streaming_exception",
+                "session_id": str(session.id),
+                "agent_type": agent_type,
+                "error": str(e),
+                "error_type": type(e).__name__
+            })
+            error_data = json.dumps({"message": f"Streaming failed: {str(e)}"})
+            yield f"event: error\ndata: {error_data}\n\n"
+    
+    # ========================================================================
+    # STEP 5: RETURN STREAMING RESPONSE
+    # ========================================================================
+    
+    logger.info({
+        "event": "stream_initiated",
+        "session_id": str(session.id),
+        "account": account_slug,
+        "instance": instance_slug
+    })
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+

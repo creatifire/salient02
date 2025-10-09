@@ -403,3 +403,219 @@ async def simple_chat(
         # Session continuity monitoring
         'session_continuity': session_stats
     }
+
+
+async def simple_chat_stream(
+    message: str,
+    session_id: str,
+    message_history: Optional[List[ModelMessage]] = None,
+    instance_config: Optional[dict] = None
+):
+    """
+    Streaming version of simple_chat using Pydantic AI agent.run_stream().
+    
+    Yields SSE-formatted events with incremental text chunks.
+    
+    Args:
+        message: User message to process
+        session_id: Session ID for conversation context
+        message_history: Optional pre-loaded message history
+        instance_config: Optional instance-specific config for multi-tenant support
+        
+    Yields:
+        dict: SSE events with format:
+            - {"event": "message", "data": chunk} - Text chunks
+            - {"event": "done", "data": ""} - Completion
+            - {"event": "error", "data": json.dumps({"message": "..."})} - Errors
+    """
+    from loguru import logger
+    import json
+    
+    # Get history_limit from agent-first configuration cascade
+    from .config_loader import get_agent_history_limit
+    default_history_limit = await get_agent_history_limit("simple_chat")
+    
+    # Create session dependencies
+    session_deps = await SessionDependencies.create(
+        session_id=session_id,
+        user_id=None,
+        history_limit=default_history_limit
+    )
+    
+    # Load conversation history if not provided
+    if message_history is None:
+        message_history = await load_conversation_history(
+            session_id=session_id,
+            max_messages=None
+        )
+    
+    # Get the agent (pass instance_config for multi-tenant support)
+    agent = await get_chat_agent(instance_config=instance_config)
+    
+    # Extract requested model for logging
+    config_to_use = instance_config if instance_config is not None else load_config()
+    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    
+    chunks = []
+    start_time = datetime.now(UTC)
+    
+    try:
+        # Execute agent with streaming
+        async with agent.run_stream(message, deps=session_deps, message_history=message_history) as result:
+            # Stream with delta=True for incremental chunks only
+            async for chunk in result.stream_text(delta=True):
+                chunks.append(chunk)
+                yield {"event": "message", "data": chunk}
+            
+            end_time = datetime.now(UTC)
+            latency_ms = int((end_time - start_time).total_seconds() * 1000)
+            
+            # Get full response text
+            response_text = "".join(chunks)
+            
+            # Track cost after stream completes
+            usage_data = result.usage()
+            
+            if usage_data:
+                prompt_tokens = getattr(usage_data, 'input_tokens', 0)
+                completion_tokens = getattr(usage_data, 'output_tokens', 0)
+                total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
+                
+                # Extract cost from OpenRouterModel vendor_details
+                real_cost = 0.0
+                new_messages = result.new_messages()
+                if new_messages:
+                    latest_message = new_messages[-1]
+                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                        vendor_cost = latest_message.provider_details.get('cost')
+                        if vendor_cost is not None:
+                            real_cost = float(vendor_cost)
+            else:
+                prompt_tokens = 0
+                completion_tokens = 0
+                total_tokens = 0
+                real_cost = 0.0
+            
+            # Log streaming execution
+            logger.info({
+                "event": "openrouter_model_streaming",
+                "session_id": session_id,
+                "chunks_sent": len(chunks),
+                "tokens": {
+                    "prompt": prompt_tokens,
+                    "completion": completion_tokens,
+                    "total": total_tokens
+                },
+                "real_cost": real_cost,
+                "latency_ms": latency_ms,
+                "completion_status": "complete"
+            })
+            
+            # Store cost data using LLMRequestTracker
+            llm_request_id = None
+            if prompt_tokens > 0 or completion_tokens > 0:
+                from decimal import Decimal
+                from .config_loader import get_agent_model_settings
+                
+                tracker = LLMRequestTracker()
+                model_settings = await get_agent_model_settings("simple_chat")
+                tracking_model = model_settings["model"]
+                
+                llm_request_id = await tracker.track_llm_request(
+                    session_id=UUID(session_id),
+                    provider="openrouter",
+                    model=tracking_model,
+                    request_body={
+                        "message_length": len(message),
+                        "has_history": len(message_history) > 0 if message_history else False,
+                        "method": "streaming_openrouter"
+                    },
+                    response_body={
+                        "response_length": len(response_text),
+                        "chunks_sent": len(chunks)
+                    },
+                    tokens={
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": total_tokens
+                    },
+                    real_cost=Decimal(str(real_cost)) if real_cost > 0 else Decimal("0.0"),
+                    status="success",
+                    completion_status="complete"  # Streaming completed successfully
+                )
+            
+            # Save messages to database
+            message_service = get_message_service()
+            
+            # Save user message
+            await message_service.save_message(
+                session_id=UUID(session_id),
+                agent_instance_id=session_deps.agent_instance_id,
+                role="user",
+                content=message
+            )
+            
+            # Save assistant response
+            await message_service.save_message(
+                session_id=UUID(session_id),
+                agent_instance_id=session_deps.agent_instance_id,
+                role="assistant",
+                content=response_text
+            )
+            
+            # Yield completion event
+            yield {"event": "done", "data": ""}
+            
+    except Exception as e:
+        logger.error({
+            "event": "streaming_error",
+            "session_id": session_id,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "chunks_sent": len(chunks)
+        })
+        
+        # Save partial response if any chunks were sent
+        if chunks:
+            message_service = get_message_service()
+            partial_response = "".join(chunks)
+            
+            # Save user message
+            await message_service.save_message(
+                session_id=UUID(session_id),
+                agent_instance_id=session_deps.agent_instance_id,
+                role="user",
+                content=message
+            )
+            
+            # Save partial assistant response with metadata
+            await message_service.save_message(
+                session_id=UUID(session_id),
+                agent_instance_id=session_deps.agent_instance_id,
+                role="assistant",
+                content=partial_response,
+                metadata={
+                    "partial": True,
+                    "error": str(e),
+                    "completion_status": "partial",
+                    "chunks_received": len(chunks)
+                }
+            )
+            
+            # Track partial LLM request
+            if prompt_tokens > 0:
+                tracker = LLMRequestTracker()
+                await tracker.track_llm_request(
+                    session_id=UUID(session_id),
+                    provider="openrouter",
+                    model=requested_model,
+                    request_body={"message_length": len(message)},
+                    response_body={"partial_response_length": len(partial_response)},
+                    tokens={"prompt_tokens": prompt_tokens, "completion_tokens": len(chunks), "total_tokens": prompt_tokens + len(chunks)},
+                    real_cost=Decimal("0.0"),
+                    status="error",
+                    completion_status="partial"
+                )
+        
+        # Yield error event
+        yield {"event": "error", "data": json.dumps({"message": str(e)})}
