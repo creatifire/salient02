@@ -150,16 +150,28 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
     system_prompt = agent_config.system_prompt  # Direct attribute access (AgentConfig is Pydantic model)
     
     # Use centralized model settings cascade with comprehensive monitoring
-    from .config_loader import get_agent_model_settings
-    model_settings = await get_agent_model_settings("simple_chat")
-    
-    # Extract model name from cascaded settings
-    model_name = model_settings["model"]
-    logger.info({
-        "event": "centralized_model_cascade",
-        "model_settings": model_settings,
-        "selected_model": model_name
-    })
+    # BUT: if instance_config was provided, use that instead of loading global config
+    if instance_config is not None:
+        # Multi-tenant mode: use the instance-specific config that was already extracted
+        model_settings = llm_config
+        model_name = llm_config.get("model", "anthropic/claude-3.5-sonnet")
+        logger.info({
+            "event": "instance_config_used",
+            "model_settings": model_settings,
+            "selected_model": model_name,
+            "source": "instance_config"
+        })
+    else:
+        # Single-tenant mode: use the centralized cascade
+        from .config_loader import get_agent_model_settings
+        model_settings = await get_agent_model_settings("simple_chat")
+        model_name = model_settings["model"]
+        logger.info({
+            "event": "centralized_model_cascade",
+            "model_settings": model_settings,
+            "selected_model": model_name,
+            "source": "global_config"
+        })
     
     # Use OpenRouterModel with cost-tracking provider
     provider = create_openrouter_provider_with_cost_tracking(api_key)
