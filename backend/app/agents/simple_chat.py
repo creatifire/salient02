@@ -408,6 +408,7 @@ async def simple_chat(
 async def simple_chat_stream(
     message: str,
     session_id: str,
+    agent_instance_id: UUID,
     message_history: Optional[List[ModelMessage]] = None,
     instance_config: Optional[dict] = None
 ):
@@ -419,6 +420,7 @@ async def simple_chat_stream(
     Args:
         message: User message to process
         session_id: Session ID for conversation context
+        agent_instance_id: Agent instance ID for message attribution
         message_history: Optional pre-loaded message history
         instance_config: Optional instance-specific config for multi-tenant support
         
@@ -490,11 +492,23 @@ async def simple_chat_stream(
                         vendor_cost = latest_message.provider_details.get('cost')
                         if vendor_cost is not None:
                             real_cost = float(vendor_cost)
+                
+                # Prepare cost_data dict for LLMRequestTracker
+                cost_data = {
+                    "unit_cost_prompt": 0.0,  # Not provided by OpenRouter in streaming
+                    "unit_cost_completion": 0.0,
+                    "total_cost": real_cost
+                }
             else:
                 prompt_tokens = 0
                 completion_tokens = 0
                 total_tokens = 0
                 real_cost = 0.0
+                cost_data = {
+                    "unit_cost_prompt": 0.0,
+                    "unit_cost_completion": 0.0,
+                    "total_cost": 0.0
+                }
             
             # Log streaming execution
             logger.info({
@@ -506,7 +520,7 @@ async def simple_chat_stream(
                     "completion": completion_tokens,
                     "total": total_tokens
                 },
-                "real_cost": real_cost,
+                "real_cost": cost_data["total_cost"],
                 "latency_ms": latency_ms,
                 "completion_status": "complete"
             })
@@ -535,13 +549,13 @@ async def simple_chat_stream(
                         "chunks_sent": len(chunks)
                     },
                     tokens={
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "total_tokens": total_tokens
+                        "prompt": prompt_tokens,
+                        "completion": completion_tokens,
+                        "total": total_tokens
                     },
-                    real_cost=Decimal(str(real_cost)) if real_cost > 0 else Decimal("0.0"),
-                    status="success",
-                    completion_status="complete"  # Streaming completed successfully
+                    cost_data=cost_data,
+                    latency_ms=latency_ms,
+                    agent_instance_id=agent_instance_id
                 )
             
             # Save messages to database
@@ -550,7 +564,7 @@ async def simple_chat_stream(
             # Save user message
             await message_service.save_message(
                 session_id=UUID(session_id),
-                agent_instance_id=session_deps.agent_instance_id,
+                agent_instance_id=agent_instance_id,
                 role="user",
                 content=message
             )
@@ -558,7 +572,7 @@ async def simple_chat_stream(
             # Save assistant response
             await message_service.save_message(
                 session_id=UUID(session_id),
-                agent_instance_id=session_deps.agent_instance_id,
+                agent_instance_id=agent_instance_id,
                 role="assistant",
                 content=response_text
             )
@@ -583,7 +597,7 @@ async def simple_chat_stream(
             # Save user message
             await message_service.save_message(
                 session_id=UUID(session_id),
-                agent_instance_id=session_deps.agent_instance_id,
+                agent_instance_id=agent_instance_id,
                 role="user",
                 content=message
             )
@@ -591,7 +605,7 @@ async def simple_chat_stream(
             # Save partial assistant response with metadata
             await message_service.save_message(
                 session_id=UUID(session_id),
-                agent_instance_id=session_deps.agent_instance_id,
+                agent_instance_id=agent_instance_id,
                 role="assistant",
                 content=partial_response,
                 metadata={
@@ -602,20 +616,7 @@ async def simple_chat_stream(
                 }
             )
             
-            # Track partial LLM request
-            if prompt_tokens > 0:
-                tracker = LLMRequestTracker()
-                await tracker.track_llm_request(
-                    session_id=UUID(session_id),
-                    provider="openrouter",
-                    model=requested_model,
-                    request_body={"message_length": len(message)},
-                    response_body={"partial_response_length": len(partial_response)},
-                    tokens={"prompt_tokens": prompt_tokens, "completion_tokens": len(chunks), "total_tokens": prompt_tokens + len(chunks)},
-                    real_cost=Decimal("0.0"),
-                    status="error",
-                    completion_status="partial"
-                )
+            # Note: Not tracking partial LLM requests since token counts are unavailable in error cases
         
         # Yield error event
         yield {"event": "error", "data": json.dumps({"message": str(e)})}

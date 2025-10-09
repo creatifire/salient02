@@ -105,26 +105,28 @@ class MessageService:
         session_id: uuid.UUID | str,
         role: str,
         content: str,
+        agent_instance_id: uuid.UUID | str | None = None,
         metadata: Dict[str, Any] | None = None
     ) -> uuid.UUID:
         """
         Save a new message to the database with comprehensive validation.
         
         Creates a new message record with proper validation, session linking,
-        and metadata handling. Ensures data integrity and provides detailed
-        logging for debugging and monitoring.
+        agent attribution, and metadata handling. Ensures data integrity and 
+        provides detailed logging for debugging and monitoring.
         
         Args:
             session_id: Session UUID for message association
             role: Message role (human, assistant, system, tool, developer)
             content: Message text content (required, non-empty)
+            agent_instance_id: Agent instance UUID for multi-tenant attribution (optional for backward compatibility)
             metadata: Optional metadata for RAG citations, tool calls, etc.
         
         Returns:
             UUID of the created message record
         
         Raises:
-            ValueError: If role is invalid or content is empty
+            ValueError: If role is invalid, content is empty, or agent_instance_id is required but missing
             SQLAlchemyError: If database operation fails
             Exception: For unexpected errors during message creation
         
@@ -133,6 +135,7 @@ class MessageService:
             ...     session_id="550e8400-e29b-41d4-a716-446655440000",
             ...     role="human",
             ...     content="What is the weather like today?",
+            ...     agent_instance_id="660e8400-e29b-41d4-a716-446655440001",
             ...     metadata={"timestamp": "2024-01-01T12:00:00Z"}
             ... )
             >>> print(f"Message saved with ID: {message_id}")
@@ -141,6 +144,7 @@ class MessageService:
         - Content is validated but not sanitized (preserves user intent)
         - Metadata is validated as JSON-serializable
         - Session ID must exist (enforced by foreign key constraint)
+        - Agent instance ID must exist (enforced by foreign key constraint)
         """
         # Input validation
         if not isinstance(session_id, uuid.UUID):
@@ -149,6 +153,19 @@ class MessageService:
             except (ValueError, TypeError) as e:
                 logger.error(f"Invalid session_id format: {session_id}, error: {e}")
                 raise ValueError(f"Invalid session_id format: {session_id}") from e
+        
+        # Validate agent_instance_id (required for multi-tenant)
+        if agent_instance_id is not None:
+            if not isinstance(agent_instance_id, uuid.UUID):
+                try:
+                    agent_instance_id = uuid.UUID(str(agent_instance_id))
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Invalid agent_instance_id format: {agent_instance_id}, error: {e}")
+                    raise ValueError(f"Invalid agent_instance_id format: {agent_instance_id}") from e
+        else:
+            # agent_instance_id is required (NOT NULL in schema)
+            logger.error("agent_instance_id is required but not provided")
+            raise ValueError("agent_instance_id is required for message attribution")
         
         if role not in self.VALID_ROLES:
             logger.error(f"Invalid message role: {role}, valid roles: {self.VALID_ROLES}")
@@ -174,6 +191,7 @@ class MessageService:
                 # Create new message record
                 message = Message(
                     session_id=session_id,
+                    agent_instance_id=agent_instance_id,
                     role=role,
                     content=content.strip(),
                     meta=metadata,
@@ -188,6 +206,7 @@ class MessageService:
                     "event": "message_saved",
                     "message_id": str(message.id),
                     "session_id": str(session_id),
+                    "agent_instance_id": str(agent_instance_id),
                     "role": role,
                     "content_length": len(content),
                     "has_metadata": metadata is not None
