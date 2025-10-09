@@ -231,20 +231,48 @@ def run_all_tests():
         agent_name = f"{config['account']}/{config['instance']}"
         
         if result and "_meta" in result and "error" not in result["_meta"]:
-            model = result.get("model", "unknown")[:38]
+            model = result.get("model", "unknown")
             usage = result.get("usage", {})
             total_tokens = usage.get("total_tokens", 0)
             cost_tracking = result.get("cost_tracking", {})
             cost = cost_tracking.get("real_cost", 0) if cost_tracking.get("cost_found") else 0
-            status = "✅ PASS"
+            
+            # VALIDATE: Check if the returned model matches the expected model
+            expected_model = config.get("expected_model", "")
+            model_correct = expected_model.lower() in model.lower() if expected_model else True
+            
+            # VALIDATE: Check if all required fields are present
+            required_fields = ["response", "usage", "model"]
+            all_fields_present = all(f in result for f in required_fields)
+            
+            # VALIDATE: Check if we got actual content
+            has_content = bool(result.get("response", "").strip())
+            
+            # Determine status based on validations
+            if model_correct and all_fields_present and has_content:
+                status = "✅ PASS"
+            else:
+                status = "❌ FAIL"
+                all_passed = False
+                # Add failure reason
+                reasons = []
+                if not model_correct:
+                    reasons.append(f"wrong_model(expected:{expected_model})")
+                if not all_fields_present:
+                    reasons.append("missing_fields")
+                if not has_content:
+                    reasons.append("no_content")
+                status += f" ({', '.join(reasons)})"
+            
+            model_display = model[:38]  # Truncate for display
         else:
-            model = "N/A"
+            model_display = "N/A"
             total_tokens = 0
             cost = 0
-            status = "❌ FAIL"
+            status = "❌ FAIL (no_response)"
             all_passed = False
         
-        print(f"{agent_name:<30} {model:<40} {total_tokens:<12} ${cost:<11.6f} {status}")
+        print(f"{agent_name:<30} {model_display:<40} {total_tokens:<12} ${cost:<11.6f} {status}")
     
     print()
     print("=" * 100)
