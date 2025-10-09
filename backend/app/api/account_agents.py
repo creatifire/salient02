@@ -303,7 +303,8 @@ async def chat_endpoint(
             result = await simple_chat(
                 message=user_message,
                 session_id=str(session.id),
-                message_history=message_history  # Pass pre-loaded history
+                message_history=message_history,  # Pass pre-loaded history
+                instance_config=instance.config  # Pass instance-specific config
             )
             
         # Future agent types can be added here:

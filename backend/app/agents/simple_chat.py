@@ -102,9 +102,16 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
     
     return pydantic_messages
 
-async def create_simple_chat_agent() -> Agent:  # Fixed: async function
-    """Create a simple chat agent with OpenRouter provider for cost tracking."""
-    config = load_config()
+async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fixed: async function
+    """
+    Create a simple chat agent with OpenRouter provider for cost tracking.
+    
+    Args:
+        instance_config: Optional instance-specific configuration. If provided, uses this
+                        instead of loading the global config. This enables multi-tenant
+                        support where each instance can have different model settings.
+    """
+    config = instance_config if instance_config is not None else load_config()
     llm_config = config.get("model_settings", {})
     
     # Get OpenRouter configuration
@@ -177,28 +184,38 @@ async def create_simple_chat_agent() -> Agent:  # Fixed: async function
         system_prompt=system_prompt
     )
 
-async def get_chat_agent() -> Agent:  # Fixed: async function
+async def get_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fixed: async function
     """
     Create a fresh chat agent instance.
     
     Note: Global caching disabled for production reliability.
     Configuration changes take effect immediately after server restart
     without requiring session cookie clearing or cache invalidation.
+    
+    Args:
+        instance_config: Optional instance-specific configuration for multi-tenant support
     """
     # Always create fresh agent to pick up latest configuration
     # This ensures config changes work reliably in production
-    return await create_simple_chat_agent()
+    return await create_simple_chat_agent(instance_config=instance_config)
 
 async def simple_chat(
     message: str, 
     session_id: str,  # Fixed: simplified interface - create SessionDependencies internally
-    message_history: Optional[List[ModelMessage]] = None  # Fixed: proper type annotation
+    message_history: Optional[List[ModelMessage]] = None,  # Fixed: proper type annotation
+    instance_config: Optional[dict] = None  # Multi-tenant: instance-specific configuration
 ) -> dict:
     """
     Simple chat function using Pydantic AI agent with YAML configuration.
     
     Automatically loads conversation history from database if not provided,
     enabling multi-turn conversations with context continuity.
+    
+    Args:
+        message: User message to process
+        session_id: Session ID for conversation context
+        message_history: Optional pre-loaded message history
+        instance_config: Optional instance-specific config for multi-tenant support
     
     Args:
         message: User message to process
@@ -234,7 +251,8 @@ async def simple_chat(
         )
     
     # Get the agent (Fixed: await async function)
-    agent = await get_chat_agent()
+    # Pass instance_config for multi-tenant support
+    agent = await get_chat_agent(instance_config=instance_config)
     
     # Pure Pydantic AI agent execution
     start_time = datetime.now(UTC)
