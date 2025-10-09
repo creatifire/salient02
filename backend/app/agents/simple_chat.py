@@ -565,7 +565,7 @@ async def simple_chat_stream(
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
-                role="user",
+                role="human",
                 content=message
             )
             
@@ -598,7 +598,7 @@ async def simple_chat_stream(
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
-                role="user",
+                role="human",
                 content=message
             )
             
