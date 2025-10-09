@@ -204,12 +204,14 @@ Build foundational multi-tenant architecture with account and agent instance sup
 
 **Progress Summary:**
 - ✅ Task 0022-001-001 - Database & Configuration Infrastructure (4/4 chunks complete)
-- 🚧 Task 0022-001-002 - API Endpoints (2.5/4 chunks complete - chat endpoint functional but needs multi-provider support)
-- ⏳ Task 0022-001-003 - Frontend Widget Migration (not started)
-- ⏳ Task 0022-001-004 - Cost Tracking & Observability (not started)
-- ⏳ Task 0022-001-005 - Testing & Validation (not started)
+- ⏳ Task 0022-001-002 - Multi-Provider Infrastructure (0/6 chunks complete - **NEXT TASK**)
+- 🚧 Task 0022-001-003 - API Endpoints (2.5/4 chunks complete - chat endpoint functional but needs multi-provider support)
+- ⏳ Task 0022-001-004 - Frontend Widget Migration (not started)
+- ⏳ Task 0022-001-005 - Cost Tracking & Observability (not started)
+- ⏳ Task 0022-001-006 - Testing & Validation (not started)
+- ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
 
-**Current Blocker:** Multi-provider support needed (OpenRouter + Together.ai) - LLM model selection not working correctly. Assessed at ~5 hours implementation time. See chunk 0022-001-002-02 for details.
+**Current Focus:** Implementing multi-provider infrastructure (Task 0022-001-002) to unblock chat endpoint completion. Estimated ~5 hours, 6 chunks.
 
 **📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
@@ -279,7 +281,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - ✅ Create `agent_instances` table (id UUID PRIMARY KEY, account_id UUID FK, instance_slug TEXT, agent_type TEXT, display_name TEXT, status TEXT, last_used_at)
       - ✅ Add unique constraint on (account_id, instance_slug) in agent_instances
       - ✅ Add columns to `sessions` table (account_id UUID FK NOT NULL, account_slug TEXT NOT NULL, agent_instance_id UUID FK NOT NULL, user_id UUID FK NULL)
-      - ⚠️ **NOTE**: Sessions fields initially added as NOT NULL, but revised to nullable in chunk 0022-001-002-01a for progressive context flow
+      - ⚠️ **NOTE**: Sessions fields initially added as NOT NULL, but revised to nullable in chunk 0022-001-003-01a for progressive context flow
       - ✅ Add columns to `messages` table (agent_instance_id UUID FK NOT NULL)
       - ✅ Add columns to `llm_requests` table (account_id UUID FK, account_slug TEXT, agent_instance_id UUID FK, agent_instance_slug TEXT, agent_type TEXT, completion_status TEXT)
       - ✅ Create indexes for performance (18 indexes for account_id, agent_instance_id, slugs)
@@ -389,12 +391,187 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ Complete — Instance discovery and listing (21 total tests passing: 11 original + 10 new)
     - PRIORITY: Medium — Nice to have for Phase 1a
 
-- [ ] 0022-001-002 - TASK - API Endpoints
+- [ ] 0022-001-002 - TASK - Multi-Provider Infrastructure
+  **Status**: Planned - Required to unblock chat endpoint completion
+  
+  Implement config-driven inference provider selection supporting OpenRouter, Together.ai, and future providers (OpenAI, Anthropic direct). Each agent instance can specify its provider via `config.yaml`, enabling flexible model selection and cost optimization.
+  
+  **Design Principles:**
+  - **Provider Factory Pattern**: Single interface (`ProviderFactory.create_model`) abstracts provider-specific instantiation
+  - **Config-Driven Selection**: `inference_provider` parameter in `config.yaml` controls which provider to use
+  - **Provider Agnostic**: Agent code doesn't need to know about provider differences
+  - **Cost Tracking**: Provider-specific cost calculation (API-provided or pricing table)
+  - **Future-Proof**: Easy to add new providers (OpenAI direct, Anthropic, Cohere, etc.)
+  
+  **Current Issue**: All agents return "Kimi" despite different configured models. Root cause: Only OpenRouter supported, and OpenRouter may be routing/falling back. Multi-provider support will enable direct provider access and better debugging.
+  
+  - [ ] 0022-001-002-01 - CHUNK - Provider factory and base infrastructure
+    - SUB-TASKS:
+      - Create `backend/app/agents/providers.py`
+      - Implement `ProviderFactory` class with `create_model(provider, model_name, api_key)` static method
+      - Support "openrouter" provider: `OpenRouterModel(model_name, api_key)`
+      - Support "together" provider: `OpenAIChatModel(model_name, provider=TogetherProvider(api_key))`
+      - Raise `ValueError` for unsupported providers with clear message
+      - Add provider validation constants (SUPPORTED_PROVIDERS dict)
+      - Add comprehensive docstrings and type hints
+      - Import required Pydantic AI providers (OpenRouterModel, TogetherProvider, OpenAIChatModel)
+    - AUTOMATED-TESTS: `backend/tests/unit/test_provider_factory.py`
+      - `test_create_openrouter_model()` - Returns OpenRouterModel instance
+      - `test_create_together_model()` - Returns OpenAIChatModel with TogetherProvider
+      - `test_create_model_unsupported_provider()` - Raises ValueError with clear message
+      - `test_create_model_missing_api_key()` - Handles missing API key gracefully
+      - `test_factory_with_explicit_api_key()` - Uses provided key over env var
+      - `test_factory_with_env_api_key()` - Falls back to environment variable
+      - `test_supported_providers_list()` - Verifies provider constants
+    - MANUAL-TESTS:
+      - Import ProviderFactory, verify no import errors
+      - Call `create_model("openrouter", "anthropic/claude-3.5-sonnet")`, verify OpenRouterModel returned
+      - Call `create_model("together", "meta-llama/Llama-3.3-70B-Instruct-Turbo")`, verify OpenAIChatModel returned
+      - Call `create_model("invalid", "model")`, verify ValueError with helpful message
+      - Check SUPPORTED_PROVIDERS constant lists openrouter and together
+    - STATUS: Planned — Core provider abstraction
+    - PRIORITY: Critical — Foundation for multi-provider support
+  
+  - [ ] 0022-001-002-02 - CHUNK - Config schema and validation
+    - SUB-TASKS:
+      - Add `ProviderConfigValidator` class to `providers.py`
+      - Implement `validate_config(provider, model, api_key=None)` static method
+      - Check provider in SUPPORTED_PROVIDERS
+      - Check API key available (env var or explicit)
+      - Return tuple `(is_valid: bool, error_message: str)`
+      - Add SUPPORTED_PROVIDERS dict with metadata (api_key_env, model_prefix_examples)
+      - Add helper `get_provider_api_key(provider)` to fetch from env
+      - Document expected config.yaml structure in docstrings
+    - AUTOMATED-TESTS: `backend/tests/unit/test_provider_validation.py`
+      - `test_validate_openrouter_valid()` - Valid OpenRouter config passes
+      - `test_validate_together_valid()` - Valid Together.ai config passes
+      - `test_validate_unsupported_provider()` - Returns False with error message
+      - `test_validate_missing_api_key()` - Returns False when API key missing
+      - `test_validate_with_explicit_api_key()` - Validates with provided key
+      - `test_get_provider_api_key()` - Fetches correct env var per provider
+      - `test_supported_providers_metadata()` - Verifies metadata structure
+    - MANUAL-TESTS:
+      - Call `validate_config("openrouter", "anthropic/claude")`, verify returns (True, "")
+      - Unset OPENROUTER_API_KEY, call validate, verify returns (False, "Missing API key...")
+      - Call `validate_config("invalid", "model")`, verify returns (False, "Unsupported provider...")
+      - Check SUPPORTED_PROVIDERS metadata includes api_key_env for each provider
+    - STATUS: Planned — Config validation infrastructure
+    - PRIORITY: High — Prevents runtime errors from invalid configs
+  
+  - [ ] 0022-001-002-03 - CHUNK - Update simple_chat agent to use factory
+    - SUB-TASKS:
+      - Update `backend/app/agents/simple_chat.py`
+      - Modify `create_simple_chat_agent(instance_config)` to use ProviderFactory
+      - Read `inference_provider` from `config["model_settings"]["inference_provider"]` (default: "openrouter")
+      - Read `model` from `config["model_settings"]["model"]`
+      - Read optional `api_key` from `config["model_settings"]["api_key"]`
+      - Call `ProviderFactory.create_model(provider, model, api_key)`
+      - Remove hardcoded OpenRouterModel instantiation
+      - Add logging: log provider and model at agent creation
+      - Update docstrings to document multi-provider support
+      - Keep backward compatibility: if no `inference_provider` specified, default to "openrouter"
+    - AUTOMATED-TESTS: `backend/tests/unit/test_simple_chat_agent.py`
+      - `test_create_agent_openrouter()` - Creates agent with OpenRouter provider
+      - `test_create_agent_together()` - Creates agent with Together.ai provider
+      - `test_create_agent_default_provider()` - Defaults to openrouter if not specified
+      - `test_create_agent_with_instance_config()` - Uses instance-specific provider
+      - `test_create_agent_logs_provider()` - Verifies provider logged at creation
+      - `test_backward_compatibility()` - Old configs without inference_provider still work
+    - MANUAL-TESTS:
+      - Create config with `inference_provider: "openrouter"`, verify OpenRouterModel used
+      - Create config with `inference_provider: "together"`, verify Together.ai provider used
+      - Create config without `inference_provider`, verify defaults to openrouter
+      - Check logs show provider selection: "Creating agent with provider: together, model: Llama-3.3-70B"
+    - STATUS: Planned — Agent integration with factory
+    - PRIORITY: Critical — Enables actual multi-provider usage
+  
+  - [ ] 0022-001-002-04 - CHUNK - Update test instance configs
+    - SUB-TASKS:
+      - Update `backend/config/agent_configs/default_account/simple_chat1/config.yaml`
+        - Keep `inference_provider: "openrouter"` (or add if missing)
+        - Keep existing model: "moonshotai/kimi-k2-0905"
+      - Update `backend/config/agent_configs/default_account/simple_chat2/config.yaml`
+        - Change to `inference_provider: "together"`
+        - Change model to valid Together.ai model: "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+      - Update `backend/config/agent_configs/acme/acme_chat1/config.yaml`
+        - Change to `inference_provider: "together"`
+        - Change model to valid Together.ai model: "Qwen/Qwen2.5-72B-Instruct-Turbo"
+      - Add inline YAML comments documenting provider choices
+      - Add TOGETHER_API_KEY to `.env.example` and project root `.env`
+      - Document provider setup in config file comments
+    - AUTOMATED-TESTS: `backend/tests/unit/test_config_files.py` (extend existing)
+      - `test_all_configs_have_inference_provider()` - All configs specify provider
+      - `test_provider_values_valid()` - Provider values in SUPPORTED_PROVIDERS
+      - `test_config_provider_model_combinations()` - Verify provider/model pairings make sense
+    - MANUAL-TESTS:
+      - Review all 3 config files, verify inference_provider field present
+      - Verify simple_chat1 uses openrouter, simple_chat2 and acme_chat1 use together
+      - Check .env has TOGETHER_API_KEY=sk-...
+      - Validate YAML syntax with `python -c "import yaml; yaml.safe_load(open('config.yaml'))"`
+    - STATUS: Planned — Config file updates
+    - PRIORITY: High — Test instances need valid provider configs
+  
+  - [ ] 0022-001-002-05 - CHUNK - Provider-specific cost tracking
+    - SUB-TASKS:
+      - Add `ProviderCostTracker` class to `providers.py`
+      - Add `PROVIDER_PRICING` dict with Together.ai pricing (OpenRouter uses API-provided cost)
+      - Implement `calculate_cost(provider, model, input_tokens, output_tokens, api_cost=None)` static method
+      - If provider=="openrouter" and api_cost provided, return api_cost (OpenRouter provides real cost)
+      - If provider=="together", calculate from PROVIDER_PRICING table
+      - Return dict: `{"real_cost": float, "method": str, "provider": str}`
+      - Handle unknown models: return cost=0.0 with warning in returned dict
+      - Add Together.ai pricing for common models (Llama-3.3-70B, Qwen2.5-72B, etc.)
+      - Update `backend/app/services/llm_request_tracker.py` to use ProviderCostTracker
+      - Add `provider` field to track_llm_request() calls
+    - AUTOMATED-TESTS: `backend/tests/unit/test_provider_cost_tracking.py`
+      - `test_cost_openrouter_api_provided()` - Uses API-provided cost for OpenRouter
+      - `test_cost_together_calculated()` - Calculates from pricing table for Together.ai
+      - `test_cost_unknown_model()` - Returns 0.0 with warning for unknown model
+      - `test_pricing_table_structure()` - Verifies PROVIDER_PRICING has required fields
+      - `test_cost_calculation_accuracy()` - Verifies math is correct
+    - MANUAL-TESTS:
+      - Call `calculate_cost("openrouter", "claude", 1000, 2000, api_cost=0.05)`, verify returns 0.05
+      - Call `calculate_cost("together", "meta-llama/Llama-3.3-70B-Instruct-Turbo", 1000, 2000)`, verify calculates cost
+      - Call `calculate_cost("together", "unknown-model", 1000, 2000)`, verify returns 0.0 with warning
+      - Check PROVIDER_PRICING has entries for Llama-3.3-70B and Qwen2.5-72B
+    - STATUS: Planned — Cost tracking per provider
+    - PRIORITY: Medium — Important for billing accuracy
+  
+  - [ ] 0022-001-002-06 - CHUNK - Integration testing and validation
+    - SUB-TASKS:
+      - Update `backend/tests/manual/test_chat_endpoint.py` to verify provider usage
+      - Add assertion to check provider in response metadata (if available)
+      - Test all 3 instances still work after multi-provider changes
+      - Verify simple_chat1 returns OpenRouter model (Kimi)
+      - Verify simple_chat2 returns Together.ai model (Llama-3.3-70B)
+      - Verify acme_chat1 returns Together.ai model (Qwen2.5-72B)
+      - Run manual test and verify different LLM responses/personalities
+      - Check database: llm_requests table has provider information (if tracked)
+      - Add logging verification: check logs show correct provider selection
+      - Document how to add new providers in `memorybank/architecture/multi-provider-support.md`
+    - AUTOMATED-TESTS: `backend/tests/integration/test_multi_provider_integration.py`
+      - `test_openrouter_provider_works()` - simple_chat1 with OpenRouter
+      - `test_together_provider_works()` - simple_chat2 with Together.ai
+      - `test_provider_isolation()` - Each instance uses its configured provider
+      - `test_cost_tracking_per_provider()` - Costs calculated correctly per provider
+      - `test_provider_failure_handling()` - Graceful error if provider unavailable
+    - MANUAL-TESTS: `backend/tests/manual/test_chat_endpoint.py`
+      - ✅ Run test script: `python backend/tests/manual/test_chat_endpoint.py`
+      - ✅ Verify simple_chat1 response from Kimi (OpenRouter)
+      - ✅ Verify simple_chat2 response from Llama (Together.ai) - should NOT be Kimi
+      - ✅ Verify acme_chat1 response from Qwen (Together.ai) - should NOT be Kimi
+      - ✅ Check logs for provider selection messages
+      - ✅ Compare responses: should see different LLM personalities/capabilities
+      - ✅ Verify database: llm_requests has provider/model attribution
+    - STATUS: Planned — End-to-end validation
+    - PRIORITY: Critical — Proves multi-provider works
+
+- [ ] 0022-001-003 - TASK - API Endpoints
   **Status**: 🚧 In Progress - 2.5 of 4 chunks complete (router setup + session migration + chat endpoint basic implementation)
   
   **Design Reference:** [Endpoint Handlers](../design/account-agent-instance-architecture.md#5-new-endpoint-handlers) - Complete implementations for chat, stream, and list endpoints with instance loading, session management, and error handling patterns
   
-  - [x] 0022-001-002-01 - CHUNK - Account agents router setup
+  - [x] 0022-001-003-01 - CHUNK - Account agents router setup
     - SUB-TASKS:
       - ✅ Create `backend/app/api/account_agents.py`
       - ✅ Create FastAPI APIRouter instance
@@ -413,7 +590,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ Complete — Router infrastructure functional
     - PRIORITY: High — Foundation for all endpoints
   
-  - [x] 0022-001-002-01a - CHUNK - Session context migration (nullable fields)
+  - [x] 0022-001-003-01a - CHUNK - Session context migration (nullable fields)
     - **RATIONALE**: Session middleware creates sessions BEFORE account/instance context is known (first request), but the initial migration (0022-001-001-02) added these fields as NOT NULL. This causes `NotNullViolationError` on all session creation. Making fields nullable enables progressive context flow: session starts anonymous, gains context when user navigates to specific agent.
     - SUB-TASKS:
       - ✅ Create Alembic migration to ALTER sessions table (5cd8e16e070f)
@@ -443,10 +620,10 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - ⏭️ Verify FK constraint: Not needed, FK constraints enforced at migration level
       - ✅ Hit health endpoint, verified no session errors in logs
     - STATUS: ✅ Complete — Migration successful, session creation unblocked
-    - PRIORITY: CRITICAL — **UNBLOCKED** chunk 0022-001-002-02 (chat endpoint)
+    - PRIORITY: CRITICAL — **UNBLOCKED** chunk 0022-001-003-02 (chat endpoint)
   
-  - [ ] 0022-001-002-02 - CHUNK - Non-streaming chat endpoint
-    - **PREREQUISITE**: ✅ Chunk 0022-001-002-01a complete (session fields nullable)
+  - [ ] 0022-001-003-02 - CHUNK - Non-streaming chat endpoint
+    - **PREREQUISITE**: ✅ Chunk 0022-001-003-01a complete (session fields nullable)
     - **CURRENT BLOCKER**: ⚠️ Need to implement multi-provider support (OpenRouter + Together.ai) - LLM model selection not working correctly (all agents returning Kimi despite different configured models). Root cause: Need config-driven provider selection architecture.
     - SUB-TASKS:
       - ✅ Implement `POST /accounts/{account}/agents/{instance}/chat`
@@ -496,7 +673,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: 🚧 In Progress — Basic functionality working via manual tests, need multi-provider support to resolve LLM routing issue
     - PRIORITY: Critical — Core functionality (blocked on multi-provider implementation)
   
-  - [ ] 0022-001-002-03 - CHUNK - Streaming chat endpoint
+  - [ ] 0022-001-003-03 - CHUNK - Streaming chat endpoint
     - SUB-TASKS:
       - Implement `GET /accounts/{account}/agents/{instance}/stream`
       - Extract account_slug, instance_slug, message from request
@@ -528,7 +705,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Streaming chat endpoint
     - PRIORITY: High — Real-time user experience
   
-  - [ ] 0022-001-002-04 - CHUNK - Instance listing endpoint
+  - [ ] 0022-001-003-04 - CHUNK - Instance listing endpoint
     - SUB-TASKS:
       - Implement `GET /accounts/{account}/agents`
       - Extract account_slug from URL
@@ -548,11 +725,11 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance discovery API
     - PRIORITY: Medium — For future UI features
 
-- [ ] 0022-001-003 - TASK - Frontend Widget Migration
+- [ ] 0022-001-004 - TASK - Frontend Widget Migration
   
   Migrate all frontend chat widgets to use new multi-tenant endpoint structure (`/accounts/{account}/agents/{instance}/*`), making widgets easily configurable for different accounts and agent instances.
   
-  - [ ] 0022-001-003-01 - CHUNK - Update Astro/Preact chat components
+  - [ ] 0022-001-004-01 - CHUNK - Update Astro/Preact chat components
     - SUB-TASKS:
       - Add `accountSlug` prop to all chat components (default: "default_account")
       - Add `agentInstanceSlug` prop to all chat components (default: "simple_chat1")
@@ -578,7 +755,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Core widget components
     - PRIORITY: Critical — Required for frontend to work with new architecture
   
-  - [ ] 0022-001-003-02 - CHUNK - Update embedded widgets (iframe, shadow DOM)
+  - [ ] 0022-001-004-02 - CHUNK - Update embedded widgets (iframe, shadow DOM)
     - SUB-TASKS:
       - Update iframe widget loader (`web/public/widget.html` or similar)
       - Support config via data attributes: `<div id="salient-chat" data-account="acme" data-agent="sales-chat">`
@@ -604,7 +781,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Embeddable widget configuration
     - PRIORITY: High — Enable multi-tenant widget embedding
   
-  - [ ] 0022-001-003-03 - CHUNK - Update demo pages
+  - [ ] 0022-001-004-03 - CHUNK - Update demo pages
     - SUB-TASKS:
       - Update `web/src/pages/demo/simple-chat.astro` to use default_account/simple_chat1
       - Update any HTMX demo pages in `web/src/pages/demo/` or `web/src/pages/test/`
@@ -626,11 +803,11 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Demo page migration
     - PRIORITY: Medium — Required for testing and demonstrations
 
-- [ ] 0022-001-004 - TASK - Cost Tracking & Observability
+- [ ] 0022-001-005 - TASK - Cost Tracking & Observability
   
   **Design Reference:** [Cost Tracking Updates](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - Complete track_llm_request() signature with hybrid FK + denormalized columns, query examples for fast aggregation
   
-  - [ ] 0022-001-004-01 - CHUNK - LLM request tracker updates
+  - [ ] 0022-001-005-01 - CHUNK - LLM request tracker updates
     - SUB-TASKS:
       - Update `backend/app/services/llm_request_tracker.py`
       - Add parameters to `track_llm_request()`: account_id, account_slug, agent_instance_id, agent_instance_slug, agent_type, completion_status
@@ -652,8 +829,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Enhanced cost tracking
     - PRIORITY: High — Required for proper billing
 
-- [ ] 0022-001-005 - TASK - Testing & Validation
-  - [ ] 0022-001-005-01 - CHUNK - Unit tests for instance loader
+- [ ] 0022-001-006 - TASK - Testing & Validation
+  - [ ] 0022-001-006-01 - CHUNK - Unit tests for instance loader
     - SUB-TASKS:
       - Create `backend/tests/unit/test_instance_loader_unit.py`
       - Mock database queries for fast unit tests
@@ -668,7 +845,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance loader test coverage
     - PRIORITY: High — Core infrastructure testing
   
-  - [ ] 0022-001-005-02 - CHUNK - Integration test fixtures and utilities
+  - [ ] 0022-001-006-02 - CHUNK - Integration test fixtures and utilities
     - SUB-TASKS:
       - Create `backend/tests/fixtures/multi_tenant_prompts.py` with test prompts
       - Define 4 prompts per instance (12 total):
@@ -692,7 +869,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Test infrastructure for integration tests
     - PRIORITY: High — Foundation for comprehensive testing
   
-  - [ ] 0022-001-005-03 - CHUNK - Multi-instance integration tests (MOCKED LLM)
+  - [ ] 0022-001-006-03 - CHUNK - Multi-instance integration tests (MOCKED LLM)
     - SUB-TASKS:
       - Create `backend/tests/integration/test_multi_instance_integration_mocked.py`
       - Mock Pydantic AI Agent.run() to return deterministic responses
@@ -728,7 +905,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Fast integration tests with mocked LLM (manual trigger)
     - PRIORITY: Critical — Primary validation mechanism for development
   
-  - [ ] 0022-001-005-04 - CHUNK - Multi-instance integration tests (REAL LLM)
+  - [ ] 0022-001-006-04 - CHUNK - Multi-instance integration tests (REAL LLM)
     - SUB-TASKS:
       - Create `backend/tests/integration/test_multi_instance_integration_real.py`
       - Mark with `@pytest.mark.integration` and `@pytest.mark.slow`
@@ -808,8 +985,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Real-world validation with actual LLM calls (runnable on demand)
     - PRIORITY: High — Critical for validating real LLM integration
 
-- [ ] 0022-001-006 - TASK - Simple Admin UI (Optional)
-  - [ ] 0022-001-006-01 - CHUNK - Account browser page
+- [ ] 0022-001-007 - TASK - Simple Admin UI (Optional)
+  - [ ] 0022-001-007-01 - CHUNK - Account browser page
     - SUB-TASKS:
       - Create `web/src/pages/dev/accounts.astro`
       - Add page to dev navigation (similar to `/dev/logs`)
@@ -830,7 +1007,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Optional admin UI
     - PRIORITY: Low — Nice to have, not required for Phase 1a completion
   
-  - [ ] 0022-001-006-02 - CHUNK - Agent instance drill-down
+  - [ ] 0022-001-007-02 - CHUNK - Agent instance drill-down
     - SUB-TASKS:
       - Add expandable instance list per account
       - Show instance details: slug, type, status, last_used_at
@@ -848,7 +1025,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Instance browsing
     - PRIORITY: Low — Optional enhancement
   
-  - [ ] 0022-001-006-03 - CHUNK - Session and cost tracking views
+  - [ ] 0022-001-007-03 - CHUNK - Session and cost tracking views
     - SUB-TASKS:
       - Add "View Sessions" modal/expansion for each instance
       - Show recent sessions: session_key, message_count, last_activity_at
