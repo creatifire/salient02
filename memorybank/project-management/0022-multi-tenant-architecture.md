@@ -408,7 +408,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
   
   **Prerequisite**: Logfire observability integration to diagnose OpenRouter behavior before implementing multi-provider architecture. Logfire provides automatic tracing with native Pydantic AI support, capturing `gen_ai.request.model` vs `gen_ai.response.model` to prove/disprove OpenRouter routing.
   
-  - [ ] 0022-001-002-00 - CHUNK - Logfire observability integration (PREREQUISITE)
+  - [x] 0022-001-002-00 - CHUNK - Logfire observability integration (PREREQUISITE)
     - **RATIONALE**: Currently cannot trace individual test calls through the system or see what OpenRouter actually returns. Logfire (Pydantic's observability platform) provides automatic instrumentation for Pydantic AI, FastAPI, and LLM calls with built-in correlation, request/response tracking, and visual UI. This eliminates the need for custom logging infrastructure.
     - **GOAL**: Enable end-to-end tracing from test script → endpoint → agent → OpenRouter → response with automatic correlation and LLM-specific observability
     - **WHY LOGFIRE**:
@@ -480,9 +480,10 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - **Next Step**: 
         - If OpenRouter IS changing models → Implement multi-provider (chunks 01-06)
         - If OpenRouter is NOT changing models → Debug our config loading
-    - STATUS: Planned — Prerequisite for multi-provider implementation
+    - STATUS: ✅ Complete — Logfire integrated and manual tests run successfully
     - PRIORITY: CRITICAL — Must diagnose before building multi-provider architecture
-    - **TIME ESTIMATE**: 30 minutes (vs 6 hours for custom logging)
+    - **TIME ESTIMATE**: 30 minutes ✅ Completed in ~25 minutes
+    - **NEXT ACTION**: 🔍 User must inspect Logfire UI to verify `gen_ai.request.model` vs `gen_ai.response.model` and confirm if OpenRouter is routing/falling back
   
   - [ ] 0022-001-002-01 - CHUNK - Provider factory and base infrastructure
     - SUB-TASKS:
