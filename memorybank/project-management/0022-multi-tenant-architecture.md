@@ -800,13 +800,16 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - `test_stream_endpoint_tracks_cost()` - Cost tracked with completion_status
       - `test_stream_endpoint_partial_response()` - Handles errors gracefully
       - `test_stream_endpoint_invalid_instance()` - Error for invalid instance
-    - MANUAL-TESTS:
-      - Connect to /accounts/default/agents/simple-chat/stream?message=hello
-      - Verify SSE events stream in real-time
+    - MANUAL-TESTS: `backend/tests/manual/test_streaming_endpoint.py` (similar to test_chat_endpoint.py)
+      - Create manual test script for SSE streaming endpoint
+      - Test all 3 instances: default_account/simple_chat1, default_account/simple_chat2, acme/acme_chat1
+      - Connect to /accounts/{account}/agents/{instance}/stream?message=hello
+      - Verify SSE events stream in real-time (print chunks to console)
       - Check completion event received at end
       - Verify messages saved to database after stream completes
       - Check llm_requests has completion_status="complete"
       - Test error scenario, verify partial response tracked
+      - Display summary table with: instance, model, response preview, status
     - STATUS: Planned — Streaming chat endpoint
     - PRIORITY: High — Real-time user experience
   
