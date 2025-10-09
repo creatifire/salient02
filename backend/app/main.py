@@ -131,9 +131,11 @@ markdown_renderer = MarkdownIt("default", {"breaks": True, "html": False}).enabl
 # This must happen early to properly initialize OpenTelemetry instrumentation
 try:
     logfire.configure()
-except Exception:
-    # Silently ignore Logfire configuration errors
+    print("✅ Logfire configured successfully")
+except Exception as e:
+    # Log Logfire configuration errors for debugging
     # App can run without observability if token is missing or invalid
+    print(f"⚠️  Logfire configuration failed: {type(e).__name__}: {e}")
     pass
 
 
@@ -217,9 +219,11 @@ app = FastAPI(title="Salient Backend", lifespan=lifespan)
 try:
     logfire.instrument_fastapi(app)
     logfire.instrument_pydantic_ai()
-except Exception:
-    # Silently ignore instrumentation errors
+    print("✅ Logfire instrumentation complete (FastAPI + Pydantic AI)")
+except Exception as e:
+    # Log instrumentation errors for debugging
     # App can run without Logfire instrumentation if configuration failed
+    print(f"⚠️  Logfire instrumentation failed: {type(e).__name__}: {e}")
     pass
 
 # CORS Middleware Configuration: Enable cross-origin requests for development
