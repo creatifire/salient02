@@ -254,6 +254,10 @@ async def simple_chat(
     # Pass instance_config for multi-tenant support
     agent = await get_chat_agent(instance_config=instance_config)
     
+    # Extract requested model for debugging
+    config_to_use = instance_config if instance_config is not None else load_config()
+    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    
     # Pure Pydantic AI agent execution
     start_time = datetime.now(UTC)
     
@@ -280,6 +284,13 @@ async def simple_chat(
             if new_messages:
                 latest_message = new_messages[-1]  # Last message (assistant response)
                 if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                    # DEBUG: Log full provider_details to see what OpenRouter returned
+                    logger.warning({
+                        "event": "openrouter_provider_details_debug",
+                        "provider_details": latest_message.provider_details,
+                        "requested_model": requested_model
+                    })
+                    
                     vendor_cost = latest_message.provider_details.get('cost')
                     if vendor_cost is not None:
                         real_cost = float(vendor_cost)
