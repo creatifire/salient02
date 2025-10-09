@@ -212,7 +212,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
 - ⏳ Task 0022-001-006 - Testing & Validation (not started)
 - ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
 
-**Current Focus:** Implementing enhanced logging infrastructure (Task 0022-001-002-00) to diagnose OpenRouter behavior, then multi-provider architecture. Estimated ~6 hours total, 7 chunks.
+**Current Focus:** Implementing Logfire observability (Task 0022-001-002-00) to diagnose OpenRouter behavior, then multi-provider architecture if needed. Estimated ~5.5 hours total, 7 chunks (30 min for Logfire + 5 hours for multi-provider).
 
 **📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
@@ -406,63 +406,83 @@ Build foundational multi-tenant architecture with account and agent instance sup
   
   **Current Issue**: All agents return "Kimi" despite different configured models. Root cause: Only OpenRouter supported, and OpenRouter may be routing/falling back. Multi-provider support will enable direct provider access and better debugging.
   
-  **Prerequisite**: Enhanced logging infrastructure to diagnose OpenRouter behavior before implementing multi-provider architecture.
+  **Prerequisite**: Logfire observability integration to diagnose OpenRouter behavior before implementing multi-provider architecture. Logfire provides automatic tracing with native Pydantic AI support, capturing `gen_ai.request.model` vs `gen_ai.response.model` to prove/disprove OpenRouter routing.
   
-  - [ ] 0022-001-002-00 - CHUNK - Enhanced logging for LLM request/response tracing (PREREQUISITE)
-    - **RATIONALE**: Currently cannot trace individual test calls through the system or see what OpenRouter actually returns. Need correlation IDs and enhanced OpenRouter response logging to diagnose why all agents return "Kimi" despite different configured models.
-    - **GOAL**: Enable end-to-end tracing from test script → endpoint → agent → OpenRouter → response
+  - [ ] 0022-001-002-00 - CHUNK - Logfire observability integration (PREREQUISITE)
+    - **RATIONALE**: Currently cannot trace individual test calls through the system or see what OpenRouter actually returns. Logfire (Pydantic's observability platform) provides automatic instrumentation for Pydantic AI, FastAPI, and LLM calls with built-in correlation, request/response tracking, and visual UI. This eliminates the need for custom logging infrastructure.
+    - **GOAL**: Enable end-to-end tracing from test script → endpoint → agent → OpenRouter → response with automatic correlation and LLM-specific observability
+    - **WHY LOGFIRE**:
+      - ✅ **Native Pydantic AI support**: `logfire.instrument_pydantic_ai()` automatically captures `gen_ai.request.model` vs `gen_ai.response.model`
+      - ✅ **Automatic correlation**: OpenTelemetry traces link all spans without manual correlation_id
+      - ✅ **Zero code changes**: No modifications to `simple_chat.py` or `account_agents.py` needed
+      - ✅ **LLM Panels UI**: Visual debugging specifically designed for LLM interactions
+      - ✅ **5 minute setup**: vs 6 hours for custom logging implementation
     - SUB-TASKS:
-      - **Add Correlation ID Support**:
-        - Import `uuid` in `account_agents.py`
-        - Generate unique `correlation_id = str(uuid.uuid4())` at start of `chat_endpoint()`
-        - Add correlation_id to all log statements in `chat_endpoint()`
-        - Pass `correlation_id` parameter to `simple_chat()` function
-        - Add `correlation_id` parameter to `simple_chat()` signature
-        - Include correlation_id in all `simple_chat()` log statements
-        - Pass correlation_id through to `create_simple_chat_agent()` if needed
-      - **Enhanced OpenRouter Response Logging** (in `simple_chat.py` around line 288-292):
-        - Replace existing `openrouter_provider_details_debug` log with comprehensive version
-        - Log `correlation_id` to tie response back to request
-        - Log `session_id` to tie response to user session
-        - Log `requested_model` (what we asked for)
-        - Log `returned_model` from `provider_details.get('model')` (what OpenRouter used) 🔥 KEY
-        - Log `generation_id`, `provider`, `routing_info`, `fallback_used` from provider_details
-        - Log token counts and cost
-        - Log full `provider_details` dict for debugging
-      - **Test Script Enhancements** (in `test_chat_endpoint.py`):
-        - Add `X-Request-ID` header to HTTP requests
-        - Generate unique request ID per test: `request_id = str(uuid.uuid4())`
-        - Print request ID in test output for manual log correlation
-        - Include request_id in test result summary
-      - **Request Preparation Logging** (in `simple_chat.py` around line 165):
-        - Add log before calling `agent.run()` with correlation_id
-        - Log model_name, provider_type, api_endpoint
-        - Log request configuration: temperature, max_tokens, messages_count
+      - **Install Logfire**:
+        - Add `logfire` to `backend/requirements.txt`
+        - Run `pip install logfire` in backend environment
+      - **Configure Logfire** (in `backend/app/main.py`):
+        - Import `logfire` at top of file
+        - Add `logfire.configure()` before creating FastAPI app
+        - Add `logfire.instrument_fastapi(app)` after app creation
+        - Add `logfire.instrument_pydantic_ai()` for Pydantic AI instrumentation
+      - **Environment Setup**:
+        - Sign up for free Logfire account at https://logfire.pydantic.dev (1M spans/month free)
+        - Get `LOGFIRE_TOKEN` from account settings
+        - Add `LOGFIRE_TOKEN=<token>` to `.env` file
+        - Add `LOGFIRE_TOKEN` to `.env.example` with placeholder
       - **Documentation**:
         - Update `backend/tests/manual/README.md` with:
-          - How to use correlation IDs for debugging
-          - How to search logs for specific requests
-          - Example log flow for a single request
-          - How to interpret OpenRouter provider_details
-    - AUTOMATED-TESTS: Not applicable - this is logging infrastructure
+          - How to access Logfire UI (https://logfire.pydantic.dev)
+          - How to find traces for test runs
+          - How to inspect LLM request vs response models in UI
+          - How to read OpenTelemetry GenAI attributes:
+            - `gen_ai.request.model`: What we asked for
+            - `gen_ai.response.model`: What OpenRouter actually used
+            - `gen_ai.usage.total_cost`: Cost tracking
+            - `gen_ai.usage.*_tokens`: Token usage
+        - Note: Logfire data stays in Pydantic cloud (free tier), or can use local OpenTelemetry collector for privacy
+    - AUTOMATED-TESTS: Not applicable - this is observability infrastructure
     - MANUAL-TESTS:
       - ✅ Run `python backend/tests/manual/test_chat_endpoint.py`
-      - ✅ Copy a correlation_id from test output
-      - ✅ Search logs: `grep "correlation_id.*<id>" backend/logs/*.log`
-      - ✅ Verify can see full request flow: chat_request → instance_loaded → agent_creation → openrouter_request → openrouter_response
-      - ✅ Verify OpenRouter response log shows:
-        - `requested_model`: What we asked for (e.g., "openai/gpt-oss-120b")
-        - `returned_model`: What OpenRouter used (e.g., "moonshotai/kimi-k2-0905")
-        - Evidence of routing/fallback if applicable
-      - ✅ Run test for all 3 instances, verify each has unique correlation_id
-      - ✅ Confirm can distinguish between test calls in logs
-      - ✅ Test with structured JSON logs (if using): `jq 'select(.correlation_id == "<id>")' logs/app.log`
+      - ✅ Open Logfire UI: https://logfire.pydantic.dev
+      - ✅ Find traces for the 3 test calls in Logfire dashboard
+      - ✅ Click on first trace (default_account/simple_chat1):
+        - Verify sees full trace: HTTP request → chat_endpoint → simple_chat → Pydantic AI → OpenRouter
+        - Verify can see `gen_ai.request.model` attribute
+        - Verify can see `gen_ai.response.model` attribute
+        - Check if request model ≠ response model (evidence of OpenRouter routing)
+      - ✅ Click on second trace (default_account/simple_chat2):
+        - Verify `gen_ai.request.model` = "openai/gpt-oss-120b"
+        - Check `gen_ai.response.model` - is it "moonshotai/kimi-k2-0905"? 🔥
+      - ✅ Click on third trace (acme/acme_chat1):
+        - Verify `gen_ai.request.model` = "qwen/qwen3-vl-235b-a22b-instruct"
+        - Check `gen_ai.response.model` - is it Kimi or Qwen?
+      - ✅ Inspect LLM Panels:
+        - View token usage for each call
+        - View costs for each call
+        - View tool calls if any
+        - View conversation messages
+      - ✅ Verify trace correlation:
+        - All spans for single request share same `trace_id`
+        - Can see parent-child relationships (endpoint → agent → LLM)
+        - Request duration visible end-to-end
+      - ✅ Test without LOGFIRE_TOKEN:
+        - Verify app still works (logging disabled gracefully)
+        - Check logs for Logfire warning message
     - **EXPECTED OUTCOME**: 
       - **Prove or disprove**: Is OpenRouter routing/falling back to Kimi?
-      - **Evidence**: Log will show `requested_model` vs `returned_model` mismatch
-      - **Next Step**: If OpenRouter IS changing models, we know to implement multi-provider. If NOT, debug config loading.
+      - **Evidence**: Logfire UI will show `gen_ai.request.model` vs `gen_ai.response.model` for all 3 agents
+      - **Comparison**:
+        - If `simple_chat1`: request=kimi, response=kimi → ✅ Working as expected
+        - If `simple_chat2`: request=gpt-oss, response=kimi → 🔥 OpenRouter is changing it!
+        - If `acme_chat1`: request=qwen, response=kimi → 🔥 OpenRouter is changing it!
+      - **Next Step**: 
+        - If OpenRouter IS changing models → Implement multi-provider (chunks 01-06)
+        - If OpenRouter is NOT changing models → Debug our config loading
     - STATUS: Planned — Prerequisite for multi-provider implementation
     - PRIORITY: CRITICAL — Must diagnose before building multi-provider architecture
+    - **TIME ESTIMATE**: 30 minutes (vs 6 hours for custom logging)
   
   - [ ] 0022-001-002-01 - CHUNK - Provider factory and base infrastructure
     - SUB-TASKS:
