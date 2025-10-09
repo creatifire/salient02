@@ -204,10 +204,10 @@ Build foundational multi-tenant architecture with account and agent instance sup
 
 **Progress Summary:**
 - ✅ Task 0022-001-001 - Database & Configuration Infrastructure (4/4 chunks complete)
-- 🔍 Task 0022-001-002 - Multi-Provider Infrastructure (1/7 chunks complete - Logfire integrated, traces not appearing)
-  - ✅ 0022-001-002-00: Logfire observability integration (installed, configured, documented)
-  - ⚠️ **ISSUE**: Logfire dashboard showing 0 traces despite configuration - investigating
-  - ⏳ Chunks 01-06: Multi-provider architecture (deferred - not blocking, nice-to-have)
+- ✅ Task 0022-001-002 - Multi-Provider Infrastructure (1/7 chunks complete - **Logfire COMPLETE, remaining chunks OPTIONAL**)
+  - ✅ 0022-001-002-00: Logfire observability integration (COMPLETE - traces verified working)
+  - **VERIFIED**: Multi-tenant model routing working correctly - OpenRouter using requested models
+  - ⏸️ Chunks 01-06: Multi-provider architecture (OPTIONAL - deferred, not needed for Phase 1a)
 - ✅ Task 0022-001-003 - API Endpoints (3/4 chunks complete - non-streaming chat endpoint FULLY FUNCTIONAL)
   - ✅ Router setup complete
   - ✅ Session context migration complete (nullable fields)
@@ -221,7 +221,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
 - ⏳ Task 0022-001-006 - Testing & Validation (not started)
 - ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
 
-**Current Focus:** Investigating why Logfire traces are not appearing in dashboard despite proper configuration. Chat endpoint is fully functional with multi-tenant model routing working correctly.
+**Current Focus:** ✅ Logfire investigation complete - traces verified working with correct model routing. Multi-tenant chat endpoint fully functional. Ready to proceed with streaming endpoint (chunk 0022-001-003-03) or frontend migration (task 0022-001-004).
 
 **📚 Before Starting**: Review [Library Documentation Analysis](../analysis/epic-0022-library-review.md) for critical Alembic and SQLAlchemy 2.0 async patterns, gotchas, and pre-implementation checklist.
 
@@ -489,10 +489,14 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - **Next Step**: 
         - If OpenRouter IS changing models → Implement multi-provider (chunks 01-06)
         - If OpenRouter is NOT changing models → Debug our config loading
-    - STATUS: ✅ Complete — Logfire integrated and manual tests run successfully
+    - STATUS: ✅ Complete — Logfire fully operational with OpenTelemetry instrumentation
     - PRIORITY: CRITICAL — Must diagnose before building multi-provider architecture
-    - **TIME ESTIMATE**: 30 minutes ✅ Completed in ~25 minutes
-    - **NEXT ACTION**: 🔍 User must inspect Logfire UI to verify `gen_ai.request.model` vs `gen_ai.response.model` and confirm if OpenRouter is routing/falling back
+    - **TIME ESTIMATE**: 30 minutes ✅ Completed in ~45 minutes (including troubleshooting)
+    - **OUTCOME VERIFIED**: ✅ Logfire traces confirm `gen_ai.request.model` == `gen_ai.response.model` for all 3 agents
+      - simple_chat1: `moonshotai/kimi-k2-0905` → `moonshotai/kimi-k2-0905` ✅
+      - simple_chat2: `openai/gpt-oss-120b` → `openai/gpt-oss-120b` ✅
+      - acme_chat1: `qwen/qwen3-vl-235b-a22b-instruct` → `qwen/qwen3-vl-235b-a22b-instruct` ✅
+    - **CONCLUSION**: OpenRouter is NOT changing models. Our instance config fix resolved the issue. Multi-provider architecture is OPTIONAL (nice-to-have, not required).
   
   - [ ] 0022-001-002-01 - CHUNK - Provider factory and base infrastructure
     - SUB-TASKS:
