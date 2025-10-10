@@ -312,9 +312,9 @@
         
         // Use SSE only if both ssePreferred (client) and backendSseEnabled (server) are true
         if (ssePreferred && backendSseEnabled){
-          // Start SSE
+          // Start SSE with credentials to send session cookie
           console.debug('[SalientWidget] SSE', sseUrl.toString());
-          const es = new EventSource(sseUrl.toString());
+          const es = new EventSource(sseUrl.toString(), { withCredentials: true });
           activeSSE = es;
           es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ const content = activeBotDiv.querySelector('.content') || activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); content.innerHTML = displayText; activeBotDiv.dataset.raw = accumulated; chat.scrollTop = chat.scrollHeight; } };
           es.addEventListener('end', async()=>{
@@ -338,7 +338,12 @@
     async function doPost(url, value){
       try{
         console.debug('[SalientWidget] POST', url, { value });
-        const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: value }) });
+        const r = await fetch(url, { 
+          method:'POST', 
+          headers:{ 'Content-Type':'application/json' }, 
+          body: JSON.stringify({ message: value }),
+          credentials: 'include'  // Send session cookie
+        });
         if (!r.ok){ setMessage(activeBotDiv, `[http ${r.status} ${r.statusText}]`); }
         else { const txt = await r.text(); const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv); activeBotDiv && (activeBotDiv.dataset.raw = txt); if(content){ await renderMarkdownInto(content, txt); } }
       }catch{ setMessage(activeBotDiv, '[network error]'); }
