@@ -92,13 +92,14 @@ class LLMRequestTracker:
         # Use defaults for Phase 1 (single account)
         agent_id = agent_instance_id or self.DEFAULT_AGENT_INSTANCE_ID
         
-        # Sanitize request/response bodies (remove sensitive data, keep structure)
-        sanitized_request = self._sanitize_request_body(request_body)
-        sanitized_response = self._sanitize_response_body(response_body)
+        # Store full request/response bodies for debugging
+        # TODO: Add sanitization option via config flag for production
+        final_request = request_body.copy() if request_body else {}
+        final_response = response_body.copy() if response_body else {}
         
         # Add error metadata if present
         if error_metadata:
-            sanitized_response["error_metadata"] = error_metadata
+            final_response["error_metadata"] = error_metadata
         
         # Create LLM request record
         llm_request = LLMRequest(
@@ -106,8 +107,8 @@ class LLMRequestTracker:
             agent_instance_id=agent_instance_id,  # Multi-tenant: track which agent made the request
             provider=provider,
             model=model,
-            request_body=sanitized_request,
-            response_body=sanitized_response,
+            request_body=final_request,
+            response_body=final_response,
             prompt_tokens=tokens.get("prompt", 0),
             completion_tokens=tokens.get("completion", 0),
             total_tokens=tokens.get("total", 0),

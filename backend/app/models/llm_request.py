@@ -51,6 +51,9 @@ class LLMRequest(Base):
     # Foreign key to sessions table
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, index=True)
     
+    # Multi-tenant: agent instance that made this request
+    agent_instance_id = Column(UUID(as_uuid=True), ForeignKey("agent_instances.id"), nullable=True, index=True)
+    
     # LLM provider identifier
     provider = Column(String(50), nullable=False)
     
@@ -95,6 +98,7 @@ class LLMRequest(Base):
         return {
             "id": str(self.id),
             "session_id": str(self.session_id),
+            "agent_instance_id": str(self.agent_instance_id) if self.agent_instance_id else None,
             "provider": self.provider,
             "model": self.model,
             "request_body": self.request_body,
