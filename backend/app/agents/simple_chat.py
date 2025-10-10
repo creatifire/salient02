@@ -335,19 +335,50 @@ async def simple_chat(
             # Use centralized model settings for tracking consistency
             tracking_model = model_settings["model"]
             
+            # Build full request body with actual messages sent to LLM
+            request_messages = []
+            # Add history messages
+            if message_history:
+                for msg in message_history:
+                    request_messages.append({
+                        "role": msg.role,
+                        "content": msg.content if hasattr(msg, 'content') else str(msg)
+                    })
+            # Add current user message
+            request_messages.append({
+                "role": "user",
+                "content": message
+            })
+            
+            # Build full response body with actual LLM response
+            response_body_full = {
+                "content": response_text,
+                "usage": {
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens
+                },
+                "model": requested_model
+            }
+            
+            # Add provider details if available
+            new_messages = result.new_messages()
+            if new_messages:
+                latest_message = new_messages[-1]
+                if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                    response_body_full["provider_details"] = latest_message.provider_details
+            
             llm_request_id = await tracker.track_llm_request(
                 session_id=UUID(session_id),
                 provider="openrouter",
                 model=tracking_model,
                 request_body={
-                    "message_length": len(message), 
-                    "has_history": len(message_history) > 0 if message_history else False,
-                    "method": "direct_openrouter"
+                    "messages": request_messages,
+                    "model": requested_model,
+                    "temperature": model_settings.get("temperature"),
+                    "max_tokens": model_settings.get("max_tokens")
                 },
-                response_body={
-                    "response_length": len(response_text),
-                    "openrouter_cost": real_cost
-                },
+                response_body=response_body_full,
                 tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
                 cost_data={
                     "unit_cost_prompt": 0.0,
@@ -571,19 +602,54 @@ async def simple_chat_stream(
                 model_settings = await get_agent_model_settings("simple_chat")
                 tracking_model = model_settings["model"]
                 
+                # Build full request body with actual messages sent to LLM
+                request_messages = []
+                # Add history messages
+                if message_history:
+                    for msg in message_history:
+                        request_messages.append({
+                            "role": msg.role,
+                            "content": msg.content if hasattr(msg, 'content') else str(msg)
+                        })
+                # Add current user message
+                request_messages.append({
+                    "role": "user",
+                    "content": message
+                })
+                
+                # Build full response body with actual LLM response
+                response_body_full = {
+                    "content": response_text,
+                    "usage": {
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": total_tokens
+                    },
+                    "model": requested_model,
+                    "streaming": {
+                        "chunks_sent": len(chunks)
+                    }
+                }
+                
+                # Add provider details if available
+                new_messages = result.new_messages()
+                if new_messages:
+                    latest_message = new_messages[-1]
+                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                        response_body_full["provider_details"] = latest_message.provider_details
+                
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
                     provider="openrouter",
                     model=tracking_model,
                     request_body={
-                        "message_length": len(message),
-                        "has_history": len(message_history) > 0 if message_history else False,
-                        "method": "streaming_openrouter"
+                        "messages": request_messages,
+                        "model": requested_model,
+                        "temperature": model_settings.get("temperature"),
+                        "max_tokens": model_settings.get("max_tokens"),
+                        "stream": True
                     },
-                    response_body={
-                        "response_length": len(response_text),
-                        "chunks_sent": len(chunks)
-                    },
+                    response_body=response_body_full,
                     tokens={
                         "prompt": prompt_tokens,
                         "completion": completion_tokens,

@@ -36,19 +36,23 @@
     });
   }
   async function renderMarkdownInto(element, raw){
+    console.debug('[SalientWidget] renderMarkdownInto called, loading libraries...');
     const [marked, DOMPurify] = await Promise.all([
       loadGlobal('https://cdn.jsdelivr.net/npm/marked/marked.min.js', 'marked'),
       loadGlobal('https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js', 'DOMPurify')
     ]);
+    console.debug('[SalientWidget] Libraries loaded:', { marked: !!marked, DOMPurify: !!DOMPurify });
     if (marked && DOMPurify){
       const trimmed = String(raw || '').trim();
       const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
+      console.debug('[SalientWidget] Markdown parsed, html length:', html.length);
       if (!html || html.replace(/\s/g,'') === ''){
         element.textContent = trimmed || '[no response]';
       } else {
         element.innerHTML = html;
       }
     } else {
+      console.warn('[SalientWidget] Libraries failed to load, falling back to plain text');
       const trimmed = String(raw || '').trim();
       element.textContent = trimmed || '[no response]';
     }
@@ -318,10 +322,15 @@
           activeSSE = es;
           es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ const content = activeBotDiv.querySelector('.content') || activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); content.innerHTML = displayText; activeBotDiv.dataset.raw = accumulated; chat.scrollTop = chat.scrollHeight; } };
           es.addEventListener('done', async()=>{
+            console.debug('[SalientWidget] SSE done event received, rendering markdown');
             try{ es.close(); }catch{}
             activeSSE=null;
             const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv);
-            if (content){ await renderMarkdownInto(content, accumulated); }
+            if (content){ 
+              console.debug('[SalientWidget] Calling renderMarkdownInto with', accumulated.substring(0, 50) + '...');
+              await renderMarkdownInto(content, accumulated); 
+              console.debug('[SalientWidget] Markdown rendering complete');
+            }
             setBusy(false);
           });
           es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; // fallback to POST
