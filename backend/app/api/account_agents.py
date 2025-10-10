@@ -89,6 +89,53 @@ class ChatResponse(BaseModel):
         }
 
 
+class AgentInstanceInfo(BaseModel):
+    """Information about a single agent instance."""
+    instance_slug: str = Field(..., description="Agent instance identifier slug")
+    agent_type: str = Field(..., description="Type of agent (e.g., simple_chat, sales_agent)")
+    display_name: str = Field(..., description="Human-readable display name")
+    last_used_at: Optional[str] = Field(None, description="ISO8601 timestamp of last usage")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "instance_slug": "simple_chat1",
+                "agent_type": "simple_chat",
+                "display_name": "Simple Chat 1",
+                "last_used_at": "2025-10-10T12:34:56Z"
+            }
+        }
+
+
+class AgentListResponse(BaseModel):
+    """Response model for agent instance listing endpoint."""
+    account: str = Field(..., description="Account slug")
+    instances: List[AgentInstanceInfo] = Field(..., description="List of active agent instances")
+    count: int = Field(..., description="Number of instances returned")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "account": "default_account",
+                "instances": [
+                    {
+                        "instance_slug": "simple_chat1",
+                        "agent_type": "simple_chat",
+                        "display_name": "Simple Chat 1",
+                        "last_used_at": "2025-10-10T12:34:56Z"
+                    },
+                    {
+                        "instance_slug": "simple_chat2",
+                        "agent_type": "simple_chat",
+                        "display_name": "Simple Chat 2",
+                        "last_used_at": "2025-10-10T11:20:30Z"
+                    }
+                ],
+                "count": 2
+            }
+        }
+
+
 # ============================================================================
 # HEALTH CHECK ENDPOINT
 # ============================================================================
@@ -129,6 +176,114 @@ async def health_check(
             "stream": "GET /accounts/{account}/agents/{instance}/stream"
         }
     })
+
+
+# ============================================================================
+# AGENT INSTANCE LISTING ENDPOINT
+# ============================================================================
+
+@router.get("/{account_slug}/agents", response_model=AgentListResponse)
+async def list_agents_endpoint(
+    account_slug: str = Path(..., description="Account identifier slug")
+) -> AgentListResponse:
+    """
+    List all active agent instances for an account.
+    
+    Returns metadata about all active agent instances configured for the
+    specified account. Useful for UI dropdowns, agent selection interfaces,
+    and programmatic discovery of available agents.
+    
+    Args:
+        account_slug: Account identifier from URL path
+        
+    Returns:
+        AgentListResponse with list of active agent instances
+        
+    Raises:
+        HTTPException: 404 if account not found or has no instances
+        HTTPException: 500 for unexpected errors
+        
+    Example:
+        GET /accounts/default_account/agents
+        -> {
+            "account": "default_account",
+            "instances": [
+                {
+                    "instance_slug": "simple_chat1",
+                    "agent_type": "simple_chat",
+                    "display_name": "Simple Chat 1",
+                    "last_used_at": "2025-10-10T12:34:56Z"
+                },
+                {
+                    "instance_slug": "simple_chat2",
+                    "agent_type": "simple_chat",
+                    "display_name": "Simple Chat 2",
+                    "last_used_at": null
+                }
+            ],
+            "count": 2
+        }
+    """
+    logger.info({
+        "event": "list_agents_request",
+        "account": account_slug
+    })
+    
+    try:
+        # Load instance metadata from database
+        instances_metadata = await list_account_instances(account_slug)
+        
+        if not instances_metadata:
+            logger.warning(f"No instances found for account: {account_slug}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No agent instances found for account '{account_slug}'"
+            )
+        
+        # Format instance data for response
+        instances = [
+            AgentInstanceInfo(
+                instance_slug=inst["instance_slug"],
+                agent_type=inst["agent_type"],
+                display_name=inst["display_name"],
+                last_used_at=inst["last_used_at"].isoformat() if inst.get("last_used_at") else None
+            )
+            for inst in instances_metadata
+        ]
+        
+        logger.info({
+            "event": "list_agents_success",
+            "account": account_slug,
+            "instance_count": len(instances)
+        })
+        
+        return AgentListResponse(
+            account=account_slug,
+            instances=instances,
+            count=len(instances)
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404)
+        raise
+    except ValueError as e:
+        # ValueError from list_account_instances means invalid/nonexistent account
+        logger.warning(f"Invalid account: {account_slug} - {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account '{account_slug}' not found"
+        )
+    except Exception as e:
+        logger.error({
+            "event": "list_agents_error",
+            "account": account_slug,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list agent instances: {str(e)}"
+        )
 
 
 # ============================================================================
