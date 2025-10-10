@@ -10,6 +10,10 @@ from unittest.mock import MagicMock
 from typing import Dict, Any
 
 
+# Ignore manual test scripts (not designed to be run via pytest)
+collect_ignore_glob = ["manual/*.py"]
+
+
 @pytest.fixture(scope="session", autouse=True)
 def load_env_file():
     """Load environment variables from .env file before any tests run."""
