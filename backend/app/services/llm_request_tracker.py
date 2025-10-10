@@ -103,8 +103,7 @@ class LLMRequestTracker:
         # Create LLM request record
         llm_request = LLMRequest(
             session_id=session_id,
-            # Note: agent_instance_id field doesn't exist in current model
-            # Will be added in future multi-agent implementation
+            agent_instance_id=agent_instance_id,  # Multi-tenant: track which agent made the request
             provider=provider,
             model=model,
             request_body=sanitized_request,
