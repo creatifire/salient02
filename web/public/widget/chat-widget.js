@@ -3,21 +3,24 @@
   if (window.__salientWidgetLoaded) return; // guard
   window.__salientWidgetLoaded = true;
 
+  // Check for global config first (set via inline script before widget loads)
+  const globalConfig = window.__SALIENT_WIDGET_CONFIG || {};
+  
   const script = document.currentScript || (function(){
     const all = document.querySelectorAll('script');
     for (let i=all.length-1;i>=0;i--){ if (String(all[i].src||'').includes('chat-widget.js')) return all[i]; }
     return null;
   })();
-  const dataSource = (script && script.getAttribute('data-source')) || '/';
-  const dataBackend = (script && script.getAttribute('data-backend')) || window.location.origin;
+  const dataSource = globalConfig.source || (script && script.getAttribute('data-source')) || '/';
+  const dataBackend = globalConfig.backend || (script && script.getAttribute('data-backend')) || window.location.origin;
   const chatPath = (script && script.getAttribute('data-chat-path')) || '/chat'; // Deprecated: use data-account + data-agent instead
-  const allowCross = (script && script.getAttribute('data-allow-cross')) === '1';
-  const ssePreferred = (script && script.getAttribute('data-sse')) !== '0'; // default on
+  const allowCross = globalConfig.allowCross || (script && script.getAttribute('data-allow-cross')) === '1';
+  const ssePreferred = globalConfig.sse !== false && (script && script.getAttribute('data-sse')) !== '0'; // default on
   const copyIconSrc = (script && script.getAttribute('data-copy-icon')) || '/widget/chat-copy.svg';
   
   // Multi-tenant configuration attributes
-  const accountSlug = (script && script.getAttribute('data-account')) || 'default_account';
-  const agentInstanceSlug = (script && script.getAttribute('data-agent')) || 'simple_chat1';
+  const accountSlug = globalConfig.account || (script && script.getAttribute('data-account')) || 'default_account';
+  const agentInstanceSlug = globalConfig.agent || (script && script.getAttribute('data-agent')) || 'simple_chat1';
   
   let backend;
   try { backend = new URL(dataSource, dataBackend); } catch { backend = new URL('/', window.location.origin); }
