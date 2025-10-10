@@ -214,6 +214,7 @@ async def get_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fi
 async def simple_chat(
     message: str, 
     session_id: str,  # Fixed: simplified interface - create SessionDependencies internally
+    agent_instance_id: Optional[int] = None,  # Multi-tenant: agent instance ID for message attribution
     message_history: Optional[List[ModelMessage]] = None,  # Fixed: proper type annotation
     instance_config: Optional[dict] = None  # Multi-tenant: instance-specific configuration
 ) -> dict:
@@ -226,13 +227,9 @@ async def simple_chat(
     Args:
         message: User message to process
         session_id: Session ID for conversation context
+        agent_instance_id: Agent instance ID for multi-tenant message attribution
         message_history: Optional pre-loaded message history
         instance_config: Optional instance-specific config for multi-tenant support
-    
-    Args:
-        message: User message to process
-        session_id: Session ID for conversation continuity
-        message_history: Optional pre-loaded message history (auto-loaded if None)
     
     Returns:
         dict with response, messages, new_messages, and usage data
@@ -357,8 +354,47 @@ async def simple_chat(
                     "unit_cost_completion": 0.0,
                     "total_cost": Decimal(str(real_cost))
                 },
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
+                agent_instance_id=agent_instance_id  # Multi-tenant: pass agent instance ID
             )
+        
+        # Save messages to database for multi-tenant message attribution
+        if agent_instance_id is not None:
+            from ..services.message_service import MessageService
+            message_service = MessageService()
+            
+            try:
+                # Save user message
+                await message_service.save_message(
+                    session_id=UUID(session_id),
+                    agent_instance_id=agent_instance_id,
+                    role="human",
+                    content=message
+                )
+                
+                # Save assistant response
+                await message_service.save_message(
+                    session_id=UUID(session_id),
+                    agent_instance_id=agent_instance_id,
+                    role="assistant",
+                    content=response_text
+                )
+                
+                logger.info({
+                    "event": "messages_saved",
+                    "session_id": session_id,
+                    "agent_instance_id": agent_instance_id,
+                    "user_message_length": len(message),
+                    "assistant_message_length": len(response_text)
+                })
+            except Exception as msg_error:
+                logger.error({
+                    "event": "message_save_failed",
+                    "error": str(msg_error),
+                    "session_id": session_id,
+                    "agent_instance_id": agent_instance_id
+                })
+                # Don't fail the request if message saving fails
             
     except Exception as e:
         # Log tracking errors but don't break the response

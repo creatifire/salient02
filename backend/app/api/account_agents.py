@@ -458,6 +458,7 @@ async def chat_endpoint(
             result = await simple_chat(
                 message=user_message,
                 session_id=str(session.id),
+                agent_instance_id=instance.id,  # Multi-tenant: pass agent instance ID
                 message_history=message_history,  # Pass pre-loaded history
                 instance_config=instance.config  # Pass instance-specific config
             )
