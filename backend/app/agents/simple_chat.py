@@ -337,12 +337,22 @@ async def simple_chat(
             
             # Build full request body with actual messages sent to LLM
             request_messages = []
-            # Add history messages
+            # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
             if message_history:
                 for msg in message_history:
+                    # Determine role and extract content from Pydantic AI message objects
+                    if isinstance(msg, ModelRequest):
+                        role = "user"
+                        content = msg.parts[0].content if msg.parts else ""
+                    elif isinstance(msg, ModelResponse):
+                        role = "assistant"
+                        content = msg.parts[0].content if msg.parts else ""
+                    else:
+                        continue
+                    
                     request_messages.append({
-                        "role": msg.role,
-                        "content": msg.content if hasattr(msg, 'content') else str(msg)
+                        "role": role,
+                        "content": content
                     })
             # Add current user message
             request_messages.append({
@@ -604,12 +614,22 @@ async def simple_chat_stream(
                 
                 # Build full request body with actual messages sent to LLM
                 request_messages = []
-                # Add history messages
+                # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
                 if message_history:
                     for msg in message_history:
+                        # Determine role and extract content from Pydantic AI message objects
+                        if isinstance(msg, ModelRequest):
+                            role = "user"
+                            content = msg.parts[0].content if msg.parts else ""
+                        elif isinstance(msg, ModelResponse):
+                            role = "assistant"
+                            content = msg.parts[0].content if msg.parts else ""
+                        else:
+                            continue
+                        
                         request_messages.append({
-                            "role": msg.role,
-                            "content": msg.content if hasattr(msg, 'content') else str(msg)
+                            "role": role,
+                            "content": content
                         })
                 # Add current user message
                 request_messages.append({
