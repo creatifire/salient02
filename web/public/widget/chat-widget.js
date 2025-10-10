@@ -317,7 +317,7 @@
           const es = new EventSource(sseUrl.toString(), { withCredentials: true });
           activeSSE = es;
           es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ const content = activeBotDiv.querySelector('.content') || activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); content.innerHTML = displayText; activeBotDiv.dataset.raw = accumulated; chat.scrollTop = chat.scrollHeight; } };
-          es.addEventListener('end', async()=>{
+          es.addEventListener('done', async()=>{
             try{ es.close(); }catch{}
             activeSSE=null;
             const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv);

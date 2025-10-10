@@ -860,32 +860,64 @@ async def history_endpoint(
         # ====================================================================
         # STEP 2: LOAD AND VALIDATE AGENT INSTANCE
         # ====================================================================
-        instance_metadata = await load_agent_instance(
+        instance = await load_agent_instance(
             account_slug, instance_slug
         )
         
-        if not instance_metadata:
+        if not instance:
             logger.warning(f"Instance not found: {account_slug}/{instance_slug}")
             raise HTTPException(
                 status_code=404,
                 detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
             )
         
-        instance = instance_metadata["instance"]
+        # ====================================================================
+        # STEP 2.5: UPDATE SESSION CONTEXT IF NULL (PREVENT VAPID SESSIONS)
+        # ====================================================================
+        if session.account_id is None:
+            from sqlalchemy import update as sql_update
+            from ..models import Session as SessionModel
+            from ..database import get_database_service
+            
+            db_service = get_database_service()
+            async with db_service.get_session() as db_session:
+                await db_session.execute(
+                    sql_update(SessionModel)
+                    .where(SessionModel.id == session.id)
+                    .values(
+                        account_id=instance.account_id,
+                        account_slug=instance.account_slug,
+                        agent_instance_id=instance.id
+                    )
+                )
+                await db_session.commit()
+            
+            logger.info({
+                "event": "session_context_updated_on_history",
+                "session_id": str(session.id),
+                "account_id": str(instance.account_id),
+                "agent_instance_id": str(instance.id)
+            })
+            
+            # Update local session object for use in this request
+            session.account_id = instance.account_id
+            session.account_slug = instance.account_slug
+            session.agent_instance_id = instance.id
         
         # ====================================================================
         # STEP 3: LOAD HISTORY FILTERED BY SESSION + AGENT INSTANCE
         # ====================================================================
         from sqlalchemy import desc, select, and_
-        from app.models.message import Message
-        from app.services.database_service import get_database_service
+        from ..models.message import Message
         
         # Get configurable history limit
-        from app.config import load_config
+        from ..config import load_config
         config = load_config()
         chat_config = config.get("chat", {})
         history_limit = chat_config.get("history_limit", 50)
         
+        # Reuse database service (imported in STEP 2.5 if needed)
+        from ..database import get_database_service
         db_service = get_database_service()
         async with db_service.get_session() as db_session:
             # Query messages filtered by BOTH session_id AND agent_instance_id

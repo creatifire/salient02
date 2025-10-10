@@ -241,7 +241,7 @@ app.add_middleware(
 # Excluded paths are optimized for performance (health checks, static assets, dev tools)
 app.add_middleware(
     SimpleSessionMiddleware,
-    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static"]
+    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]
 )
 
 # Static file serving configuration for assets (images, CSS, JS)
