@@ -3,9 +3,35 @@ import Layout from '../../layouts/Layout.astro';
 ---
 <Layout>
   <section style="padding:2rem 0;">
-    <h1 style="font-size:2rem;margin:0 0 .5rem;">Widget Demo</h1>
-    <p>Include the widget script below to test the floating button and pane toggle.</p>
+    <h1 style="font-size:2rem;margin:0 0 .5rem;">Widget Demo - Multi-Tenant Chat</h1>
+    <p>The floating chat widget now supports multi-tenant endpoints with account and agent configuration.</p>
+    
+    <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">Basic Usage (Default Account)</h2>
+    <p>Simple inclusion uses <code>default_account</code> and <code>simple_chat1</code> by default:</p>
     <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;">&lt;script src="/widget/chat-widget.js" is:inline&gt;&lt;/script&gt;</pre>
+    
+    <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">Custom Account & Agent</h2>
+    <p>Specify different account and agent using data attributes:</p>
+    <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;">&lt;script 
+  src="/widget/chat-widget.js" 
+  data-account="acme" 
+  data-agent="acme_chat1"
+  is:inline&gt;
+&lt;/script&gt;</pre>
+    
+    <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">All Configuration Options</h2>
+    <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;font-size:0.9rem;">&lt;script 
+  src="/widget/chat-widget.js" 
+  data-account="default_account"     <!-- Account slug (default: default_account) --&gt;
+  data-agent="simple_chat1"          &lt;!-- Agent instance slug (default: simple_chat1) --&gt;
+  data-backend="http://localhost:8000"  &lt;!-- Backend URL (default: current origin) --&gt;
+  data-allow-cross="1"               &lt;!-- Enable CORS (default: 0) --&gt;
+  data-sse="1"                       &lt;!-- Enable SSE streaming (default: 1) --&gt;
+  is:inline&gt;
+&lt;/script&gt;</pre>
+    
+    <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">Test It Out</h2>
+    <p>Click the "Chat" button in the bottom right corner to start chatting with <strong>default_account/simple_chat1</strong>.</p>
   </section>
   <script src="/widget/chat-widget.js" is:inline></script>
 </Layout>

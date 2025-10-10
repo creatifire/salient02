@@ -10,10 +10,15 @@
   })();
   const dataSource = (script && script.getAttribute('data-source')) || '/';
   const dataBackend = (script && script.getAttribute('data-backend')) || window.location.origin;
-  const chatPath = (script && script.getAttribute('data-chat-path')) || '/chat';
+  const chatPath = (script && script.getAttribute('data-chat-path')) || '/chat'; // Deprecated: use data-account + data-agent instead
   const allowCross = (script && script.getAttribute('data-allow-cross')) === '1';
   const ssePreferred = (script && script.getAttribute('data-sse')) !== '0'; // default on
   const copyIconSrc = (script && script.getAttribute('data-copy-icon')) || '/widget/chat-copy.svg';
+  
+  // Multi-tenant configuration attributes
+  const accountSlug = (script && script.getAttribute('data-account')) || 'default_account';
+  const agentInstanceSlug = (script && script.getAttribute('data-agent')) || 'simple_chat1';
+  
   let backend;
   try { backend = new URL(dataSource, dataBackend); } catch { backend = new URL('/', window.location.origin); }
 
@@ -215,7 +220,8 @@
       chat.appendChild(indicator);
       
       try{
-        const historyUrl = new URL('/api/chat/history', backend);
+        // Use multi-tenant history endpoint
+        const historyUrl = new URL(`/accounts/${accountSlug}/agents/${agentInstanceSlug}/history`, backend);
         const r = await fetch(historyUrl.toString(), { 
           mode: allowCross ? 'cors' : 'same-origin',
           credentials: allowCross ? 'include' : 'same-origin'
@@ -223,7 +229,7 @@
         
         if (!r.ok) {
           if (r.status === 401) {
-            console.debug('[SalientWidget] No session found for history');
+            console.debug(`[SalientWidget] No session found for ${accountSlug}/${agentInstanceSlug}`);
           } else {
             console.warn('[SalientWidget] History load failed:', r.status, r.statusText);
           }
@@ -234,7 +240,7 @@
         const msgs = data.messages || [];
         
         if (msgs.length === 0) {
-          console.debug('[SalientWidget] No history found');
+          console.debug(`[SalientWidget] No history found for ${accountSlug}/${agentInstanceSlug}`);
           return;
         }
         
@@ -254,7 +260,7 @@
           }
         });
         
-        console.debug(`[SalientWidget] Loaded ${msgs.length} messages`);
+        console.debug(`[SalientWidget] Loaded ${msgs.length} messages for ${accountSlug}/${agentInstanceSlug}`);
         historyLoaded = true;
         
       } catch (e) {
@@ -294,8 +300,10 @@
       const backendSseEnabled = config.ui.sse_enabled;
       
       try{
-        const sseUrl = new URL('/events/stream', backend); sseUrl.searchParams.set('llm','1'); sseUrl.searchParams.set('message', value);
-        const postUrl = new URL(chatPath, backend);
+        // Multi-tenant endpoints
+        const sseUrl = new URL(`/accounts/${accountSlug}/agents/${agentInstanceSlug}/stream`, backend);
+        sseUrl.searchParams.set('message', value);
+        const postUrl = new URL(`/accounts/${accountSlug}/agents/${agentInstanceSlug}/chat`, backend);
         const same = postUrl.origin === window.location.origin;
         if (!allowCross && !same){ setMessage(activeBotDiv, 'Configuration requires same-origin for widget.'); setBusy(false); return; }
         
@@ -355,7 +363,22 @@
     overlay.addEventListener('click', close);
     window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
 
-    window.SalientChatWidget = Object.assign(window.SalientChatWidget || {}, { open, close, toggle, host, root, config:{ backend: backend.toString(), chatPath, allowCross, ssePreferred, copyIconSrc } });
+    window.SalientChatWidget = Object.assign(window.SalientChatWidget || {}, { 
+      open, 
+      close, 
+      toggle, 
+      host, 
+      root, 
+      config: { 
+        backend: backend.toString(), 
+        accountSlug, 
+        agentInstanceSlug, 
+        chatPath, // Deprecated
+        allowCross, 
+        ssePreferred, 
+        copyIconSrc 
+      } 
+    });
   }
 
   if (!allowCross && !isSameOrigin(backend.toString())){

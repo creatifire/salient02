@@ -783,3 +783,196 @@ async def stream_endpoint(
         }
     )
 
+
+@router.get("/{account_slug}/agents/{instance_slug}/history")
+async def history_endpoint(
+    request: Request,
+    account_slug: str = Path(..., description="Account identifier slug"),
+    instance_slug: str = Path(..., description="Agent instance identifier slug")
+):
+    """
+    Get chat history for the current session, filtered by agent instance.
+    
+    Multi-tenant aware history endpoint that ensures messages are isolated
+    by both session AND agent instance. This prevents cross-contamination
+    when the same session cookie is used across multiple agent instances.
+    
+    Args:
+        request: FastAPI request object (provides session context)
+        account_slug: Account identifier from URL path
+        instance_slug: Agent instance identifier from URL path
+        
+    Returns:
+        JSONResponse with session_id and formatted messages array
+        
+    Raises:
+        HTTPException: 401 if no session found
+        HTTPException: 404 if account/instance not found
+        HTTPException: 500 for unexpected errors
+        
+    Example Response:
+        {
+            "session_id": "123e4567-e89b-12d3-a456-426614174000",
+            "account": "default_account",
+            "agent_instance": "simple_chat1",
+            "messages": [
+                {
+                    "message_id": "msg-uuid",
+                    "role": "user",
+                    "content": "Hello",
+                    "raw_content": "Hello",
+                    "timestamp": "2025-10-10T12:00:00Z"
+                },
+                {
+                    "message_id": "msg-uuid-2",
+                    "role": "bot",
+                    "content": "<p>Hi there!</p>",
+                    "raw_content": "Hi there!",
+                    "timestamp": "2025-10-10T12:00:01Z"
+                }
+            ],
+            "count": 2
+        }
+    """
+    logger.info({
+        "event": "history_request",
+        "account": account_slug,
+        "instance": instance_slug
+    })
+    
+    try:
+        # ====================================================================
+        # STEP 1: VALIDATE SESSION
+        # ====================================================================
+        session = get_current_session(request)
+        if not session:
+            logger.warning({
+                "event": "history_no_session",
+                "account": account_slug,
+                "instance": instance_slug
+            })
+            raise HTTPException(
+                status_code=401,
+                detail="No session found. Please send a message first."
+            )
+        
+        # ====================================================================
+        # STEP 2: LOAD AND VALIDATE AGENT INSTANCE
+        # ====================================================================
+        instance_metadata = await load_account_agent_instance(
+            account_slug, instance_slug
+        )
+        
+        if not instance_metadata:
+            logger.warning(f"Instance not found: {account_slug}/{instance_slug}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
+            )
+        
+        instance = instance_metadata["instance"]
+        
+        # ====================================================================
+        # STEP 3: LOAD HISTORY FILTERED BY SESSION + AGENT INSTANCE
+        # ====================================================================
+        from sqlalchemy import desc, select, and_
+        from app.models.message import Message
+        from app.services.database_service import get_database_service
+        
+        # Get configurable history limit
+        from app.config import load_config
+        config = load_config()
+        chat_config = config.get("chat", {})
+        history_limit = chat_config.get("history_limit", 50)
+        
+        db_service = get_database_service()
+        async with db_service.get_session() as db_session:
+            # Query messages filtered by BOTH session_id AND agent_instance_id
+            stmt = (
+                select(Message)
+                .where(
+                    and_(
+                        Message.session_id == session.id,
+                        Message.agent_instance_id == instance.id  # Multi-tenant isolation
+                    )
+                )
+                .order_by(desc(Message.created_at))
+                .limit(history_limit)
+            )
+            
+            result = await db_session.execute(stmt)
+            messages = result.scalars().all()
+            
+            # Reverse to chronological order (oldest first)
+            messages = list(reversed(messages))
+        
+        # ====================================================================
+        # STEP 4: FORMAT MESSAGES FOR FRONTEND
+        # ====================================================================
+        formatted_messages = []
+        for msg in messages:
+            # Skip system messages in UI history
+            if msg.role == "system":
+                continue
+            
+            # Map roles for frontend: human -> user, assistant -> bot
+            display_role = "user" if msg.role == "human" else "bot"
+            
+            # For bot messages, render markdown if enabled
+            content = msg.content
+            raw_content = msg.content
+            
+            if display_role == "bot":
+                # Bot messages: render markdown to HTML
+                allow_html = config.get("ui", {}).get("allow_basic_html", True)
+                if allow_html:
+                    try:
+                        import markdown
+                        content = markdown.markdown(
+                            msg.content,
+                            extensions=['nl2br', 'fenced_code']
+                        )
+                    except Exception as e:
+                        logger.warning(f"Markdown rendering failed: {e}")
+                        content = msg.content
+            
+            formatted_messages.append({
+                "message_id": str(msg.id),
+                "role": display_role,
+                "content": content,
+                "raw_content": raw_content,
+                "timestamp": msg.created_at.isoformat() if msg.created_at else None
+            })
+        
+        logger.info({
+            "event": "history_loaded",
+            "session_id": str(session.id),
+            "account": account_slug,
+            "instance": instance_slug,
+            "message_count": len(formatted_messages)
+        })
+        
+        return JSONResponse({
+            "session_id": str(session.id),
+            "account": account_slug,
+            "agent_instance": instance_slug,
+            "messages": formatted_messages,
+            "count": len(formatted_messages)
+        })
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error({
+            "event": "history_error",
+            "account": account_slug,
+            "instance": instance_slug,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load chat history: {str(e)}"
+        )
+
