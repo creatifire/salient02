@@ -860,7 +860,7 @@ async def history_endpoint(
         # ====================================================================
         # STEP 2: LOAD AND VALIDATE AGENT INSTANCE
         # ====================================================================
-        instance_metadata = await load_account_agent_instance(
+        instance_metadata = await load_agent_instance(
             account_slug, instance_slug
         )
         
