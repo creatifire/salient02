@@ -616,7 +616,11 @@ async def simple_chat_stream(
                     from pathlib import Path
                     
                     # Load fallback pricing from config file
-                    config_dir = Path(__file__).parent.parent / "config"
+                    # __file__ = backend/app/agents/simple_chat.py
+                    # .parent = backend/app/agents/
+                    # .parent = backend/app/
+                    # .parent = backend/
+                    config_dir = Path(__file__).parent.parent.parent / "config"
                     fallback_pricing_path = config_dir / "fallback_pricing.yaml"
                     
                     fallback_pricing_models = {}
