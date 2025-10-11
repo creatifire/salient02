@@ -40,13 +40,14 @@ import Layout from '../../layouts/Layout.astro';
     <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">Test It Out</h2>
     <p>Click the "Chat" button in the bottom right corner to start chatting with <strong>default_account/simple_chat1</strong>.</p>
   </section>
-  <script is:inline>
+  <script is:inline define:vars={{ isDev: import.meta.env.DEV }}>
     // Set widget configuration BEFORE loading the script
     window.__SALIENT_WIDGET_CONFIG = {
       backend: 'http://localhost:8000',
       account: 'default_account',
       agent: 'simple_chat1',
-      allowCross: true  // Enable CORS for cross-origin (4321 -> 8000)
+      allowCross: true,  // Enable CORS for cross-origin (4321 -> 8000)
+      debug: isDev  // Auto-enable debug in development, disable in production
     };
   </script>
   <script is:inline src="/widget/chat-widget.js?v=10"></script>
