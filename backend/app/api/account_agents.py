@@ -951,29 +951,12 @@ async def history_endpoint(
             # Map roles for frontend: human -> user, assistant -> bot
             display_role = "user" if msg.role == "human" else "bot"
             
-            # For bot messages, render markdown if enabled
-            content = msg.content
-            raw_content = msg.content
-            
-            if display_role == "bot":
-                # Bot messages: render markdown to HTML
-                allow_html = config.get("ui", {}).get("allow_basic_html", True)
-                if allow_html:
-                    try:
-                        import markdown
-                        content = markdown.markdown(
-                            msg.content,
-                            extensions=['nl2br', 'fenced_code']
-                        )
-                    except Exception as e:
-                        logger.warning(f"Markdown rendering failed: {e}")
-                        content = msg.content
-            
+            # Send raw markdown to frontend - let client-side rendering handle it
+            # This ensures consistency: streaming and history both use marked.js
             formatted_messages.append({
                 "message_id": str(msg.id),
                 "role": display_role,
-                "content": content,
-                "raw_content": raw_content,
+                "content": msg.content,  # Raw markdown - frontend will render
                 "timestamp": msg.created_at.isoformat() if msg.created_at else None
             })
         
