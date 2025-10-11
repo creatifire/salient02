@@ -735,7 +735,14 @@ async def stream_endpoint(
                     event_data = event.get("data", "")
                     
                     # SSE format: "event: <type>\ndata: <data>\n\n"
-                    yield f"event: {event_type}\ndata: {event_data}\n\n"
+                    # For multi-line data, each line must be prefixed with "data: "
+                    if '\n' in event_data:
+                        # Split lines and prefix each with "data: "
+                        data_lines = event_data.split('\n')
+                        formatted_data = '\n'.join(f"data: {line}" for line in data_lines)
+                        yield f"event: {event_type}\n{formatted_data}\n\n"
+                    else:
+                        yield f"event: {event_type}\ndata: {event_data}\n\n"
                 
             # Future agent types can be added here:
             # elif agent_type == "sales_agent":
