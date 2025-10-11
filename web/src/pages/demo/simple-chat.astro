@@ -407,7 +407,10 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       const content = container.querySelector('.content') || container;
       try{
         if (ALLOW_BASIC_HTML){
-          const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
+          const html = DOMPurify.sanitize(marked.parse(trimmed, { 
+            breaks: true,
+            gfm: true  // GitHub Flavored Markdown - enables tables
+          }));
           if (!html || html.replace(/\s/g,'') === ''){
             content.textContent = trimmed || '[no response]';
           } else {

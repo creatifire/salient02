@@ -44,7 +44,10 @@
     console.debug('[SalientWidget] Libraries loaded:', { marked: !!marked, DOMPurify: !!DOMPurify });
     if (marked && DOMPurify){
       const trimmed = String(raw || '').trim();
-      const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
+      const html = DOMPurify.sanitize(marked.parse(trimmed, { 
+        breaks: true,
+        gfm: true  // GitHub Flavored Markdown - enables tables
+      }));
       console.debug('[SalientWidget] Markdown parsed, html length:', html.length);
       if (!html || html.replace(/\s/g,'') === ''){
         element.textContent = trimmed || '[no response]';

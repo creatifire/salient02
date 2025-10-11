@@ -165,7 +165,10 @@
         const trimmed=(raw||'').trim();
         const c=container.querySelector('.content')||container;
         try{
-          const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
+          const html = DOMPurify.sanitize(marked.parse(trimmed, { 
+            breaks: true,
+            gfm: true  // GitHub Flavored Markdown - enables tables
+          }));
           if (!html || html.replace(/\s/g,'')===''){
             c.textContent = trimmed || '[no response]';
           } else {
