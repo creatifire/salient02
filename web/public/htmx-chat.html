@@ -90,6 +90,9 @@
       </div>
     </div>
     <script>
+      // Debug flag - set to true for verbose logging, false for production
+      const DEBUG = true;
+      
       // Backend configuration
       const BACKEND_URL = 'http://localhost:8000';
       const ACCOUNT = 'default_account';
@@ -130,10 +133,10 @@
           if(indicator) indicator.style.display='flex';
           const historyUrl = `${BACKEND_URL}/accounts/${ACCOUNT}/agents/${AGENT}/history`;
           const r = await fetch(historyUrl, {credentials:'include'});
-          if(!r.ok) { if(r.status===401) console.log('No session found'); return; }
+          if(!r.ok) { if(r.status===401 && DEBUG) console.log('No session found'); return; }
           const data = await r.json();
           const msgs = data.messages || [];
-          if(msgs.length===0) { console.log('No history found'); return; }
+          if(msgs.length===0) { if(DEBUG) console.log('No history found'); return; }
           msgs.forEach(m=>{ 
             const role = m.role; // API already maps roles correctly
             const d = append(role,''); d.dataset.raw=m.raw_content||m.content||''; 
@@ -144,7 +147,7 @@
               const c=d.querySelector('.content')||d; c.textContent=m.content||''; // User messages are plain text 
             }
           });
-          console.log(`Loaded ${msgs.length} messages`); historyLoaded=true;
+          if(DEBUG) console.log(`Loaded ${msgs.length} messages`); historyLoaded=true;
         }catch(e){ console.error('History load failed:', e); }
         finally{ if(indicator) indicator.style.display='none'; }
       }

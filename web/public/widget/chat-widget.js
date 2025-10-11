@@ -22,6 +22,12 @@
   const accountSlug = globalConfig.account || (script && script.getAttribute('data-account')) || 'default_account';
   const agentInstanceSlug = globalConfig.agent || (script && script.getAttribute('data-agent')) || 'simple_chat1';
   
+  // Debug mode - enable verbose console logging
+  const debugMode = globalConfig.debug !== undefined ? globalConfig.debug : false;
+  function debugLog(...args) {
+    if (debugMode) console.debug('[SalientWidget]', ...args);
+  }
+  
   let backend;
   try { backend = new URL(dataSource, dataBackend); } catch { backend = new URL('/', window.location.origin); }
 
@@ -36,19 +42,19 @@
     });
   }
   async function renderMarkdownInto(element, raw){
-    console.debug('[SalientWidget] renderMarkdownInto called, loading libraries...');
+    debugLog('renderMarkdownInto called, loading libraries...');
     const [marked, DOMPurify] = await Promise.all([
       loadGlobal('https://cdn.jsdelivr.net/npm/marked/marked.min.js', 'marked'),
       loadGlobal('https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js', 'DOMPurify')
     ]);
-    console.debug('[SalientWidget] Libraries loaded:', { marked: !!marked, DOMPurify: !!DOMPurify });
+    debugLog('Libraries loaded:', { marked: !!marked, DOMPurify: !!DOMPurify });
     if (marked && DOMPurify){
       const trimmed = String(raw || '').trim();
       const html = DOMPurify.sanitize(marked.parse(trimmed, { 
         breaks: true,
         gfm: true  // GitHub Flavored Markdown - enables tables
       }));
-      console.debug('[SalientWidget] Markdown parsed, html length:', html.length);
+      debugLog('Markdown parsed, html length:', html.length);
       if (!html || html.replace(/\s/g,'') === ''){
         element.textContent = trimmed || '[no response]';
       } else {
@@ -239,7 +245,7 @@
         
         if (!r.ok) {
           if (r.status === 401) {
-            console.debug(`[SalientWidget] No session found for ${accountSlug}/${agentInstanceSlug}`);
+            debugLog(`No session found for ${accountSlug}/${agentInstanceSlug}`);
           } else {
             console.warn('[SalientWidget] History load failed:', r.status, r.statusText);
           }
@@ -250,7 +256,7 @@
         const msgs = data.messages || [];
         
         if (msgs.length === 0) {
-          console.debug(`[SalientWidget] No history found for ${accountSlug}/${agentInstanceSlug}`);
+          debugLog(`No history found for ${accountSlug}/${agentInstanceSlug}`);
           return;
         }
         
@@ -270,7 +276,7 @@
           }
         }
         
-        console.debug(`[SalientWidget] Loaded ${msgs.length} messages for ${accountSlug}/${agentInstanceSlug}`);
+        debugLog(`Loaded ${msgs.length} messages for ${accountSlug}/${agentInstanceSlug}`);
         historyLoaded = true;
         
       } catch (e) {
@@ -320,7 +326,7 @@
         // Use SSE only if both ssePreferred (client) and backendSseEnabled (server) are true
         if (ssePreferred && backendSseEnabled){
           // Start SSE with credentials to send session cookie
-          console.debug('[SalientWidget] SSE', sseUrl.toString());
+          debugLog('SSE', sseUrl.toString());
           const es = new EventSource(sseUrl.toString(), { withCredentials: true });
           activeSSE = es;
           // Accumulate chunks without rendering during streaming (render once when done)
@@ -334,20 +340,20 @@
               chat.scrollTop = chat.scrollHeight; 
             } 
           };
-          es.addEventListener('done', async()=>{
-            console.debug('[SalientWidget] SSE done event received, rendering markdown');
-            try{ es.close(); }catch{}
-            activeSSE=null;
-            const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv);
-            if (content){ 
-              console.debug('[SalientWidget] Calling renderMarkdownInto with', accumulated.substring(0, 50) + '...');
-              await renderMarkdownInto(content, accumulated); 
-              console.debug('[SalientWidget] Markdown rendering complete');
-            }
-            setBusy(false);
-          });
+    es.addEventListener('done', async()=>{
+      debugLog('SSE done event received, rendering markdown');
+      try{ es.close(); }catch{}
+      activeSSE=null;
+      const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv);
+      if (content){ 
+        debugLog('Calling renderMarkdownInto with', accumulated.substring(0, 50) + '...');
+        await renderMarkdownInto(content, accumulated); 
+        debugLog('Markdown rendering complete');
+      }
+      setBusy(false);
+    });
           es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; // fallback to POST
-            console.debug('[SalientWidget] SSE error, falling back to POST');
+            debugLog('SSE error, falling back to POST');
             doPost(postUrl.toString(), value);
           };
           return;
@@ -359,7 +365,7 @@
 
     async function doPost(url, value){
       try{
-        console.debug('[SalientWidget] POST', url, { value });
+        debugLog('POST', url, { value });
         const r = await fetch(url, { 
           method:'POST', 
           headers:{ 'Content-Type':'application/json' }, 
