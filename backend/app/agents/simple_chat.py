@@ -584,10 +584,11 @@ async def simple_chat_stream(
                 try:
                     from genai_prices import calc_price
                     
-                    # Calculate price using the exact model reference from genai-prices
+                    # Calculate price using the actual model from agent config
+                    # Model name extracted from instance_config or global config (line 549)
                     price = calc_price(
                         usage=usage_data,
-                        model_ref="deepseek/deepseek-chat-v3-0324",  # Match genai-prices model ID
+                        model_ref=requested_model,  # Use actual model from config
                         provider_id="openrouter"
                     )
                     
@@ -599,6 +600,7 @@ async def simple_chat_stream(
                     logger.info({
                         "event": "streaming_cost_calculated",
                         "session_id": session_id,
+                        "model": requested_model,
                         "prompt_tokens": prompt_tokens,
                         "completion_tokens": completion_tokens,
                         "prompt_cost": prompt_cost,
@@ -611,6 +613,7 @@ async def simple_chat_stream(
                     logger.warning({
                         "event": "streaming_cost_calculation_failed",
                         "session_id": session_id,
+                        "model": requested_model,
                         "error": str(e),
                         "error_type": type(e).__name__,
                         "fallback": "zero_cost"

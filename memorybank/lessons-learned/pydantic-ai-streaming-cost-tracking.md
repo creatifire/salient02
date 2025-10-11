@@ -158,10 +158,15 @@ from genai_prices import calc_price
 usage_data = result.usage()  # Available after streaming completes
 
 try:
-    # Calculate price using the exact model reference from genai-prices
+    # CRITICAL: Use actual model from config, not hardcoded!
+    # Each agent instance can use a different model (multi-tenant architecture)
+    config_to_use = instance_config if instance_config is not None else load_config()
+    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    
+    # Calculate price using the actual model reference from agent config
     price = calc_price(
         usage=usage_data,
-        model_ref="deepseek/deepseek-chat-v3-0324",  # Match genai-prices model ID
+        model_ref=requested_model,  # ✅ Dynamic model from config
         provider_id="openrouter"
     )
     
@@ -206,6 +211,10 @@ except Exception as e:
    ```python
    from genai_prices import calc_price
    
+   # IMPORTANT: Extract the actual model from agent config
+   config_to_use = instance_config if instance_config is not None else load_config()
+   requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+   
    async with agent.run_stream(...) as result:
        async for chunk in result.stream_text(delta=True):
            yield chunk
@@ -214,7 +223,7 @@ except Exception as e:
        usage = result.usage()
        price = calc_price(
            usage=usage,
-           model_ref="deepseek/deepseek-chat-v3-0324",
+           model_ref=requested_model,  # ✅ Use actual model, not hardcoded
            provider_id="openrouter"
        )
        total_cost = float(price.total_cost_usd)
@@ -359,6 +368,7 @@ LIMIT 5;
 4. **Different methods for different modes**: Non-streaming uses `provider_details`, streaming uses `genai-prices`
 5. **Always verify**: Don't assume a fix works - test with actual database queries
 6. **Read upstream docs**: OpenRouter's documentation clearly states usage is in the final SSE message
+7. **⚠️ CRITICAL - Multi-agent consideration**: **NEVER hardcode the model name** in `calc_price()`! Each agent instance can use a different model. Always extract the model name from the agent's configuration (instance_config or global config)
 
 ---
 
