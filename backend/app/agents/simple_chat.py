@@ -568,6 +568,16 @@ async def simple_chat_stream(
             # Track cost after stream completes
             usage_data = result.usage()
             
+            # DEBUG: Check if usage_data has cost information
+            logger.info({
+                "event": "streaming_usage_data_debug",
+                "session_id": session_id,
+                "usage_data_type": type(usage_data).__name__ if usage_data else None,
+                "usage_data_attrs": [attr for attr in dir(usage_data) if not attr.startswith('_')] if usage_data else None,
+                "has_details": hasattr(usage_data, 'details') if usage_data else False,
+                "details_value": getattr(usage_data, 'details', None) if usage_data and hasattr(usage_data, 'details') else None
+            })
+            
             if usage_data:
                 prompt_tokens = getattr(usage_data, 'input_tokens', 0)
                 completion_tokens = getattr(usage_data, 'output_tokens', 0)
