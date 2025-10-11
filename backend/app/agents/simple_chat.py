@@ -582,19 +582,43 @@ async def simple_chat_stream(
                 real_cost = 0.0
                 
                 all_messages = result.all_messages()
+                logger.info({
+                    "event": "streaming_cost_extraction_debug",
+                    "session_id": session_id,
+                    "all_messages_count": len(all_messages) if all_messages else 0,
+                    "message_types": [type(m).__name__ for m in all_messages] if all_messages else []
+                })
+                
                 if all_messages:
                     latest_message = all_messages[-1]
-                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                    has_provider_details = hasattr(latest_message, 'provider_details')
+                    provider_details_value = latest_message.provider_details if has_provider_details else None
+                    
+                    logger.info({
+                        "event": "streaming_provider_details_check",
+                        "session_id": session_id,
+                        "has_provider_details": has_provider_details,
+                        "provider_details_is_none": provider_details_value is None,
+                        "provider_details_keys": list(provider_details_value.keys()) if provider_details_value else None
+                    })
+                    
+                    if has_provider_details and provider_details_value:
                         # Extract total cost
-                        vendor_cost = latest_message.provider_details.get('cost')
+                        vendor_cost = provider_details_value.get('cost')
                         if vendor_cost is not None:
                             real_cost = float(vendor_cost)
                         
                         # Extract detailed costs from cost_details
-                        cost_details = latest_message.provider_details.get('cost_details', {})
+                        cost_details = provider_details_value.get('cost_details', {})
                         if cost_details:
                             prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
                             completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
+                    else:
+                        logger.warning({
+                            "event": "streaming_provider_details_missing",
+                            "session_id": session_id,
+                            "message": "provider_details is None or missing after streaming completes"
+                        })
                 
                 # Prepare cost_data dict for LLMRequestTracker
                 cost_data = {
