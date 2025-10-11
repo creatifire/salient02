@@ -568,73 +568,59 @@ async def simple_chat_stream(
             # Track cost after stream completes
             usage_data = result.usage()
             
-            # DEBUG: Check if usage_data has cost information
-            logger.info({
-                "event": "streaming_usage_data_debug",
-                "session_id": session_id,
-                "usage_data_type": type(usage_data).__name__ if usage_data else None,
-                "usage_data_attrs": [attr for attr in dir(usage_data) if not attr.startswith('_')] if usage_data else None,
-                "has_details": hasattr(usage_data, 'details') if usage_data else False,
-                "details_value": getattr(usage_data, 'details', None) if usage_data and hasattr(usage_data, 'details') else None
-            })
-            
             if usage_data:
                 prompt_tokens = getattr(usage_data, 'input_tokens', 0)
                 completion_tokens = getattr(usage_data, 'output_tokens', 0)
                 total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
                 
-                # Extract costs from OpenRouter provider_details
-                # CRITICAL: Use all_messages() AFTER streaming completes, not new_messages()
-                # Pydantic AI only populates provider_details in the final complete message
+                # Calculate costs using genai-prices
+                # Pydantic AI doesn't populate provider_details for streaming responses,
+                # so we use genai-prices to calculate costs from token usage
                 # See: memorybank/lessons-learned/pydantic-ai-streaming-cost-tracking.md
                 prompt_cost = 0.0
                 completion_cost = 0.0
-                real_cost = 0.0
+                total_cost = 0.0
                 
-                all_messages = result.all_messages()
-                logger.info({
-                    "event": "streaming_cost_extraction_debug",
-                    "session_id": session_id,
-                    "all_messages_count": len(all_messages) if all_messages else 0,
-                    "message_types": [type(m).__name__ for m in all_messages] if all_messages else []
-                })
-                
-                if all_messages:
-                    latest_message = all_messages[-1]
-                    has_provider_details = hasattr(latest_message, 'provider_details')
-                    provider_details_value = latest_message.provider_details if has_provider_details else None
+                try:
+                    from genai_prices import calc_price
+                    
+                    # Calculate price using the exact model reference from genai-prices
+                    price = calc_price(
+                        usage=usage_data,
+                        model_ref="deepseek/deepseek-chat-v3-0324",  # Match genai-prices model ID
+                        provider_id="openrouter"
+                    )
+                    
+                    # Extract individual costs
+                    prompt_cost = float(price.input_cost_usd)
+                    completion_cost = float(price.output_cost_usd)
+                    total_cost = float(price.total_cost_usd)
                     
                     logger.info({
-                        "event": "streaming_provider_details_check",
+                        "event": "streaming_cost_calculated",
                         "session_id": session_id,
-                        "has_provider_details": has_provider_details,
-                        "provider_details_is_none": provider_details_value is None,
-                        "provider_details_keys": list(provider_details_value.keys()) if provider_details_value else None
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "prompt_cost": prompt_cost,
+                        "completion_cost": completion_cost,
+                        "total_cost": total_cost,
+                        "method": "genai-prices"
                     })
                     
-                    if has_provider_details and provider_details_value:
-                        # Extract total cost
-                        vendor_cost = provider_details_value.get('cost')
-                        if vendor_cost is not None:
-                            real_cost = float(vendor_cost)
-                        
-                        # Extract detailed costs from cost_details
-                        cost_details = provider_details_value.get('cost_details', {})
-                        if cost_details:
-                            prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
-                            completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
-                    else:
-                        logger.warning({
-                            "event": "streaming_provider_details_missing",
-                            "session_id": session_id,
-                            "message": "provider_details is None or missing after streaming completes"
-                        })
+                except Exception as e:
+                    logger.warning({
+                        "event": "streaming_cost_calculation_failed",
+                        "session_id": session_id,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "fallback": "zero_cost"
+                    })
                 
                 # Prepare cost_data dict for LLMRequestTracker
                 cost_data = {
                     "prompt_cost": prompt_cost,
                     "completion_cost": completion_cost,
-                    "total_cost": real_cost
+                    "total_cost": total_cost
                 }
             else:
                 prompt_tokens = 0
