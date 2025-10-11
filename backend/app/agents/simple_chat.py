@@ -574,13 +574,16 @@ async def simple_chat_stream(
                 total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
                 
                 # Extract costs from OpenRouter provider_details
+                # CRITICAL: Use all_messages() AFTER streaming completes, not new_messages()
+                # Pydantic AI only populates provider_details in the final complete message
+                # See: memorybank/lessons-learned/pydantic-ai-streaming-cost-tracking.md
                 prompt_cost = 0.0
                 completion_cost = 0.0
                 real_cost = 0.0
                 
-                new_messages = result.new_messages()
-                if new_messages:
-                    latest_message = new_messages[-1]
+                all_messages = result.all_messages()
+                if all_messages:
+                    latest_message = all_messages[-1]
                     if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
                         # Extract total cost
                         vendor_cost = latest_message.provider_details.get('cost')
