@@ -320,7 +320,17 @@
           console.debug('[SalientWidget] SSE', sseUrl.toString());
           const es = new EventSource(sseUrl.toString(), { withCredentials: true });
           activeSSE = es;
-          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ const content = activeBotDiv.querySelector('.content') || activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); content.innerHTML = displayText; activeBotDiv.dataset.raw = accumulated; chat.scrollTop = chat.scrollHeight; } };
+          // Accumulate chunks without rendering during streaming (render once when done)
+          es.onmessage = (ev)=>{ 
+            accumulated += ev.data; 
+            if(activeBotDiv){ 
+              activeBotDiv.dataset.raw = accumulated;
+              // Show accumulated text with basic line breaks (no markdown yet)
+              const content = activeBotDiv.querySelector('.content') || activeBotDiv;
+              content.textContent = accumulated;  // Plain text during streaming
+              chat.scrollTop = chat.scrollHeight; 
+            } 
+          };
           es.addEventListener('done', async()=>{
             console.debug('[SalientWidget] SSE done event received, rendering markdown');
             try{ es.close(); }catch{}
