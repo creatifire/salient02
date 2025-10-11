@@ -285,7 +285,9 @@ async def simple_chat(
             completion_tokens = getattr(usage_data, 'output_tokens', 0)
             total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
             
-            # Extract cost from OpenRouterModel vendor_details
+            # Extract costs from OpenRouter provider_details
+            prompt_cost = 0.0
+            completion_cost = 0.0
             real_cost = 0.0
             
             # Get the latest message response with OpenRouter metadata
@@ -300,14 +302,23 @@ async def simple_chat(
                         "requested_model": requested_model
                     })
                     
+                    # Extract total cost
                     vendor_cost = latest_message.provider_details.get('cost')
                     if vendor_cost is not None:
                         real_cost = float(vendor_cost)
-                        logger.info(f"✅ OpenRouterModel cost extraction: ${real_cost}")
+                    
+                    # Extract detailed costs from cost_details
+                    cost_details = latest_message.provider_details.get('cost_details', {})
+                    if cost_details:
+                        prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
+                        completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
+                        logger.info(f"✅ OpenRouter cost extraction: total=${real_cost}, prompt=${prompt_cost}, completion=${completion_cost}")
         else:
             prompt_tokens = 0
             completion_tokens = 0
             total_tokens = 0
+            prompt_cost = 0.0
+            completion_cost = 0.0
             real_cost = 0.0
             
         # Log OpenRouterModel results
@@ -391,8 +402,8 @@ async def simple_chat(
                 response_body=response_body_full,
                 tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
                 cost_data={
-                    "unit_cost_prompt": 0.0,
-                    "unit_cost_completion": 0.0,
+                    "prompt_cost": prompt_cost,
+                    "completion_cost": completion_cost,
                     "total_cost": Decimal(str(real_cost))
                 },
                 latency_ms=latency_ms,
@@ -443,6 +454,8 @@ async def simple_chat(
         import traceback
         logger.debug(f"Cost tracking error traceback: {traceback.format_exc()}")
         llm_request_id = None
+        prompt_cost = 0.0
+        completion_cost = 0.0
         real_cost = 0.0
         response_text = "Error processing request"
         prompt_tokens = 0
@@ -560,30 +573,42 @@ async def simple_chat_stream(
                 completion_tokens = getattr(usage_data, 'output_tokens', 0)
                 total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
                 
-                # Extract cost from OpenRouterModel vendor_details
+                # Extract costs from OpenRouter provider_details
+                prompt_cost = 0.0
+                completion_cost = 0.0
                 real_cost = 0.0
+                
                 new_messages = result.new_messages()
                 if new_messages:
                     latest_message = new_messages[-1]
                     if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                        # Extract total cost
                         vendor_cost = latest_message.provider_details.get('cost')
                         if vendor_cost is not None:
                             real_cost = float(vendor_cost)
+                        
+                        # Extract detailed costs from cost_details
+                        cost_details = latest_message.provider_details.get('cost_details', {})
+                        if cost_details:
+                            prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
+                            completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
                 
                 # Prepare cost_data dict for LLMRequestTracker
                 cost_data = {
-                    "unit_cost_prompt": 0.0,  # Not provided by OpenRouter in streaming
-                    "unit_cost_completion": 0.0,
+                    "prompt_cost": prompt_cost,
+                    "completion_cost": completion_cost,
                     "total_cost": real_cost
                 }
             else:
                 prompt_tokens = 0
                 completion_tokens = 0
                 total_tokens = 0
+                prompt_cost = 0.0
+                completion_cost = 0.0
                 real_cost = 0.0
                 cost_data = {
-                    "unit_cost_prompt": 0.0,
-                    "unit_cost_completion": 0.0,
+                    "prompt_cost": 0.0,
+                    "completion_cost": 0.0,
                     "total_cost": 0.0
                 }
             

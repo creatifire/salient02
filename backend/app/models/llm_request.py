@@ -73,13 +73,11 @@ class LLMRequest(Base):
     completion_tokens = Column(Integer, nullable=True) 
     total_tokens = Column(Integer, nullable=True)
     
-    # Cost tracking (store as DECIMAL for precision)
-    # Unit costs per 1000 tokens
-    unit_cost_prompt = Column(Numeric(10, 6), nullable=True)  # e.g., 0.001500 
-    unit_cost_completion = Column(Numeric(10, 6), nullable=True)  # e.g., 0.006000
-    
-    # Computed total cost for this request
-    computed_cost = Column(Numeric(10, 6), nullable=True)  # e.g., 0.003450
+    # Cost tracking - actual costs from LLM provider (e.g., OpenRouter)
+    # Stored as NUMERIC(12, 8) for high precision (handles costs like $0.0000408)
+    prompt_cost = Column(Numeric(12, 8), nullable=True)  # Cost for prompt/input tokens (e.g., 0.0000408)
+    completion_cost = Column(Numeric(12, 8), nullable=True)  # Cost for completion/output tokens (e.g., 0.003646)
+    total_cost = Column(Numeric(12, 8), nullable=True)  # Total cost (prompt + completion) (e.g., 0.0036868)
     
     # Performance tracking
     latency_ms = Column(Integer, nullable=True)  # Request duration in milliseconds
@@ -106,9 +104,9 @@ class LLMRequest(Base):
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "total_tokens": self.total_tokens,
-            "unit_cost_prompt": float(self.unit_cost_prompt) if self.unit_cost_prompt else None,
-            "unit_cost_completion": float(self.unit_cost_completion) if self.unit_cost_completion else None,
-            "computed_cost": float(self.computed_cost) if self.computed_cost else None,
+            "prompt_cost": float(self.prompt_cost) if self.prompt_cost else None,
+            "completion_cost": float(self.completion_cost) if self.completion_cost else None,
+            "total_cost": float(self.total_cost) if self.total_cost else None,
             "latency_ms": self.latency_ms,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

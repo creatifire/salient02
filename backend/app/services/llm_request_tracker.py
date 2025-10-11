@@ -112,9 +112,9 @@ class LLMRequestTracker:
             prompt_tokens=tokens.get("prompt", 0),
             completion_tokens=tokens.get("completion", 0),
             total_tokens=tokens.get("total", 0),
-            unit_cost_prompt=cost_data.get("unit_cost_prompt", 0.0),
-            unit_cost_completion=cost_data.get("unit_cost_completion", 0.0),
-            computed_cost=cost_data.get("total_cost", 0.0),
+            prompt_cost=cost_data.get("prompt_cost", 0.0),
+            completion_cost=cost_data.get("completion_cost", 0.0),
+            total_cost=cost_data.get("total_cost", 0.0),
             latency_ms=latency_ms,
             created_at=datetime.now(UTC)
         )
