@@ -252,20 +252,20 @@
         }
         
         // Load messages into chat
-        msgs.forEach(m => {
+        for (const m of msgs) {
           const role = m.role; // API already maps roles correctly
           const container = createMessage(role, '');
           container.dataset.raw = m.raw_content || m.content || '';
           
           const content = container.querySelector('.content') || container;
           if (role === 'bot') {
-            // Bot messages are pre-rendered HTML
-            content.innerHTML = m.content || '';
+            // Bot messages are raw markdown that need to be rendered
+            await renderMarkdownInto(content, m.content || '');
           } else {
             // User messages are plain text
             content.textContent = m.content || '';
           }
-        });
+        }
         
         console.debug(`[SalientWidget] Loaded ${msgs.length} messages for ${accountSlug}/${agentInstanceSlug}`);
         historyLoaded = true;

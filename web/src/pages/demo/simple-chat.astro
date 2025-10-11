@@ -357,11 +357,10 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           // Set raw content for copy functionality
           div.dataset.raw = message.raw_content || message.content || '';
           
-          // Handle content based on role - bot messages are pre-rendered HTML, user messages are raw text
+          // Handle content based on role
           if (role === 'bot') {
-            // Bot messages come pre-rendered as HTML from backend API
-            const content = div.querySelector('.content') || div;
-            content.innerHTML = message.content || '';  // message.content is already rendered HTML
+            // Bot messages are raw markdown that need to be rendered
+            renderMarkdownOrFallback(div, message.content || '');
           } else {
             // User messages are raw text that need no processing for display
             const content = div.querySelector('.content') || div;

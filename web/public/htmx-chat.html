@@ -138,7 +138,8 @@
             const role = m.role; // API already maps roles correctly
             const d = append(role,''); d.dataset.raw=m.raw_content||m.content||''; 
             if(role==='bot'){ 
-              const c=d.querySelector('.content')||d; c.innerHTML=m.content||''; // Bot messages are pre-rendered HTML
+              // Bot messages are raw markdown that need to be rendered
+              renderMarkdownOrFallback(d, m.content||'');
             } else { 
               const c=d.querySelector('.content')||d; c.textContent=m.content||''; // User messages are plain text 
             }
