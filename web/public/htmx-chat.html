@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Standalone HTMX Chat (Plain)</title>
+    <title>HTMX Chat - default_account/simple_chat1</title>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
@@ -74,7 +74,7 @@
     <div class="container">
       <a href="#chat-main" class="skip-link">Skip to chat</a>
       <main id="chat-main" role="main">
-        <h1>Standalone HTMX Chat (Plain)</h1>
+        <h1>HTMX Chat - default_account/simple_chat1</h1>
         <div class="chat" aria-live="polite">
           <div id="history-loading" class="loading-indicator" style="display:none;">
             <span class="loading-text">Loading chat history...</span>
@@ -90,6 +90,11 @@
       </div>
     </div>
     <script>
+      // Backend configuration
+      const BACKEND_URL = 'http://localhost:8000';
+      const ACCOUNT = 'default_account';
+      const AGENT = 'simple_chat1';
+      
       const chat = document.querySelector('.chat');
       const msg = document.getElementById('msg');
       const sendBtn = document.getElementById('send');
@@ -123,7 +128,8 @@
         const indicator = document.getElementById('history-loading');
         try{
           if(indicator) indicator.style.display='flex';
-          const r = await fetch('/api/chat/history', {credentials:'same-origin'});
+          const historyUrl = `${BACKEND_URL}/accounts/${ACCOUNT}/agents/${AGENT}/history`;
+          const r = await fetch(historyUrl, {credentials:'include'});
           if(!r.ok) { if(r.status===401) console.log('No session found'); return; }
           const data = await r.json();
           const msgs = data.messages || [];
@@ -169,10 +175,19 @@
 
       async function doPost(text){
         try{
-          const r = await fetch('/chat', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }) });
+          const chatUrl = `${BACKEND_URL}/accounts/${ACCOUNT}/agents/${AGENT}/chat`;
+          const r = await fetch(chatUrl, { 
+            method:'POST', 
+            headers:{ 'Content-Type':'application/json' }, 
+            body: JSON.stringify({ message: text }),
+            credentials: 'include'
+          });
           const out = r.ok ? await r.text() : `[http ${r.status}]`;
           if (activeBotDiv){ activeBotDiv.dataset.raw=out; renderMarkdownOrFallback(activeBotDiv, out); }
-        }catch{ if(activeBotDiv) activeBotDiv.textContent='[network error]'; }
+        }catch(e){ 
+          console.error('POST request failed:', e);
+          if(activeBotDiv) activeBotDiv.textContent='[network error]'; 
+        }
         finally{ setBusy(false); }
       }
 
@@ -180,7 +195,8 @@
       async function getConfig(){
         if (configCache) return configCache;
         try{
-          const r = await fetch('/api/config');
+          const configUrl = `${BACKEND_URL}/api/config`;
+          const r = await fetch(configUrl);
           configCache = r.ok ? await r.json() : { ui: { sse_enabled: true, allow_basic_html: true } };
         }catch{
           configCache = { ui: { sse_enabled: true, allow_basic_html: true } };
@@ -201,13 +217,35 @@
           return;
         }
         
-        const url = new URL('/events/stream', window.location.origin); url.searchParams.set('llm','1'); url.searchParams.set('message', value);
+        const streamUrl = `${BACKEND_URL}/accounts/${ACCOUNT}/agents/${AGENT}/stream?message=${encodeURIComponent(value)}`;
         try{
-          const es = new EventSource(url.toString()); activeSSE=es;
-          es.onmessage = (ev)=>{ accumulated += ev.data; if(activeBotDiv){ activeBotDiv.dataset.raw=accumulated; const c=activeBotDiv.querySelector('.content')||activeBotDiv; const displayText = accumulated.replace(/\n/g, '<br>'); c.innerHTML = displayText; chat.scrollTop=chat.scrollHeight; } };
-          es.addEventListener('end', ()=>{ try{ es.close(); }catch{}; activeSSE=null; if(activeBotDiv){ renderMarkdownOrFallback(activeBotDiv, accumulated); } setBusy(false); });
-          es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; doPost(value); };
-        }catch{ doPost(value); }
+          const es = new EventSource(streamUrl, { withCredentials: true }); activeSSE=es;
+          es.onmessage = (ev)=>{ 
+            accumulated += ev.data; 
+            if(activeBotDiv){ 
+              activeBotDiv.dataset.raw=accumulated; 
+              const c=activeBotDiv.querySelector('.content')||activeBotDiv; 
+              const displayText = accumulated.replace(/\n/g, '<br>'); 
+              c.innerHTML = displayText; 
+              chat.scrollTop=chat.scrollHeight; 
+            } 
+          };
+          es.addEventListener('done', ()=>{ 
+            try{ es.close(); }catch{}; 
+            activeSSE=null; 
+            if(activeBotDiv){ renderMarkdownOrFallback(activeBotDiv, accumulated); } 
+            setBusy(false); 
+          });
+          es.onerror = (e)=>{ 
+            console.error('SSE error:', e);
+            try{ es.close(); }catch{}; 
+            activeSSE=null; 
+            doPost(value); 
+          };
+        }catch(e){ 
+          console.error('SSE failed to initialize:', e);
+          doPost(value); 
+        }
       }
 
       sendBtn.addEventListener('click', send);
