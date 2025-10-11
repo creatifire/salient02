@@ -19,7 +19,7 @@ model_settings:
 
 tools:
   vector_search:
-    enabled: true
+    enabled: false  # Disabled for simple_chat1 - direct LLM responses only
     max_results: 5
     similarity_threshold: 0.7
     namespace_isolation: true
@@ -32,7 +32,7 @@ tools:
       metric: "cosine"
   
   web_search:
-    enabled: true
+    enabled: false  # Disabled for simple_chat1 - use direct LLM knowledge only
     provider: "exa"
     engines:
       exa:
