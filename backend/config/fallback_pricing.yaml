@@ -1,0 +1,35 @@
+# Fallback pricing for models not yet in genai-prices database
+# Used when genai-prices.calc_price() raises LookupError
+#
+# Format:
+#   model_id:
+#     input_per_1m: Cost in USD per 1 million input tokens
+#     output_per_1m: Cost in USD per 1 million output tokens
+#     source: URL documenting the pricing
+#     updated: Date pricing was last verified (YYYY-MM-DD)
+#
+# When to add a model here:
+# - Model is available on OpenRouter but not in genai-prices yet
+# - Streaming cost calculation fails with LookupError
+# - Check logs for: "streaming_cost_calculation_failed" with "LookupError"
+#
+# Maintenance:
+# - Verify pricing monthly or when model providers announce changes
+# - Remove models once they appear in genai-prices (check periodically)
+# - Document source URL for each model's pricing
+
+models:
+  moonshotai/kimi-k2-0905:
+    input_per_1m: 0.14    # $0.14 per 1M input tokens
+    output_per_1m: 2.49   # $2.49 per 1M output tokens
+    source: "https://blog.galaxy.ai/model/kimi-k2"
+    updated: "2025-01-11"
+    notes: "Primary model for default_account/simple_chat1"
+  
+  moonshotai/kimi-k2:
+    input_per_1m: 0.14
+    output_per_1m: 2.49
+    source: "https://blog.galaxy.ai/model/kimi-k2"
+    updated: "2025-01-11"
+    notes: "Alias for kimi-k2-0905"
+

@@ -609,6 +609,52 @@ async def simple_chat_stream(
                         "method": "genai-prices"
                     })
                     
+                except LookupError as e:
+                    # Model not in genai-prices database - use fallback pricing from config
+                    import yaml
+                    import os
+                    from pathlib import Path
+                    
+                    # Load fallback pricing from config file
+                    config_dir = Path(__file__).parent.parent / "config"
+                    fallback_pricing_path = config_dir / "fallback_pricing.yaml"
+                    
+                    fallback_pricing_models = {}
+                    if fallback_pricing_path.exists():
+                        with open(fallback_pricing_path, 'r') as f:
+                            fallback_config = yaml.safe_load(f)
+                            fallback_pricing_models = fallback_config.get('models', {})
+                    
+                    if requested_model in fallback_pricing_models:
+                        pricing = fallback_pricing_models[requested_model]
+                        prompt_cost = (prompt_tokens / 1_000_000) * pricing["input_per_1m"]
+                        completion_cost = (completion_tokens / 1_000_000) * pricing["output_per_1m"]
+                        total_cost = prompt_cost + completion_cost
+                        
+                        logger.info({
+                            "event": "streaming_cost_calculated",
+                            "session_id": session_id,
+                            "model": requested_model,
+                            "prompt_tokens": prompt_tokens,
+                            "completion_tokens": completion_tokens,
+                            "prompt_cost": prompt_cost,
+                            "completion_cost": completion_cost,
+                            "total_cost": total_cost,
+                            "method": "fallback_pricing",
+                            "source": pricing.get("source", "unknown"),
+                            "config_file": str(fallback_pricing_path)
+                        })
+                    else:
+                        logger.warning({
+                            "event": "streaming_cost_calculation_failed",
+                            "session_id": session_id,
+                            "model": requested_model,
+                            "error": f"Model not in genai-prices or fallback pricing: {e}",
+                            "error_type": "LookupError",
+                            "fallback": "zero_cost",
+                            "suggestion": f"Add model to {fallback_pricing_path}"
+                        })
+                        
                 except Exception as e:
                     logger.warning({
                         "event": "streaming_cost_calculation_failed",

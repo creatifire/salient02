@@ -302,6 +302,60 @@ Output Cost: $0.28
 
 ---
 
+## Adding Fallback Pricing for New Models
+
+When a model is not in `genai-prices` yet, you'll see this error in logs:
+```json
+{
+  "event": "streaming_cost_calculation_failed",
+  "error_type": "LookupError",
+  "model": "moonshotai/kimi-k2-0905",
+  "suggestion": "Add model to backend/config/fallback_pricing.yaml"
+}
+```
+
+### Steps to Add Fallback Pricing
+
+1. **Find the official pricing** - Check the model provider's website or OpenRouter's model page
+2. **Edit `backend/config/fallback_pricing.yaml`**:
+   ```yaml
+   models:
+     your-provider/your-model:
+       input_per_1m: 0.14    # Cost in USD per 1M input tokens
+       output_per_1m: 2.49   # Cost in USD per 1M output tokens
+       source: "https://provider.com/pricing"
+       updated: "2025-01-11"
+       notes: "Brief note about this model"
+   ```
+3. **Restart the backend** - Changes take effect immediately
+4. **Test** - Submit a streaming request and check logs for `method: "fallback_pricing"`
+
+### Example: MoonshotAI Kimi K2
+
+**File**: `backend/config/fallback_pricing.yaml`
+```yaml
+models:
+  moonshotai/kimi-k2-0905:
+    input_per_1m: 0.14    # $0.14 per 1M input tokens
+    output_per_1m: 2.49   # $2.49 per 1M output tokens
+    source: "https://blog.galaxy.ai/model/kimi-k2"
+    updated: "2025-01-11"
+    notes: "Primary model for default_account/simple_chat1"
+```
+
+**Cost Calculation** (1000 input + 500 output tokens):
+- Input:  (1000 / 1,000,000) × $0.14 = $0.00014
+- Output: (500 / 1,000,000) × $2.49 = $0.001245
+- Total: $0.001385
+
+### Maintenance
+
+- **Monthly verification**: Check if pricing has changed
+- **Remove obsolete entries**: Once a model appears in `genai-prices`, remove it from fallback config
+- **Document sources**: Always include the `source` URL for pricing verification
+
+---
+
 ## Testing & Verification
 
 ### Manual Test Script
@@ -369,6 +423,7 @@ LIMIT 5;
 5. **Always verify**: Don't assume a fix works - test with actual database queries
 6. **Read upstream docs**: OpenRouter's documentation clearly states usage is in the final SSE message
 7. **⚠️ CRITICAL - Multi-agent consideration**: **NEVER hardcode the model name** in `calc_price()`! Each agent instance can use a different model. Always extract the model name from the agent's configuration (instance_config or global config)
+8. **⚠️ CRITICAL - Fallback pricing**: Not all models are in genai-prices yet. Maintain fallback pricing in `backend/config/fallback_pricing.yaml` (NOT hardcoded) for models that raise `LookupError`. Catch `LookupError` specifically and load pricing from config file
 
 ---
 
