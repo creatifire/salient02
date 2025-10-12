@@ -98,6 +98,52 @@ Non-epic documents including brainstorming sessions, demo implementations, and e
 - **Relevance**: Demonstrates concepts applicable to research agents (Epic 0015, 0016)
 - **Note**: Demo implementation, not a formal epic
 
+**Milestone 02 - WordPress & Multi-CRM Expansion (Deferred)**
+- **File**: `planning/0000-approach-milestone-02.md`
+- **Type**: Milestone planning document
+- **Date Archived**: January 12, 2025
+- **Status**: Deferred for future consideration
+- **Content**: Sequential expansion plan post-Milestone 1:
+  - Priority 1: WordPress content pipeline (XML processing, markdown conversion)
+  - Priority 2: PostgreSQL pgvector for cost-effective vector storage
+  - Priority 3: Salesforce CRM integration
+  - Priority 4: CrossFeed MCP Server for cross-sell/upsell intelligence
+  - Priority 5: HubSpot CRM integration
+- **Associated Epics**: Epic 0010 (Website Content Ingestion), Epic 0014 (CrossFeed MCP)
+- **Reason**: Focus shifted to completing Milestone 1 core features; multi-CRM expansion deferred
+- **Value**: Complete roadmap for WordPress integration and enterprise CRM capabilities
+- **Note**: May be revisited when Milestone 1 is fully complete
+
+**Epic 0010 - Website Content Ingestion**
+- **File**: `planning/0010-website-content-ingestion.md`
+- **Type**: Epic (deferred)
+- **Date Archived**: January 12, 2025
+- **Status**: Planned for M2 Priority 1, now deferred
+- **Content**: WordPress content processing pipeline:
+  - WordPress XML export processing
+  - Markdown conversion with metadata preservation
+  - Advanced content handling (shortcodes, blocks, media)
+  - Pinecone integration for vector search
+- **Dependencies**: Epic 0011 (Vector Database) already completed
+- **Reason**: Milestone 2 deferred; Astro content pipeline (Feature 0010-001) already working
+- **Value**: Complete WordPress integration strategy for content-heavy sites
+- **Note**: May be prioritized if client requires WordPress integration
+
+**Epic 0014 - CrossFeed MCP Server**
+- **File**: `planning/0014-crossfeed.md`
+- **Type**: Epic (deferred)
+- **Date Archived**: January 12, 2025
+- **Status**: Planned for M2 Priority 4, now deferred
+- **Content**: MCP server for sales intelligence:
+  - Cross-sell opportunity identification
+  - Upsell intelligence implementation
+  - Product catalog integration
+  - Competitive selling data
+- **Dependencies**: Epic 0008 (Sales Agent)
+- **Reason**: Milestone 2 deferred; focus on core chat and profile tools first
+- **Value**: Advanced sales intelligence capabilities via MCP protocol
+- **Note**: Synergies with Epic 1017 (Data as MCP Service) in backlog
+
 ## Current Project Management Documentation
 
 For active project management documentation, see:

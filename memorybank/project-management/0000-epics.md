@@ -3,7 +3,7 @@
 
 ## Milestone Planning
 - [Milestone 1 Tactical Approach](./0000-approach-milestone-01.md) - Current development plan with API endpoint evolution
-- [Milestone 2 Tactical Approach](./0000-approach-milestone-02.md) - Future development plan
+- [Milestone 2 Tactical Approach](./archive/planning/0000-approach-milestone-02.md) - ⚠️ ARCHIVED - Future expansion plan (WordPress, multi-CRM)
 
 ## Active Epics
 01. [Preliminary Design](./0001-preliminary-design.md) - ✅ Completed
@@ -15,22 +15,31 @@
 07. [Enterprise Chat](./0007-enterprise-chat.md) - 📋 Planned
 08. [Sales Agent](./0008-sales-agent.md) - 📋 Planned (Priority 5)
 09. [Digital Expert Agent](./0009-digital-expert-agent.md) - 📋 Planned
-10. [Website Content Ingestion](./0010-website-content-ingestion.md) - 📋 Planned
-11. [Vector Database Integration](./0011-vector-db-integration.md) - ✅ Completed (Feature 0011-001)
-12. [Outbound Email Integration](./0012-outbound-email.md) - 📋 Planned
-13. [Scheduling Integration](./0013-scheduling-integration.md) - 📋 Planned
-14. [CrossFeed MCP Server](./0014-crossfeed.md) - 📋 Planned
-15. [Simple Research Agent](./0015-simple-research-agent.md) - 📋 Planned
-16. [Deep Research Agent](./0016-deep-research-agent.md) - 📋 Planned
-17. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade Complete)
-18. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
-19. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md) - 📋 Planned
-20. [OfferBot](./0020-OfferBot.md) - 📋 Planned
-21. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md) - 📋 Planned
-22. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 📋 Planned (Priority 2B - Foundational Infrastructure)
-23. [Profile Search Tool](./0023-profile-search-tool.md) - 📋 Planned (Priority 7 - Demo Feature)
+10. [Vector Database Integration](./0011-vector-db-integration.md) - ✅ Completed (Feature 0011-001)
+11. [Outbound Email Integration](./0012-outbound-email.md) - 📋 Planned
+12. [Scheduling Integration](./0013-scheduling-integration.md) - 📋 Planned
+13. [Simple Research Agent](./0015-simple-research-agent.md) - 📋 Planned
+14. [Deep Research Agent](./0016-deep-research-agent.md) - 📋 Planned
+15. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade Complete)
+16. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
+17. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md) - 📋 Planned
+18. [OfferBot](./0020-OfferBot.md) - 📋 Planned
+19. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md) - 📋 Planned
+20. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 🚧 In Progress (Priority 2B - Foundational Infrastructure)
+21. [Profile Search Tool](./0023-profile-search-tool.md) - 📋 Planned (Priority 7 - Demo Feature)
 
 ## Epic Backlog
+
+### Archived Epics (Milestone 02 Planning)
+**Note**: These epics were planned for Milestone 2 (WordPress & Multi-CRM expansion), which has been deferred. See [archive/planning/0000-approach-milestone-02.md](./archive/planning/0000-approach-milestone-02.md) for context.
+
+- **Epic 0010** - [Website Content Ingestion](./archive/planning/0010-website-content-ingestion.md)
+  - WordPress XML processing, markdown conversion, content pipeline
+  - Planned for M2 Priority 1 (WordPress Content Pipeline)
+  
+- **Epic 0014** - [CrossFeed MCP Server](./archive/planning/0014-crossfeed.md)
+  - MCP server for cross-sell/upsell intelligence
+  - Planned for M2 Priority 4
 
 ### Proposed Epics (shippable increments)
 
