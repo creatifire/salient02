@@ -1,20 +1,28 @@
 # API Endpoints Documentation
 
+> **Last Updated**: January 12, 2025  
 > Comprehensive documentation of all current and planned API endpoints for the Salient AI Chat System, organized by implementation phases and functionality.
 
 ## Overview
 
-The Salient AI Chat System follows a **parallel endpoint strategy** that ensures zero disruption during development while evolving from legacy chat functionality to a sophisticated multi-agent, multi-account architecture.
+The Salient AI Chat System uses a **multi-tenant, multi-agent architecture** with explicit account and agent instance URLs. Legacy endpoints remain operational for backward compatibility but should be migrated to the new architecture.
 
-### Endpoint Evolution Strategy
+### Implementation Status
 ```
-Phase 1: Legacy + Simple Chat Agent (Single Account)
-Phase 2: + Sales Agent (Multiple Agents, Single Account) 
-Phase 3: Account-Instance Architecture (Explicit agent instances per account)
-Phase 4: Optional Router Agent (Transparent agent selection if needed)
+✅ COMPLETE: Multi-Tenant Account-Instance Architecture (Phase 3)
+   - Pydantic AI-based agents with proper cost tracking
+   - Account-scoped agent instances with unique configurations
+   - Streaming (SSE) and non-streaming endpoints
+   - Multi-tenant aware chat history
+   - Production-ready with all critical bugs fixed
+
+🚧 IN PROGRESS: Legacy endpoint migration to Pydantic AI
+   
+📋 PLANNED: Additional agent types (Sales, Research, etc.)
+📋 PLANNED: Optional Router Agent (Phase 4)
 ```
 
-**See**: [Account-Agent Instance Architecture](../design/account-agent-instance-architecture.md) for detailed implementation plan.
+**See**: [Epic 0022 - Multi-Tenant Architecture](../project-management/0022-multi-tenant-architecture.md) for detailed implementation.
 
 ---
 
@@ -27,18 +35,48 @@ Phase 4: Optional Router Agent (Transparent agent selection if needed)
 | `GET` | `/health` | System health check with database connectivity | JSON | ✅ Active |
 | `GET` | `/static/*` | Static asset serving (CSS, JS, images, SVG) | Files | ✅ Active |
 
-### **Chat & Messaging Endpoints**
+### **Multi-Tenant Chat Endpoints** (New Architecture - Pydantic AI)
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `POST` | `/chat` | **Legacy chat endpoint** - Non-streaming chat | PlainText | ✅ Active |
-| `GET` | `/events/stream` | **Legacy SSE endpoint** - Streaming LLM responses | SSE Stream | ✅ Active |
+| `POST` | `/accounts/{account}/agents/{instance}/chat` | Multi-tenant chat (non-streaming) | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/{instance}/stream` | Multi-tenant streaming chat (SSE) | SSE Stream | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/{instance}/history` | Multi-tenant chat history | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents` | List agent instances for account | JSON | ✅ **Production** |
+
+**Features**:
+- ✅ Pydantic AI agents with proper `agent.run()` / `agent.run_stream()`
+- ✅ Full cost tracking (`prompt_cost`, `completion_cost`, `total_cost` with `NUMERIC(12,8)` precision)
+- ✅ Multi-tenant isolation (session + agent instance filtering)
+- ✅ Streaming with SSE protocol compliance (multi-line markdown support)
+- ✅ Client-side markdown rendering (GFM tables, code blocks)
+- ✅ Debug logging with auto dev/prod toggle
+
+**Example URLs**:
+```
+POST   /accounts/default_account/agents/simple_chat1/chat
+GET    /accounts/default_account/agents/simple_chat1/stream?message=hello
+GET    /accounts/default_account/agents/simple_chat1/history
+GET    /accounts/acme/agents/acme_chat1/stream?message=test
+```
+
+### **Legacy Chat Endpoints** (Pre-Multi-Tenant)
+| Method | Endpoint | Description | Response | Status |
+|--------|----------|-------------|----------|--------|
+| `POST` | `/chat` | **Legacy** - Non-streaming chat (direct API) | PlainText | ⚠️ Legacy (no Pydantic AI) |
+| `GET` | `/events/stream` | **Legacy** - Streaming SSE (direct API) | SSE Stream | ⚠️ Legacy (no Pydantic AI) |
+
+**Issues**:
+- ❌ Direct OpenRouter HTTP calls (no Pydantic AI)
+- ❌ Estimated token counts (unreliable)
+- ❌ No cost tracking to `llm_requests` table
+- ⚠️ Used by `localhost:8000` main page (needs migration)
 
 ### **API Endpoints**
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
 | `GET` | `/api/config` | Frontend configuration and feature flags | JSON | ✅ Active |
 | `GET` | `/api/session` | Session information for debugging/development | JSON | ✅ Active |
-| `GET` | `/api/chat/history` | Chat history retrieval for current session | JSON | ✅ Active |
+| `GET` | `/api/chat/history` | **Legacy** chat history (session-only filter) | JSON | ⚠️ Superseded by multi-tenant history |
 
 ### **Development & Monitoring Endpoints**
 | Method | Endpoint | Description | Response | Status |
@@ -48,84 +86,106 @@ Phase 4: Optional Router Agent (Transparent agent selection if needed)
 ### **Demo & Testing Endpoints**
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `GET` | `/demo/htmx-chat` | Astro demo chat page | HTML | ✅ Active |
-| `GET` | `/htmx-chat.html` | Standalone HTMX chat page | HTML | ✅ Active |
+| `GET` | `/demo/simple-chat` | Astro simple chat demo (multi-tenant) | HTML | ✅ Production |
+| `GET` | `/demo/widget` | Floating widget demo (multi-tenant) | HTML | ✅ Production |
+| `GET` | `/htmx-chat.html` | Standalone HTMX chat (multi-tenant) | HTML | ✅ Production |
+| `GET` | `/demo/htmx-chat` | Astro demo chat page (legacy) | HTML | ⚠️ Legacy |
+
+**Demo Status**:
+- ✅ All demos migrated to multi-tenant endpoints
+- ✅ Use `default_account/simple_chat1` by default
+- ✅ Support URL params for account/agent selection (e.g., `?account=acme&agent=acme_chat1`)
+- ✅ Full markdown rendering with GFM table support
+- ✅ Debug logging with dev/prod auto-toggle
 
 ---
 
-## 🆕 **PHASE 1 ENDPOINTS** (In Development - Parallel Strategy)
-
-### **Simple Chat Agent Endpoints**
-| Method | Endpoint | Description | Response | Status |
-|--------|----------|-------------|----------|--------|
-| `POST` | `/agents/simple-chat/chat` | **NEW**: Simple chat agent endpoint | PlainText | 🚧 Planned |
-| `GET` | `/agents/simple-chat/stream` | **FUTURE**: Agent-specific SSE streaming | SSE Stream | 📋 Future |
-| `GET` | `/agents/simple-chat/` | **FUTURE**: Agent-specific page | HTML | 📋 Future |
-
-**Key Features:**
-- ✅ **Parallel Operation**: Works alongside legacy `/chat` endpoint
-- ✅ **Session Compatibility**: Shares session management with legacy endpoints
-- ✅ **Message History**: Maintains conversation continuity between endpoints
-- ✅ **Pydantic AI Integration**: Native Pydantic AI agent implementation
-- ✅ **Integrated Research Tools**: Vector search, web search, document intelligence, chat summarization
-
----
-
-## 📈 **PHASE 2 ENDPOINTS** (Roadmap)
-
-### **Sales Agent Addition**
-| Method | Endpoint | Description | Response | Status |
-|--------|----------|-------------|----------|--------|
-| `POST` | `/agents/sales/chat` | Sales agent with CRM integration | PlainText | 📋 Planned |
-| `GET` | `/agents/sales/stream` | Sales agent SSE streaming | SSE Stream | 📋 Planned |
-| `GET` | `/agents/sales/` | Sales agent interface page | HTML | 📋 Planned |
-
-### **Digital Expert Agent**
-| Method | Endpoint | Description | Response | Status |
-|--------|----------|-------------|----------|--------|
-| `POST` | `/agents/digital-expert/chat` | Content modeling and persona agent | PlainText | 📋 Planned |
-| `GET` | `/agents/digital-expert/stream` | Digital expert SSE streaming | SSE Stream | 📋 Planned |
-
-### **Research Agents**
-| Method | Endpoint | Description | Response | Status |
-|--------|----------|-------------|----------|--------|
-| `POST` | `/agents/deep-research/chat` | Multi-step investigation agent | PlainText | 📋 Planned |
-
-**Note**: Simple research functionality (document intelligence, web search, vector search) has been integrated into the Simple Chat Agent through tool access.
-
----
-
-## 🏢 **PHASE 3 ENDPOINTS** (Account-Instance Architecture)
+## 🏢 **MULTI-TENANT ARCHITECTURE** (Phase 3 - ✅ Complete)
 
 ### **Account-Scoped Agent Instance Endpoints**
+
+**Status**: ✅ **Production Ready** - All endpoints implemented and tested
+
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `POST` | `/accounts/{account-slug}/agents/{instance-slug}/chat` | Agent instance chat (non-streaming) | JSON | 📋 Future |
-| `GET` | `/accounts/{account-slug}/agents/{instance-slug}/stream` | Agent instance streaming | SSE Stream | 📋 Future |
-| `GET` | `/accounts/{account-slug}/agents` | List agent instances for account | JSON | 📋 Future |
+| `POST` | `/accounts/{account}/agents/{instance}/chat` | Agent instance chat (non-streaming) | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/{instance}/stream` | Agent instance streaming (SSE) | SSE Stream | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/{instance}/history` | Multi-tenant chat history | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents` | List agent instances for account | JSON | ✅ **Production** |
 
-**Key Concept**: `{instance-slug}` identifies a specific agent instance (e.g., "simple-chat-customer-support", "sales-enterprise"), not just the agent type.
+**Implemented Features**:
+- ✅ Full Pydantic AI integration (`agent.run()`, `agent.run_stream()`)
+- ✅ Multi-tenant data isolation (session + agent instance filtering)
+- ✅ Precise cost tracking with OpenRouter `provider_details`
+- ✅ Streaming cost calculation via `genai-prices` + fallback config
+- ✅ SSE protocol compliance (multi-line data formatting)
+- ✅ Client-side markdown rendering (marked.js with GFM)
+- ✅ Session management with cookie-based persistence
+- ✅ Message history with conversation continuity
+- ✅ Debug logging infrastructure
 
-**Examples**:
+**Frontend Clients Using Multi-Tenant Endpoints**:
+- ✅ `localhost:4321/demo/simple-chat` - Astro standalone chat
+- ✅ `localhost:4321/demo/widget` - Floating chat widget
+- ✅ `localhost:4321/htmx-chat.html` - Standalone HTMX page
+- ⚠️ `localhost:8000/` - Main backend page (still uses legacy, needs migration)
+
+**Example URLs**:
 ```
-POST /accounts/acme/agents/simple-chat-customer-support/chat
-POST /accounts/acme/agents/simple-chat-lead-qualification/chat
-GET  /accounts/acme/agents/sales-enterprise/stream
+# Default account/agent
+POST /accounts/default_account/agents/simple_chat1/chat
+GET  /accounts/default_account/agents/simple_chat1/stream?message=hello
+GET  /accounts/default_account/agents/simple_chat1/history
+
+# ACME account with custom agent
+POST /accounts/acme/agents/acme_chat1/chat
+GET  /accounts/acme/agents/acme_chat1/stream?message=test
+GET  /accounts/acme/agents
 ```
 
-### **Account Management Endpoints**
+**Configuration**:
+- Database-driven account/agent instance metadata
+- YAML-based agent configurations (`backend/config/agent_configs/{account}/{instance}/`)
+- Hybrid approach: DB for validation, YAML for agent behavior
+
+### **Account Management Endpoints** (Future)
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `GET` | `/accounts/{account-slug}/profile` | Account profile and settings | JSON | 📋 Future |
-| `GET` | `/accounts/{account-slug}/usage` | Usage metrics and billing | JSON | 📋 Future |
-| `POST` | `/accounts/{account-slug}/agents/{instance-slug}/configure` | Update instance configuration | JSON | 📋 Future |
+| `GET` | `/accounts/{account}/profile` | Account profile and settings | JSON | 📋 Planned |
+| `GET` | `/accounts/{account}/usage` | Usage metrics and billing | JSON | 📋 Planned |
+| `POST` | `/accounts/{account}/agents/{instance}/configure` | Update instance configuration | JSON | 📋 Planned |
 
-### **Legacy Endpoint Migration**
+### **Legacy Endpoint Migration Plan**
 ```
-# Legacy endpoints become reverse proxies to default instance
-POST /chat          → POST /accounts/default/agents/simple-chat/chat
-GET  /events/stream → GET  /accounts/default/agents/simple-chat/stream
+# TODO: Migrate legacy endpoints to use multi-tenant infrastructure internally
+POST /chat          → POST /accounts/default_account/agents/simple_chat1/chat
+GET  /events/stream → GET  /accounts/default_account/agents/simple_chat1/stream
+
+# Benefits:
+# - Same URL, same response format (backward compatible)
+# - Gains Pydantic AI, cost tracking, proper usage data
+# - Zero impact on existing clients
 ```
+
+---
+
+## 🆕 **FUTURE AGENT TYPES** (Roadmap)
+
+### **Sales Agent** (Planned)
+| Method | Endpoint | Description | Response | Status |
+|--------|----------|-------------|----------|--------|
+| `POST` | `/accounts/{account}/agents/{sales-instance}/chat` | Sales agent with CRM integration | JSON | 📋 Planned |
+| `GET` | `/accounts/{account}/agents/{sales-instance}/stream` | Sales agent SSE streaming | SSE Stream | 📋 Planned |
+
+### **Research Agents** (Planned)
+| Method | Endpoint | Description | Response | Status |
+|--------|----------|-------------|----------|--------|
+| `POST` | `/accounts/{account}/agents/{research-instance}/chat` | Multi-step investigation agent | JSON | 📋 Planned |
+
+**Note**: Multi-tenant architecture already supports multiple agent types. New agents can be added by:
+1. Creating agent instance records in `agent_instances` table
+2. Adding YAML configs in `backend/config/agent_configs/{account}/{instance}/`
+3. Implementing agent logic (if not using existing `simple_chat` base)
 
 ---
 
