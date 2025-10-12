@@ -1,5 +1,5 @@
 # Project Brief
-> **Last Updated**: September 12, 2025
+> **Last Updated**: January 12, 2025
 
 ## Core Architectural Principles
 
@@ -9,7 +9,7 @@
 
 - ✅ **ALL agents**: Simple Chat, Sales Agent, InfoBot, etc.
 - ✅ **ALL endpoints**: No direct OpenRouter/LLM API calls
-- ✅ **ALL cost tracking**: Via Pydantic AI usage data (see [LLM Cost Tracking](./architecture/tracking_llm_costs.md))
+- ✅ **ALL cost tracking**: Via Pydantic AI usage data (see [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md))
 - ✅ **ALL future agents**: Built on Pydantic AI framework
 
 **Why Pydantic AI?**
@@ -26,7 +26,7 @@
 - Building a library of Pydantic AI agents is core to this project
 
 **Reference Documentation:**
-- [LLM Cost Tracking Architecture](./architecture/tracking_llm_costs.md) - Implementation details for cost tracking
+- [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md) - Complete guide for streaming and non-streaming cost tracking
 - [Endpoint Pydantic AI Matrix](./architecture/endpoint-pydantic-ai-matrix.md) - Complete status of all endpoints and migration plan
 
 ---
@@ -94,17 +94,13 @@
 - [Agent Configuration](./architecture/agent-configuration.md)
 - [Agent Configuration Storage](./architecture/agent-configuration-storage.md)
 - [API Endpoints](./architecture/endpoints.md)
-- [LLM Cost Tracking](./architecture/tracking_llm_costs.md)
+- [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md)
 - [Chat Widget Architecture](./architecture/chat-widget-architecture.md)
 - [Data Model & ER Diagram](./architecture/datamodel.md)
 - [Multi-Account Support](./architecture/multi-account-support.md)
 
 ### Research & Analysis
 - [🎯 OpenRouter Cost Tracking Research](../backend/explore/openrouter-cost-tracking/README.md) - **COMPREHENSIVE ANALYSIS** of OpenRouter integration with Python agent frameworks, including breakthrough discovery of perfect hybrid solution
-
-### Design Documents
-- [Simple Chat Agent Design](./design/simple-chat.md)
-- [Agent Endpoint Transition Strategy](./design/agent-endpoint-transition.md)
 
 ### Integration & Deployment
 - [SalesBot Integration Options](./architecture/salesbot-integration.md)
@@ -122,23 +118,20 @@
 - [Milestone 1 Tactical Approach](./project-management/0000-approach-milestone-01.md)
 - [Master Epic List](./project-management/0000-epics.md)
 
-### Core Epics (Milestone 1)
-- [Chat Memory & Persistence](./project-management/0004-chat-memory.md)
+### Active Epics (Milestone 1 Focus)
+- [Chat Memory & Persistence](./project-management/0004-chat-memory.md) - ✅ Completed
 - [Multi-Account and Agent Support](./project-management/0005-multi-account-and-agent-support.md)
 - [Sales Agent](./project-management/0008-sales-agent.md)
-- [Simple Chat Agent](./project-management/0017-simple-chat-agent.md)
+- [Vector Database Integration](./project-management/0011-vector-db-integration.md) - ✅ Completed
+- [Outbound Email Integration](./project-management/0012-outbound-email.md)
+- [Simple Chat Agent](./project-management/0017-simple-chat-agent.md) - 🚧 In Progress
+- [Multi-Tenant Account-Instance Architecture](./project-management/0022-multi-tenant-architecture.md) - 🚧 In Progress
+- [Profile Search Tool](./project-management/0023-profile-search-tool.md)
 
-### Foundation Epics
-- [Preliminary Design](./project-management/0001-preliminary-design.md)
-- [Baseline Connectivity](./project-management/0002-baseline-connectivity.md)
-- [Website & HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
-
-### Supporting Infrastructure Epics
-- [Website Content Ingestion](./project-management/0010-website-content-ingestion.md)
-- [Vector Database Integration](./project-management/0011-vector-db-integration.md)
-- [Outbound Email](./project-management/0012-outbound-email.md)
-- [Scheduling Integration](./project-management/0013-scheduling-integration.md)
-- [Library Manager](./project-management/0019-library-manager.md)
+### Archived Epics
+For completed early-phase work, superseded approaches, Milestone 2 planning, and future/aspirational capabilities, see:
+- [Architecture Archive](./archive/README.md) - Archived architecture, design, and lessons learned documents
+- [Project Management Archive](./project-management/archive/README.md) - Completed, superseded, and future epics
 
 ## Project Standards
 
