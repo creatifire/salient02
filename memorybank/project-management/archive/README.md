@@ -1,23 +1,60 @@
 # Project Management Archive
 
 > **Created**: January 12, 2025  
-> This archive contains superseded epic and task documentation from active development.
+> **Last Updated**: January 12, 2025  
+> This archive contains completed, superseded, and planning documentation from project development.
 
 ## Purpose
 
-This folder preserves project management documents (epics, tasks, features) that have been:
-- **Superseded by newer epics**: Replaced by consolidated or improved approaches
-- **Completed and archived**: Finished work preserved for historical reference
-- **Fundamentally changed**: Implementation approach evolved significantly
+This folder preserves project management documents (epics, tasks, features) organized into three categories:
+- **Completed**: Successfully finished epics from early project phases
+- **Superseded**: Replaced by consolidated or improved approaches
+- **Planning**: Ad-hoc planning documents, brainstorming, and demo implementations
 
 These documents provide valuable historical context for understanding project evolution and architectural decisions.
 
+## Archive Structure
+
+```
+archive/
+├── README.md (this file)
+├── completed/          # Successfully finished epics
+├── superseded/         # Replaced by newer consolidated epics
+└── planning/           # Ad-hoc planning, brainstorming, demos
+```
+
+---
+
 ## Archive Contents
 
-### Superseded Epics
+### 📁 `completed/` - Successfully Finished Epics
+
+Epics that were completed in early project phases and are no longer actively referenced in current development.
+
+**Epic 0001 - Preliminary Design**
+- **File**: `completed/0001-preliminary-design.md`
+- **Date Completed**: Early 2025 (Phase 0)
+- **Status**: Foundation work completed, informed later architecture
+- **Content**: Initial design and architecture planning for the chat system
+- **Value**: Historical context for early architectural decisions
+- **Successor**: Design evolved into Epic 0004 (Chat Memory), Epic 0017 (Simple Chat), Epic 0022 (Multi-Tenant)
+
+**Epic 0002 - Baseline Connectivity**
+- **File**: `completed/0002-baseline-connectivity.md`
+- **Date Completed**: Early 2025 (Phase 0)
+- **Status**: Basic connectivity and infrastructure established
+- **Content**: OpenRouter integration, FastAPI setup, basic request/response flow
+- **Value**: Shows initial technical decisions and baseline implementation
+- **Successor**: Evolved into Pydantic AI-based agent architecture
+
+---
+
+### 📁 `superseded/` - Replaced by Newer Consolidated Epics
+
+Epics that were replaced by improved or consolidated approaches during active development.
 
 **Epic 0017 - Simple Chat Agent (Original)**
-- **File**: `0017-simple-chat-agent-old.md` (35KB, 734 lines)
+- **File**: `superseded/0017-simple-chat-agent-old.md` (35KB, 734 lines)
 - **Date Archived**: September 2025
 - **Status**: Superseded by Epic 0022 (Multi-Tenant Architecture)
 - **Reason**: Epic 0022 consolidated the multi-tenant architecture and simplified the implementation approach. The original Epic 0017 described a more complex, phase-based implementation that was streamlined in the actual development.
@@ -26,6 +63,40 @@ These documents provide valuable historical context for understanding project ev
   - New Approach: Explicit URL structure, hybrid DB + config files, no complex routing
   - Consolidation: Multi-tenant features integrated directly into Epic 0022
 - **Value**: Shows the evolution from complex over-engineered approach to simple, explicit architecture
+- **Lesson Learned**: Avoid premature abstraction - explicit URLs eliminated need for complex routing
+
+---
+
+### 📁 `planning/` - Ad-Hoc Planning & Brainstorming
+
+Non-epic documents including brainstorming sessions, demo implementations, and exploratory planning.
+
+**0004a - Integrated Plan (Brainstorming)**
+- **File**: `planning/0004a-integrated-plan.md`
+- **Type**: Ad-hoc planning document
+- **Date Created**: Mid 2025
+- **Status**: Brainstorming and high-level vision
+- **Content**: System integration ideas across multiple layers:
+  - OpenThought-level infrastructure provisioning
+  - Customer-level chatbot configuration
+  - Web presence strategies (Astro, WordPress, WooCommerce)
+  - Content generation tools (SiteStory, AutoFAQtory)
+- **Value**: Contains ideas that may inform future features and integrations
+- **Note**: Not a formal epic - exploratory planning and system vision
+
+**0004b - Demo: Retrieve and Summarize arXiv Articles**
+- **File**: `planning/0004b-demo-retrive-summarize-arxiv-articles.md`
+- **Type**: Demo/reference implementation
+- **Date Created**: Mid 2025
+- **Status**: Demo documentation with working code
+- **Content**: 3-tier arXiv intelligence service architecture:
+  - Tier 1: Free daily article retrieval and email digest
+  - Tier 2: LLM-powered explainers with knowledge-level tuning
+  - Tier 3: Premium multi-article synthesis with slide deck generation
+  - Includes Python implementation using arxiv library
+- **Value**: Pattern for document retrieval, LLM summarization, and tiered service models
+- **Relevance**: Demonstrates concepts applicable to research agents (Epic 0015, 0016)
+- **Note**: Demo implementation, not a formal epic
 
 ## Current Project Management Documentation
 
