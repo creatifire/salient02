@@ -135,11 +135,13 @@
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-### **Priority 8: Email Capture & Consent (Optional)** 📋
+### **Priority 8: Email Capture & Consent** ⚠️ **DEPRECATED**
 - [ ] 0017-009-001 - Email Collection System
 - [ ] 0017-009-002 - Consent and preferences management
-  - UI-based alternative to conversational capture
-  - May be superseded by Profile Capture Tool - review during implementation
+  - **Status**: DEPRECATED - Superseded by Priority 5 (Profile Capture Tool)
+  - Originally: UI-based alternative to conversational capture
+  - Decision: Profile Capture Tool (Priority 5) will handle email/phone collection conversationally
+  - Action: Revisit only if Profile Capture Tool doesn't cover this use case
 
 ### **Priority 9: Periodic Summarization** 📋
 - [ ] 0017-010-001 - Context Window Management System
@@ -157,17 +159,48 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 ## PHASE 3: Multi-Agent Platform
 
-### **Priority 11: Multi-Client Widget Foundation** 📋
-- [ ] 0003-001-001 - Shadow DOM Widget
-- [ ] 0003-001-002 - Preact Islands Integration  
-- [ ] 0003-001-003 - HTMX UI Examples
+### **Priority 11: Multi-Client Widget Foundation** ✅ **DONE**
+- [x] 0003-001-001 - Shadow DOM Widget ✅
+  - Implementation: `web/public/widget/chat-widget.js`
+  - Demo: `web/src/pages/demo/widget.astro`
+  - Status: Production ready with multi-tenant endpoints
+- [x] 0003-001-002 - Preact Islands Integration ✅
+  - Implementation: Epic 0022-001-004-01 (Astro/Preact components)
+  - Components: `simple-chat.astro`, `widget.astro` layouts
+  - Status: Production ready, multi-tenant history/chat/stream working
+- [x] 0003-001-003 - HTMX UI Examples ✅
+  - Implementation: `web/public/htmx-chat.html`
+  - Updated with multi-tenant endpoints
+  - Status: Production ready
 
-### **Priority 12: Agent Type Plumbing** 📋
+**Status**: All components complete and production ready. Three working implementations:
+1. Shadow DOM widget (universal embedding)
+2. Astro/Preact components (native integration)
+3. HTMX standalone page (vanilla JS + SSE)
+
+All migrated to multi-tenant architecture with explicit `/accounts/{account}/agents/{instance}/*` endpoints.
+
+### **Priority 12: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
 **Note**: Epic 0022 replaces old multi-account/multi-instance epics with unified architecture
-- [ ] 0005-002-001 - Agent type registration and discovery system
-- [ ] 0005-002-002 - Configuration validation for different agent types
-- [ ] 0005-002-003 - Routing enhancement for multiple agent types
-- [ ] 0005-002-004 - Health checks and status monitoring
+
+- [x] 0005-002-001 - Agent type registration and discovery system ✅ **SUPERSEDED**
+  - Replaced by: Epic 0022-001-001-04 (Instance discovery and listing)
+  - Implementation: `list_account_instances()` in `instance_loader.py`
+  - Endpoint: `GET /accounts/{account}/agents` returns all instances with metadata
+
+- [x] 0005-002-002 - Configuration validation for different agent types ✅ **SUPERSEDED**
+  - Replaced by: Epic 0022-001-001-03 (Instance loader validation)
+  - Implementation: Hybrid DB + config file validation in `load_agent_instance()`
+  - Validates account existence, instance metadata, and YAML config loading
+
+- [x] 0005-002-003 - Routing enhancement for multiple agent types ✅ **SUPERSEDED**
+  - Replaced by: Epic 0022 explicit URL structure
+  - Implementation: `/accounts/{account}/agents/{instance}/{action}`
+  - No complex routing needed - URL directly specifies account and instance
+
+- [ ] 0005-002-004 - Health checks and status monitoring 📋 **STILL NEEDED**
+  - Not yet implemented
+  - Future enhancement for production monitoring
 
 ### **Priority 13: Sales Agent Addition** 📋
 - [ ] 0008-001-001 - Sales agent foundation with business tools
