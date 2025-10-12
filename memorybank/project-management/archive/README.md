@@ -144,6 +144,122 @@ Non-epic documents including brainstorming sessions, demo implementations, and e
 - **Value**: Advanced sales intelligence capabilities via MCP protocol
 - **Note**: Synergies with Epic 1017 (Data as MCP Service) in backlog
 
+**Future/Aspirational Epics (9 epics archived January 12, 2025)**
+
+**Epic 0006 - Public Chat**
+- **File**: `planning/0006-public-chat.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Public-facing chat without authentication:
+  - Anonymous session management with rate limiting
+  - Content safety and moderation
+  - Lead capture and contact management
+  - Public knowledge base integration
+- **Value**: Broad public access for customer support and lead generation
+- **Note**: Requires robust abuse prevention and content moderation
+
+**Epic 0007 - Enterprise Chat**
+- **File**: `planning/0007-enterprise-chat.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Enterprise-grade chat with advanced security:
+  - Multi-tenant architecture with data isolation
+  - Enterprise SSO (SAML, OIDC, Active Directory)
+  - Role-based access control (RBAC)
+  - Comprehensive audit trails and compliance features
+- **Value**: Enterprise readiness for large organizations with strict security requirements
+- **Note**: Overlaps with some Epic 0022 multi-tenant features; requires consolidation
+
+**Epic 0009 - Digital Expert Agent**
+- **File**: `planning/0009-digital-expert-agent.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Pydantic AI-powered digital personas:
+  - Multi-modal content ingestion (podcasts, videos, blogs, books)
+  - Knowledge extraction and persona modeling
+  - Communication style analysis and replication
+  - Expert response generation with source attribution
+- **Dependencies**: Requires 0005-001 (Pydantic AI Framework)
+- **Value**: Scale expert knowledge and preserve institutional expertise
+- **Note**: Innovative use case for thought leaders, consultants, academics
+
+**Epic 0013 - Scheduling Integration**
+- **File**: `planning/0013-scheduling-integration.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Comprehensive appointment scheduling:
+  - Nylas integration (Google, Outlook, Exchange calendars)
+  - Calendly integration for self-service booking
+  - CRM calendar integration (Zoho, Salesforce, HubSpot)
+  - In-chat booking interface with context-aware scheduling
+- **Dependencies**: Epic 0008 (Sales Agent), Epic 0012 (Email)
+- **Value**: Seamless conversion from chat to scheduled meetings
+- **Note**: High business value for sales workflows
+
+**Epic 0015 - Simple Research Agent**
+- **File**: `planning/0015-simple-research-agent.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Pydantic AI-powered research agent:
+  - Multi-engine web search (Exa, Tavily, Linkup)
+  - Library Manager integration for document collections
+  - Document intelligence and cross-document analysis
+  - Research memory, smart bookmarking, conversation continuity
+- **Dependencies**: Epic 0005-001 (Pydantic AI), Epic 0019 (Library Manager), Epic 0004-012 (Conversations)
+- **Value**: Sophisticated research workflows combining web search and curated libraries
+- **Note**: Foundation for Epic 0016 (Deep Research Agent)
+
+**Epic 0016 - Deep Research Agent**
+- **File**: `planning/0016-deep-research-agent.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Autonomous deep research agent:
+  - Research planning and hypothesis formation
+  - Multi-stage investigation methodology
+  - Evidence validation and contradiction analysis
+  - Comprehensive synthesis with peer review simulation
+- **Dependencies**: Epic 0015 (Simple Research Agent), Epic 0005-001 (Pydantic AI)
+- **Value**: Publication-quality research for complex analytical tasks
+- **Note**: Advanced research capabilities for academic and professional use
+
+**Epic 0019 - Library Manager (Knowledge Base Orchestration)**
+- **File**: `planning/0019-library-manager.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Comprehensive library management system:
+  - Multi-source content ingestion (web, files, cloud, media, repos)
+  - Account-isolated Pinecone projects with per-library indexes
+  - Real-time synchronization (Google Workspace, Box, Dropbox)
+  - Transcription services (Whisper, Rev, Otter.ai)
+  - Document intelligence and relationship detection
+- **Dependencies**: Epic 0011 (Vector Database), Account system
+- **Value**: Enterprise knowledge base management for AI agents
+- **Note**: Foundation for Epic 0015 (Research Agent) and Epic 0021 (AI Spaces)
+
+**Epic 0020 - OfferBot**
+- **File**: `planning/0020-OfferBot.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized (minimal documentation)
+- **Content**: MCP server for personalized offer cards:
+  - HTML/CSS/JavaScript for coupons and offers
+  - Injection into chat sessions
+- **Value**: Revenue generation through personalized offers
+- **Note**: Minimal specification; needs full design
+
+**Epic 0021 - Collaborative AI Workspaces (AI Spaces)**
+- **File**: `planning/0021-collaborative-ai-workspaces.md`
+- **Type**: Epic (future capability)
+- **Status**: Not yet prioritized
+- **Content**: Team collaboration with AI enhancement:
+  - Document libraries with multi-source integration
+  - AI agent deployment and collaboration
+  - AutoFAQtory for automatic FAQ generation
+  - Information extraction agents
+  - Team management and collaborative creation
+- **Dependencies**: Epic 0019 (Library Manager), Multiple agent epics
+- **Value**: Revolutionary collaborative intelligence platform
+- **Note**: Comprehensive vision integrating multiple future capabilities
+
 ## Current Project Management Documentation
 
 For active project management documentation, see:

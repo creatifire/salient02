@@ -11,22 +11,13 @@
 03. [Website & HTMX Chatbot](./0003-website-htmx-chatbot.md) - 📋 Planned (Priority 3)
 04. [Chat Memory & Persistence](./0004-chat-memory.md) - ✅ Completed
 05. [Multi-Account and Agent Support](./0005-multi-account-and-agent-support.md) - 📋 Planned (Priorities 4, 6, 7)
-06. [Public Chat](./0006-public-chat.md) - 📋 Planned
-07. [Enterprise Chat](./0007-enterprise-chat.md) - 📋 Planned
-08. [Sales Agent](./0008-sales-agent.md) - 📋 Planned (Priority 5)
-09. [Digital Expert Agent](./0009-digital-expert-agent.md) - 📋 Planned
-10. [Vector Database Integration](./0011-vector-db-integration.md) - ✅ Completed (Feature 0011-001)
-11. [Outbound Email Integration](./0012-outbound-email.md) - 📋 Planned
-12. [Scheduling Integration](./0013-scheduling-integration.md) - 📋 Planned
-13. [Simple Research Agent](./0015-simple-research-agent.md) - 📋 Planned
-14. [Deep Research Agent](./0016-deep-research-agent.md) - 📋 Planned
-15. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade Complete)
-16. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
-17. [Library Manager (Knowledge Base Orchestration)](./0019-library-manager.md) - 📋 Planned
-18. [OfferBot](./0020-OfferBot.md) - 📋 Planned
-19. [Collaborative AI Workspaces](./0021-collaborative-ai-workspaces.md) - 📋 Planned
-20. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 🚧 In Progress (Priority 2B - Foundational Infrastructure)
-21. [Profile Search Tool](./0023-profile-search-tool.md) - 📋 Planned (Priority 7 - Demo Feature)
+06. [Sales Agent](./0008-sales-agent.md) - 📋 Planned (Priority 5)
+07. [Vector Database Integration](./0011-vector-db-integration.md) - ✅ Completed (Feature 0011-001)
+08. [Outbound Email Integration](./0012-outbound-email.md) - 📋 Planned
+09. [Simple Chat Agent](./0017-simple-chat-agent.md) - 🚧 In Progress (Priority 2A - Configuration Cascade Complete)
+10. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
+11. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 🚧 In Progress (Priority 2B - Foundational Infrastructure)
+12. [Profile Search Tool](./0023-profile-search-tool.md) - 📋 Planned (Priority 7 - Demo Feature)
 
 ## Epic Backlog
 
@@ -40,6 +31,44 @@
 - **Epic 0014** - [CrossFeed MCP Server](./archive/planning/0014-crossfeed.md)
   - MCP server for cross-sell/upsell intelligence
   - Planned for M2 Priority 4
+
+### Future/Aspirational Epics (Not Yet Prioritized)
+**Note**: These epics represent future capabilities and product evolution. They are not currently scheduled in Milestone 1 and will be evaluated for future milestones based on customer needs and strategic priorities.
+
+- **Epic 0006** - [Public Chat](./archive/planning/0006-public-chat.md)
+  - Anonymous chat without authentication, rate limiting, lead capture
+  - Future capability for public-facing customer support
+  
+- **Epic 0007** - [Enterprise Chat](./archive/planning/0007-enterprise-chat.md)
+  - Enterprise SSO, RBAC, multi-tenancy, audit trails
+  - Future capability for large organizations with compliance requirements
+  
+- **Epic 0009** - [Digital Expert Agent](./archive/planning/0009-digital-expert-agent.md)
+  - Pydantic AI-powered digital personas embodying expert knowledge
+  - Content ingestion from talks, podcasts, blogs, videos
+  
+- **Epic 0013** - [Scheduling Integration](./archive/planning/0013-scheduling-integration.md)
+  - Nylas, Calendly, CRM scheduling for in-chat appointment booking
+  - Future capability for sales and consultation workflows
+  
+- **Epic 0015** - [Simple Research Agent](./archive/planning/0015-simple-research-agent.md)
+  - Pydantic AI research agent with web search, memory, Library Manager integration
+  - Multi-engine search (Exa, Tavily), document intelligence
+  
+- **Epic 0016** - [Deep Research Agent](./archive/planning/0016-deep-research-agent.md)
+  - Autonomous deep research with hypothesis testing and evidence validation
+  - Multi-stage investigation, academic sources, comprehensive synthesis
+  
+- **Epic 0019** - [Library Manager](./archive/planning/0019-library-manager.md)
+  - Knowledge base orchestration with multi-source content ingestion
+  - Google Workspace, Box, Dropbox, transcription services, Pinecone integration
+  
+- **Epic 0020** - [OfferBot](./archive/planning/0020-OfferBot.md)
+  - MCP server for personalized offer cards in chat sessions
+  
+- **Epic 0021** - [Collaborative AI Workspaces](./archive/planning/0021-collaborative-ai-workspaces.md)
+  - AI Spaces combining document libraries, agents, and team collaboration
+  - AutoFAQtory, information extraction, multi-agent workflows
 
 ### Proposed Epics (shippable increments)
 
