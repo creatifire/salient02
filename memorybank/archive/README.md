@@ -14,13 +14,15 @@ This folder preserves documentation that is no longer current or relevant to act
 Documents describing planned features, infrastructure, or configurations that have not been implemented. These may be revisited in future development phases.
 
 **Files:**
+- `account-agent-instance-architecture.md` - Design blueprint for multi-tenant architecture (informed Epic 0022 implementation)
+- `agent-configuration-storage.md` - Brief Phase 1-3 transition notes (info covered in other docs)
 - `api-gateway-kong-policies.md` - Kong API Gateway policies (Kong not implemented)
-- `redis-usage-policy.md` - Redis caching strategy (Redis not currently used)
-- `deploying-on-render.md` - Render deployment configuration (deployment platform TBD)
 - `chat-widget-architecture.md` - Elaborate Preact/React/Vue adapter system (only Shadow DOM implemented)
+- `conversations.md` - Advanced conversation management system (explicitly marked as "likely not needed", future feature)
+- `deploying-on-render.md` - Render deployment configuration (deployment platform TBD)
 - `production-cross-origin-plan.md` - Comprehensive production cross-origin setup (deployment-specific, not current)
 - `production-deployment-config.md` - Production environment variables (deployment-specific)
-- `agent-configuration-storage.md` - Brief Phase 1-3 transition notes (info covered in other docs)
+- `redis-usage-policy.md` - Redis caching strategy (Redis not currently used)
 
 ### 📚 `outdated/` - Superseded Documentation
 
@@ -50,6 +52,9 @@ For current, accurate architecture documentation, see:
 - **Database Schema**: `/memorybank/architecture/datamodel.md`
 - **Configuration**: `/memorybank/architecture/configuration-reference.md`
 - **Agent Configuration**: `/memorybank/architecture/agent-configuration.md`
+- **Simple Chat Agent Design**: `/memorybank/architecture/simple-chat-agent-design.md`
+- **SSE Streaming Protocol**: `/memorybank/architecture/sse-streaming-fix.md`
+- **Open Questions**: `/memorybank/architecture/open-questions.md`
 - **Technology Stack**: `/memorybank/architecture/technology-stack.md`
 - **Code Organization**: `/memorybank/architecture/code-organization.md` (aspirational but valuable)
 
