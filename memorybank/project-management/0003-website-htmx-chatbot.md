@@ -1,4 +1,5 @@
 # 0003 - Website & HTMX Chatbot (Host Demo)
+> **Last Updated**: August 23, 2025
 
 > Convention: Use `[ ]` for open items and `[x]` for completed items across FEATURES, TASKS, and CHUNKS.
 >

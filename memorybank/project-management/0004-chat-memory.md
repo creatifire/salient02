@@ -1,4 +1,5 @@
 # Epic 0004 - Chat Memory & Persistence
+> **Last Updated**: August 29, 2025
 
 > Goal: Add persistent chat history and session management to the existing baseline system. Messages and sessions stored in Postgres, with automatic session resumption and profile data accumulation.
 

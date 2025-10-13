@@ -1,4 +1,5 @@
 # Epic 0017 - Simple Chat Agent (InfoBot - Pydantic AI Implementation)
+> **Last Updated**: October 07, 2025
 
 Implement Pydantic AI-powered InfoBot agent that shares information about products/services, captures profile data, and emails conversation summaries.
 

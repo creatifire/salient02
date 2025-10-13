@@ -1,4 +1,5 @@
 # Epic 0018 - Profile Builder (Customer Intelligence & Tracking)
+> **Last Updated**: October 07, 2025
 
 Build comprehensive customer profiles by tracking visitor interactions, interests, and behavioral patterns.
 

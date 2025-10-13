@@ -1,4 +1,5 @@
 # Epic 0022 - Multi-Tenant Account-Instance Architecture
+> **Last Updated**: October 11, 2025
 
 Implement platform-wide multi-tenant architecture with explicit account and agent instance URLs, enabling multiple agent instances per account with individual configurations and comprehensive cost tracking.
 

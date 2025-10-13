@@ -1,4 +1,5 @@
 # Epic 0023 - Profile Search Tool
+> **Last Updated**: October 09, 2025
 
 Generic multi-tenant profile search enabling agents to query professional profiles (doctors, nurses, sales reps, consultants) via natural language or structured filters.
 

@@ -1,4 +1,5 @@
 # Epics
+> **Last Updated**: October 11, 2025
 > Convention: Use `[ ]` for open items and `[x]` for completed items across FEATURES, TASKS, and CHUNKS.
 
 ## Milestone Planning
