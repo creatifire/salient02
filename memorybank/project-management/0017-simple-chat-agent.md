@@ -843,74 +843,188 @@ Enable agent to search knowledge base using existing VectorService integration, 
 
 - [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture
   
-  **RATIONALE**: Create realistic client demo sites to showcase vector search capabilities in context. Each client site demonstrates different use cases and data (AgroFresh = agricultural products, Wyckoff Hospital = doctor profiles).
+  **RATIONALE**: Create realistic client demo sites to showcase **true multi-tenant architecture** with separate accounts per client. Each client site demonstrates different use cases and data (AgroFresh = agricultural products, Wyckoff Hospital = doctor profiles). This validates Epic 0022's account-level isolation and provides sales-ready demos.
+  
+  **KEY DECISION**: Use **separate accounts** per client (not just different agents within same account) to properly demonstrate multi-tenant SaaS architecture:
+  - ✅ Authentic account-level isolation
+  - ✅ Professional client-branded URLs (`/accounts/agrofresh/...`)
+  - ✅ Sales-ready demos showcasing tenant separation
+  - ✅ Validates multi-tenant code paths thoroughly
   
   - [ ] 0017-005-001-01 - CHUNK - Create multi-client folder structure and layouts
-    - **PURPOSE**: Establish scalable architecture for multiple client demo sites with client-specific branding
+    - **PURPOSE**: Establish scalable architecture for multiple client demo sites with separate accounts and client-specific branding
     - **DESIGN**:
       ```
       web/src/
       ├── pages/
-      │   ├── index.astro                      # Demo selector landing page
-      │   ├── agrofresh/                       # AgroFresh client (existing pages moved here)
-      │   │   └── [existing pages]
-      │   ├── wyckoff/                         # Wyckoff Hospital client (new)
-      │   │   ├── index.astro
-      │   │   ├── departments/
-      │   │   ├── find-a-doctor.astro
-      │   │   └── services.astro
-      │   └── demo/                            # Technical demos (unchanged)
+      │   ├── index.astro                      # NEW - Demo selector landing page
+      │   ├── agrofresh/                       # MOVED - AgroFresh client (existing pages)
+      │   │   ├── index.astro                  # MOVED from pages/index.astro
+      │   │   ├── about.astro                  # MOVED from pages/about.astro
+      │   │   ├── contact.astro                # MOVED from pages/contact.astro
+      │   │   ├── crops/                       # MOVED from pages/crops/
+      │   │   ├── digital/                     # MOVED from pages/digital/
+      │   │   ├── markets/                     # MOVED from pages/markets/
+      │   │   ├── products/                    # MOVED from pages/products/
+      │   │   ├── resources/                   # MOVED from pages/resources/
+      │   │   └── solutions/                   # MOVED from pages/solutions/
+      │   │
+      │   ├── wyckoff/                         # NEW - Wyckoff Hospital client
+      │   │   ├── index.astro                  # NEW - Hospital homepage
+      │   │   ├── departments/                 # NEW - Department pages
+      │   │   ├── find-a-doctor.astro          # NEW - Doctor search
+      │   │   ├── services.astro               # NEW - Medical services
+      │   │   └── contact.astro                # NEW - Contact info
+      │   │
+      │   └── demo/                            # UNCHANGED - Technical demos stay here
+      │       ├── simple-chat.astro            # UNCHANGED - Keep in demo/
+      │       ├── widget.astro                 # UNCHANGED - Keep in demo/
+      │       ├── iframe.astro                 # UNCHANGED - Keep in demo/
+      │       └── htmx-chat.html (public/)     # UNCHANGED - Keep in demo/
       │
       ├── layouts/
-      │   ├── Layout.astro                     # Base layout
-      │   ├── AgroFreshLayout.astro           # AgroFresh branding
-      │   └── WyckoffLayout.astro             # Hospital branding
+      │   ├── Layout.astro                     # EXISTING - Base layout (reuse)
+      │   ├── AgroFreshLayout.astro           # NEW - AgroFresh branding
+      │   └── WyckoffLayout.astro             # NEW - Hospital branding
       │
       ├── components/
-      │   ├── shared/                          # Shared components
-      │   ├── agrofresh/                       # AgroFresh-specific
-      │   └── wyckoff/                         # Hospital-specific
+      │   ├── shared/                          # NEW FOLDER - Shared components
+      │   ├── agrofresh/                       # NEW FOLDER - AgroFresh-specific
+      │   │   ├── AgroFreshHeader.astro        # NEW
+      │   │   └── AgroFreshFooter.astro        # NEW (includes widget config)
+      │   └── wyckoff/                         # NEW FOLDER - Hospital-specific
+      │       ├── WyckoffHeader.astro          # NEW
+      │       └── WyckoffFooter.astro          # NEW (includes widget config)
       │
       └── styles/
-          ├── global.css
-          ├── agrofresh.css
-          └── wyckoff.css
+          ├── global.css                       # EXISTING - Base styles (reuse)
+          ├── agrofresh.css                   # NEW - Green/orange theme
+          └── wyckoff.css                     # NEW - Blue/teal healthcare theme
       ```
-    - **AGENT MAPPING**:
-      - `/agrofresh/*` → `default_account/simple_chat1` (vector search disabled - no data yet)
-      - `/wyckoff/*` → `default_account/simple_chat2` (vector search enabled - hospital doctor profiles)
-      - `/demo/*` → Uses query params for agent selection
+    
+    - **MULTI-TENANT ARCHITECTURE** (Separate Accounts):
+      ```
+      ACCOUNT           AGENT INSTANCE        WEBSITE PAGES        VECTOR SEARCH
+      ───────────────────────────────────────────────────────────────────────────
+      agrofresh      →  agro_chat1         →  /agrofresh/*      →  Disabled (no data yet)
+      wyckoff        →  hospital_chat1     →  /wyckoff/*        →  Enabled (doctor profiles)
+      default_account→  simple_chat1       →  /demo/*           →  Unchanged (technical demos)
+      ```
+    
+    - **WIDGET INTEGRATION VIA FOOTERS**:
+      ```astro
+      <!-- components/agrofresh/AgroFreshFooter.astro -->
+      <footer><!-- Footer content --></footer>
+      <script is:inline>
+        window.__SALIENT_WIDGET_CONFIG = {
+          account: 'agrofresh',
+          agent: 'agro_chat1',
+          backend: 'http://localhost:8000',
+          allowCross: true,
+          debug: import.meta.env.DEV
+        };
+      </script>
+      <script src="/widget/chat-widget.js"></script>
+      
+      <!-- components/wyckoff/WyckoffFooter.astro -->
+      <footer><!-- Footer content --></footer>
+      <script is:inline>
+        window.__SALIENT_WIDGET_CONFIG = {
+          account: 'wyckoff',
+          agent: 'hospital_chat1',
+          backend: 'http://localhost:8000',
+          allowCross: true,
+          debug: import.meta.env.DEV
+        };
+      </script>
+      <script src="/widget/chat-widget.js"></script>
+      ```
+    
+    - **FILE ORGANIZATION SUMMARY**:
+      - **MOVE**: All existing pages from `pages/*.astro` → `pages/agrofresh/*.astro`
+      - **STAY UNCHANGED**: `pages/demo/` folder and all contents (technical demos)
+      - **CREATE NEW**: `pages/wyckoff/` folder (hospital pages in next chunk)
+      - **CREATE NEW**: Client-specific layouts, components, styles
+      - **CREATE NEW**: Root `pages/index.astro` (demo selector)
+    
     - SUB-TASKS:
-      - Create folder structure: `pages/agrofresh/`, `pages/wyckoff/`, `pages/index.astro`
-      - Move existing pages from `pages/*.astro` to `pages/agrofresh/*.astro`
-      - Update internal navigation links in moved pages (e.g., `/about` → `/agrofresh/about`)
-      - Create `layouts/AgroFreshLayout.astro` with AgroFresh branding
-      - Create `layouts/WyckoffLayout.astro` with hospital branding
-      - Create `components/agrofresh/AgroFreshHeader.astro` and `AgroFreshFooter.astro`
-      - Create `components/wyckoff/WyckoffHeader.astro` and `WyckoffFooter.astro`
-      - Create `styles/agrofresh.css` with green/orange theme
-      - Create `styles/wyckoff.css` with blue/teal healthcare theme
-      - Create root `pages/index.astro` as demo selector with links to both client sites
+      - **DATABASE SETUP**:
+        - Create `agrofresh` account record in database: `INSERT INTO accounts (slug, name) VALUES ('agrofresh', 'AgroFresh Solutions');`
+        - Create `wyckoff` account record in database: `INSERT INTO accounts (slug, name) VALUES ('wyckoff', 'Wyckoff Hospital');`
+        - Verify `default_account` already exists for `/demo/` pages
+      
+      - **FOLDER STRUCTURE**:
+        - Create `pages/agrofresh/` folder
+        - Create `pages/wyckoff/` folder (empty for now)
+        - Create `components/shared/` folder
+        - Create `components/agrofresh/` folder
+        - Create `components/wyckoff/` folder
+      
+      - **MOVE EXISTING PAGES** (AgroFresh):
+        - Move `pages/index.astro` → `pages/agrofresh/index.astro`
+        - Move `pages/about.astro` → `pages/agrofresh/about.astro`
+        - Move `pages/contact.astro` → `pages/agrofresh/contact.astro`
+        - Move `pages/crops/` folder → `pages/agrofresh/crops/`
+        - Move `pages/digital/` folder → `pages/agrofresh/digital/`
+        - Move `pages/markets/` folder → `pages/agrofresh/markets/`
+        - Move `pages/products/` folder → `pages/agrofresh/products/`
+        - Move `pages/resources/` folder → `pages/agrofresh/resources/`
+        - Move `pages/solutions/` folder → `pages/agrofresh/solutions/`
+        - **IMPORTANT**: Do NOT move `pages/demo/` folder - it stays in place
+      
+      - **UPDATE MOVED PAGES**:
+        - Update internal navigation links in moved pages (e.g., `/about` → `/agrofresh/about`)
+        - Update layout imports to use `AgroFreshLayout` instead of `Layout`
+        - Verify all relative asset paths still work after move
+      
+      - **CREATE NEW LAYOUTS**:
+        - Create `layouts/AgroFreshLayout.astro` with AgroFresh branding (uses AgroFreshHeader/Footer)
+        - Create `layouts/WyckoffLayout.astro` with hospital branding (uses WyckoffHeader/Footer)
+      
+      - **CREATE NEW COMPONENTS**:
+        - Create `components/agrofresh/AgroFreshHeader.astro` with AgroFresh navigation
+        - Create `components/agrofresh/AgroFreshFooter.astro` with widget config (agrofresh/agro_chat1)
+        - Create `components/wyckoff/WyckoffHeader.astro` with hospital navigation
+        - Create `components/wyckoff/WyckoffFooter.astro` with widget config (wyckoff/hospital_chat1)
+      
+      - **CREATE NEW STYLES**:
+        - Create `styles/agrofresh.css` with green/orange theme (#2E7D32, #FF6F00)
+        - Create `styles/wyckoff.css` with blue/teal healthcare theme (#0277BD, #00838F)
+      
+      - **CREATE DEMO SELECTOR**:
+        - Create root `pages/index.astro` as demo selector landing page
+        - Add cards/links for "AgroFresh Solutions" → `/agrofresh/`
+        - Add cards/links for "Wyckoff Hospital" → `/wyckoff/`
+        - Add link to "Technical Demos" → `/demo/simple-chat`
+        - Include branding logos and descriptions for each client
+    
     - AUTOMATED-TESTS: `web/tests/test_multi_client_structure.spec.ts` (Playwright)
-      - `test_demo_selector_page_loads()` - Root index loads with client links
+      - `test_demo_selector_page_loads()` - Root index loads with 3 demo options (AgroFresh, Wyckoff, Technical)
       - `test_agrofresh_site_accessible()` - All AgroFresh pages load correctly
-      - `test_wyckoff_site_accessible()` - All Wyckoff pages load correctly
-      - `test_navigation_links_correct()` - Internal links use correct client prefix
-      - `test_layouts_apply_correctly()` - Client-specific layouts render
-      - `test_styles_isolated()` - Client-specific CSS applies correctly
+      - `test_agrofresh_navigation_links()` - Internal links use `/agrofresh/` prefix
+      - `test_wyckoff_site_accessible()` - Wyckoff site accessible (empty until chunk 02)
+      - `test_demo_folder_unchanged()` - All `/demo/*` pages still work unchanged
+      - `test_layouts_apply_correctly()` - Client-specific layouts render with correct headers/footers
+      - `test_styles_isolated()` - AgroFresh uses green/orange, Wyckoff uses blue/teal
+      - `test_widget_on_agrofresh_pages()` - Widget configured with agrofresh/agro_chat1
+    
     - MANUAL-TESTS:
-      - Navigate to `http://localhost:4321/` and verify demo selector shows both clients
-      - Click "AgroFresh" link, verify redirects to `/agrofresh/` with AgroFresh branding
+      - Navigate to `http://localhost:4321/` and verify demo selector shows 3 options
+      - Click "AgroFresh Solutions", verify redirects to `/agrofresh/` with green/orange branding
       - Test AgroFresh navigation: verify all links work with `/agrofresh/` prefix
-      - Click "Wyckoff Hospital" link, verify redirects to `/wyckoff/` with hospital branding
-      - Verify styles are isolated: AgroFresh uses green/orange, Wyckoff uses blue/teal
-      - Test responsive design on both client sites
-    - STATUS: Planned — Foundation for multi-client demos
+      - Open chat widget on AgroFresh page, verify backend URL uses `/accounts/agrofresh/agents/agro_chat1/...`
+      - Click "Wyckoff Hospital", verify redirects to `/wyckoff/` (placeholder page)
+      - Click "Technical Demos", verify redirects to `/demo/simple-chat` (unchanged)
+      - Test `/demo/widget`, `/demo/htmx-chat.html` still work unchanged
+      - Verify styles are isolated: AgroFresh ≠ Wyckoff ≠ Demo pages
+      - Test responsive design on all client sites
+    
+    - STATUS: Planned — Foundation for multi-tenant demos with separate accounts
     - PRIORITY: High — Required before implementing Wyckoff hospital pages
   
   - [ ] 0017-005-001-02 - CHUNK - Create Wyckoff Hospital demo pages
     - **PURPOSE**: Build realistic hospital demo site with pages showcasing vector search for doctor profiles
-    - **PAGES TO CREATE**:
+    - **PAGES TO CREATE** (all NEW):
       - `wyckoff/index.astro` - Hospital homepage with services overview
       - `wyckoff/departments/index.astro` - Department directory
       - `wyckoff/departments/cardiology.astro` - Cardiology department info
@@ -919,52 +1033,89 @@ Enable agent to search knowledge base using existing VectorService integration, 
       - `wyckoff/find-a-doctor.astro` - Doctor search page (primary vector search demo)
       - `wyckoff/services.astro` - Medical services overview
       - `wyckoff/contact.astro` - Contact information
+    
     - **CHAT WIDGET INTEGRATION**:
-      - All pages include chat widget configured with `default_account/simple_chat2`
+      - All pages inherit widget from `WyckoffFooter.astro` component
+      - Widget configured with `wyckoff/hospital_chat1` agent (separate account)
       - Widget uses shadow DOM (production-ready from 0022-001-004-01)
-      - Configuration: `{ account: 'default_account', agent: 'simple_chat2', backend: 'http://localhost:8000' }`
+      - Configuration in footer: `{ account: 'wyckoff', agent: 'hospital_chat1', backend: 'http://localhost:8000' }`
+    
     - **SUGGESTED QUESTIONS** (displayed on relevant pages):
-      - Find a Doctor page: "Find me a Spanish-speaking cardiologist"
-      - Departments: "Tell me about your cardiology department"
-      - Services: "What imaging services do you offer?"
+      - Find a Doctor page: "Find me a Spanish-speaking cardiologist", "Show me neurology specialists", "Which doctors accept Medicare?"
+      - Departments: "Tell me about your cardiology department", "What services does neurology offer?"
+      - Services: "What imaging services do you offer?", "Do you have an urgent care center?"
+    
     - SUB-TASKS:
-      - Create 8 Wyckoff hospital pages using WyckoffLayout
+      - Create 8 Wyckoff hospital pages using `WyckoffLayout`
       - Add hospital-themed content (services, departments, contact info)
-      - Integrate chat widget on all pages with `simple_chat2` agent
+      - Widget automatically included via `WyckoffFooter` (configured with wyckoff/hospital_chat1)
       - Add "Suggested Questions" UI component with clickable example queries
-      - Add hospital imagery (stock photos or placeholders)
-      - Create department-specific navigation menus
+      - Add hospital imagery (stock photos or placeholders from Unsplash)
+      - Create department-specific navigation menus in `WyckoffHeader`
       - Add "Find a Doctor" search interface mockup (to complement chat widget)
       - Test chat widget on all pages with example questions
+    
     - AUTOMATED-TESTS: `web/tests/test_wyckoff_site.spec.ts` (Playwright)
       - `test_all_wyckoff_pages_load()` - All 8 pages load without errors
       - `test_chat_widget_on_all_pages()` - Chat widget present on all pages
-      - `test_widget_configured_correctly()` - Widget uses simple_chat2 agent
+      - `test_widget_configured_correctly()` - Widget uses wyckoff/hospital_chat1 agent
+      - `test_widget_backend_urls()` - Widget hits `/accounts/wyckoff/agents/hospital_chat1/...` endpoints
       - `test_suggested_questions_clickable()` - Example questions trigger chat
-      - `test_navigation_between_pages()` - All internal links work
+      - `test_navigation_between_pages()` - All internal links work with `/wyckoff/` prefix
       - `test_department_pages_unique()` - Each department has unique content
+    
     - MANUAL-TESTS:
       - Navigate through all 8 Wyckoff pages, verify content and branding
       - Test chat widget on each page: send example questions
       - Verify suggested questions appear on relevant pages
       - Click suggested questions, verify chat widget pre-fills and sends
       - Test "Find a Doctor" page: ask "Find a Spanish-speaking cardiologist"
+      - Verify backend hits correct endpoint: `/accounts/wyckoff/agents/hospital_chat1/stream`
       - Verify hospital theme (blue/teal colors, medical imagery) consistent across pages
       - Test responsive design on mobile/tablet viewports
+      - Verify chat history persists across page navigation within Wyckoff site
+    
     - STATUS: Planned — Hospital demo site for vector search showcase
     - PRIORITY: High — Primary demo for vector search tool
   
   - [ ] 0017-005-001-03 - CHUNK - Configure agent instances for multi-client demos
-    - **PURPOSE**: Ensure agent configurations match client contexts and vector search settings
+    - **PURPOSE**: Create separate account configs and agent instances matching client contexts, enabling proper multi-tenant isolation
+    
+    - **BACKEND CONFIGURATION STRUCTURE**:
+      ```
+      backend/config/agent_configs/
+      ├── agrofresh/                           # NEW ACCOUNT
+      │   └── agro_chat1/                      # NEW AGENT INSTANCE
+      │       ├── config.yaml
+      │       └── system_prompt.md
+      ├── wyckoff/                             # NEW ACCOUNT
+      │   └── hospital_chat1/                  # NEW AGENT INSTANCE
+      │       ├── config.yaml
+      │       └── system_prompt.md
+      └── default_account/                     # EXISTING (unchanged for /demo/)
+          └── simple_chat1/
+              ├── config.yaml
+              └── system_prompt.md
+      ```
+    
     - **AGENT CONFIGURATIONS**:
       ```yaml
-      # default_account/simple_chat1 (AgroFresh)
-      display_name: "AgroFresh Chat Assistant"
+      # agrofresh/agro_chat1/config.yaml (NEW)
+      agent_type: "simple_chat"
+      account: "agrofresh"
+      instance_name: "agro_chat1"
+      display_name: "AgroFresh Assistant"
+      system_prompt: "agrofresh-focused prompt"
       tools:
         vector_search:
           enabled: false    # No vector data for AgroFresh yet
+        web_search:
+          enabled: false
       
-      # default_account/simple_chat2 (Wyckoff Hospital)
+      # wyckoff/hospital_chat1/config.yaml (NEW)
+      agent_type: "simple_chat"
+      account: "wyckoff"
+      instance_name: "hospital_chat1"
       display_name: "Wyckoff Hospital Assistant"
       system_prompt: "hospital-focused prompt"
       tools:
@@ -972,27 +1123,61 @@ Enable agent to search knowledge base using existing VectorService integration, 
           enabled: true     # Hospital doctor profiles in Pinecone
           max_results: 5
           similarity_threshold: 0.7
+        web_search:
+          enabled: false
+      
+      # default_account/simple_chat1/config.yaml (UNCHANGED)
+      # Keep existing config for /demo/ technical demos
       ```
+    
     - SUB-TASKS:
-      - Update `default_account/simple_chat1/config.yaml`: set display_name, disable vector_search
-      - Update `default_account/simple_chat2/config.yaml`: set display_name, enable vector_search
-      - Create hospital-focused system prompt for simple_chat2
-      - Verify Pinecone has hospital doctor profile data loaded (from `doctors_profile.csv`)
-      - Test vector search returns relevant doctor profiles
-      - Add logging to show which agent is being used per request
+      - **CREATE AGENT CONFIGS**:
+        - Create `backend/config/agent_configs/agrofresh/agro_chat1/config.yaml`
+        - Create `backend/config/agent_configs/agrofresh/agro_chat1/system_prompt.md` (agricultural context)
+        - Create `backend/config/agent_configs/wyckoff/hospital_chat1/config.yaml`
+        - Create `backend/config/agent_configs/wyckoff/hospital_chat1/system_prompt.md` (healthcare context)
+      
+      - **VERIFY DATABASE**:
+        - Verify `agrofresh` and `wyckoff` account records exist (created in chunk 01)
+        - Verify `default_account` still exists for `/demo/` pages
+      
+      - **VECTOR SEARCH SETUP**:
+        - Verify Pinecone has hospital doctor profile data loaded (from `doctors_profile.csv`)
+        - Test vector search query returns relevant doctor profiles for wyckoff/hospital_chat1
+        - Verify agro_chat1 has vector_search disabled (no data loaded yet)
+      
+      - **SYSTEM PROMPTS**:
+        - Write AgroFresh-focused system prompt (agricultural products, crop management context)
+        - Write hospital-focused system prompt (medical services, doctor referrals, healthcare information)
+      
+      - **LOGGING & ATTRIBUTION**:
+        - Add logging to show which account/agent is being used per request
+        - Verify LLM request tracking includes account_id and agent_instance_id
+        - Verify session/message attribution to correct account
+    
     - AUTOMATED-TESTS: `backend/tests/integration/test_multi_client_agents.py`
-      - `test_agrofresh_agent_vector_disabled()` - simple_chat1 has vector_search disabled
-      - `test_wyckoff_agent_vector_enabled()` - simple_chat2 has vector_search enabled
+      - `test_agrofresh_agent_loads()` - agrofresh/agro_chat1 config loads successfully
+      - `test_wyckoff_agent_loads()` - wyckoff/hospital_chat1 config loads successfully
+      - `test_demo_agent_unchanged()` - default_account/simple_chat1 still works for /demo/
+      - `test_agrofresh_vector_disabled()` - agro_chat1 has vector_search disabled
+      - `test_wyckoff_vector_enabled()` - hospital_chat1 has vector_search enabled
       - `test_agent_display_names()` - Correct display names for each agent
-      - `test_system_prompts_differ()` - Each agent has appropriate system prompt
+      - `test_system_prompts_differ()` - Each agent has appropriate context-specific system prompt
+      - `test_account_isolation()` - Sessions/messages properly attributed to correct accounts
+    
     - MANUAL-TESTS:
-      - Send request to `/accounts/default_account/agents/simple_chat1/chat`: verify vector search not used
-      - Send request to `/accounts/default_account/agents/simple_chat2/chat`: verify vector search works
-      - Ask simple_chat2: "Find a Spanish-speaking cardiologist", verify uses vector search
-      - Check logs: verify agent instance attribution appears correctly
-      - Verify Pinecone contains hospital doctor data
-    - STATUS: Planned — Agent configuration for demo contexts
-    - PRIORITY: High — Required for vector search to work correctly per client
+      - Send request to `/accounts/agrofresh/agents/agro_chat1/chat`: verify agent loads, vector search not used
+      - Send request to `/accounts/wyckoff/agents/hospital_chat1/chat`: verify agent loads, vector search works
+      - Ask hospital_chat1: "Find a Spanish-speaking cardiologist", verify uses vector search
+      - Check logs: verify account and agent instance attribution appears correctly
+      - Verify Pinecone contains hospital doctor data (query manually)
+      - Check `llm_requests` table: verify account_id and agent_instance_id populated correctly
+      - Test chat widget on `/agrofresh/`: verify hits correct backend endpoints
+      - Test chat widget on `/wyckoff/`: verify hits correct backend endpoints
+      - Verify `/demo/` pages still use default_account/simple_chat1 unchanged
+    
+    - STATUS: Planned — Multi-tenant agent configuration with separate accounts
+    - PRIORITY: High — Required for vector search to work correctly per client and demonstrate true multi-tenant isolation
 
 - [ ] 0017-005-002 - TASK - Vector Search Tool Implementation
   - [ ] 0017-005-002-01 - CHUNK - Add vector search tool to agent
