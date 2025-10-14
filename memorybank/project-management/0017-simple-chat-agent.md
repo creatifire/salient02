@@ -839,24 +839,191 @@ Core features that deliver InfoBot's primary value: answering questions using kn
 ### 0017-005 - FEATURE - Vector Search Tool
 **Status**: Planned
 
-Enable agent to search knowledge base using existing VectorService integration.
+Enable agent to search knowledge base using existing VectorService integration, demonstrated through multi-client demo sites.
 
-- [ ] 0017-005-001 - TASK - Vector Search Tool Implementation
-  - [ ] 0017-005-001-01 - CHUNK - Add vector search tool to agent
+- [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture
+  
+  **RATIONALE**: Create realistic client demo sites to showcase vector search capabilities in context. Each client site demonstrates different use cases and data (AgroFresh = agricultural products, Wyckoff Hospital = doctor profiles).
+  
+  - [ ] 0017-005-001-01 - CHUNK - Create multi-client folder structure and layouts
+    - **PURPOSE**: Establish scalable architecture for multiple client demo sites with client-specific branding
+    - **DESIGN**:
+      ```
+      web/src/
+      ├── pages/
+      │   ├── index.astro                      # Demo selector landing page
+      │   ├── agrofresh/                       # AgroFresh client (existing pages moved here)
+      │   │   └── [existing pages]
+      │   ├── wyckoff/                         # Wyckoff Hospital client (new)
+      │   │   ├── index.astro
+      │   │   ├── departments/
+      │   │   ├── find-a-doctor.astro
+      │   │   └── services.astro
+      │   └── demo/                            # Technical demos (unchanged)
+      │
+      ├── layouts/
+      │   ├── Layout.astro                     # Base layout
+      │   ├── AgroFreshLayout.astro           # AgroFresh branding
+      │   └── WyckoffLayout.astro             # Hospital branding
+      │
+      ├── components/
+      │   ├── shared/                          # Shared components
+      │   ├── agrofresh/                       # AgroFresh-specific
+      │   └── wyckoff/                         # Hospital-specific
+      │
+      └── styles/
+          ├── global.css
+          ├── agrofresh.css
+          └── wyckoff.css
+      ```
+    - **AGENT MAPPING**:
+      - `/agrofresh/*` → `default_account/simple_chat1` (vector search disabled - no data yet)
+      - `/wyckoff/*` → `default_account/simple_chat2` (vector search enabled - hospital doctor profiles)
+      - `/demo/*` → Uses query params for agent selection
+    - SUB-TASKS:
+      - Create folder structure: `pages/agrofresh/`, `pages/wyckoff/`, `pages/index.astro`
+      - Move existing pages from `pages/*.astro` to `pages/agrofresh/*.astro`
+      - Update internal navigation links in moved pages (e.g., `/about` → `/agrofresh/about`)
+      - Create `layouts/AgroFreshLayout.astro` with AgroFresh branding
+      - Create `layouts/WyckoffLayout.astro` with hospital branding
+      - Create `components/agrofresh/AgroFreshHeader.astro` and `AgroFreshFooter.astro`
+      - Create `components/wyckoff/WyckoffHeader.astro` and `WyckoffFooter.astro`
+      - Create `styles/agrofresh.css` with green/orange theme
+      - Create `styles/wyckoff.css` with blue/teal healthcare theme
+      - Create root `pages/index.astro` as demo selector with links to both client sites
+    - AUTOMATED-TESTS: `web/tests/test_multi_client_structure.spec.ts` (Playwright)
+      - `test_demo_selector_page_loads()` - Root index loads with client links
+      - `test_agrofresh_site_accessible()` - All AgroFresh pages load correctly
+      - `test_wyckoff_site_accessible()` - All Wyckoff pages load correctly
+      - `test_navigation_links_correct()` - Internal links use correct client prefix
+      - `test_layouts_apply_correctly()` - Client-specific layouts render
+      - `test_styles_isolated()` - Client-specific CSS applies correctly
+    - MANUAL-TESTS:
+      - Navigate to `http://localhost:4321/` and verify demo selector shows both clients
+      - Click "AgroFresh" link, verify redirects to `/agrofresh/` with AgroFresh branding
+      - Test AgroFresh navigation: verify all links work with `/agrofresh/` prefix
+      - Click "Wyckoff Hospital" link, verify redirects to `/wyckoff/` with hospital branding
+      - Verify styles are isolated: AgroFresh uses green/orange, Wyckoff uses blue/teal
+      - Test responsive design on both client sites
+    - STATUS: Planned — Foundation for multi-client demos
+    - PRIORITY: High — Required before implementing Wyckoff hospital pages
+  
+  - [ ] 0017-005-001-02 - CHUNK - Create Wyckoff Hospital demo pages
+    - **PURPOSE**: Build realistic hospital demo site with pages showcasing vector search for doctor profiles
+    - **PAGES TO CREATE**:
+      - `wyckoff/index.astro` - Hospital homepage with services overview
+      - `wyckoff/departments/index.astro` - Department directory
+      - `wyckoff/departments/cardiology.astro` - Cardiology department info
+      - `wyckoff/departments/neurology.astro` - Neurology department info
+      - `wyckoff/departments/emergency.astro` - Emergency services info
+      - `wyckoff/find-a-doctor.astro` - Doctor search page (primary vector search demo)
+      - `wyckoff/services.astro` - Medical services overview
+      - `wyckoff/contact.astro` - Contact information
+    - **CHAT WIDGET INTEGRATION**:
+      - All pages include chat widget configured with `default_account/simple_chat2`
+      - Widget uses shadow DOM (production-ready from 0022-001-004-01)
+      - Configuration: `{ account: 'default_account', agent: 'simple_chat2', backend: 'http://localhost:8000' }`
+    - **SUGGESTED QUESTIONS** (displayed on relevant pages):
+      - Find a Doctor page: "Find me a Spanish-speaking cardiologist"
+      - Departments: "Tell me about your cardiology department"
+      - Services: "What imaging services do you offer?"
+    - SUB-TASKS:
+      - Create 8 Wyckoff hospital pages using WyckoffLayout
+      - Add hospital-themed content (services, departments, contact info)
+      - Integrate chat widget on all pages with `simple_chat2` agent
+      - Add "Suggested Questions" UI component with clickable example queries
+      - Add hospital imagery (stock photos or placeholders)
+      - Create department-specific navigation menus
+      - Add "Find a Doctor" search interface mockup (to complement chat widget)
+      - Test chat widget on all pages with example questions
+    - AUTOMATED-TESTS: `web/tests/test_wyckoff_site.spec.ts` (Playwright)
+      - `test_all_wyckoff_pages_load()` - All 8 pages load without errors
+      - `test_chat_widget_on_all_pages()` - Chat widget present on all pages
+      - `test_widget_configured_correctly()` - Widget uses simple_chat2 agent
+      - `test_suggested_questions_clickable()` - Example questions trigger chat
+      - `test_navigation_between_pages()` - All internal links work
+      - `test_department_pages_unique()` - Each department has unique content
+    - MANUAL-TESTS:
+      - Navigate through all 8 Wyckoff pages, verify content and branding
+      - Test chat widget on each page: send example questions
+      - Verify suggested questions appear on relevant pages
+      - Click suggested questions, verify chat widget pre-fills and sends
+      - Test "Find a Doctor" page: ask "Find a Spanish-speaking cardiologist"
+      - Verify hospital theme (blue/teal colors, medical imagery) consistent across pages
+      - Test responsive design on mobile/tablet viewports
+    - STATUS: Planned — Hospital demo site for vector search showcase
+    - PRIORITY: High — Primary demo for vector search tool
+  
+  - [ ] 0017-005-001-03 - CHUNK - Configure agent instances for multi-client demos
+    - **PURPOSE**: Ensure agent configurations match client contexts and vector search settings
+    - **AGENT CONFIGURATIONS**:
+      ```yaml
+      # default_account/simple_chat1 (AgroFresh)
+      display_name: "AgroFresh Chat Assistant"
+      tools:
+        vector_search:
+          enabled: false    # No vector data for AgroFresh yet
+      
+      # default_account/simple_chat2 (Wyckoff Hospital)
+      display_name: "Wyckoff Hospital Assistant"
+      system_prompt: "hospital-focused prompt"
+      tools:
+        vector_search:
+          enabled: true     # Hospital doctor profiles in Pinecone
+          max_results: 5
+          similarity_threshold: 0.7
+      ```
+    - SUB-TASKS:
+      - Update `default_account/simple_chat1/config.yaml`: set display_name, disable vector_search
+      - Update `default_account/simple_chat2/config.yaml`: set display_name, enable vector_search
+      - Create hospital-focused system prompt for simple_chat2
+      - Verify Pinecone has hospital doctor profile data loaded (from `doctors_profile.csv`)
+      - Test vector search returns relevant doctor profiles
+      - Add logging to show which agent is being used per request
+    - AUTOMATED-TESTS: `backend/tests/integration/test_multi_client_agents.py`
+      - `test_agrofresh_agent_vector_disabled()` - simple_chat1 has vector_search disabled
+      - `test_wyckoff_agent_vector_enabled()` - simple_chat2 has vector_search enabled
+      - `test_agent_display_names()` - Correct display names for each agent
+      - `test_system_prompts_differ()` - Each agent has appropriate system prompt
+    - MANUAL-TESTS:
+      - Send request to `/accounts/default_account/agents/simple_chat1/chat`: verify vector search not used
+      - Send request to `/accounts/default_account/agents/simple_chat2/chat`: verify vector search works
+      - Ask simple_chat2: "Find a Spanish-speaking cardiologist", verify uses vector search
+      - Check logs: verify agent instance attribution appears correctly
+      - Verify Pinecone contains hospital doctor data
+    - STATUS: Planned — Agent configuration for demo contexts
+    - PRIORITY: High — Required for vector search to work correctly per client
+
+- [ ] 0017-005-002 - TASK - Vector Search Tool Implementation
+  - [ ] 0017-005-002-01 - CHUNK - Add vector search tool to agent
     - SUB-TASKS:
       - `@agent.tool` decorator for vector_search function
       - Integration with existing VectorService
       - Format search results for agent consumption
-      - Configuration-driven enable/disable from simple_chat.yaml
+      - Configuration-driven enable/disable from agent config.yaml
+      - Add comprehensive logging for vector search operations
+      - Handle empty results gracefully
     - STATUS: Planned — Agent can search knowledge base using existing vector service
 
 ```python
 @agent.tool
 async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str:
+    """Search knowledge base for relevant information."""
     vector_service = get_vector_service()
-    results = await vector_service.query(query, ctx.deps.session_id, max_results=5)
+    results = await vector_service.query(
+        query, 
+        ctx.deps.session_id, 
+        max_results=5,
+        similarity_threshold=0.7
+    )
     # Format results for agent consumption
-    return "Knowledge base search results:\n\n" + formatted_results
+    if not results:
+        return "No relevant information found in knowledge base."
+    
+    formatted = "Knowledge base search results:\n\n"
+    for i, result in enumerate(results, 1):
+        formatted += f"{i}. {result.content}\n   (Relevance: {result.score:.2f})\n\n"
+    return formatted
 ```
 
 ## Priority 2C: Profile Configuration & Schema
