@@ -343,8 +343,15 @@ async def simple_chat(
             from decimal import Decimal
             tracker = LLMRequestTracker()
             
-            # Use centralized model settings for tracking consistency
-            tracking_model = model_settings["model"]
+            # Get tracking model from instance_config (multi-tenant) or cascade (single-tenant)
+            if instance_config is not None:
+                # Multi-tenant mode: use the instance-specific config
+                tracking_model = instance_config.get("model_settings", {}).get("model", requested_model)
+                logger.info(f"Using tracking_model from instance_config: {tracking_model}")
+            else:
+                # Single-tenant mode: use the centralized cascade
+                tracking_model = model_settings["model"]
+                logger.info(f"Using tracking_model from cascade: {tracking_model}")
             
             # Build full request body with actual messages sent to LLM
             request_messages = []
@@ -707,11 +714,20 @@ async def simple_chat_stream(
             llm_request_id = None
             if prompt_tokens > 0 or completion_tokens > 0:
                 from decimal import Decimal
-                from .config_loader import get_agent_model_settings
                 
                 tracker = LLMRequestTracker()
-                model_settings = await get_agent_model_settings("simple_chat")
-                tracking_model = model_settings["model"]
+                
+                # Get tracking model from instance_config (multi-tenant) or cascade (single-tenant)
+                if instance_config is not None:
+                    # Multi-tenant mode: use the instance-specific config
+                    tracking_model = instance_config.get("model_settings", {}).get("model", requested_model)
+                    logger.info(f"[STREAM] Using tracking_model from instance_config: {tracking_model}")
+                else:
+                    # Single-tenant mode: use the centralized cascade
+                    from .config_loader import get_agent_model_settings
+                    model_settings = await get_agent_model_settings("simple_chat")
+                    tracking_model = model_settings["model"]
+                    logger.info(f"[STREAM] Using tracking_model from cascade: {tracking_model}")
                 
                 # Build full request body with actual messages sent to LLM
                 request_messages = []
