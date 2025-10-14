@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "qwen/qwen3-vl-235b-a22b-instruct"  # Reliable model with great Pydantic AI support
+  model: "mistralai/mistral-small-3.2-24b-instruct"  # Reliable model with great Pydantic AI support
   temperature: 0.5                   # Higher than default (0.3) for testing differentiation
   max_tokens: 2000
 

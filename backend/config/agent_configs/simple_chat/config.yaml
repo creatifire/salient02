@@ -7,7 +7,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "moonshotai/kimi-k2-0905"  # Reliable model with great Pydantic AI support
+  model: "meta-llama/llama-4-scout"  # Reliable model with great Pydantic AI support
   temperature: 0.3
   max_tokens: 2000
 tools:

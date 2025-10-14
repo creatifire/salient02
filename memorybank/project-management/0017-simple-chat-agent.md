@@ -1179,6 +1179,39 @@ Enable agent to search knowledge base using existing VectorService integration, 
     - STATUS: Completed — Agent configurations created for agrofresh/agro_info_chat1 (vector search disabled) and wyckoff/wyckoff_info_chat1 (vector search enabled), system prompts tailored to client contexts, database accounts verified
     - PRIORITY: High — Required for vector search to work correctly per client and demonstrate true multi-tenant isolation
 
+### Multi-Model Configuration Summary
+
+**Purpose**: Each agent instance is configured with a different LLM model to demonstrate multi-model support and enable comparative testing across different model families and providers.
+
+**Agent Model Assignments**:
+
+| Account | Agent Instance | Model | Provider | Purpose |
+|---------|----------------|-------|----------|---------|
+| **agrofresh** | agro_info_chat1 | `deepseek/deepseek-chat-v3-0324` | DeepSeek | Agricultural products info, cost-effective reasoning |
+| **wyckoff** | wyckoff_info_chat1 | `qwen/qwen3-235b-a22b-thinking-2507` | Qwen/Alibaba | Healthcare info with advanced reasoning, doctor search |
+| **default_account** | simple_chat1 | `moonshotai/kimi-k2-0905` | Moonshot AI | General testing, reliable baseline |
+| **default_account** | simple_chat2 | `openai/gpt-oss-120b` | OpenAI | Alternative testing instance |
+| **acme** | acme_chat1 | `mistralai/mistral-small-3.2-24b-instruct` | Mistral AI | Efficient multilingual model (higher temp: 0.5) |
+| **legacy** | simple_chat | `meta-llama/llama-4-scout` | Meta | Legacy non-multi-tenant agent |
+
+**Key Benefits**:
+- ✅ **Model diversity**: Tests across 6 different model families (DeepSeek, Qwen, Moonshot, OpenAI, Mistral, Meta)
+- ✅ **Provider diversity**: Tests multiple LLM providers via OpenRouter
+- ✅ **Cost optimization**: Different models for different use cases (e.g., DeepSeek for cost-sensitive agricultural info)
+- ✅ **Performance comparison**: Each client can evaluate which model works best for their domain
+- ✅ **Regression testing**: Multi-model configuration ensures agent code works across different LLM capabilities
+- ✅ **Fallback options**: If one model has issues, can quickly switch agents to different model
+
+**Configuration Notes**:
+- All models use `temperature: 0.3` (except acme_chat1: 0.5) for consistent, focused responses
+- All models use `max_tokens: 2000` for cost control
+- Models accessed via OpenRouter for unified API and cost tracking
+- Each agent's system prompt tailored to model strengths and use case
+
+This multi-model architecture validates that the Pydantic AI implementation is model-agnostic and works reliably across different LLM providers and capabilities.
+
+---
+
 - [ ] 0017-005-002 - TASK - Vector Search Tool Implementation
   - [ ] 0017-005-002-01 - CHUNK - Add vector search tool to agent
     - SUB-TASKS:
