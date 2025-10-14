@@ -897,53 +897,185 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ Complete — Fully tested and production ready
     - PRIORITY: Critical — Required for frontend to work with new architecture
   
-  - [ ] 0022-001-004-02 - CHUNK - Update embedded widgets (iframe, shadow DOM)
+  - [ ] 0022-001-004-02 - CHUNK - Create iframe embedding option (NEW, non-breaking)
+    - **PURPOSE**: Provide iframe embedding as optional alternative for customers requiring maximum isolation
+    - **DESIGN DECISION**: Create NEW iframe wrapper that internally uses chat-widget.js unchanged (zero risk)
+    - **RATIONALE**:
+      - Chunk 0022-001-004-01 delivered production-ready shadow DOM widget (recommended for 90% of clients)
+      - Shadow DOM already provides excellent isolation and CORS support
+      - iframe adds optional security layer for the 10% with strict compliance requirements
+      - Client self-hosts iframe wrapper on their domain for same-origin embedding
+      - Zero risk: new files only, chat-widget.js remains unchanged
+    - **PRODUCTION ARCHITECTURE**: Client-hosted iframe wrapper
+      - Client hosts `iframe-wrapper.html` on their domain (e.g., clientdomain.com/salient-chat.html)
+      - Same-origin iframe embedding (no CORS issues, no third-party cookies)
+      - Wrapper loads our CDN-hosted chat-widget.js internally
+      - Client controls wrapper, we control widget updates via CDN
     - SUB-TASKS:
-      - Update iframe widget loader (`web/public/widget.html` or similar)
-      - Support config via data attributes: `<div id="salient-chat" data-account="acme" data-agent="sales-chat">`
-      - Support config via query params: `widget.html?account=acme&instance=sales-chat`
-      - Update JavaScript widget API: `window.SalientChat.init({account: 'acme', instance: 'sales-chat'})`
-      - Update shadow DOM widget to read config from host element attributes
-      - Ensure iframe postMessage communication passes account/instance correctly
-      - Update widget embed documentation/examples
-      - Add fallback to default_account/simple_chat1 if no config provided
-    - AUTOMATED-TESTS: `web/tests/test_embed_widgets.spec.ts` (Playwright)
-      - `test_iframe_data_attributes()` - Config from data-account/data-agent
-      - `test_iframe_query_params()` - Config from URL params
-      - `test_js_api_init()` - Config from init() call
-      - `test_shadow_dom_attributes()` - Shadow DOM reads host attributes
-      - `test_widget_defaults()` - Falls back to default_account/simple_chat1
-      - `test_postmessage_config()` - iframe communication includes account/instance
+      - **Create NEW file**: `web/public/widget/iframe-wrapper.html`
+        - Minimal HTML template that clients can download and self-host
+        - Reads config from URL query params: `?account=client&agent=chat1&backend=https://api.salient.ai`
+        - Sets `window.__SALIENT_WIDGET_CONFIG` before loading chat-widget.js
+        - Clean, production-ready template with comments
+        - Includes transparent background, no margin/padding for clean iframe
+        - **NO MODIFICATIONS to chat-widget.js**
+      - **Create NEW demo**: `web/src/pages/demo/iframe-embed.astro`
+        - Demonstrates iframe embedding with code examples
+        - Method 1: Basic iframe with query params
+        - Method 2: Dynamic iframe creation via JavaScript
+        - Live demo: iframe pointing to /widget/iframe-wrapper.html
+        - Explains use cases: maximum isolation, legacy browser support, compliance requirements
+        - Links to embedding-comparison.astro for side-by-side comparison
+      - **Create NEW demo**: `web/src/pages/demo/embedding-comparison.astro`
+        - Side-by-side comparison: Shadow DOM vs iframe
+        - Two widgets with SAME config (default_account/simple_chat1)
+        - Left panel: Shadow DOM (recommended) with pros/cons
+        - Right panel: iframe with pros/cons
+        - Code examples for both methods
+        - Clear recommendation: Shadow DOM for most use cases
+        - Helps clients choose the right approach
+      - **Update existing**: `web/src/pages/demo/iframe.astro`
+        - Add clarification banner: "This embeds backend UI directly (localhost:8000)"
+        - Add links: "For widget embedding, see /demo/iframe-embed or /demo/widget"
+        - Keep functional as backend embed demo (useful for development)
+        - **DO NOT REMOVE** - shows how backend UI can be embedded
+      - **Create documentation**: `web/public/widget/EMBEDDING-GUIDE.md`
+        - Method 1: Shadow DOM (recommended) - single script tag
+        - Method 2: iframe (optional) - client self-hosts wrapper
+        - Production deployment checklist
+        - Troubleshooting guide
+        - CORS configuration examples
+    - AUTOMATED-TESTS: `web/tests/test_iframe_embedding.spec.ts` (Playwright)
+      - `test_iframe_wrapper_renders()` - iframe-wrapper.html loads without errors
+      - `test_iframe_query_params()` - Config passed via ?account=...&agent=...
+      - `test_iframe_embed_demo_renders()` - /demo/iframe-embed page loads
+      - `test_embedding_comparison_renders()` - /demo/embedding-comparison page loads
+      - `test_both_widgets_functional()` - Shadow DOM and iframe widgets both work
+      - `test_widgets_isolated()` - Widgets don't interfere with each other
+      - `test_iframe_backend_demo_renders()` - /demo/iframe still works
     - MANUAL-TESTS:
-      - Embed widget with: `<div data-account="acme" data-agent="acme_chat1">`, verify correct endpoint
-      - Load widget.html?account=acme&instance=acme_chat1, verify query params work
-      - Use JS API: `SalientChat.init({account: 'acme'})`, verify config applied
-      - Test iframe embedding on external page, verify cross-origin communication
-      - Embed multiple widgets with different configs, verify isolation
-    - STATUS: Planned — Embeddable widget configuration
-    - PRIORITY: High — Enable multi-tenant widget embedding
+      - **iframe-wrapper.html**:
+        - Open directly: /widget/iframe-wrapper.html?account=default_account&agent=simple_chat1
+        - Verify widget loads and is functional
+        - Send message, verify response appears
+      - **iframe-embed.astro demo**:
+        - Navigate to /demo/iframe-embed
+        - Verify both iframe examples display correctly
+        - Test sending messages in each iframe
+        - Copy code example, verify it's correct
+      - **embedding-comparison.astro demo**:
+        - Navigate to /demo/embedding-comparison
+        - Verify shadow DOM widget (left) works
+        - Verify iframe widget (right) works
+        - Send messages to both, verify isolation
+        - Verify code examples are accurate
+      - **Production simulation**:
+        - Copy iframe-wrapper.html to temp directory
+        - Modify to point to localhost:8000
+        - Host with `python -m http.server 9000`
+        - Create test HTML with iframe pointing to localhost:9000/iframe-wrapper.html
+        - Verify same-origin embedding works
+    - **VERIFICATION REQUIREMENT**: Ensure NO regressions in existing demos:
+      - ✅ /demo/widget - Shadow DOM (unchanged)
+      - ✅ /demo/simple-chat - Full-page (unchanged)
+      - ✅ /demo/iframe - Backend embed (clarified, still functional)
+      - ✅ /htmx-chat.html - Shadow DOM (unchanged)
+      - ✅ chat-widget.js - NO MODIFICATIONS
+    - STATUS: Planned — Optional iframe embedding for strict isolation requirements
+    - PRIORITY: Low — Nice-to-have, shadow DOM covers 90% of use cases
+    - **DEPENDENCIES**: Requires chunk 0022-001-004-01 complete (✅ done)
   
-  - [ ] 0022-001-004-03 - CHUNK - Update demo pages
+  - [ ] 0022-001-004-03 - CHUNK - Multi-tenant showcase demo (educational)
+    - **PURPOSE**: Demonstrate conversation isolation across multiple agent instances with different configurations
+    - **SCOPE**: Educational demo showing multi-tenant capabilities (configs, not embedding methods)
+    - **RELATIONSHIP TO OTHER CHUNKS**:
+      - ✅ 0022-001-004-01 (complete): Updated existing demos to use multi-tenant endpoints
+      - ⚠️ 0022-001-004-02 (planned): Creates embedding-comparison.astro (shadow vs iframe, SAME config)
+      - 🎯 0022-001-004-03 (this): Creates multi-tenant-examples.astro (3 instances, DIFFERENT configs)
+      - **Key difference**: 0022-001-004-02 = "HOW to embed", 0022-001-004-03 = "multi-tenant isolation"
+    - **IMPLEMENTATION**: Use shadow DOM only (recommended method, no iframe complexity)
+    - **NOTE**: Most demo page migration already complete:
+      - ✅ `/demo/simple-chat` - Uses default_account/simple_chat1
+      - ✅ `/demo/widget` - Uses default_account/simple_chat1
+      - ✅ `/htmx-chat.html` - Uses default_account/simple_chat1
+      - ⚠️ `/demo/iframe` - Backend embed (clarified in 0022-001-004-02)
+      - ✅ All existing demos work with new architecture
     - SUB-TASKS:
-      - Update `web/src/pages/demo/simple-chat.astro` to use default_account/simple_chat1
-      - Update any HTMX demo pages in `web/src/pages/demo/` or `web/src/pages/test/`
-      - Add demo page examples showing different account/instance configs
-      - Create `web/src/pages/demo/multi-tenant-examples.astro` with 3 widgets (simple_chat1, simple_chat2, acme_chat1)
-      - Update demo page documentation/comments to explain account/instance config
-      - Verify all demo pages work correctly with new endpoints
-      - Update localhost:8000 main chat page (if applicable) to use default_account/simple_chat1
-    - AUTOMATED-TESTS: `web/tests/test_demo_pages.spec.ts` (Playwright)
-      - `test_demo_pages_render()` - All demo pages render without errors
-      - `test_demo_widgets_configured()` - Widgets have account/instance props set
-      - `test_multi_tenant_demo()` - Multi-tenant demo page shows 3 different instances
+      - **Create NEW demo**: `web/src/pages/demo/multi-tenant-examples.astro`
+        - **Layout**: Tabbed interface or side-by-side panels (3 widgets)
+        - **Widget 1**: default_account/simple_chat1 (labeled "Default Instance")
+        - **Widget 2**: default_account/simple_chat2 OR acme/simple_chat1 (labeled "Second Instance")
+        - **Widget 3**: acme/acme_chat1 (labeled "Different Account")
+        - **Config badges**: Each widget displays its account/instance in a badge/label
+        - **All use shadow DOM**: No iframe complexity, focus on multi-tenant configs
+        - **Explanatory sections**:
+          - What is multi-tenancy?
+          - How instances are isolated (separate sessions, messages, costs)
+          - Configuration examples for each widget
+          - Code snippets showing how to configure each
+        - **Navigation links**:
+          - Link to /demo/embedding-comparison (for embedding method comparison)
+          - Link to /demo/iframe-embed (for iframe-specific examples)
+          - Link to /demo/widget (for single-widget demo)
+        - **Visual design**: Clean, educational layout with clear separation between widgets
+      - **Add interaction instructions**: 
+        - Clear prompts: "Send a message to each widget to see isolation in action"
+        - Suggested test messages: "Widget 1 test", "Widget 2 test", "Widget 3 test"
+        - Refresh instruction: "Refresh to see separate history loading"
+      - **Add educational content**:
+        - Explain account-level isolation
+        - Explain agent instance configuration
+        - Show endpoint structure: /accounts/{account}/agents/{instance}/chat
+        - Link to architecture documentation
+    - AUTOMATED-TESTS: `web/tests/test_multi_tenant_showcase.spec.ts` (Playwright)
+      - `test_showcase_page_renders()` - Page loads without errors
+      - `test_three_widgets_present()` - All 3 widgets rendered
+      - `test_widgets_different_configs()` - Each uses different account/instance (check data attributes)
+      - `test_widget_isolation()` - Send message to widget 1, verify widget 2 & 3 don't show it
+      - `test_separate_sessions()` - Each widget has different session_id (check cookies/storage)
+      - `test_separate_endpoints()` - Network tab shows different endpoint calls
+      - `test_history_isolation()` - Refresh page, verify each loads own history separately
     - MANUAL-TESTS:
-      - Navigate to /demo/simple-chat, verify chat works with default_account/simple_chat1
-      - Navigate to /demo/multi-tenant-examples, verify 3 widgets with different instances
-      - Test each demo widget: send message, verify correct agent responds
-      - Verify localhost:8000 main page (if applicable) uses new endpoints
-      - Check that each widget maintains separate session/conversation
-    - STATUS: Planned — Demo page migration
-    - PRIORITY: Medium — Required for testing and demonstrations
+      - **Basic functionality**:
+        - Navigate to /demo/multi-tenant-examples
+        - Verify all 3 widgets display correctly
+        - Verify each widget has visible account/instance label
+      - **Isolation testing**:
+        - Send "Test A" to widget 1, verify only widget 1 shows response
+        - Send "Test B" to widget 2, verify only widget 2 shows response
+        - Send "Test C" to widget 3, verify only widget 3 shows response
+        - Verify no cross-contamination between widgets
+      - **History isolation**:
+        - Send messages to all 3 widgets
+        - Refresh page
+        - Verify widget 1 loads only its history
+        - Verify widget 2 loads only its history
+        - Verify widget 3 loads only its history
+      - **Network verification**:
+        - Open browser DevTools → Network tab
+        - Send messages to each widget
+        - Verify correct endpoints called:
+          - Widget 1: /accounts/default_account/agents/simple_chat1/...
+          - Widget 2: /accounts/default_account/agents/simple_chat2/... (or acme/simple_chat1)
+          - Widget 3: /accounts/acme/agents/acme_chat1/...
+    - **VERIFICATION**: Ensure complete demo ecosystem works together:
+      - ✅ /demo/widget - Single widget (shadow DOM)
+      - ✅ /demo/simple-chat - Full-page vanilla JS
+      - ⚠️ /demo/iframe - Backend embed (from 0022-001-004-02)
+      - ⚠️ /demo/iframe-embed - iframe examples (from 0022-001-004-02)
+      - ⚠️ /demo/embedding-comparison - Method comparison (from 0022-001-004-02)
+      - 🎯 /demo/multi-tenant-examples - Multi-tenant showcase (this chunk)
+      - ✅ /htmx-chat.html - Static HTML example
+    - STATUS: Planned — Educational multi-tenant showcase (shadow DOM only, focuses on isolation)
+    - PRIORITY: Low — Nice-to-have educational demo, not critical functionality
+    - **DEPENDENCIES**: 
+      - ✅ Requires 0022-001-004-01 complete (done)
+      - ⚠️ Requires 0022-001-004-02 complete (embedding demos should exist first for linking)
+      - ⚠️ Requires multiple agent instances configured in backend:
+        - default_account/simple_chat1 (✅ exists)
+        - default_account/simple_chat2 OR acme/simple_chat1 (needs config)
+        - acme/acme_chat1 (needs config)
+      - **PRE-IMPLEMENTATION**: Verify agent instances exist or create test configs before implementing demo
 
 - [ ] 0022-001-005 - TASK - Cost Tracking & Observability
   
