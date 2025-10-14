@@ -841,7 +841,7 @@ Core features that deliver InfoBot's primary value: answering questions using kn
 
 Enable agent to search knowledge base using existing VectorService integration, demonstrated through multi-client demo sites.
 
-- [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture (2/3 complete)
+- [x] 0017-005-001 - TASK - Multi-Client Demo Site Architecture (3/3 complete)
   
   **RATIONALE**: Create realistic client demo sites to showcase **true multi-tenant architecture** with separate accounts per client. Each client site demonstrates different use cases and data (AgroFresh = agricultural products, Wyckoff Hospital = doctor profiles). This validates Epic 0022's account-level isolation and provides sales-ready demos.
   
@@ -1078,7 +1078,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
     - STATUS: Completed — 8 hospital pages created with SuggestedQuestions component, Find a Doctor page designed for vector search demo, all pages integrated with wyckoff/wyckoff_info_chat1 agent via WyckoffFooter
     - PRIORITY: High — Primary demo for vector search tool
   
-  - [ ] 0017-005-001-03 - CHUNK - Configure agent instances for multi-client demos
+  - [x] 0017-005-001-03 - CHUNK - Configure agent instances for multi-client demos
     - **PURPOSE**: Create separate account configs and agent instances matching client contexts, enabling proper multi-tenant isolation
     
     - **BACKEND CONFIGURATION STRUCTURE**:
@@ -1176,7 +1176,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
       - Test chat widget on `/wyckoff/`: verify hits correct backend endpoints
       - Verify `/demo/` pages still use default_account/simple_chat1 unchanged
     
-    - STATUS: Planned — Multi-tenant agent configuration with separate accounts
+    - STATUS: Completed — Agent configurations created for agrofresh/agro_info_chat1 (vector search disabled) and wyckoff/wyckoff_info_chat1 (vector search enabled), system prompts tailored to client contexts, database accounts verified
     - PRIORITY: High — Required for vector search to work correctly per client and demonstrate true multi-tenant isolation
 
 - [ ] 0017-005-002 - TASK - Vector Search Tool Implementation
