@@ -734,14 +734,29 @@ async def simple_chat_stream(
                 # Get tracking model from instance_config (multi-tenant) or cascade (single-tenant)
                 if instance_config is not None:
                     # Multi-tenant mode: use the instance-specific config
-                    tracking_model = instance_config.get("model_settings", {}).get("model", requested_model)
-                    logger.info(f"[STREAM] Using tracking_model from instance_config: {tracking_model}")
+                    model_settings = instance_config.get("model_settings", {})
+                    tracking_model = model_settings.get("model", requested_model)
+                    logger.info({
+                        "event": "streaming_model_config_loaded",
+                        "source": "instance_config",
+                        "tracking_model": tracking_model,
+                        "temperature": model_settings.get("temperature"),
+                        "max_tokens": model_settings.get("max_tokens"),
+                        "session_id": session_id
+                    })
                 else:
                     # Single-tenant mode: use the centralized cascade
                     from .config_loader import get_agent_model_settings
                     model_settings = await get_agent_model_settings("simple_chat")
                     tracking_model = model_settings["model"]
-                    logger.info(f"[STREAM] Using tracking_model from cascade: {tracking_model}")
+                    logger.info({
+                        "event": "streaming_model_config_loaded",
+                        "source": "cascade",
+                        "tracking_model": tracking_model,
+                        "temperature": model_settings.get("temperature"),
+                        "max_tokens": model_settings.get("max_tokens"),
+                        "session_id": session_id
+                    })
                 
                 # Build full request body with actual messages sent to LLM
                 request_messages = []
@@ -789,6 +804,18 @@ async def simple_chat_stream(
                     if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
                         response_body_full["provider_details"] = latest_message.provider_details
                 
+                # Log tracking attempt for debugging
+                logger.debug({
+                    "event": "streaming_llm_tracking_start",
+                    "session_id": session_id,
+                    "tracking_model": tracking_model,
+                    "requested_model": requested_model,
+                    "tokens": {"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
+                    "cost": cost_data.get("total_cost", 0.0),
+                    "has_model_settings": model_settings is not None,
+                    "model_settings_keys": list(model_settings.keys()) if model_settings else []
+                })
+                
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
                     provider="openrouter",
@@ -810,8 +837,25 @@ async def simple_chat_stream(
                     latency_ms=latency_ms,
                     agent_instance_id=agent_instance_id
                 )
+                
+                logger.info({
+                    "event": "streaming_llm_tracked",
+                    "session_id": session_id,
+                    "llm_request_id": str(llm_request_id),
+                    "model": tracking_model,
+                    "total_cost": cost_data.get("total_cost", 0.0)
+                })
             
             # Save messages to database
+            logger.info({
+                "event": "streaming_messages_saving",
+                "session_id": session_id,
+                "agent_instance_id": str(agent_instance_id),
+                "user_message_length": len(message),
+                "assistant_message_length": len(response_text),
+                "completion_status": "complete"
+            })
+            
             message_service = get_message_service()
             
             # Save user message
@@ -830,20 +874,36 @@ async def simple_chat_stream(
                 content=response_text
             )
             
+            logger.info({
+                "event": "streaming_messages_saved",
+                "session_id": session_id,
+                "completion_status": "complete"
+            })
+            
             # Yield completion event
             yield {"event": "done", "data": ""}
             
     except Exception as e:
+        import traceback
         logger.error({
             "event": "streaming_error",
             "session_id": session_id,
             "error": str(e),
             "error_type": type(e).__name__,
-            "chunks_sent": len(chunks)
+            "chunks_sent": len(chunks),
+            "has_instance_config": instance_config is not None,
+            "traceback": traceback.format_exc()
         })
         
         # Save partial response if any chunks were sent
         if chunks:
+            logger.info({
+                "event": "streaming_partial_messages_saving",
+                "session_id": session_id,
+                "partial_response_length": len("".join(chunks)),
+                "chunks_sent": len(chunks),
+                "completion_status": "partial"
+            })
             message_service = get_message_service()
             partial_response = "".join(chunks)
             
@@ -868,6 +928,13 @@ async def simple_chat_stream(
                     "chunks_received": len(chunks)
                 }
             )
+            
+            logger.info({
+                "event": "streaming_partial_messages_saved",
+                "session_id": session_id,
+                "completion_status": "partial",
+                "error_type": type(e).__name__
+            })
             
             # Note: Not tracking partial LLM requests since token counts are unavailable in error cases
         
