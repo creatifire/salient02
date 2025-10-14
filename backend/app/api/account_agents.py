@@ -455,12 +455,17 @@ async def chat_endpoint(
             # Import and call simple_chat agent with pre-loaded history
             from ..agents.simple_chat import simple_chat
             
+            # Build complete instance config with system_prompt
+            full_instance_config = instance.config.copy()
+            if instance.system_prompt:
+                full_instance_config['system_prompt'] = instance.system_prompt
+            
             result = await simple_chat(
                 message=user_message,
                 session_id=str(session.id),
                 agent_instance_id=instance.id,  # Multi-tenant: pass agent instance ID
                 message_history=message_history,  # Pass pre-loaded history
-                instance_config=instance.config  # Pass instance-specific config
+                instance_config=full_instance_config  # Pass instance-specific config with system_prompt
             )
             
         # Future agent types can be added here:
@@ -722,13 +727,18 @@ async def stream_endpoint(
                 # Import streaming function
                 from ..agents.simple_chat import simple_chat_stream
                 
+                # Build complete instance config with system_prompt
+                full_instance_config = instance.config.copy()
+                if instance.system_prompt:
+                    full_instance_config['system_prompt'] = instance.system_prompt
+                
                 # Stream events from agent
                 async for event in simple_chat_stream(
                     message=message,
                     session_id=str(session.id),
                     agent_instance_id=instance.id,
                     message_history=message_history,
-                    instance_config=instance.config
+                    instance_config=full_instance_config
                 ):
                     # Format as SSE
                     event_type = event.get("event", "message")

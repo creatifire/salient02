@@ -132,7 +132,14 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
     if not api_key:
         # Fallback to simple model name for development without API key
         model_name_simple = f"openrouter:{model_name}"
-        agent_config = await get_agent_config("simple_chat")
+        
+        # Get system_prompt from instance_config (multi-tenant) or fallback config (single-tenant)
+        if instance_config is not None and 'system_prompt' in instance_config:
+            system_prompt = instance_config['system_prompt']
+        else:
+            agent_config = await get_agent_config("simple_chat")
+            system_prompt = agent_config.system_prompt
+        
         logger.warning({
             "event": "agent_fallback_mode",
             "reason": "no_api_key",
@@ -142,12 +149,19 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
         return Agent(
             model_name_simple,
             deps_type=SessionDependencies,
-            system_prompt=agent_config.system_prompt
+            system_prompt=system_prompt
         )
     
-    # Load agent-specific configuration for system prompt
-    agent_config = await get_agent_config("simple_chat")
-    system_prompt = agent_config.system_prompt  # Direct attribute access (AgentConfig is Pydantic model)
+    # Load system prompt from instance_config (multi-tenant) or agent config (single-tenant)
+    if instance_config is not None and 'system_prompt' in instance_config:
+        # Multi-tenant mode: use the instance-specific system prompt
+        system_prompt = instance_config['system_prompt']
+        logger.info(f"Using system_prompt from instance_config (length: {len(system_prompt)})")
+    else:
+        # Single-tenant mode: load from agent config file
+        agent_config = await get_agent_config("simple_chat")
+        system_prompt = agent_config.system_prompt
+        logger.info(f"Using system_prompt from agent config (length: {len(system_prompt)})")
     
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
