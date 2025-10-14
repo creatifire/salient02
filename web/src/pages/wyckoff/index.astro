@@ -1,13 +1,64 @@
 ---
 import WyckoffLayout from '../../layouts/WyckoffLayout.astro';
+import SuggestedQuestions from '../../components/wyckoff/SuggestedQuestions.astro';
+
+const suggestedQuestions = [
+  "What medical services do you offer?",
+  "How do I find a specialist?",
+  "What are your emergency room hours?",
+  "Do you accept my insurance?"
+];
 ---
 <WyckoffLayout title="Wyckoff Hospital - Home">
   <section style="padding:2rem 0;">
-    <h1 style="font-size:2rem;margin:0 0 .5rem;">Welcome to Wyckoff Hospital</h1>
-    <p style="margin:0 0 1rem;">Quality healthcare with compassionate service.</p>
-    <p style="margin:1rem 0;padding:1rem;background:#f0f9ff;border-left:4px solid #0277BD;color:#01579B;">
-      <strong>Note:</strong> This is a placeholder page. The complete hospital demo site with 8 pages will be created in chunk 0017-005-001-02.
+    <h1 style="font-size:2.5rem;margin:0 0 1rem;color:#01579B;">Welcome to Wyckoff Hospital</h1>
+    <p style="font-size:1.2rem;margin:0 0 2rem;color:#555;line-height:1.6;">
+      Providing exceptional healthcare with compassion and expertise since 1889. 
+      Our state-of-the-art facilities and dedicated medical professionals are here to serve you and your family.
     </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;margin:3rem 0;">
+      <div style="padding:1.5rem;background:#f8fbff;border-radius:8px;border-left:4px solid #0277BD;">
+        <h2 style="font-size:1.3rem;margin:0 0 0.75rem;color:#0277BD;">🏥 Expert Care</h2>
+        <p style="margin:0;line-height:1.6;">Board-certified physicians and specialists dedicated to your health and well-being.</p>
+      </div>
+      
+      <div style="padding:1.5rem;background:#f8fbff;border-radius:8px;border-left:4px solid #00838F;">
+        <h2 style="font-size:1.3rem;margin:0 0 0.75rem;color:#00838F;">⚕️ Advanced Technology</h2>
+        <p style="margin:0;line-height:1.6;">Cutting-edge medical equipment and innovative treatment options for better outcomes.</p>
+      </div>
+      
+      <div style="padding:1.5rem;background:#f8fbff;border-radius:8px;border-left:4px solid #0277BD;">
+        <h2 style="font-size:1.3rem;margin:0 0 0.75rem;color:#0277BD;">❤️ Patient-Centered</h2>
+        <p style="margin:0;line-height:1.6;">Compassionate care tailored to each patient's unique needs and circumstances.</p>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;padding:2rem;background:linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%);border-radius:12px;">
+      <h2 style="font-size:1.8rem;margin:0 0 1rem;color:#01579B;">Our Services</h2>
+      <ul style="margin:0;padding-left:1.5rem;line-height:2;color:#01579B;">
+        <li><strong>Emergency Care</strong> - 24/7 emergency services with rapid response teams</li>
+        <li><strong>Cardiology</strong> - Comprehensive heart and vascular care</li>
+        <li><strong>Neurology</strong> - Expert diagnosis and treatment of neurological conditions</li>
+        <li><strong>Orthopedics</strong> - Advanced bone, joint, and muscle care</li>
+        <li><strong>Imaging Services</strong> - MRI, CT, X-ray, and ultrasound</li>
+        <li><strong>Laboratory Services</strong> - On-site diagnostic testing</li>
+      </ul>
+    </div>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+    
+    <div style="margin:3rem 0;text-align:center;">
+      <a href="/wyckoff/find-a-doctor" style="display:inline-block;background:#0277BD;color:white;padding:1rem 2rem;border-radius:8px;text-decoration:none;font-weight:600;font-size:1.1rem;transition:background 0.3s;">
+        Find a Doctor →
+      </a>
+    </div>
   </section>
 </WyckoffLayout>
+
+<style>
+  a[href="/wyckoff/find-a-doctor"]:hover {
+    background: #01579B;
+  }
+</style>
 
