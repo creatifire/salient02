@@ -76,8 +76,18 @@
 - [ ] 0022-002 - Authentication & Authorization (Deferred - when needed)
 
 ### **Priority 3: Vector Search Tool** 📋
-- [ ] 0017-005-001 - Vector Search Tool Implementation
-  - Core InfoBot functionality - answers questions using knowledge base
+**Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture**
+
+**Why Priority 3**: Demonstrates vector search capabilities through realistic client demo sites with proper multi-tenant account separation. Showcases Epic 0022's multi-tenant architecture in a sales-ready format.
+
+- [ ] 0017-005-001 - Multi-Client Demo Site Architecture
+  - Separate accounts per client (agrofresh, wyckoff, default_account)
+  - Move existing pages to `/agrofresh/`, create `/wyckoff/` pages, keep `/demo/` unchanged
+  - Client-specific layouts, components, footers with widget configuration
+  - 8 Wyckoff Hospital pages showcasing doctor profile search
+
+- [ ] 0017-005-002 - Vector Search Tool Implementation
+  - Core InfoBot functionality - answers questions using knowledge base via @agent.tool
 
 ### **Priority 4: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
