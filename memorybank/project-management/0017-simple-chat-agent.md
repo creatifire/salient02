@@ -841,7 +841,7 @@ Core features that deliver InfoBot's primary value: answering questions using kn
 
 Enable agent to search knowledge base using existing VectorService integration, demonstrated through multi-client demo sites.
 
-- [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture
+- [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture (1/3 complete)
   
   **RATIONALE**: Create realistic client demo sites to showcase **true multi-tenant architecture** with separate accounts per client. Each client site demonstrates different use cases and data (AgroFresh = agricultural products, Wyckoff Hospital = doctor profiles). This validates Epic 0022's account-level isolation and provides sales-ready demos.
   
@@ -851,7 +851,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
   - ✅ Sales-ready demos showcasing tenant separation
   - ✅ Validates multi-tenant code paths thoroughly
   
-  - [ ] 0017-005-001-01 - CHUNK - Create multi-client folder structure and layouts
+  - [x] 0017-005-001-01 - CHUNK - Create multi-client folder structure and layouts
     - **PURPOSE**: Establish scalable architecture for multiple client demo sites with separate accounts and client-specific branding
     - **DESIGN**:
       ```
@@ -1019,7 +1019,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
       - Verify styles are isolated: AgroFresh ≠ Wyckoff ≠ Demo pages
       - Test responsive design on all client sites
     
-    - STATUS: Planned — Foundation for multi-tenant demos with separate accounts
+    - STATUS: Completed — Multi-client folder structure implemented with separate accounts (agrofresh, wyckoff), client-specific layouts/components, widget integration via footers, and demo selector landing page
     - PRIORITY: High — Required before implementing Wyckoff hospital pages
   
   - [ ] 0017-005-001-02 - CHUNK - Create Wyckoff Hospital demo pages
