@@ -841,7 +841,7 @@ Core features that deliver InfoBot's primary value: answering questions using kn
 
 Enable agent to search knowledge base using existing VectorService integration, demonstrated through multi-client demo sites.
 
-- [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture (1/3 complete)
+- [ ] 0017-005-001 - TASK - Multi-Client Demo Site Architecture (2/3 complete)
   
   **RATIONALE**: Create realistic client demo sites to showcase **true multi-tenant architecture** with separate accounts per client. Each client site demonstrates different use cases and data (AgroFresh = agricultural products, Wyckoff Hospital = doctor profiles). This validates Epic 0022's account-level isolation and provides sales-ready demos.
   
@@ -1022,7 +1022,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
     - STATUS: Completed — Multi-client folder structure implemented with separate accounts (agrofresh, wyckoff), client-specific layouts/components, widget integration via footers, and demo selector landing page
     - PRIORITY: High — Required before implementing Wyckoff hospital pages
   
-  - [ ] 0017-005-001-02 - CHUNK - Create Wyckoff Hospital demo pages
+  - [x] 0017-005-001-02 - CHUNK - Create Wyckoff Hospital demo pages
     - **PURPOSE**: Build realistic hospital demo site with pages showcasing vector search for doctor profiles
     - **PAGES TO CREATE** (all NEW):
       - `wyckoff/index.astro` - Hospital homepage with services overview
@@ -1075,7 +1075,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
       - Test responsive design on mobile/tablet viewports
       - Verify chat history persists across page navigation within Wyckoff site
     
-    - STATUS: Planned — Hospital demo site for vector search showcase
+    - STATUS: Completed — 8 hospital pages created with SuggestedQuestions component, Find a Doctor page designed for vector search demo, all pages integrated with wyckoff/wyckoff_info_chat1 agent via WyckoffFooter
     - PRIORITY: High — Primary demo for vector search tool
   
   - [ ] 0017-005-001-03 - CHUNK - Configure agent instances for multi-client demos
