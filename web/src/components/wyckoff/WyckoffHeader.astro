@@ -1,0 +1,14 @@
+---
+const current = Astro.url.pathname;
+const baseLinkCls = 'font-semibold opacity-80 hover:opacity-100 transition-colors';
+---
+<nav class="navbar-bg" style="padding:.5rem 1rem;">
+  <div style="max-width:960px;margin:0 auto;display:flex;gap:1rem;align-items:center;">
+    <a href="/wyckoff" class={`${baseLinkCls} ${current === '/wyckoff' || current === '/wyckoff/' ? 'opacity-100' : ''}`} aria-current={current === '/wyckoff' || current === '/wyckoff/' ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;font-weight:700;">Wyckoff Hospital</a>
+    <a href="/wyckoff/departments" class={`${baseLinkCls} ${current.startsWith('/wyckoff/departments') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/wyckoff/departments') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Departments</a>
+    <a href="/wyckoff/find-a-doctor" class={`${baseLinkCls} ${current.startsWith('/wyckoff/find-a-doctor') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/wyckoff/find-a-doctor') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Find a Doctor</a>
+    <a href="/wyckoff/services" class={`${baseLinkCls} ${current.startsWith('/wyckoff/services') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/wyckoff/services') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Services</a>
+    <a href="/wyckoff/contact" class={`${baseLinkCls} ${current.startsWith('/wyckoff/contact') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/wyckoff/contact') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Contact</a>
+  </div>
+</nav>
+

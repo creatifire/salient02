@@ -1,0 +1,18 @@
+---
+const current = Astro.url.pathname;
+const baseLinkCls = 'font-semibold opacity-80 hover:opacity-100 transition-colors';
+---
+<nav class="navbar-bg" style="padding:.5rem 1rem;">
+  <div style="max-width:960px;margin:0 auto;display:flex;gap:1rem;align-items:center;">
+    <a href="/agrofresh" class={`${baseLinkCls} ${current === '/agrofresh' || current === '/agrofresh/' ? 'opacity-100' : ''}`} aria-current={current === '/agrofresh' || current === '/agrofresh/' ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;font-weight:700;">AgroFresh</a>
+    <a href="/agrofresh/markets" class={`${baseLinkCls} ${current.startsWith('/agrofresh/markets') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/markets') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Markets</a>
+    <a href="/agrofresh/products" class={`${baseLinkCls} ${current.startsWith('/agrofresh/products') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/products') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Products</a>
+    <a href="/agrofresh/crops" class={`${baseLinkCls} ${current.startsWith('/agrofresh/crops') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/crops') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Crops</a>
+    <a href="/agrofresh/solutions" class={`${baseLinkCls} ${current.startsWith('/agrofresh/solutions') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/solutions') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Solutions</a>
+    <a href="/agrofresh/digital" class={`${baseLinkCls} ${current.startsWith('/agrofresh/digital') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/digital') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Digital</a>
+    <a href="/agrofresh/resources" class={`${baseLinkCls} ${current.startsWith('/agrofresh/resources') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/resources') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Resources</a>
+    <a href="/agrofresh/contact" class={`${baseLinkCls} ${current.startsWith('/agrofresh/contact') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/contact') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Contact</a>
+    <a href="/agrofresh/about" class={`${baseLinkCls} ${current.startsWith('/agrofresh/about') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/agrofresh/about') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">About</a>
+  </div>
+</nav>
+

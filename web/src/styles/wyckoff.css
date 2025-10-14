@@ -1,0 +1,24 @@
+/* Wyckoff Hospital - Blue/Teal Healthcare Theme */
+
+:root {
+  --wyckoff-primary: #0277BD;     /* Blue */
+  --wyckoff-secondary: #00838F;   /* Teal */
+  --wyckoff-accent: #03A9F4;      /* Light Blue */
+  --wyckoff-text: #01579B;        /* Dark Blue */
+}
+
+.navbar-bg {
+  background: var(--wyckoff-primary);
+  color: white;
+}
+
+.footer-bg {
+  background: var(--wyckoff-primary);
+  color: white;
+}
+
+/* Override color variables for Wyckoff Hospital */
+body {
+  --color-secondary-foreground: white;
+}
+

@@ -1,0 +1,45 @@
+---
+import WyckoffHeader from "../components/wyckoff/WyckoffHeader.astro";
+import WyckoffFooter from "../components/wyckoff/WyckoffFooter.astro";
+import "../styles/global.css";
+import "../styles/wyckoff.css";
+
+interface Props {
+  title?: string;
+}
+
+const { title = "Wyckoff Hospital" } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+	</head>
+	<body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0;">
+  <a href="#main" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Skip to content</a>
+  <header role="banner">
+    <WyckoffHeader />
+  </header>
+  <main id="main" role="main" style="max-width: 960px; margin: 0 auto; padding: 1rem;">
+		<slot />
+	</main>
+  <footer role="contentinfo">
+    <WyckoffFooter />
+  </footer>
+</body>
+</html>
+
+<style>
+	html,
+	body {
+		margin: 0;
+		width: 100%;
+		height: 100%;
+	}
+  a[href="#main"]:focus{left:1rem;top:1rem;width:auto;height:auto;background:#fff;padding:.5rem .75rem;border:1px solid #ccc;border-radius:.375rem;z-index:9999}
+</style>
+

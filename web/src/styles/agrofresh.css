@@ -1,0 +1,24 @@
+/* AgroFresh Solutions - Green/Orange Theme */
+
+:root {
+  --agro-primary: #2E7D32;      /* Green */
+  --agro-secondary: #FF6F00;    /* Orange */
+  --agro-accent: #4CAF50;       /* Light Green */
+  --agro-text: #1B5E20;         /* Dark Green */
+}
+
+.navbar-bg {
+  background: var(--agro-primary);
+  color: white;
+}
+
+.footer-bg {
+  background: var(--agro-primary);
+  color: white;
+}
+
+/* Override color variables for AgroFresh */
+body {
+  --color-secondary-foreground: white;
+}
+
