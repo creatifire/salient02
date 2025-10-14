@@ -614,9 +614,9 @@ async def simple_chat_stream(
                     )
                     
                     # Extract individual costs
-                    prompt_cost = float(price.input_cost_usd)
-                    completion_cost = float(price.output_cost_usd)
-                    total_cost = float(price.total_cost_usd)
+                    prompt_cost = float(price.input_price)
+                    completion_cost = float(price.output_price)
+                    total_cost = float(price.total_price)
                     
                     logger.info({
                         "event": "streaming_cost_calculated",
