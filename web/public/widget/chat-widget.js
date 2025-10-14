@@ -372,9 +372,23 @@
           body: JSON.stringify({ message: value }),
           credentials: 'include'  // Send session cookie
         });
-        if (!r.ok){ setMessage(activeBotDiv, `[http ${r.status} ${r.statusText}]`); }
-        else { const txt = await r.text(); const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv); activeBotDiv && (activeBotDiv.dataset.raw = txt); if(content){ await renderMarkdownInto(content, txt); } }
-      }catch{ setMessage(activeBotDiv, '[network error]'); }
+        if (!r.ok){ 
+          setMessage(activeBotDiv, `[http ${r.status} ${r.statusText}]`); 
+        } else { 
+          // Parse JSON and extract the 'response' field
+          const json = await r.json();
+          const txt = json.response || json.error || '[No response]';
+          const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv);
+          if (activeBotDiv) activeBotDiv.dataset.raw = txt;
+          if (content) {
+            debugLog('POST response received, rendering markdown');
+            await renderMarkdownInto(content, txt);
+          }
+        }
+      }catch(e){ 
+        debugLog('POST error:', e);
+        setMessage(activeBotDiv, '[network error]'); 
+      }
       finally { setBusy(false); }
     }
 
