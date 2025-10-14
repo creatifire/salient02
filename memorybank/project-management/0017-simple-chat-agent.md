@@ -904,11 +904,11 @@ Enable agent to search knowledge base using existing VectorService integration, 
     
     - **MULTI-TENANT ARCHITECTURE** (Separate Accounts):
       ```
-      ACCOUNT           AGENT INSTANCE        WEBSITE PAGES        VECTOR SEARCH
-      ───────────────────────────────────────────────────────────────────────────
-      agrofresh      →  agro_chat1         →  /agrofresh/*      →  Disabled (no data yet)
-      wyckoff        →  hospital_chat1     →  /wyckoff/*        →  Enabled (doctor profiles)
-      default_account→  simple_chat1       →  /demo/*           →  Unchanged (technical demos)
+      ACCOUNT           AGENT INSTANCE           WEBSITE PAGES        VECTOR SEARCH
+      ──────────────────────────────────────────────────────────────────────────────────
+      agrofresh      →  agro_info_chat1      →  /agrofresh/*      →  Disabled (no data yet)
+      wyckoff        →  wyckoff_info_chat1   →  /wyckoff/*        →  Enabled (doctor profiles)
+      default_account→  simple_chat1         →  /demo/*           →  Unchanged (technical demos)
       ```
     
     - **WIDGET INTEGRATION VIA FOOTERS**:
@@ -918,7 +918,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
       <script is:inline>
         window.__SALIENT_WIDGET_CONFIG = {
           account: 'agrofresh',
-          agent: 'agro_chat1',
+          agent: 'agro_info_chat1',
           backend: 'http://localhost:8000',
           allowCross: true,
           debug: import.meta.env.DEV
@@ -931,7 +931,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
       <script is:inline>
         window.__SALIENT_WIDGET_CONFIG = {
           account: 'wyckoff',
-          agent: 'hospital_chat1',
+          agent: 'wyckoff_info_chat1',
           backend: 'http://localhost:8000',
           allowCross: true,
           debug: import.meta.env.DEV
@@ -983,9 +983,9 @@ Enable agent to search knowledge base using existing VectorService integration, 
       
       - **CREATE NEW COMPONENTS**:
         - Create `components/agrofresh/AgroFreshHeader.astro` with AgroFresh navigation
-        - Create `components/agrofresh/AgroFreshFooter.astro` with widget config (agrofresh/agro_chat1)
+        - Create `components/agrofresh/AgroFreshFooter.astro` with widget config (agrofresh/agro_info_chat1)
         - Create `components/wyckoff/WyckoffHeader.astro` with hospital navigation
-        - Create `components/wyckoff/WyckoffFooter.astro` with widget config (wyckoff/hospital_chat1)
+        - Create `components/wyckoff/WyckoffFooter.astro` with widget config (wyckoff/wyckoff_info_chat1)
       
       - **CREATE NEW STYLES**:
         - Create `styles/agrofresh.css` with green/orange theme (#2E7D32, #FF6F00)
@@ -1006,13 +1006,13 @@ Enable agent to search knowledge base using existing VectorService integration, 
       - `test_demo_folder_unchanged()` - All `/demo/*` pages still work unchanged
       - `test_layouts_apply_correctly()` - Client-specific layouts render with correct headers/footers
       - `test_styles_isolated()` - AgroFresh uses green/orange, Wyckoff uses blue/teal
-      - `test_widget_on_agrofresh_pages()` - Widget configured with agrofresh/agro_chat1
+      - `test_widget_on_agrofresh_pages()` - Widget configured with agrofresh/agro_info_chat1
     
     - MANUAL-TESTS:
       - Navigate to `http://localhost:4321/` and verify demo selector shows 3 options
       - Click "AgroFresh Solutions", verify redirects to `/agrofresh/` with green/orange branding
       - Test AgroFresh navigation: verify all links work with `/agrofresh/` prefix
-      - Open chat widget on AgroFresh page, verify backend URL uses `/accounts/agrofresh/agents/agro_chat1/...`
+      - Open chat widget on AgroFresh page, verify backend URL uses `/accounts/agrofresh/agents/agro_info_chat1/...`
       - Click "Wyckoff Hospital", verify redirects to `/wyckoff/` (placeholder page)
       - Click "Technical Demos", verify redirects to `/demo/simple-chat` (unchanged)
       - Test `/demo/widget`, `/demo/htmx-chat.html` still work unchanged
@@ -1036,9 +1036,9 @@ Enable agent to search knowledge base using existing VectorService integration, 
     
     - **CHAT WIDGET INTEGRATION**:
       - All pages inherit widget from `WyckoffFooter.astro` component
-      - Widget configured with `wyckoff/hospital_chat1` agent (separate account)
+      - Widget configured with `wyckoff/wyckoff_info_chat1` agent (separate account)
       - Widget uses shadow DOM (production-ready from 0022-001-004-01)
-      - Configuration in footer: `{ account: 'wyckoff', agent: 'hospital_chat1', backend: 'http://localhost:8000' }`
+      - Configuration in footer: `{ account: 'wyckoff', agent: 'wyckoff_info_chat1', backend: 'http://localhost:8000' }`
     
     - **SUGGESTED QUESTIONS** (displayed on relevant pages):
       - Find a Doctor page: "Find me a Spanish-speaking cardiologist", "Show me neurology specialists", "Which doctors accept Medicare?"
@@ -1048,7 +1048,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
     - SUB-TASKS:
       - Create 8 Wyckoff hospital pages using `WyckoffLayout`
       - Add hospital-themed content (services, departments, contact info)
-      - Widget automatically included via `WyckoffFooter` (configured with wyckoff/hospital_chat1)
+      - Widget automatically included via `WyckoffFooter` (configured with wyckoff/wyckoff_info_chat1)
       - Add "Suggested Questions" UI component with clickable example queries
       - Add hospital imagery (stock photos or placeholders from Unsplash)
       - Create department-specific navigation menus in `WyckoffHeader`
@@ -1058,8 +1058,8 @@ Enable agent to search knowledge base using existing VectorService integration, 
     - AUTOMATED-TESTS: `web/tests/test_wyckoff_site.spec.ts` (Playwright)
       - `test_all_wyckoff_pages_load()` - All 8 pages load without errors
       - `test_chat_widget_on_all_pages()` - Chat widget present on all pages
-      - `test_widget_configured_correctly()` - Widget uses wyckoff/hospital_chat1 agent
-      - `test_widget_backend_urls()` - Widget hits `/accounts/wyckoff/agents/hospital_chat1/...` endpoints
+      - `test_widget_configured_correctly()` - Widget uses wyckoff/wyckoff_info_chat1 agent
+      - `test_widget_backend_urls()` - Widget hits `/accounts/wyckoff/agents/wyckoff_info_chat1/...` endpoints
       - `test_suggested_questions_clickable()` - Example questions trigger chat
       - `test_navigation_between_pages()` - All internal links work with `/wyckoff/` prefix
       - `test_department_pages_unique()` - Each department has unique content
@@ -1070,7 +1070,7 @@ Enable agent to search knowledge base using existing VectorService integration, 
       - Verify suggested questions appear on relevant pages
       - Click suggested questions, verify chat widget pre-fills and sends
       - Test "Find a Doctor" page: ask "Find a Spanish-speaking cardiologist"
-      - Verify backend hits correct endpoint: `/accounts/wyckoff/agents/hospital_chat1/stream`
+      - Verify backend hits correct endpoint: `/accounts/wyckoff/agents/wyckoff_info_chat1/stream`
       - Verify hospital theme (blue/teal colors, medical imagery) consistent across pages
       - Test responsive design on mobile/tablet viewports
       - Verify chat history persists across page navigation within Wyckoff site
@@ -1085,11 +1085,11 @@ Enable agent to search knowledge base using existing VectorService integration, 
       ```
       backend/config/agent_configs/
       ├── agrofresh/                           # NEW ACCOUNT
-      │   └── agro_chat1/                      # NEW AGENT INSTANCE
+      │   └── agro_info_chat1/                 # NEW AGENT INSTANCE
       │       ├── config.yaml
       │       └── system_prompt.md
       ├── wyckoff/                             # NEW ACCOUNT
-      │   └── hospital_chat1/                  # NEW AGENT INSTANCE
+      │   └── wyckoff_info_chat1/              # NEW AGENT INSTANCE
       │       ├── config.yaml
       │       └── system_prompt.md
       └── default_account/                     # EXISTING (unchanged for /demo/)
@@ -1100,10 +1100,10 @@ Enable agent to search knowledge base using existing VectorService integration, 
     
     - **AGENT CONFIGURATIONS**:
       ```yaml
-      # agrofresh/agro_chat1/config.yaml (NEW)
+      # agrofresh/agro_info_chat1/config.yaml (NEW)
       agent_type: "simple_chat"
       account: "agrofresh"
-      instance_name: "agro_chat1"
+      instance_name: "agro_info_chat1"
       display_name: "AgroFresh Assistant"
       system_prompt: "agrofresh-focused prompt"
       tools:
@@ -1112,10 +1112,10 @@ Enable agent to search knowledge base using existing VectorService integration, 
         web_search:
           enabled: false
       
-      # wyckoff/hospital_chat1/config.yaml (NEW)
+      # wyckoff/wyckoff_info_chat1/config.yaml (NEW)
       agent_type: "simple_chat"
       account: "wyckoff"
-      instance_name: "hospital_chat1"
+      instance_name: "wyckoff_info_chat1"
       display_name: "Wyckoff Hospital Assistant"
       system_prompt: "hospital-focused prompt"
       tools:
@@ -1132,10 +1132,10 @@ Enable agent to search knowledge base using existing VectorService integration, 
     
     - SUB-TASKS:
       - **CREATE AGENT CONFIGS**:
-        - Create `backend/config/agent_configs/agrofresh/agro_chat1/config.yaml`
-        - Create `backend/config/agent_configs/agrofresh/agro_chat1/system_prompt.md` (agricultural context)
-        - Create `backend/config/agent_configs/wyckoff/hospital_chat1/config.yaml`
-        - Create `backend/config/agent_configs/wyckoff/hospital_chat1/system_prompt.md` (healthcare context)
+        - Create `backend/config/agent_configs/agrofresh/agro_info_chat1/config.yaml`
+        - Create `backend/config/agent_configs/agrofresh/agro_info_chat1/system_prompt.md` (agricultural context)
+        - Create `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml`
+        - Create `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/system_prompt.md` (healthcare context)
       
       - **VERIFY DATABASE**:
         - Verify `agrofresh` and `wyckoff` account records exist (created in chunk 01)
@@ -1156,19 +1156,19 @@ Enable agent to search knowledge base using existing VectorService integration, 
         - Verify session/message attribution to correct account
     
     - AUTOMATED-TESTS: `backend/tests/integration/test_multi_client_agents.py`
-      - `test_agrofresh_agent_loads()` - agrofresh/agro_chat1 config loads successfully
-      - `test_wyckoff_agent_loads()` - wyckoff/hospital_chat1 config loads successfully
+      - `test_agrofresh_agent_loads()` - agrofresh/agro_info_chat1 config loads successfully
+      - `test_wyckoff_agent_loads()` - wyckoff/wyckoff_info_chat1 config loads successfully
       - `test_demo_agent_unchanged()` - default_account/simple_chat1 still works for /demo/
-      - `test_agrofresh_vector_disabled()` - agro_chat1 has vector_search disabled
-      - `test_wyckoff_vector_enabled()` - hospital_chat1 has vector_search enabled
+      - `test_agrofresh_vector_disabled()` - agro_info_chat1 has vector_search disabled
+      - `test_wyckoff_vector_enabled()` - wyckoff_info_chat1 has vector_search enabled
       - `test_agent_display_names()` - Correct display names for each agent
       - `test_system_prompts_differ()` - Each agent has appropriate context-specific system prompt
       - `test_account_isolation()` - Sessions/messages properly attributed to correct accounts
     
     - MANUAL-TESTS:
-      - Send request to `/accounts/agrofresh/agents/agro_chat1/chat`: verify agent loads, vector search not used
-      - Send request to `/accounts/wyckoff/agents/hospital_chat1/chat`: verify agent loads, vector search works
-      - Ask hospital_chat1: "Find a Spanish-speaking cardiologist", verify uses vector search
+      - Send request to `/accounts/agrofresh/agents/agro_info_chat1/chat`: verify agent loads, vector search not used
+      - Send request to `/accounts/wyckoff/agents/wyckoff_info_chat1/chat`: verify agent loads, vector search works
+      - Ask wyckoff_info_chat1: "Find a Spanish-speaking cardiologist", verify uses vector search
       - Check logs: verify account and agent instance attribution appears correctly
       - Verify Pinecone contains hospital doctor data (query manually)
       - Check `llm_requests` table: verify account_id and agent_instance_id populated correctly
