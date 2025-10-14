@@ -66,9 +66,11 @@
     - [x] 0022-001-003-04 - Instance listing endpoint ✅
   - [x] 0022-001-004 - Frontend Widget Migration 🎯 **IN PROGRESS** (1/3 chunks complete)
     - [x] 0022-001-004-01 - Astro/Preact components ✅ **PRODUCTION READY**
-    - [ ] 0022-001-004-02 - Embedded widgets (iframe, shadow DOM)
-    - [ ] 0022-001-004-03 - Demo pages
+    - [ ] 0022-001-004-02 - Create iframe embedding option (NEW, non-breaking)
+    - [ ] 0022-001-004-03 - Multi-tenant showcase demo (educational)
   - [ ] 0022-001-005 - Cost Tracking & Observability
+    - [ ] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries)
+    - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK for cost attribution and debugging)
   - [ ] 0022-001-006 - Testing & Validation
   - [ ] 0022-001-007 - Simple Admin UI (Optional)
 - [ ] 0022-002 - Authentication & Authorization (Deferred - when needed)
@@ -231,7 +233,10 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - ✅ Multi-tenant endpoints working (chat, stream, history)
   - ✅ All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
   - ✅ Debug logging infrastructure added
-- 📋 Testing & Validation (not started) 🎯 **NEXT**
+- 📋 Cost Tracking & Observability (0/2 chunks planned)
+  - Chunk 01: Denormalized columns for fast billing queries
+  - Chunk 02: LLM request → messages FK linkage for cost attribution
+- 📋 Testing & Validation (not started)
 
 **Next Steps (Phase 1 MVP):**
 1. **Priority 2B: Epic 0022 (Multi-Tenant Architecture)** 🎯 - IN PROGRESS
