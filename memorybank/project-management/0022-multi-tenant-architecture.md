@@ -911,6 +911,142 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - Same-origin iframe embedding (no CORS issues, no third-party cookies)
       - Wrapper loads our CDN-hosted chat-widget.js internally
       - Client controls wrapper, we control widget updates via CDN
+    - **CODE ORGANIZATION**:
+      
+      **A. LOCAL TESTING STRUCTURE** (Single Server - localhost:4321):
+      ```
+      web/
+      ├── public/
+      │   └── widget/
+      │       ├── chat-widget.js           ← Existing widget (unchanged)
+      │       ├── chat-copy.svg            ← Existing icon
+      │       ├── iframe-wrapper.html      ← NEW: iframe wrapper template
+      │       └── EMBEDDING-GUIDE.md       ← NEW: Production deployment guide
+      │
+      └── src/pages/demo/
+          ├── iframe-embed.astro           ← NEW: Demo page showing iframe examples
+          │   └── Contains: <iframe src="/widget/iframe-wrapper.html?account=...">
+          │
+          ├── embedding-comparison.astro   ← NEW: Shadow DOM vs iframe side-by-side
+          │   ├── Left: Shadow DOM widget (chat-widget.js directly)
+          │   └── Right: <iframe src="/widget/iframe-wrapper.html?account=...">
+          │
+          └── iframe.astro                 ← Updated: Clarify as backend embed
+              └── Contains: <iframe src="http://localhost:8000">
+      
+      Testing URLs:
+      - http://localhost:4321/demo/iframe-embed           (iframe examples)
+      - http://localhost:4321/demo/embedding-comparison   (method comparison)
+      - http://localhost:4321/widget/iframe-wrapper.html  (wrapper directly)
+      
+      Same-origin: All served from localhost:4321, no CORS issues
+      ```
+      
+      **B. CLIENT PRODUCTION STRUCTURE** (Client Self-Hosting):
+      ```
+      CLIENT'S INFRASTRUCTURE (clientdomain.com):
+      ├── public_html/                     ← Client's web root
+      │   ├── index.html                   ← Client's home page
+      │   ├── contact.html                 ← Client's contact page (embeds iframe)
+      │   │   └── Contains: <iframe src="/salient-chat.html">
+      │   │
+      │   └── salient-chat.html            ← Client hosts OUR template (customized)
+      │       ├── Downloads from: /widget/iframe-wrapper.html
+      │       ├── Customizes: account="clientname", agent="chat1"
+      │       └── Loads: <script src="https://cdn.salient.ai/chat-widget.js">
+      │
+      └── (Client's server handles all routing)
+      
+      OUR INFRASTRUCTURE (cdn.salient.ai):
+      └── chat-widget.js                   ← We host on CDN
+          ├── Client's wrapper loads this
+          ├── We control updates
+          └── Client gets automatic updates
+      
+      BACKEND API (api.salient.ai):
+      └── /accounts/{account}/agents/{agent}/...   ← Multi-tenant endpoints
+          └── Client's widget calls our API
+      ```
+      
+      **C. CLIENT INTEGRATION COMPONENTS** (What Client Leverages):
+      ```
+      1. TEMPLATE FILE (Client Downloads & Customizes):
+         ┌─────────────────────────────────────────────────────┐
+         │ iframe-wrapper.html                                 │
+         │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+         │ Client downloads from our demo site                 │
+         │ Saves as: clientdomain.com/salient-chat.html        │
+         │                                                     │
+         │ CUSTOMIZATIONS CLIENT MAKES:                        │
+         │ • account: "clientname"        (their account slug) │
+         │ • agent: "chat1"               (their agent slug)   │
+         │ • backend: "https://api.salient.ai"  (our API)     │
+         │                                                     │
+         │ NO CUSTOMIZATION NEEDED:                            │
+         │ • <script src="cdn.salient.ai/chat-widget.js">     │
+         │   (loads our widget automatically)                  │
+         └─────────────────────────────────────────────────────┘
+      
+      2. EMBED CODE (Client Adds to Their Pages):
+         ┌─────────────────────────────────────────────────────┐
+         │ contact.html (or any client page)                  │
+         │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+         │ <iframe                                             │
+         │   src="/salient-chat.html"                         │
+         │   style="width:400px;height:600px;border:none;"    │
+         │   title="Chat Widget">                             │
+         │ </iframe>                                           │
+         │                                                     │
+         │ BENEFITS OF SAME-ORIGIN:                            │
+         │ • No CORS configuration needed                      │
+         │ • No third-party cookie issues                      │
+         │ • iframe src is relative path                       │
+         └─────────────────────────────────────────────────────┘
+      
+      3. CDN WIDGET (Client Auto-Loads, We Maintain):
+         ┌─────────────────────────────────────────────────────┐
+         │ https://cdn.salient.ai/chat-widget.js               │
+         │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+         │ Client's iframe-wrapper.html loads this            │
+         │ We push updates to CDN                              │
+         │ Client gets updates automatically                   │
+         │ No client redeployment needed for widget updates    │
+         └─────────────────────────────────────────────────────┘
+      ```
+      
+      **D. DEPLOYMENT COMPARISON**:
+      ```
+      ┌────────────────────┬─────────────────┬──────────────────┐
+      │ Component          │ Who Hosts       │ Who Maintains    │
+      ├────────────────────┼─────────────────┼──────────────────┤
+      │ iframe-wrapper.html│ CLIENT          │ CLIENT           │
+      │ (customized)       │ clientdomain.com│ (one-time setup) │
+      ├────────────────────┼─────────────────┼──────────────────┤
+      │ chat-widget.js     │ US (CDN)        │ US               │
+      │                    │ cdn.salient.ai  │ (ongoing updates)│
+      ├────────────────────┼─────────────────┼──────────────────┤
+      │ Client's web pages │ CLIENT          │ CLIENT           │
+      │ (with iframe tag)  │ clientdomain.com│ (their content)  │
+      ├────────────────────┼─────────────────┼──────────────────┤
+      │ Backend API        │ US              │ US               │
+      │                    │ api.salient.ai  │ (multi-tenant)   │
+      └────────────────────┴─────────────────┴──────────────────┘
+      ```
+      
+      **E. CLIENT DEPLOYMENT STEPS**:
+      ```
+      1. Download iframe-wrapper.html from our demo site
+      2. Customize 3 values:
+         - account: "clientname"
+         - agent: "chat1" 
+         - backend: "https://api.salient.ai"
+      3. Save as salient-chat.html in their web root
+      4. Add iframe to their pages:
+         <iframe src="/salient-chat.html" ...></iframe>
+      5. Deploy their site (normal deployment process)
+      
+      DONE! Widget works with same-origin benefits.
+      ```
     - SUB-TASKS:
       - **Create NEW file**: `web/public/widget/iframe-wrapper.html`
         - Minimal HTML template that clients can download and self-host
