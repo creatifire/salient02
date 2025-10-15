@@ -576,15 +576,54 @@ async def simple_chat_stream(
         # Execute agent with streaming
         async with agent.run_stream(message, deps=session_deps, message_history=message_history) as result:
             # Stream with delta=True for incremental chunks only
+            chunk_count = 0
             async for chunk in result.stream_text(delta=True):
-                chunks.append(chunk)
-                yield {"event": "message", "data": chunk}
+                chunk_count += 1
+                logger.debug({
+                    "event": "streaming_chunk_received",
+                    "session_id": session_id,
+                    "chunk_number": chunk_count,
+                    "chunk_length": len(chunk) if chunk else 0,
+                    "chunk_preview": chunk[:50] if chunk else None
+                })
+                if chunk:  # Only append and yield non-empty chunks
+                    chunks.append(chunk)
+                    yield {"event": "message", "data": chunk}
             
             end_time = datetime.now(UTC)
             latency_ms = int((end_time - start_time).total_seconds() * 1000)
             
+            logger.info({
+                "event": "streaming_loop_complete",
+                "session_id": session_id,
+                "total_chunks": chunk_count,
+                "chunks_sent": len(chunks),
+                "model": requested_model
+            })
+            
             # Get full response text
-            response_text = "".join(chunks)
+            response_text = "".join(chunks).strip()
+            
+            # Handle empty response - LLM returned tokens but no actual text content
+            if not response_text:
+                logger.error({
+                    "event": "streaming_empty_response",
+                    "session_id": session_id,
+                    "model": requested_model,
+                    "total_chunks_iterated": chunk_count,
+                    "chunks_with_content": len(chunks),
+                    "message": "LLM completed but returned no text content"
+                })
+                # Return error to client instead of trying to save empty message
+                yield {
+                    "event": "error",
+                    "data": json.dumps({
+                        "message": "Model returned no content",
+                        "retry": True,
+                        "chunks_received": chunk_count
+                    })
+                }
+                return  # Exit early, don't try to save messages
             
             # Track cost after stream completes
             usage_data = result.usage()
