@@ -13,6 +13,11 @@
 # - Streaming cost calculation fails with LookupError
 # - Check logs for: "streaming_cost_calculation_failed" with "LookupError"
 #
+# Pricing Source:
+# - For models accessed via OpenRouter, use: https://openrouter.ai/{provider}/{model}
+# - Example: https://openrouter.ai/moonshotai/kimi-k2-0905
+# - OpenRouter provides official pricing for all models on their platform
+#
 # Maintenance:
 # - Verify pricing monthly or when model providers announce changes
 # - Remove models once they appear in genai-prices (check periodically)
@@ -20,16 +25,23 @@
 
 models:
   moonshotai/kimi-k2-0905:
-    input_per_1m: 0.14    # $0.14 per 1M input tokens
-    output_per_1m: 2.49   # $2.49 per 1M output tokens
-    source: "https://blog.galaxy.ai/model/kimi-k2"
-    updated: "2025-01-11"
-    notes: "Primary model for default_account/simple_chat1"
+    input_per_1m: 0.39    # $0.39 per 1M input tokens
+    output_per_1m: 1.90   # $1.90 per 1M output tokens
+    source: "https://openrouter.ai/moonshotai/kimi-k2-0905"
+    updated: "2025-10-15"
+    notes: "Primary model for default_account/simple_chat1 (September 2025 update, 256k context)"
   
   moonshotai/kimi-k2:
-    input_per_1m: 0.14
-    output_per_1m: 2.49
-    source: "https://blog.galaxy.ai/model/kimi-k2"
-    updated: "2025-01-11"
-    notes: "Alias for kimi-k2-0905"
+    input_per_1m: 0.14    # $0.14 per 1M input tokens
+    output_per_1m: 2.49   # $2.49 per 1M output tokens
+    source: "https://openrouter.ai/moonshotai/kimi-k2"
+    updated: "2025-10-15"
+    notes: "Alias for kimi-k2-0711 (July 2025 version, 63k context)"
+    
+  openai/gpt-oss-120b:
+    input_per_1m: 0.04     # $0.04 per 1M input tokens
+    output_per_1m: 0.40    # $0.40 per 1M output tokens
+    source: "https://openrouter.ai/models?q=gpt-oss-120b"
+    updated: "2025-10-14"
+    notes: "Used by default_account/simple_chat2"
 
