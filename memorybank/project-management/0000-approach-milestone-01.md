@@ -77,18 +77,20 @@
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
 
-### **Priority 3: Vector Search Tool** 📋
+### **Priority 3: Vector Search Tool** 🚧 **IN PROGRESS**
 **Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture**
 
 **Why Priority 3**: Demonstrates vector search capabilities through realistic client demo sites with proper multi-tenant account separation. Showcases Epic 0022's multi-tenant architecture in a sales-ready format.
 
-- [ ] 0017-005-001 - Multi-Client Demo Site Architecture
-  - Separate accounts per client (agrofresh, wyckoff, default_account)
-  - Move existing pages to `/agrofresh/`, create `/wyckoff/` pages, keep `/demo/` unchanged
-  - Client-specific layouts, components, footers with widget configuration
-  - 8 Wyckoff Hospital pages showcasing doctor profile search
-
-- [ ] 0017-005-002 - Vector Search Tool Implementation
+- [x] 0017-005-001 - Multi-Client Demo Site Architecture ✅
+  - [x] 0017-005-001-01 - Multi-client folder structure and layouts ✅
+  - [x] 0017-005-001-02 - Wyckoff Hospital demo pages ✅
+  - [x] 0017-005-001-03 - Agent configurations (agrofresh, wyckoff) ✅
+  - **Status**: 3 accounts configured (agrofresh, wyckoff, default_account)
+  - **Agents**: agrofresh/agro_info_chat1 (DeepSeek), wyckoff/wyckoff_info_chat1 (Qwen), acme/acme_chat1 (Mistral), default_account/simple_chat1 (Kimi), default_account/simple_chat2 (GPT-OSS)
+  - **Bugs**: Tracked in [bugs-0017.md](bugs-0017.md) - 2/5 fixed, 3 remaining
+  
+- [ ] 0017-005-002 - Vector Search Tool Implementation 📋
   - Core InfoBot functionality - answers questions using knowledge base via @agent.tool
 
 ### **Priority 4: Profile Fields Configuration & Database Schema** 📋
@@ -235,30 +237,33 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 2B complete ✅ - Multi-tenant architecture production ready, moving to Priority 3 (Vector Search Tool)
+**Current Status**: Priority 3 in progress 🚧 - Multi-client demo site architecture complete, fixing bugs before vector search tool implementation
 
-**Progress Summary (Priority 2B - Epic 0022):**
-- ✅ Database & Configuration Infrastructure (4/4 chunks complete)
-- ✅ Multi-Provider Infrastructure (Logfire complete, verified working; multi-provider deferred to Priority 6A)
-- ✅ API Endpoints (5/5 chunks complete) - All endpoints fully functional (non-streaming chat, streaming chat, instance listing)
-- ✅ Frontend Widget Migration (1/1 production chunk complete) - Core Astro/Preact components PRODUCTION READY
-  - ✅ Multi-tenant endpoints working (chat, stream, history)
-  - ✅ All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
-  - ✅ Debug logging infrastructure added
-  - ⏸️ iframe embedding and showcase demo deferred (educational features, not blocking MVP)
-- ⏸️ Cost Tracking & Observability deferred (optimization features, core tracking already functional)
-- ⏸️ Testing & Validation deferred (core functionality tested, comprehensive suite deferred)
-- ⏸️ Simple Admin UI deferred (optional feature)
+**Progress Summary (Priority 3 - Epic 0017-005):**
+- ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
+  - ✅ Folder structure and layouts (AgroFresh, Wyckoff, Demo)
+  - ✅ Wyckoff Hospital pages created
+  - ✅ Agent configurations for 5 agents across 3 accounts
+- 🚧 Bug Fixes (2/5 complete) - See [bugs-0017.md](bugs-0017.md)
+  - ✅ BUG-0017-001: Zero chunks streaming - FIXED
+  - ✅ BUG-0017-002: Missing model pricing - FIXED
+  - 📋 BUG-0017-003: Vapid sessions with NULL IDs
+  - 📋 BUG-0017-004: Duplicate user messages on retry (marked Won't Fix)
+  - 📋 BUG-0017-005: Missing denormalized fields in llm_requests (documented, implementation pending)
+- 📋 Vector Search Tool Implementation (pending)
+
+**Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
+- Production-ready multi-tenant architecture with Pydantic AI agents
+- Working endpoints, widget integration, cost tracking, and observability
+- All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
 
 **Next Steps (Phase 1 MVP):**
-1. ✅ **Priority 2B: Epic 0022 (Multi-Tenant Architecture)** - COMPLETE
-   - Production-ready multi-tenant infrastructure with Pydantic AI agents
-   - Working endpoints, widget integration, cost tracking, and observability
-2. **Priority 3: 0017-005 (Vector Search Tool)** 🎯 **NEXT** - Core InfoBot value
-   - Multi-client demo site architecture with separate accounts
-   - Vector search tool implementation with Pydantic AI
-3. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
-4. Priority 5: 0017-007 (Profile Capture Tool)
-5. Priority 6: 0017-008 (Email Summary with Mailgun)
-6. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
-7. **Priority 7: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+1. 🚧 **Priority 3: 0017-005 (Vector Search Tool)** - IN PROGRESS
+   - ✅ Multi-client demo site architecture (complete)
+   - 🚧 Bug fixes (2/5 fixed, 3 remaining)
+   - 📋 Vector search tool implementation with Pydantic AI (next)
+2. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
+3. Priority 5: 0017-007 (Profile Capture Tool)
+4. Priority 6: 0017-008 (Email Summary with Mailgun)
+5. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
+6. **Priority 7: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
