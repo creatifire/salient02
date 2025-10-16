@@ -70,9 +70,9 @@
     - [x] 0022-001-004-01 - Astro/Preact components ✅ **PRODUCTION READY**
     - [ ] 0022-001-004-02 - Create iframe embedding option (NEW, non-breaking) ⏸️ **DEFERRED**
     - [ ] 0022-001-004-03 - Multi-tenant showcase demo (educational) ⏸️ **DEFERRED**
-  - [ ] 0022-001-005 - Cost Tracking & Observability ⏸️ **DEFERRED**
-    - [ ] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries)
-    - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK for cost attribution and debugging)
+  - [ ] 0022-001-005 - Cost Tracking & Observability ⏸️ **MOVED TO PRIORITY 3A**
+    - [ ] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries) → See BUG-0017-005 in Priority 3A
+    - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK for cost attribution and debugging) → Moved to Priority 3A
   - [ ] 0022-001-006 - Testing & Validation ⏸️ **DEFERRED**
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
@@ -92,6 +92,19 @@
   
 - [ ] 0017-005-002 - Vector Search Tool Implementation 📋
   - Core InfoBot functionality - answers questions using knowledge base via @agent.tool
+
+### **Priority 3A: Data Model Cleanup & Cost Attribution** 📋
+**Sequenced after vector search tool implementation**
+
+- [ ] BUG-0017-005 - Missing Denormalized Fields in LLM Requests
+  - Update `llm_request_tracker.py` to populate account_id, account_slug, agent_instance_slug, agent_type, completion_status
+  - Enables fast billing queries without JOINs
+  - See: [bugs-0017.md](bugs-0017.md) for detailed implementation plan
+  
+- [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK)
+  - Add `llm_request_id` (nullable FK) to messages table
+  - Enables cost attribution per message and debugging
+  - From: Epic 0022-001-005 (deferred from Priority 2B)
 
 ### **Priority 4: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
@@ -247,10 +260,10 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - 🚧 Bug Fixes (2/5 complete) - See [bugs-0017.md](bugs-0017.md)
   - ✅ BUG-0017-001: Zero chunks streaming - FIXED
   - ✅ BUG-0017-002: Missing model pricing - FIXED
-  - 📋 BUG-0017-003: Vapid sessions with NULL IDs
-  - 📋 BUG-0017-004: Duplicate user messages on retry (marked Won't Fix)
-  - 📋 BUG-0017-005: Missing denormalized fields in llm_requests (documented, implementation pending)
-- 📋 Vector Search Tool Implementation (pending)
+  - 📋 BUG-0017-003: Vapid sessions with NULL IDs (remaining)
+  - 📋 BUG-0017-004: Duplicate user messages on retry (Won't Fix)
+  - ⏸️ BUG-0017-005: Missing denormalized fields → Deferred to Priority 3A (after vector search)
+- 📋 Vector Search Tool Implementation (next)
 
 **Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
 - Production-ready multi-tenant architecture with Pydantic AI agents
@@ -260,10 +273,13 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 **Next Steps (Phase 1 MVP):**
 1. 🚧 **Priority 3: 0017-005 (Vector Search Tool)** - IN PROGRESS
    - ✅ Multi-client demo site architecture (complete)
-   - 🚧 Bug fixes (2/5 fixed, 3 remaining)
+   - 🚧 Bug fixes (2/5 fixed, 2 remaining, 1 deferred to Priority 3A)
    - 📋 Vector search tool implementation with Pydantic AI (next)
-2. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
-3. Priority 5: 0017-007 (Profile Capture Tool)
-4. Priority 6: 0017-008 (Email Summary with Mailgun)
-5. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
-6. **Priority 7: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+2. **Priority 3A: Data Model Cleanup & Cost Attribution** - After vector search
+   - BUG-0017-005: Denormalized fields in llm_requests
+   - 0022-001-005-02: Link llm_requests to messages (1:many FK)
+3. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
+4. Priority 5: 0017-007 (Profile Capture Tool)
+5. Priority 6: 0017-008 (Email Summary with Mailgun)
+6. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
+7. **Priority 7: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
