@@ -98,10 +98,12 @@
   - Follows same denormalization pattern as llm_requests table
   - See: [Epic 0022-001-005-03](0022-multi-tenant-architecture.md#0022-001-005-03) for detailed implementation plan
 
-### **Priority 4: Vector Search Tool** 🚧 **IN PROGRESS**
+### **Priority 4: Vector Search Tool** ✅ **COMPLETE**
 **Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture**
 
 **Why Priority 4**: Demonstrates vector search capabilities through realistic client demo sites with proper multi-tenant account separation. Showcases Epic 0022's multi-tenant architecture in a sales-ready format.
+
+**Status**: Vector search tool fully implemented and tested. Wyckoff agent can now search hospital WordPress content via Pinecone. Multi-client demo sites (agrofresh, wyckoff) operational with distinct agent configurations.
 
 - [x] 0017-005-001 - Multi-Client Demo Site Architecture ✅
   - [x] 0017-005-001-01 - Multi-client folder structure and layouts ✅
@@ -111,8 +113,14 @@
   - **Agents**: agrofresh/agro_info_chat1 (DeepSeek), wyckoff/wyckoff_info_chat1 (Qwen), acme/acme_chat1 (Mistral), default_account/simple_chat1 (Kimi), default_account/simple_chat2 (GPT-OSS)
   - **Bugs**: Tracked in [bugs-0017.md](bugs-0017.md) - 2/5 fixed, 3 remaining
   
-- [ ] 0017-005-002 - Vector Search Tool Implementation 📋
+- [x] 0017-005-002 - Vector Search Tool Implementation ✅
+  - [x] 0017-005-002-01 - Per-agent Pinecone configuration loader ✅
+  - [x] 0017-005-002-02 - Pydantic AI @agent.tool for vector search ✅
+  - [x] 0017-005-002-03 - End-to-end testing with real Pinecone data ✅
   - Core InfoBot functionality - answers questions using knowledge base via @agent.tool
+  - **Status**: All 3 chunks complete, test script passed (wyckoff-poc-01 index: 605 vectors, all queries successful)
+  - **Commits**: da887ae, 379e59b, c0499d3, b77b6eb
+  - **Testing**: backend/tests/manual/verify_wyckoff_index.py ✅ PASSED
   - **Dependencies**: Priority 3 complete (denormalized cost tracking helps with debugging)
 
 ### **Priority 5: Profile Fields Configuration & Database Schema** 📋
