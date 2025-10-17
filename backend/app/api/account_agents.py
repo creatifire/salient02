@@ -395,27 +395,16 @@ async def chat_endpoint(
     
     # Update session context if NULL (progressive context flow)
     if session.account_id is None:
-        from sqlalchemy import update as sql_update
-        from ..models import Session as SessionModel
+        from ..services.session_service import SessionService
         
         async with get_database_service().get_session() as db_session:
-            await db_session.execute(
-                sql_update(SessionModel)
-                .where(SessionModel.id == session.id)
-                .values(
-                    account_id=instance.account_id,
-                    account_slug=instance.account_slug,
-                    agent_instance_id=instance.id
-                )
+            session_service = SessionService(db_session)
+            await session_service.update_session_context(
+                session_id=session.id,
+                account_id=instance.account_id,
+                account_slug=instance.account_slug,
+                agent_instance_id=instance.id
             )
-            await db_session.commit()
-        
-        logger.info({
-            "event": "session_context_updated",
-            "session_id": str(session.id),
-            "account_id": str(instance.account_id),
-            "agent_instance_id": str(instance.id)
-        })
         
         # Update local session object for use in this request
         session.account_id = instance.account_id
@@ -665,27 +654,16 @@ async def stream_endpoint(
     
     # Update session context if NULL (progressive context flow)
     if session.account_id is None:
-        from sqlalchemy import update as sql_update
-        from ..models import Session as SessionModel
+        from ..services.session_service import SessionService
         
         async with get_database_service().get_session() as db_session:
-            await db_session.execute(
-                sql_update(SessionModel)
-                .where(SessionModel.id == session.id)
-                .values(
-                    account_id=instance.account_id,
-                    account_slug=instance.account_slug,
-                    agent_instance_id=instance.id
-                )
+            session_service = SessionService(db_session)
+            await session_service.update_session_context(
+                session_id=session.id,
+                account_id=instance.account_id,
+                account_slug=instance.account_slug,
+                agent_instance_id=instance.id
             )
-            await db_session.commit()
-        
-        logger.info({
-            "event": "session_context_updated",
-            "session_id": str(session.id),
-            "account_id": str(instance.account_id),
-            "agent_instance_id": str(instance.id)
-        })
         
         # Update local session object for use in this request
         session.account_id = instance.account_id
@@ -892,29 +870,18 @@ async def history_endpoint(
         # STEP 2.5: UPDATE SESSION CONTEXT IF NULL (PREVENT VAPID SESSIONS)
         # ====================================================================
         if session.account_id is None:
-            from sqlalchemy import update as sql_update
-            from ..models import Session as SessionModel
+            from ..services.session_service import SessionService
             from ..database import get_database_service
             
             db_service = get_database_service()
             async with db_service.get_session() as db_session:
-                await db_session.execute(
-                    sql_update(SessionModel)
-                    .where(SessionModel.id == session.id)
-                    .values(
-                        account_id=instance.account_id,
-                        account_slug=instance.account_slug,
-                        agent_instance_id=instance.id
-                    )
+                session_service = SessionService(db_session)
+                await session_service.update_session_context(
+                    session_id=session.id,
+                    account_id=instance.account_id,
+                    account_slug=instance.account_slug,
+                    agent_instance_id=instance.id
                 )
-                await db_session.commit()
-            
-            logger.info({
-                "event": "session_context_updated_on_history",
-                "session_id": str(session.id),
-                "account_id": str(instance.account_id),
-                "agent_instance_id": str(instance.id)
-            })
             
             # Update local session object for use in this request
             session.account_id = instance.account_id

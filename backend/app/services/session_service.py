@@ -259,6 +259,75 @@ class SessionService:
             logger.error(f"Unexpected error retrieving session by key: {e}")
             raise SessionError(f"Unexpected error retrieving session: {str(e)}") from e
     
+    async def update_session_context(
+        self,
+        session_id: UUID,
+        account_id: UUID,
+        account_slug: str,
+        agent_instance_id: UUID
+    ) -> bool:
+        """
+        Update session with account and agent instance context.
+        
+        This prevents "vapid sessions" (sessions with NULL account/agent IDs)
+        by populating the multi-tenant context when a session is first used.
+        
+        Args:
+            session_id: UUID of the session to update
+            account_id: Account UUID
+            account_slug: Account slug for fast queries
+            agent_instance_id: Agent instance UUID
+            
+        Returns:
+            bool: True if session was updated, False if session not found
+            
+        Raises:
+            SessionError: If database update fails
+        """
+        try:
+            # Update session with account/agent context
+            stmt = (
+                update(Session)
+                .where(Session.id == session_id)
+                .values(
+                    account_id=account_id,
+                    account_slug=account_slug,
+                    agent_instance_id=agent_instance_id,
+                    updated_at=datetime.now(timezone.utc)
+                )
+            )
+            
+            result = await self.db_session.execute(stmt)
+            await self.db_session.commit()
+            
+            # Check if any row was updated
+            updated = result.rowcount > 0
+            
+            if updated:
+                logger.info(
+                    "Session context updated",
+                    extra={
+                        "session_id": str(session_id),
+                        "account_id": str(account_id),
+                        "account_slug": account_slug,
+                        "agent_instance_id": str(agent_instance_id)
+                    }
+                )
+            else:
+                logger.warning(f"Session not found for context update: {session_id}")
+                
+            return updated
+            
+        except SQLAlchemyError as e:
+            await self.db_session.rollback()
+            logger.error(f"Database error updating session context: {e}")
+            raise SessionError(f"Failed to update session context: {str(e)}") from e
+            
+        except Exception as e:
+            await self.db_session.rollback()
+            logger.error(f"Unexpected error updating session context: {e}")
+            raise SessionError(f"Unexpected error updating session context: {str(e)}") from e
+    
     async def update_last_activity(
         self, 
         session_id: UUID, 
