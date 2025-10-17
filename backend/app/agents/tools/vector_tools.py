@@ -7,7 +7,7 @@ from pydantic_ai import RunContext
 from typing import Optional
 import logging
 
-from app.agents.models.dependencies import SessionDependencies
+from app.agents.base.dependencies import SessionDependencies
 from app.services.vector_service import VectorService, VectorQueryResponse
 from app.services.agent_pinecone_config import load_agent_pinecone_config
 
