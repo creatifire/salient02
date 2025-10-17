@@ -77,10 +77,25 @@
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
 
-### **Priority 3: Vector Search Tool** 🚧 **IN PROGRESS**
+### **Priority 3: Data Model Cleanup & Cost Attribution** 🎯 **NEXT**
+**Doing this FIRST (before vector search) - helps with debugging and cost tracking**
+
+- [ ] 0022-001-005-01 - Populate denormalized fields in LLM requests (BUG-0017-005)
+  - Update `llm_request_tracker.py` to populate: account_id, account_slug, agent_instance_slug, agent_type, completion_status
+  - Enables fast billing queries without JOINs across 3 tables
+  - No backward compatibility needed (clean slate with DELETE FROM llm_requests)
+  - See: [Epic 0022-001-005-01](0022-multi-tenant-architecture.md#0022-001-005-01) for detailed implementation plan
+  - See: [bugs-0017.md](bugs-0017.md) for bug context
+  
+- [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK)
+  - Add `llm_request_id` (nullable FK) to messages table
+  - Enables cost attribution per message and debugging
+  - From: Epic 0022-001-005 (deferred from Priority 2B)
+
+### **Priority 4: Vector Search Tool** 🚧 **IN PROGRESS**
 **Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture**
 
-**Why Priority 3**: Demonstrates vector search capabilities through realistic client demo sites with proper multi-tenant account separation. Showcases Epic 0022's multi-tenant architecture in a sales-ready format.
+**Why Priority 4**: Demonstrates vector search capabilities through realistic client demo sites with proper multi-tenant account separation. Showcases Epic 0022's multi-tenant architecture in a sales-ready format.
 
 - [x] 0017-005-001 - Multi-Client Demo Site Architecture ✅
   - [x] 0017-005-001-01 - Multi-client folder structure and layouts ✅
@@ -92,34 +107,22 @@
   
 - [ ] 0017-005-002 - Vector Search Tool Implementation 📋
   - Core InfoBot functionality - answers questions using knowledge base via @agent.tool
+  - **Dependencies**: Priority 3 complete (denormalized cost tracking helps with debugging)
 
-### **Priority 3A: Data Model Cleanup & Cost Attribution** 📋
-**Sequenced after vector search tool implementation**
-
-- [ ] BUG-0017-005 - Missing Denormalized Fields in LLM Requests
-  - Update `llm_request_tracker.py` to populate account_id, account_slug, agent_instance_slug, agent_type, completion_status
-  - Enables fast billing queries without JOINs
-  - See: [bugs-0017.md](bugs-0017.md) for detailed implementation plan
-  
-- [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK)
-  - Add `llm_request_id` (nullable FK) to messages table
-  - Enables cost attribution per message and debugging
-  - From: Epic 0022-001-005 (deferred from Priority 2B)
-
-### **Priority 4: Profile Fields Configuration & Database Schema** 📋
+### **Priority 5: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
 - [ ] 0017-006-002 - Migrate Profiles Table to JSONB
 
-### **Priority 5: Profile Capture Tool** 📋
+### **Priority 6: Profile Capture Tool** 📋
 - [ ] 0017-007-001 - Profile Capture Agent Tool
   - Conversational capture of email/phone using @agent.tool
 
-### **Priority 6: Email Summary Tool with Mailgun** 📋
+### **Priority 7: Email Summary Tool with Mailgun** 📋
 - [ ] 0017-008-001 - Mailgun Integration
 - [ ] 0017-008-002 - Email Summary Agent Tool
   - Completes user workflow: chat → capture → email summary
 
-### **Priority 6A: Multi-Provider Infrastructure** 📋
+### **Priority 8: Multi-Provider Infrastructure** 📋
 - [ ] 0022-001-002-01 - Provider factory and base infrastructure
 - [ ] 0022-001-002-02 - Config schema and validation
 - [ ] 0022-001-002-03 - Update simple_chat agent to use factory
@@ -130,10 +133,10 @@
   - **Test Strategy**: 4th agent (acme/simple_chat2) uses Together.ai with different model family (e.g., Llama vs Kimi/GPT/Qwen)
   - **Regression Testing**: All unit/integration/manual tests must pass after implementation
 
-### **Priority 7: Profile Search Tool** 📋 🎯 **DEMO FEATURE**
+### **Priority 9: Profile Search Tool** 📋 🎯 **DEMO FEATURE**
 **Epic 0023 - Generic Profile Search for LLM Agents**
 
-**Why Priority 7**: Enables agents to search professional profiles (doctors, nurses, sales reps, consultants) via natural language queries. Demonstrates real-world tool usage with structured data. Positioned after email tool to complete core workflow tools first.
+**Why Priority 9**: Enables agents to search professional profiles (doctors, nurses, sales reps, consultants) via natural language queries. Demonstrates real-world tool usage with structured data. Positioned after email tool to complete core workflow tools first.
 
 **Dependencies**: Requires `accounts` and `agent_instances` tables from Epic 0022 (already complete in Priority 2B).
 
@@ -250,20 +253,26 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 3 in progress 🚧 - Multi-client demo site architecture complete, fixing bugs before vector search tool implementation
+**Current Status**: Priority 3 starting 🎯 - Data model cleanup to help with debugging and cost tracking
 
-**Progress Summary (Priority 3 - Epic 0017-005):**
-- ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
-  - ✅ Folder structure and layouts (AgroFresh, Wyckoff, Demo)
-  - ✅ Wyckoff Hospital pages created
-  - ✅ Agent configurations for 5 agents across 3 accounts
-- 🚧 Bug Fixes (2/5 complete) - See [bugs-0017.md](bugs-0017.md)
-  - ✅ BUG-0017-001: Zero chunks streaming - FIXED
-  - ✅ BUG-0017-002: Missing model pricing - FIXED
-  - 📋 BUG-0017-003: Vapid sessions with NULL IDs (remaining)
-  - 📋 BUG-0017-004: Duplicate user messages on retry (Won't Fix)
-  - ⏸️ BUG-0017-005: Missing denormalized fields → Deferred to Priority 3A (after vector search)
-- 📋 Vector Search Tool Implementation (next)
+**Progress Summary:**
+- ✅ **Priority 2B - Epic 0022 (Multi-Tenant Architecture)**: COMPLETE
+  - Production-ready multi-tenant infrastructure
+  - Working endpoints, widget integration, cost tracking
+  - All critical bugs fixed (CORS, sessions, markdown, SSE)
+  
+- 🎯 **Priority 3 - Data Model Cleanup**: NEXT
+  - 📋 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
+  - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK)
+  
+- 🚧 **Priority 4 - Epic 0017-005 (Vector Search Tool)**: IN PROGRESS
+  - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
+  - 🚧 Bug Fixes (2/5 complete) - See [bugs-0017.md](bugs-0017.md)
+    - ✅ BUG-0017-001: Zero chunks streaming - FIXED
+    - ✅ BUG-0017-002: Missing model pricing - FIXED  
+    - 📋 BUG-0017-003: Vapid sessions with NULL IDs (remaining)
+    - 📋 BUG-0017-004: Duplicate user messages on retry (Won't Fix)
+  - 📋 Vector Search Tool Implementation (pending - after Priority 3)
 
 **Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
 - Production-ready multi-tenant architecture with Pydantic AI agents
@@ -271,15 +280,15 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
 
 **Next Steps (Phase 1 MVP):**
-1. 🚧 **Priority 3: 0017-005 (Vector Search Tool)** - IN PROGRESS
-   - ✅ Multi-client demo site architecture (complete)
-   - 🚧 Bug fixes (2/5 fixed, 2 remaining, 1 deferred to Priority 3A)
-   - 📋 Vector search tool implementation with Pydantic AI (next)
-2. **Priority 3A: Data Model Cleanup & Cost Attribution** - After vector search
-   - BUG-0017-005: Denormalized fields in llm_requests
+1. 🎯 **Priority 3: Data Model Cleanup & Cost Attribution** - NEXT (helps with debugging)
+   - 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005)
    - 0022-001-005-02: Link llm_requests to messages (1:many FK)
-3. Priority 4: 0017-006 (Profile Fields Config & JSONB Migration)
-4. Priority 5: 0017-007 (Profile Capture Tool)
-5. Priority 6: 0017-008 (Email Summary with Mailgun)
-6. **Priority 6A: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
-7. **Priority 7: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+2. 🚧 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
+   - ✅ Multi-client demo site architecture (complete)
+   - 🚧 Bug fixes (2/5 fixed, 2 remaining)
+   - 📋 Vector search tool implementation with Pydantic AI
+3. Priority 5: 0017-006 (Profile Fields Config & JSONB Migration)
+4. Priority 6: 0017-007 (Profile Capture Tool)
+5. Priority 7: 0017-008 (Email Summary with Mailgun)
+6. **Priority 8: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
+7. **Priority 9: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
