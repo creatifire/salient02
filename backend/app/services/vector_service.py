@@ -8,6 +8,7 @@ import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime, UTC
+import logfire
 
 try:
     from pinecone.exceptions import PineconeException
@@ -216,63 +217,97 @@ class VectorService:
             Query response with results
         """
         start_time = asyncio.get_event_loop().time()
+        target_namespace = namespace or self.pinecone_client.get_namespace()
         
-        try:
-            # Generate query embedding
-            query_embedding = await self.embedding_service.embed_text(query_text)
-            
-            # Determine namespace
-            target_namespace = namespace or self.pinecone_client.get_namespace()
-            
-            # Query Pinecone
-            async with self.pinecone_client.connection_context():
-                response = self.pinecone_client.index.query(
-                    vector=query_embedding,
-                    top_k=top_k,
-                    include_values=False,
-                    include_metadata=include_metadata,
-                    namespace=target_namespace,
-                    filter=metadata_filter
+        # Logfire span for entire vector search operation
+        with logfire.span(
+            'pinecone.query',
+            query_text=query_text[:100],  # Truncate for readability
+            top_k=top_k,
+            similarity_threshold=similarity_threshold,
+            namespace=target_namespace,
+            metadata_filter=metadata_filter
+        ) as span:
+            try:
+                # Generate query embedding with nested span
+                with logfire.span('pinecone.embedding', query_length=len(query_text)):
+                    query_embedding = await self.embedding_service.embed_text(query_text)
+                    span.set_attribute('embedding_dimensions', len(query_embedding))
+                
+                # Query Pinecone with nested span
+                with logfire.span(
+                    'pinecone.search',
+                    index_name=self.pinecone_client.config.index_name if hasattr(self.pinecone_client, 'config') else 'unknown'
+                ):
+                    async with self.pinecone_client.connection_context():
+                        response = self.pinecone_client.index.query(
+                            vector=query_embedding,
+                            top_k=top_k,
+                            include_values=False,
+                            include_metadata=include_metadata,
+                            namespace=target_namespace,
+                            filter=metadata_filter
+                        )
+                    
+                    # Log raw response stats
+                    span.set_attribute('raw_matches_count', len(response.matches))
+                
+                # Process results
+                results = []
+                for match in response.matches:
+                    # Apply similarity threshold
+                    if match.score >= similarity_threshold:
+                        result = VectorQueryResult(
+                            id=match.id,
+                            text=match.metadata.get("text", "") if match.metadata else "",
+                            score=match.score,
+                            metadata=match.metadata or {},
+                            namespace=target_namespace
+                        )
+                        results.append(result)
+                
+                query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+                
+                # Log response details to Logfire span
+                span.set_attribute('results_count', len(results))
+                span.set_attribute('filtered_count', len(response.matches) - len(results))
+                span.set_attribute('query_time_ms', query_time_ms)
+                if results:
+                    span.set_attribute('top_score', results[0].score)
+                    span.set_attribute('lowest_score', results[-1].score)
+                    # Capture preview of results (first 3 IDs and scores)
+                    span.set_attribute('results_preview', [
+                        {'id': r.id, 'score': round(r.score, 3)} 
+                        for r in results[:3]
+                    ])
+                
+                logger.info(
+                    f"Vector query completed: {len(results)} results above threshold {similarity_threshold} "
+                    f"in {query_time_ms:.2f}ms for namespace {target_namespace}"
                 )
-            
-            # Process results
-            results = []
-            for match in response.matches:
-                # Apply similarity threshold
-                if match.score >= similarity_threshold:
-                    result = VectorQueryResult(
-                        id=match.id,
-                        text=match.metadata.get("text", "") if match.metadata else "",
-                        score=match.score,
-                        metadata=match.metadata or {},
-                        namespace=target_namespace
-                    )
-                    results.append(result)
-            
-            query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
-            
-            logger.info(
-                f"Vector query completed: {len(results)} results above threshold {similarity_threshold} "
-                f"in {query_time_ms:.2f}ms for namespace {target_namespace}"
-            )
-            
-            return VectorQueryResponse(
-                results=results,
-                total_results=len(results),
-                query_time_ms=query_time_ms,
-                namespace=target_namespace
-            )
-            
-        except Exception as e:
-            logger.error(f"Vector query failed: {str(e)}")
-            query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
-            
-            return VectorQueryResponse(
-                results=[],
-                total_results=0,
-                query_time_ms=query_time_ms,
-                namespace=namespace or "unknown"
-            )
+                
+                return VectorQueryResponse(
+                    results=results,
+                    total_results=len(results),
+                    query_time_ms=query_time_ms,
+                    namespace=target_namespace
+                )
+                
+            except Exception as e:
+                logger.error(f"Vector query failed: {str(e)}")
+                query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+                
+                # Log error to Logfire span
+                span.set_attribute('error', str(e))
+                span.set_attribute('error_type', type(e).__name__)
+                span.set_attribute('query_time_ms', query_time_ms)
+                
+                return VectorQueryResponse(
+                    results=[],
+                    total_results=0,
+                    query_time_ms=query_time_ms,
+                    namespace=namespace or "unknown"
+                )
     
     async def delete_document(
         self, 
