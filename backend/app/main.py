@@ -98,6 +98,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Load environment variables from .env file at project root
+# Must be done before any other imports that depend on env vars (Logfire, database, etc.)
+from dotenv import load_dotenv
+import os
+
+# Determine project root (../../ from backend/app/main.py)
+project_root = Path(__file__).parent.parent.parent
+env_file = project_root / ".env"
+load_dotenv(dotenv_path=env_file)
+print(f"✅ Environment variables loaded from: {env_file}")
+print(f"   LOGFIRE_TOKEN: {'SET' if os.getenv('LOGFIRE_TOKEN') else 'NOT SET'}")
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
