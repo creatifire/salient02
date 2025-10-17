@@ -44,4 +44,11 @@ models:
     source: "https://openrouter.ai/models?q=gpt-oss-120b"
     updated: "2025-10-14"
     notes: "Used by default_account/simple_chat2"
+  
+  qwen/qwen3-235b-a22b-thinking-2507:
+    input_per_1m: 0.11     # $0.11 per 1M input tokens
+    output_per_1m: 0.60    # $0.60 per 1M output tokens
+    source: "https://openrouter.ai/qwen/qwen3-235b-a22b-thinking-2507"
+    updated: "2025-10-17"
+    notes: "Used by wyckoff/wyckoff_info_chat1. Thinking-only variant optimized for complex reasoning, math, science. 262k context, activates 22B of 235B params. MoE model."
 
