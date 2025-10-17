@@ -92,6 +92,12 @@
   - Enables cost attribution per message and debugging
   - From: Epic 0022-001-005 (deferred from Priority 2B)
 
+- [ ] 0022-001-005-03 - Add agent_instance_slug to sessions table (fast analytics)
+  - Add denormalized `agent_instance_slug` (TEXT, nullable, indexed) to sessions table
+  - Enables fast session analytics without JOINs to agent_instances table
+  - Follows same denormalization pattern as llm_requests table
+  - See: [Epic 0022-001-005-03](0022-multi-tenant-architecture.md#0022-001-005-03) for detailed implementation plan
+
 ### **Priority 4: Vector Search Tool** 🚧 **IN PROGRESS**
 **Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture**
 
@@ -264,6 +270,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - 🎯 **Priority 3 - Data Model Cleanup**: NEXT
   - 📋 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
   - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK)
+  - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
   
 - 🚧 **Priority 4 - Epic 0017-005 (Vector Search Tool)**: IN PROGRESS
   - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
@@ -283,6 +290,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 1. 🎯 **Priority 3: Data Model Cleanup & Cost Attribution** - NEXT (helps with debugging)
    - 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005)
    - 0022-001-005-02: Link llm_requests to messages (1:many FK)
+   - 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
 2. 🚧 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
    - ✅ Multi-client demo site architecture (complete)
    - 🚧 Bug fixes (2/5 fixed, 2 remaining)

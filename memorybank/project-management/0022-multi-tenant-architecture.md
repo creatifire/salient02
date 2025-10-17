@@ -222,7 +222,10 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - ✅ 0022-001-004-01: Astro/Preact components updated and fully tested
   - ⏳ 0022-001-004-02: Embedded widgets (iframe, shadow DOM) - not started
   - ⏳ 0022-001-004-03: Demo pages - not started
-- ⏳ Task 0022-001-005 - Cost Tracking & Observability (not started)
+- ⏳ Task 0022-001-005 - Cost Tracking & Observability (0/3 chunks - moved to Priority 3)
+  - ⏳ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
+  - ⏳ 0022-001-005-02: Link LLM requests to messages (1:many FK)
+  - ⏳ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
 - ⏳ Task 0022-001-006 - Testing & Validation (not started)
 - ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
 
@@ -1422,6 +1425,124 @@ Build foundational multi-tenant architecture with account and agent instance sup
       ```
     - STATUS: Planned — Critical data integrity feature
     - PRIORITY: High — Enables accurate cost attribution, debugging, and analytics
+  
+  - [ ] 0022-001-005-03 - CHUNK - Add agent_instance_slug to sessions table (fast analytics)
+    - **PURPOSE**: Add denormalized `agent_instance_slug` to sessions for fast queries without JOINs
+    - **RATIONALE**:
+      - Sessions currently have `agent_instance_id` (FK) but not the slug
+      - Session analytics require expensive JOINs: sessions → agent_instances to get slug
+      - Common queries group by account_slug + agent_instance_slug for reporting
+      - With denormalized slug: direct GROUP BY without JOINs (same pattern as llm_requests)
+      - Enables fast "sessions per agent" and "activity per instance" queries
+    - **DATA MODEL**:
+      ```
+      sessions table (current):
+      - account_id (UUID FK)
+      - account_slug (TEXT) ✅ already denormalized
+      - agent_instance_id (UUID FK)
+      - agent_instance_slug (TEXT) ← NEW (denormalized from agent_instances.instance_slug)
+      
+      Pattern consistency:
+      - llm_requests: has both agent_instance_id FK + agent_instance_slug (denormalized)
+      - sessions: will have both agent_instance_id FK + agent_instance_slug (denormalized)
+      ```
+    - **BACKWARD COMPATIBILITY**: Not required - existing sessions can have NULL agent_instance_slug initially, will populate on first use
+    - **DATA SOURCE**: `instance_config.get("instance_name")` when updating session context in endpoints
+    - SUB-TASKS:
+      - **Step 1**: Create Alembic migration
+        - Add column: `agent_instance_slug TEXT` (nullable initially for existing sessions)
+        - Add index: `CREATE INDEX idx_sessions_agent_instance_slug ON sessions(agent_instance_slug)`
+        - Add comment: "Denormalized for fast analytics - avoids JOINs to agent_instances"
+      - **Step 2**: Update `backend/app/models/session.py`
+        - Add column definition: `agent_instance_slug = Column(Text, nullable=True, index=True)`
+        - Update `to_dict()` to include `agent_instance_slug`
+        - Add docstring note about denormalization pattern
+      - **Step 3**: Update `backend/app/services/session_service.py`
+        - In `update_session_context()`: Add `agent_instance_slug` parameter (required when updating context)
+        - Update session record with `agent_instance_slug` when setting `agent_instance_id`
+        - Add debug logging showing slug being set
+      - **Step 4**: Update `backend/app/api/account_agents.py`
+        - In chat endpoint: Pass `agent_instance_slug` to `update_session_context()`
+        - In stream endpoint: Pass `agent_instance_slug` to `update_session_context()`
+        - Extract from: `instance_config.get("instance_name")` (already loaded)
+      - **Step 5**: Verify existing session handling
+        - Ensure nullable slug doesn't break existing queries
+        - Old sessions with NULL slug will get populated on next use
+    - AUTOMATED-TESTS: `backend/tests/unit/test_session_denormalization.py`
+      - `test_session_with_agent_instance_slug()` - Create session with slug, verify saved
+      - `test_session_without_slug_nullable()` - Old sessions can have NULL slug
+      - `test_update_context_populates_slug()` - Session context update includes slug
+      - `test_session_slug_matches_instance()` - Slug matches instance_config.instance_name
+    - AUTOMATED-TESTS: `backend/tests/integration/test_session_analytics_queries.py`
+      - `test_sessions_by_agent_no_join()` - Fast query: GROUP BY agent_instance_slug
+      - `test_sessions_by_account_and_agent()` - Fast query: GROUP BY account_slug, agent_instance_slug
+      - `test_session_slug_consistency()` - Slug in sessions matches agent_instances.instance_slug
+    - MANUAL-TESTS:
+      - **Pre-implementation** (optional - existing sessions keep working):
+        ```sql
+        -- Check current sessions (will have NULL agent_instance_slug initially)
+        SELECT id, account_slug, agent_instance_id, agent_instance_slug 
+        FROM sessions 
+        LIMIT 10;
+        ```
+      - **Test session creation**:
+        - Send message to default_account/simple_chat1
+        - Check session has agent_instance_slug='simple_chat1'
+        - Send message to agrofresh/agro_info_chat1
+        - Check session has agent_instance_slug='agro_info_chat1'
+      - **Post-implementation verification**:
+        ```sql
+        -- Verify new sessions have agent_instance_slug populated
+        SELECT 
+            id,
+            account_slug,
+            agent_instance_slug,
+            created_at
+        FROM sessions 
+        WHERE agent_instance_slug IS NOT NULL
+        ORDER BY created_at DESC 
+        LIMIT 10;
+        
+        -- Expected: All recent sessions have agent_instance_slug populated
+        -- Expected: Slug matches pattern: 'simple_chat1', 'agro_info_chat1', 'wyckoff_info_chat1', etc.
+        ```
+      - **Test fast analytics query** (no JOINs):
+        ```sql
+        -- Sessions per agent (fast - no JOIN to agent_instances)
+        SELECT 
+            account_slug,
+            agent_instance_slug,
+            COUNT(*) AS session_count,
+            MAX(last_activity_at) AS last_activity
+        FROM sessions
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+          AND agent_instance_slug IS NOT NULL
+        GROUP BY account_slug, agent_instance_slug
+        ORDER BY session_count DESC;
+        
+        -- Should return results instantly (uses indexes on account_slug, agent_instance_slug)
+        -- Compare with old JOIN query timing for performance improvement
+        ```
+      - **Test data consistency**:
+        ```sql
+        -- Verify slug matches agent_instances table (integrity check)
+        SELECT 
+            s.id,
+            s.agent_instance_slug AS session_slug,
+            ai.instance_slug AS instance_slug,
+            CASE 
+                WHEN s.agent_instance_slug = ai.instance_slug THEN 'MATCH'
+                ELSE 'MISMATCH'
+            END AS consistency
+        FROM sessions s
+        JOIN agent_instances ai ON s.agent_instance_id = ai.id
+        WHERE s.agent_instance_slug IS NOT NULL
+        LIMIT 20;
+        
+        -- Expected: All rows show 'MATCH' (slug consistency maintained)
+        ```
+    - STATUS: Planned — Performance optimization for session analytics
+    - PRIORITY: Medium — Enables fast analytics, follows denormalization pattern
 
 - [ ] 0022-001-006 - TASK - Testing & Validation
   - [ ] 0022-001-006-01 - CHUNK - Unit tests for instance loader
