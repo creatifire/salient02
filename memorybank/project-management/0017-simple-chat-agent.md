@@ -1213,36 +1213,391 @@ This multi-model architecture validates that the Pydantic AI implementation is m
 ---
 
 - [ ] 0017-005-002 - TASK - Vector Search Tool Implementation
-  - [ ] 0017-005-002-01 - CHUNK - Add vector search tool to agent
-    - SUB-TASKS:
-      - `@agent.tool` decorator for vector_search function
-      - Integration with existing VectorService
-      - Format search results for agent consumption
-      - Configuration-driven enable/disable from agent config.yaml
-      - Add comprehensive logging for vector search operations
-      - Handle empty results gracefully
-    - STATUS: Planned — Agent can search knowledge base using existing vector service
+  
+  **TESTING CONFIGURATION**:
+  - **Agent**: `wyckoff/wyckoff_info_chat1` (vector search enabled)
+  - **Pinecone Index**: `wyckoff-poc-01`
+  - **Namespace**: `__default__` (Pinecone's default namespace identifier)
+  - **Model**: `qwen/qwen3-235b-a22b-thinking-2507` (advanced reasoning for medical queries)
+  - **Frontend**: `http://localhost:4321/wyckoff/find-a-doctor` (dedicated vector search demo page)
+  
+  **ARCHITECTURE DECISIONS**:
+  - **Per-Agent-Instance Pinecone Settings**: Each agent instance can have its own `index_name` + `namespace` (optionally `api_key` for true isolation)
+  - **Simplified Scope**: Use index + namespace for multi-tenancy; reserve multiple Pinecone projects for prod/dev environment separation only
+  - **Connection Strategy**: Single PineconeClient instance per unique (api_key, index_host) pair - **no connection pooling issues**
+  - **Fallback**: If agent has no vector_search config, skip tool registration entirely (tool won't be available to LLM)
+  
+  **RATIONALE**:
+  - Wyckoff agent config already has `vector_search.enabled: true` but settings are placeholders
+  - Current global config (`pinecone_config.py`) doesn't support per-agent settings
+  - Need to make VectorService agent-instance-aware by passing config from agent's YAML
+  - Doctor profile data will be in Pinecone `wyckoff-poc-01` index (separate from Epic 0023's PostgreSQL profiles)
 
-```python
-@agent.tool
-async def vector_search(ctx: RunContext[SessionDependencies], query: str) -> str:
-    """Search knowledge base for relevant information."""
-    vector_service = get_vector_service()
-    results = await vector_service.query(
-        query, 
-        ctx.deps.session_id, 
-        max_results=5,
-        similarity_threshold=0.7
-    )
-    # Format results for agent consumption
-    if not results:
-        return "No relevant information found in knowledge base."
+  - [ ] 0017-005-002-01 - CHUNK - Per-agent Pinecone configuration loader
+    - **PURPOSE**: Load agent-specific Pinecone settings from agent config YAML, enable per-agent index/namespace isolation
     
-    formatted = "Knowledge base search results:\n\n"
-    for i, result in enumerate(results, 1):
-        formatted += f"{i}. {result.content}\n   (Relevance: {result.score:.2f})\n\n"
-    return formatted
-```
+    - SUB-TASKS:
+      
+      **Step 1**: Update `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml`
+      ```yaml
+      # Existing settings...
+      tools:
+        vector_search:
+          enabled: true
+          max_results: 5
+          similarity_threshold: 0.7
+          # NEW: Per-agent Pinecone settings
+          pinecone:
+            index_name: "wyckoff-poc-01"          # Agent-specific index
+            namespace: "__default__"               # Pinecone's default namespace
+            api_key_env: "PINECONE_API_KEY"       # Optional: agent-specific API key via env var
+            # index_host will be auto-discovered via Pinecone.list_indexes() or can be explicit:
+            # index_host: "https://wyckoff-poc-01-xyz.svc.region.pinecone.io"
+          # Model/embedding settings (use same as global for now)
+          embedding:
+            model: "text-embedding-3-small"       # OpenAI embedding model
+            dimensions: 1536
+      ```
+      
+      **Step 2**: Create `backend/app/services/agent_pinecone_config.py`
+      ```python
+      from typing import Optional, Dict, Any
+      from dataclasses import dataclass
+      import os
+      from pinecone import Pinecone
+      
+      @dataclass
+      class AgentPineconeConfig:
+          """Per-agent Pinecone configuration"""
+          api_key: str
+          index_name: str
+          index_host: str  # Auto-discovered or explicit
+          namespace: str
+          embedding_model: str
+          dimensions: int
+          
+      def load_agent_pinecone_config(
+          instance_config: Dict[str, Any]
+      ) -> Optional[AgentPineconeConfig]:
+          """
+          Load Pinecone config from agent's config.yaml.
+          Returns None if vector_search is disabled or missing pinecone settings.
+          """
+          vector_config = instance_config.get("tools", {}).get("vector_search", {})
+          
+          if not vector_config.get("enabled", False):
+              return None
+          
+          pinecone_config = vector_config.get("pinecone", {})
+          if not pinecone_config:
+              logger.warning("vector_search enabled but no pinecone config found")
+              return None
+          
+          # Get API key from env var (supports per-agent keys)
+          api_key_env = pinecone_config.get("api_key_env", "PINECONE_API_KEY")
+          api_key = os.getenv(api_key_env)
+          if not api_key:
+              raise ValueError(f"Pinecone API key not found in env: {api_key_env}")
+          
+          index_name = pinecone_config["index_name"]
+          namespace = pinecone_config.get("namespace", "__default__")
+          
+          # Auto-discover index host if not explicit
+          index_host = pinecone_config.get("index_host")
+          if not index_host:
+              pc = Pinecone(api_key=api_key)
+              index_info = pc.describe_index(index_name)
+              index_host = index_info.host
+          
+          embedding_config = vector_config.get("embedding", {})
+          
+          return AgentPineconeConfig(
+              api_key=api_key,
+              index_name=index_name,
+              index_host=index_host,
+              namespace=namespace,
+              embedding_model=embedding_config.get("model", "text-embedding-3-small"),
+              dimensions=embedding_config.get("dimensions", 1536)
+          )
+      ```
+      
+      **Step 3**: Update `backend/app/services/vector_service.py`
+      - Add optional `agent_pinecone_config` parameter to `VectorService.__init__()`
+      - If provided, create a separate PineconeClient with agent-specific settings
+      - Otherwise, fall back to global config (backward compatible)
+      - Update `query_similar()` to use agent's namespace from config
+      
+      **Step 4**: Update `backend/app/services/pinecone_client.py`
+      - Add factory method: `create_from_agent_config(agent_config: AgentPineconeConfig)`
+      - Enables multiple PineconeClient instances for different agents
+      - Each client manages its own connection to (api_key, index_host) pair
+      
+    - AUTOMATED-TESTS: `backend/tests/unit/test_agent_pinecone_config.py`
+      - `test_load_config_enabled()` - Load valid config with all fields
+      - `test_load_config_disabled()` - Returns None when vector_search disabled
+      - `test_load_config_missing()` - Returns None when pinecone section missing
+      - `test_load_config_auto_discover_host()` - Host auto-discovery works
+      - `test_load_config_explicit_host()` - Uses explicit host when provided
+      - `test_load_config_custom_api_key_env()` - Custom API key env var works
+      - `test_vector_service_with_agent_config()` - VectorService uses agent config
+    
+    - MANUAL-TESTS:
+      - Update wyckoff config.yaml with correct settings
+      - Run: `python -c "from app.services.agent_pinecone_config import load_agent_pinecone_config; import yaml; cfg = yaml.safe_load(open('backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml')); print(load_agent_pinecone_config(cfg))"`
+      - Verify: Prints AgentPineconeConfig with correct index_name=wyckoff-poc-01, namespace=__default__
+      - Check logs: Should show index host auto-discovered if not explicit
+    
+    - STATUS: Planned — Agent-specific Pinecone configuration loading
+    - PRIORITY: High — Foundation for all vector search functionality
+  
+  - [ ] 0017-005-002-02 - CHUNK - Pydantic AI @agent.tool for vector search
+    - **PURPOSE**: Register vector search as a Pydantic AI tool, enable LLM to search knowledge base when needed
+    
+    - SUB-TASKS:
+      
+      **Step 1**: Create `backend/app/agents/tools/vector_tools.py`
+      ```python
+      from pydantic_ai import RunContext
+      from typing import Optional
+      import logging
+      
+      from app.agents.models.dependencies import SessionDependencies
+      from app.services.vector_service import VectorService, VectorQueryResponse
+      from app.services.agent_pinecone_config import AgentPineconeConfig
+      
+      logger = logging.getLogger(__name__)
+      
+      async def vector_search(
+          ctx: RunContext[SessionDependencies],
+          query: str,
+          max_results: Optional[int] = None
+      ) -> str:
+          """
+          Search the knowledge base for relevant information using vector similarity.
+          
+          Args:
+              query: Natural language query to search for
+              max_results: Maximum number of results (defaults to agent config)
+          
+          Returns:
+              Formatted search results or message if no results found
+          """
+          agent_config = ctx.deps.agent_config
+          session_id = ctx.deps.session_id
+          
+          # Get vector search config
+          vector_config = agent_config.get("tools", {}).get("vector_search", {})
+          if not vector_config.get("enabled", False):
+              return "Vector search is not enabled for this agent."
+          
+          # Load agent's Pinecone config
+          from app.services.agent_pinecone_config import load_agent_pinecone_config
+          pinecone_config = load_agent_pinecone_config(agent_config)
+          if not pinecone_config:
+              logger.error(f"Vector search enabled but config missing: session={session_id}")
+              return "Vector search configuration error."
+          
+          # Create agent-specific VectorService
+          from app.services.pinecone_client import PineconeClient
+          pinecone_client = PineconeClient.create_from_agent_config(pinecone_config)
+          vector_service = VectorService(pinecone_client=pinecone_client)
+          
+          # Query parameters from agent config
+          top_k = max_results or vector_config.get("max_results", 5)
+          similarity_threshold = vector_config.get("similarity_threshold", 0.7)
+          
+          logger.info({
+              "event": "vector_search_start",
+              "session_id": session_id,
+              "query": query,
+              "index": pinecone_config.index_name,
+              "namespace": pinecone_config.namespace,
+              "top_k": top_k,
+              "threshold": similarity_threshold
+          })
+          
+          # Perform search
+          try:
+              response: VectorQueryResponse = await vector_service.query_similar(
+                  query_text=query,
+                  top_k=top_k,
+                  similarity_threshold=similarity_threshold,
+                  namespace=pinecone_config.namespace
+              )
+              
+              logger.info({
+                  "event": "vector_search_complete",
+                  "session_id": session_id,
+                  "results_count": response.total_results,
+                  "query_time_ms": response.query_time_ms
+              })
+              
+              # Format results for LLM consumption
+              if not response.results:
+                  return f"No relevant information found in knowledge base for query: '{query}'"
+              
+              formatted_lines = [
+                  f"Found {response.total_results} relevant result(s) in knowledge base:\n"
+              ]
+              
+              for i, result in enumerate(response.results, 1):
+                  formatted_lines.append(f"{i}. {result.text}")
+                  formatted_lines.append(f"   Relevance Score: {result.score:.3f}")
+                  
+                  # Include metadata if present (e.g., doctor name, specialty)
+                  if result.metadata:
+                      metadata_str = ", ".join(
+                          f"{k}: {v}" for k, v in result.metadata.items() 
+                          if k not in ["text", "created_at", "embedding_model"]
+                      )
+                      if metadata_str:
+                          formatted_lines.append(f"   Details: {metadata_str}")
+                  
+                  formatted_lines.append("")  # Blank line between results
+              
+              return "\n".join(formatted_lines)
+              
+          except Exception as e:
+              logger.error({
+                  "event": "vector_search_error",
+                  "session_id": session_id,
+                  "error": str(e)
+              })
+              return f"Vector search encountered an error. Please try rephrasing your query."
+      ```
+      
+      **Step 2**: Update `backend/app/agents/simple_chat.py`
+      - Import `vector_tools.vector_search`
+      - In `create_agent()` function (or equivalent), conditionally register tool:
+        ```python
+        from app.agents.tools import vector_tools
+        
+        # After agent creation...
+        vector_config = instance_config.get("tools", {}).get("vector_search", {})
+        if vector_config.get("enabled", False):
+            agent.tool(vector_tools.vector_search)
+            logger.info(f"Vector search tool registered for {instance_config['instance_name']}")
+        ```
+      
+      **Step 3**: Update `SessionDependencies` in `backend/app/agents/models/dependencies.py`
+      - Add `agent_config: Dict[str, Any]` field (pass full config for tool access)
+      - Update all `SessionDependencies` instantiations in `account_agents.py` to include `agent_config=instance_config`
+      
+      **Step 4**: Update wyckoff system prompt
+      - Add guidance: "You have access to a vector search tool to find doctor profiles. Use it when users ask about finding doctors by specialty, language, or location."
+      
+    - AUTOMATED-TESTS: `backend/tests/integration/test_vector_search_tool.py`
+      - `test_vector_search_tool_enabled()` - Tool registered when enabled
+      - `test_vector_search_tool_disabled()` - Tool NOT registered when disabled
+      - `test_vector_search_query()` - Mock VectorService, verify formatted output
+      - `test_vector_search_empty_results()` - Handles no results gracefully
+      - `test_vector_search_uses_agent_config()` - Uses agent's index/namespace
+      - `test_vector_search_error_handling()` - Catches and logs Pinecone errors
+    
+    - MANUAL-TESTS:
+      - Navigate to `http://localhost:4321/wyckoff/find-a-doctor`
+      - Send query: "Find doctors specializing in cardiology"
+      - Verify: Agent calls vector_search tool (check logs)
+      - Verify: Response includes formatted doctor results with relevance scores
+      - Send query: "Who speaks Spanish?" (test language filter metadata)
+      - Send query not in knowledge base: "What's the weather?" (test no results)
+      - Check Logfire: Verify `vector_search_start` and `vector_search_complete` events
+      - Check `llm_requests` table: Verify tool calls tracked in request_body
+    
+    - STATUS: Planned — Pydantic AI tool integration
+    - PRIORITY: High — Core functionality for vector search demo
+  
+  - [ ] 0017-005-002-03 - CHUNK - End-to-end testing with real Pinecone data
+    - **PURPOSE**: Verify vector search works with actual Pinecone index, test multi-agent isolation
+    
+    - SUB-TASKS:
+      
+      **Step 1**: Seed Pinecone index with test data (manual script)
+      ```python
+      # backend/scripts/seed_wyckoff_vectors.py
+      import asyncio
+      from app.services.vector_service import VectorService, VectorDocument
+      from app.services.agent_pinecone_config import load_agent_pinecone_config
+      from app.services.pinecone_client import PineconeClient
+      import yaml
+      
+      async def seed_wyckoff_doctors():
+          # Load wyckoff agent config
+          with open("backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml") as f:
+              agent_config = yaml.safe_load(f)
+          
+          pinecone_config = load_agent_pinecone_config(agent_config)
+          pinecone_client = PineconeClient.create_from_agent_config(pinecone_config)
+          vector_service = VectorService(pinecone_client=pinecone_client)
+          
+          # Sample doctor profiles
+          doctors = [
+              VectorDocument(
+                  id="doc_001",
+                  text="Dr. Maria Gonzalez, MD - Cardiology specialist with 15 years experience. Fluent in English and Spanish. Board certified in cardiovascular disease.",
+                  metadata={"name": "Dr. Maria Gonzalez", "specialty": "Cardiology", "languages": ["English", "Spanish"]},
+                  namespace="__default__"
+              ),
+              VectorDocument(
+                  id="doc_002",
+                  text="Dr. James Chen, MD - Orthopedic surgeon specializing in sports medicine. English and Mandarin speaker.",
+                  metadata={"name": "Dr. James Chen", "specialty": "Orthopedics", "languages": ["English", "Mandarin"]},
+                  namespace="__default__"
+              ),
+              # Add 10+ more...
+          ]
+          
+          success, total = await vector_service.upsert_documents_batch(
+              documents=doctors,
+              namespace="__default__"
+          )
+          
+          print(f"Seeded {success}/{total} doctor profiles to Pinecone index: {pinecone_config.index_name}")
+      
+      if __name__ == "__main__":
+          asyncio.run(seed_wyckoff_doctors())
+      ```
+      
+      **Step 2**: Create comprehensive test suite
+      - `backend/tests/integration/test_wyckoff_vector_search_e2e.py`
+      - Test queries: cardiology, Spanish-speaking, specific doctor names
+      - Verify: Results match expected doctors from seeded data
+      - Verify: Similarity scores are reasonable (> 0.7 for good matches)
+      - Verify: Metadata (name, specialty, languages) is preserved
+      
+      **Step 3**: Test multi-agent isolation
+      - Verify agrofresh agent (vector_search disabled) does NOT have tool
+      - Verify default_account/simple_chat1 (no vector config) does NOT have tool
+      - Verify wyckoff agent (enabled) HAS tool and queries correct index
+      - Attempt to query from wrong agent, verify graceful failure
+      
+      **Step 4**: Performance testing
+      - Measure query latency (should be < 500ms for 5 results)
+      - Test with 100+ vectors in index
+      - Verify no memory leaks with repeated queries
+      - Check Pinecone request logs for errors
+    
+    - AUTOMATED-TESTS: `backend/tests/integration/test_wyckoff_vector_search_e2e.py`
+      - `test_wyckoff_agent_has_vector_tool()` - Tool registered
+      - `test_vector_search_cardiology()` - Find cardiologists
+      - `test_vector_search_language()` - Find Spanish speakers
+      - `test_vector_search_specific_doctor()` - Find by name
+      - `test_vector_search_no_match()` - Handles no results
+      - `test_agrofresh_no_vector_tool()` - Other agents isolated
+      - `test_query_latency()` - Performance < 500ms
+    
+    - MANUAL-TESTS:
+      - Run seeding script: `python backend/scripts/seed_wyckoff_vectors.py`
+      - Verify Pinecone console shows vectors in wyckoff-poc-01 index
+      - Open `http://localhost:4321/wyckoff/find-a-doctor`
+      - Test 10+ queries with different keywords
+      - Verify suggested questions on page trigger vector search
+      - Open `http://localhost:4321/agrofresh/` - verify no vector search (tool not available)
+      - Check Logfire for all vector_search events
+      - Verify `llm_requests` table has tool calls in request_body
+    
+    - STATUS: Planned — Production-ready validation
+    - PRIORITY: High — Confirms MVP readiness
 
 ## Priority 2C: Profile Configuration & Schema
 
