@@ -1231,7 +1231,8 @@ This multi-model architecture validates that the Pydantic AI implementation is m
   - Wyckoff agent config already has `vector_search.enabled: true` but settings are placeholders
   - Current global config (`pinecone_config.py`) doesn't support per-agent settings
   - Need to make VectorService agent-instance-aware by passing config from agent's YAML
-  - Doctor profile data will be in Pinecone `wyckoff-poc-01` index (separate from Epic 0023's PostgreSQL profiles)
+  - **Vector search queries WordPress content** (hospital services, departments, general info) already loaded in `wyckoff-poc-01` index
+  - **NOTE**: Doctor profile search is separate (Epic 0023, PostgreSQL-based, different `@agent.tool`)
 
   - [ ] 0017-005-002-01 - CHUNK - Per-agent Pinecone configuration loader
     - **PURPOSE**: Load agent-specific Pinecone settings from agent config YAML, enable per-agent index/namespace isolation
@@ -1402,9 +1403,23 @@ This multi-model architecture validates that the Pydantic AI implementation is m
           pinecone_client = PineconeClient.create_from_agent_config(pinecone_config)
           vector_service = VectorService(pinecone_client=pinecone_client)
           
-          # Query parameters from agent config
-          top_k = max_results or vector_config.get("max_results", 5)
-          similarity_threshold = vector_config.get("similarity_threshold", 0.7)
+          # Query parameters: Configuration cascade (agent → app.yaml → code)
+          # 1. Check if LLM explicitly passed max_results parameter
+          # 2. Fall back to agent config
+          # 3. Fall back to app.yaml global config
+          # 4. Fall back to hardcoded default
+          from app.config import app_config
+          global_vector_config = app_config.get("vector", {}).get("search", {})
+          
+          top_k = (
+              max_results or  # LLM parameter (highest priority)
+              vector_config.get("max_results") or  # Agent config
+              global_vector_config.get("max_results", 5)  # app.yaml → code default
+          )
+          similarity_threshold = (
+              vector_config.get("similarity_threshold") or  # Agent config
+              global_vector_config.get("similarity_threshold", 0.7)  # app.yaml → code default
+          )
           
           logger.info({
               "event": "vector_search_start",
@@ -1444,7 +1459,7 @@ This multi-model architecture validates that the Pydantic AI implementation is m
                   formatted_lines.append(f"{i}. {result.text}")
                   formatted_lines.append(f"   Relevance Score: {result.score:.3f}")
                   
-                  # Include metadata if present (e.g., doctor name, specialty)
+                  # Include metadata if present (e.g., page title, URL, category from WordPress)
                   if result.metadata:
                       metadata_str = ", ".join(
                           f"{k}: {v}" for k, v in result.metadata.items() 
@@ -1484,7 +1499,7 @@ This multi-model architecture validates that the Pydantic AI implementation is m
       - Update all `SessionDependencies` instantiations in `account_agents.py` to include `agent_config=instance_config`
       
       **Step 4**: Update wyckoff system prompt
-      - Add guidance: "You have access to a vector search tool to find doctor profiles. Use it when users ask about finding doctors by specialty, language, or location."
+      - Add guidance: "You have access to a vector search tool to search hospital information from our website. Use it when users ask about hospital services, departments, facilities, or general information. For finding specific doctors, use the profile_search tool (separate tool, Epic 0023)."
       
     - AUTOMATED-TESTS: `backend/tests/integration/test_vector_search_tool.py`
       - `test_vector_search_tool_enabled()` - Tool registered when enabled
@@ -1496,74 +1511,81 @@ This multi-model architecture validates that the Pydantic AI implementation is m
     
     - MANUAL-TESTS:
       - Navigate to `http://localhost:4321/wyckoff/find-a-doctor`
-      - Send query: "Find doctors specializing in cardiology"
+      - Send query: "What cardiology services does Wyckoff offer?"
       - Verify: Agent calls vector_search tool (check logs)
-      - Verify: Response includes formatted doctor results with relevance scores
-      - Send query: "Who speaks Spanish?" (test language filter metadata)
+      - Verify: Response includes formatted WordPress content results with relevance scores
+      - Send query: "Tell me about the emergency department" (test department info)
+      - Send query: "What are visiting hours?" (test general hospital info)
       - Send query not in knowledge base: "What's the weather?" (test no results)
       - Check Logfire: Verify `vector_search_start` and `vector_search_complete` events
       - Check `llm_requests` table: Verify tool calls tracked in request_body
+      - **NOTE**: Doctor profile queries ("Find Spanish-speaking cardiologist") will use Epic 0023's profile_search tool (separate, PostgreSQL-based)
     
     - STATUS: Planned — Pydantic AI tool integration
     - PRIORITY: High — Core functionality for vector search demo
   
   - [ ] 0017-005-002-03 - CHUNK - End-to-end testing with real Pinecone data
-    - **PURPOSE**: Verify vector search works with actual Pinecone index, test multi-agent isolation
+    - **PURPOSE**: Verify vector search works with actual Pinecone index (already populated with WordPress content), test multi-agent isolation
+    
+    - **DATA SOURCE**: 
+      - **Index `wyckoff-poc-01`** already populated with Wyckoff Hospital WordPress site content
+      - **Separate process** (not part of this epic) handles WordPress → Pinecone ingestion
+      - **Project documentation**: `/Users/arifsufi/Documents/GitHub/OpenThought/siphon/siphon-wp-xml-to-md-vdb/memorybank`
+      - **NOTE**: Doctor profile data is in PostgreSQL (Epic 0023), NOT in this Pinecone index
     
     - SUB-TASKS:
       
-      **Step 1**: Seed Pinecone index with test data (manual script)
+      **Step 1**: Verify index connectivity and content
       ```python
-      # backend/scripts/seed_wyckoff_vectors.py
+      # backend/scripts/verify_wyckoff_index.py
       import asyncio
-      from app.services.vector_service import VectorService, VectorDocument
       from app.services.agent_pinecone_config import load_agent_pinecone_config
       from app.services.pinecone_client import PineconeClient
       import yaml
       
-      async def seed_wyckoff_doctors():
+      async def verify_index():
           # Load wyckoff agent config
           with open("backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml") as f:
               agent_config = yaml.safe_load(f)
           
           pinecone_config = load_agent_pinecone_config(agent_config)
           pinecone_client = PineconeClient.create_from_agent_config(pinecone_config)
+          
+          # Check index stats
+          stats = await pinecone_client.index.describe_index_stats()
+          print(f"Index: {pinecone_config.index_name}")
+          print(f"Namespace: {pinecone_config.namespace}")
+          print(f"Total vectors: {stats.total_vector_count}")
+          print(f"Dimension: {stats.dimension}")
+          
+          # Sample query to verify connectivity
+          from app.services.vector_service import VectorService
           vector_service = VectorService(pinecone_client=pinecone_client)
           
-          # Sample doctor profiles
-          doctors = [
-              VectorDocument(
-                  id="doc_001",
-                  text="Dr. Maria Gonzalez, MD - Cardiology specialist with 15 years experience. Fluent in English and Spanish. Board certified in cardiovascular disease.",
-                  metadata={"name": "Dr. Maria Gonzalez", "specialty": "Cardiology", "languages": ["English", "Spanish"]},
-                  namespace="__default__"
-              ),
-              VectorDocument(
-                  id="doc_002",
-                  text="Dr. James Chen, MD - Orthopedic surgeon specializing in sports medicine. English and Mandarin speaker.",
-                  metadata={"name": "Dr. James Chen", "specialty": "Orthopedics", "languages": ["English", "Mandarin"]},
-                  namespace="__default__"
-              ),
-              # Add 10+ more...
-          ]
-          
-          success, total = await vector_service.upsert_documents_batch(
-              documents=doctors,
-              namespace="__default__"
+          test_query = "cardiology services"
+          results = await vector_service.query_similar(
+              query_text=test_query,
+              top_k=3,
+              namespace=pinecone_config.namespace
           )
           
-          print(f"Seeded {success}/{total} doctor profiles to Pinecone index: {pinecone_config.index_name}")
+          print(f"\nTest query: '{test_query}'")
+          print(f"Results found: {results.total_results}")
+          for i, result in enumerate(results.results, 1):
+              print(f"{i}. Score: {result.score:.3f}")
+              print(f"   Text: {result.text[:100]}...")
       
       if __name__ == "__main__":
-          asyncio.run(seed_wyckoff_doctors())
+          asyncio.run(verify_index())
       ```
       
       **Step 2**: Create comprehensive test suite
       - `backend/tests/integration/test_wyckoff_vector_search_e2e.py`
-      - Test queries: cardiology, Spanish-speaking, specific doctor names
-      - Verify: Results match expected doctors from seeded data
+      - Test queries: "cardiology services", "emergency department", "visiting hours", "maternity ward"
+      - Verify: Results are WordPress content (not doctor profiles)
       - Verify: Similarity scores are reasonable (> 0.7 for good matches)
-      - Verify: Metadata (name, specialty, languages) is preserved
+      - Verify: Metadata (page title, URL, category) is preserved from WordPress
+      - **NOTE**: Doctor profile queries will fail in this index (by design - they use Epic 0023)
       
       **Step 3**: Test multi-agent isolation
       - Verify agrofresh agent (vector_search disabled) does NOT have tool
@@ -1573,28 +1595,35 @@ This multi-model architecture validates that the Pydantic AI implementation is m
       
       **Step 4**: Performance testing
       - Measure query latency (should be < 500ms for 5 results)
-      - Test with 100+ vectors in index
+      - Test with existing WordPress content vectors in index
       - Verify no memory leaks with repeated queries
       - Check Pinecone request logs for errors
     
     - AUTOMATED-TESTS: `backend/tests/integration/test_wyckoff_vector_search_e2e.py`
       - `test_wyckoff_agent_has_vector_tool()` - Tool registered
-      - `test_vector_search_cardiology()` - Find cardiologists
-      - `test_vector_search_language()` - Find Spanish speakers
-      - `test_vector_search_specific_doctor()` - Find by name
-      - `test_vector_search_no_match()` - Handles no results
-      - `test_agrofresh_no_vector_tool()` - Other agents isolated
+      - `test_vector_search_cardiology_services()` - Find cardiology department info
+      - `test_vector_search_emergency_dept()` - Find emergency department info
+      - `test_vector_search_visiting_hours()` - Find general hospital info
+      - `test_vector_search_no_match()` - Handles no results (e.g., "weather")
+      - `test_agrofresh_no_vector_tool()` - Other agents isolated (no vector search)
       - `test_query_latency()` - Performance < 500ms
     
     - MANUAL-TESTS:
-      - Run seeding script: `python backend/scripts/seed_wyckoff_vectors.py`
-      - Verify Pinecone console shows vectors in wyckoff-poc-01 index
+      - Run verification script: `python backend/scripts/verify_wyckoff_index.py` (check connectivity & content)
+      - Verify Pinecone console shows vectors in wyckoff-poc-01 index (should already be populated)
       - Open `http://localhost:4321/wyckoff/find-a-doctor`
-      - Test 10+ queries with different keywords
+      - Test queries with hospital/service keywords:
+        - "What cardiology services do you offer?"
+        - "Tell me about your emergency department"
+        - "Do you have a maternity ward?"
+        - "What are visiting hours?"
+        - "Information about surgical services"
       - Verify suggested questions on page trigger vector search
+      - Verify responses contain WordPress content (not doctor profiles)
       - Open `http://localhost:4321/agrofresh/` - verify no vector search (tool not available)
-      - Check Logfire for all vector_search events
+      - Check Logfire for all vector_search events (start/complete/error)
       - Verify `llm_requests` table has tool calls in request_body
+      - **NOTE**: Doctor profile queries ("Find Spanish-speaking cardiologist") should gracefully indicate they're not available in this tool (Epic 0023 will handle those)
     
     - STATUS: Planned — Production-ready validation
     - PRIORITY: High — Confirms MVP readiness
