@@ -312,6 +312,12 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         # them would add unnecessary overhead to asset delivery
         if request.url.path.startswith("/static/") or request.url.path.startswith("/assets/"):
             return await call_next(request)
+        
+        # Skip session handling for CORS preflight OPTIONS requests
+        # Browser doesn't use cookies from OPTIONS responses per CORS specification
+        # This prevents orphaned vapid sessions from being created by preflight requests
+        if request.method == "OPTIONS":
+            return await call_next(request)
             
         session = None
         
