@@ -58,7 +58,8 @@ async def vector_search(
     vector_service = VectorService(pinecone_client=pinecone_client)
     
     # Query parameters: Configuration cascade (LLM param → agent → app.yaml → code)
-    from backend.app.config import app_config
+    from backend.app.config import load_config
+    app_config = load_config()
     global_vector_config = app_config.get("vector", {}).get("search", {})
     
     top_k = (
