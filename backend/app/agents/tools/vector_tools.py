@@ -7,9 +7,9 @@ from pydantic_ai import RunContext
 from typing import Optional
 import logging
 
-from app.agents.base.dependencies import SessionDependencies
-from app.services.vector_service import VectorService, VectorQueryResponse
-from app.services.agent_pinecone_config import load_agent_pinecone_config
+from backend.app.agents.base.dependencies import SessionDependencies
+from backend.app.services.vector_service import VectorService, VectorQueryResponse
+from backend.app.services.agent_pinecone_config import load_agent_pinecone_config
 
 
 logger = logging.getLogger(__name__)
@@ -53,12 +53,12 @@ async def vector_search(
         return "Vector search configuration error."
     
     # Create agent-specific VectorService
-    from app.services.pinecone_client import PineconeClient
+    from backend.app.services.pinecone_client import PineconeClient
     pinecone_client = PineconeClient.create_from_agent_config(pinecone_config)
     vector_service = VectorService(pinecone_client=pinecone_client)
     
     # Query parameters: Configuration cascade (LLM param → agent → app.yaml → code)
-    from app.config import app_config
+    from backend.app.config import app_config
     global_vector_config = app_config.get("vector", {}).get("search", {})
     
     top_k = (

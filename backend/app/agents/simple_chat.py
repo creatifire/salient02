@@ -154,7 +154,7 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
         
         # Conditionally register vector search tool
         if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
-            from app.agents.tools import vector_tools
+            from backend.app.agents.tools import vector_tools
             agent.tool(vector_tools.vector_search)
             logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
         
@@ -220,7 +220,7 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
     
     # Conditionally register vector search tool
     if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
-        from app.agents.tools import vector_tools
+        from backend.app.agents.tools import vector_tools
         agent.tool(vector_tools.vector_search)
         logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
     
