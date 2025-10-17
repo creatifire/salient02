@@ -1,5 +1,5 @@
 # Epic 0017 - Simple Chat Agent (InfoBot - Pydantic AI Implementation)
-> **Last Updated**: October 07, 2025
+> **Last Updated**: October 17, 2025
 
 Implement Pydantic AI-powered InfoBot agent that shares information about products/services, captures profile data, and emails conversation summaries.
 
@@ -1212,7 +1212,7 @@ This multi-model architecture validates that the Pydantic AI implementation is m
 
 ---
 
-- [ ] 0017-005-002 - TASK - Vector Search Tool Implementation
+- [x] 0017-005-002 - TASK - Vector Search Tool Implementation
   
   **TESTING CONFIGURATION**:
   - **Agent**: `wyckoff/wyckoff_info_chat1` (vector search enabled)
@@ -1348,10 +1348,10 @@ This multi-model architecture validates that the Pydantic AI implementation is m
       - Verify: Prints AgentPineconeConfig with correct index_name=wyckoff-poc-01, namespace=__default__
       - Check logs: Should show index host auto-discovered if not explicit
     
-    - STATUS: Planned — Agent-specific Pinecone configuration loading
+    - STATUS: ✅ COMPLETE — Agent-specific Pinecone configuration loading (Commits: da887ae, 379e59b)
     - PRIORITY: High — Foundation for all vector search functionality
   
-  - [ ] 0017-005-002-02 - CHUNK - Pydantic AI @agent.tool for vector search
+  - [x] 0017-005-002-02 - CHUNK - Pydantic AI @agent.tool for vector search
     - **PURPOSE**: Register vector search as a Pydantic AI tool, enable LLM to search knowledge base when needed
     
     - SUB-TASKS:
@@ -1521,10 +1521,10 @@ This multi-model architecture validates that the Pydantic AI implementation is m
       - Check `llm_requests` table: Verify tool calls tracked in request_body
       - **NOTE**: Doctor profile queries ("Find Spanish-speaking cardiologist") will use Epic 0023's profile_search tool (separate, PostgreSQL-based)
     
-    - STATUS: Planned — Pydantic AI tool integration
+    - STATUS: ✅ COMPLETE — Pydantic AI tool integration (Commit: 379e59b)
     - PRIORITY: High — Core functionality for vector search demo
   
-  - [ ] 0017-005-002-03 - CHUNK - End-to-end testing with real Pinecone data
+  - [x] 0017-005-002-03 - CHUNK - End-to-end testing with real Pinecone data
     - **PURPOSE**: Verify vector search works with actual Pinecone index (already populated with WordPress content), test multi-agent isolation
     
     - **DATA SOURCE**: 
@@ -1625,7 +1625,7 @@ This multi-model architecture validates that the Pydantic AI implementation is m
       - Verify `llm_requests` table has tool calls in request_body
       - **NOTE**: Doctor profile queries ("Find Spanish-speaking cardiologist") should gracefully indicate they're not available in this tool (Epic 0023 will handle those)
     
-    - STATUS: Planned — Production-ready validation
+    - STATUS: ✅ COMPLETE — Production-ready validation (Commit: c0499d3, Test: verify_wyckoff_index.py ✅ PASSED)
     - PRIORITY: High — Confirms MVP readiness
 
 ## Priority 2C: Profile Configuration & Schema
