@@ -58,6 +58,33 @@ class PineconeClient:
         if not pinecone_config_manager.validate_config(self.config):
             raise ValueError(f"Invalid Pinecone configuration for environment: {self.config.environment}")
     
+    @classmethod
+    def create_from_agent_config(cls, agent_config):
+        """
+        Factory method to create PineconeClient from AgentPineconeConfig.
+        
+        Args:
+            agent_config: AgentPineconeConfig instance from agent's config.yaml
+            
+        Returns:
+            PineconeClient configured for the specific agent
+        """
+        from config.pinecone_config import PineconeConfig, PineconeEnvironment
+        
+        # Convert AgentPineconeConfig to PineconeConfig
+        pinecone_config = PineconeConfig(
+            api_key=agent_config.api_key,
+            index_name=agent_config.index_name,
+            index_host=agent_config.index_host,
+            namespace=agent_config.namespace,
+            dimensions=agent_config.dimensions,
+            metric="cosine",  # Default metric
+            embedding_model=agent_config.embedding_model,
+            environment=PineconeEnvironment.DEVELOPMENT  # Will be overridden by env detection
+        )
+        
+        return cls(config=pinecone_config)
+    
     @property
     def client(self) -> Pinecone:
         """Get or create Pinecone client with connection retry"""

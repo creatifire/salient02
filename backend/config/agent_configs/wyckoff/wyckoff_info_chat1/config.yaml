@@ -19,17 +19,18 @@ model_settings:
 
 tools:
   vector_search:
-    enabled: true  # ENABLED - Hospital doctor profiles in Pinecone
+    enabled: true  # ENABLED - Hospital WordPress content in Pinecone
     max_results: 5
     similarity_threshold: 0.7
-    namespace_isolation: true
     pinecone:
-      index_name: "salient-dev-01"
-      index_host: "https://salient-dev-01-e1nildl.svc.aped-4627-b74a.pinecone.io"
-      namespace: "wyckoff_doctors"  # Doctor profile data from doctors_profile.csv
-      embedding_model: "text-embedding-3-small"
+      index_name: "wyckoff-poc-01"  # Wyckoff WordPress site content
+      # index_host will be auto-discovered via Pinecone API if not specified
+      # index_host: "https://wyckoff-poc-01-xyz.svc.region.pinecone.io"  # Optional: explicit host
+      namespace: "__default__"  # Pinecone default namespace
+      api_key_env: "PINECONE_API_KEY"  # Environment variable for API key
+    embedding:
+      model: "text-embedding-3-small"  # OpenAI embedding model
       dimensions: 1536
-      metric: "cosine"
   
   web_search:
     enabled: false  # Disabled - use direct LLM knowledge and vector search only
@@ -56,7 +57,7 @@ context_management:
     summary_length: 200
 
 dependencies:
-  vector_db_required: true  # Vector search enabled for doctor profiles
+  vector_db_required: true  # Vector search enabled for WordPress content
   session_required: true
   account_context: true  # Multi-tenant architecture enabled
 
