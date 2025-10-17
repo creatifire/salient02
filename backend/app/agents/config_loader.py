@@ -12,7 +12,7 @@ Key Features:
 - Integration with existing app configuration system
 
 Usage:
-    from app.agents.config_loader import get_agent_config, get_agent_for_route
+    from backend.app.agents.config_loader import get_agent_config, get_agent_for_route
     
     # Load specific agent config
     config = await get_agent_config("simple_chat")
