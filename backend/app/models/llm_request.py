@@ -54,6 +54,13 @@ class LLMRequest(Base):
     # Multi-tenant: agent instance that made this request
     agent_instance_id = Column(UUID(as_uuid=True), ForeignKey("agent_instances.id"), nullable=True, index=True)
     
+    # Denormalized fields for fast billing queries (avoid JOINs across 3 tables)
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True, index=True, comment="Denormalized from session.account_id for fast billing queries")
+    account_slug = Column(String(255), nullable=True, index=True, comment="Denormalized from session.account_slug for fast billing aggregation")
+    agent_instance_slug = Column(String(255), nullable=True, index=True, comment="Denormalized agent instance identifier for reporting")
+    agent_type = Column(String(100), nullable=True, comment="Agent type (e.g., 'simple_chat', 'sales_agent') for analytics")
+    completion_status = Column(String(50), nullable=True, comment="Completion status: 'complete', 'partial', 'error', 'timeout'")
+    
     # LLM provider identifier
     provider = Column(String(50), nullable=False)
     
@@ -89,7 +96,7 @@ class LLMRequest(Base):
     session = relationship("Session", back_populates="llm_requests")
     
     def __repr__(self) -> str:
-        return f"<LLMRequest(id={self.id}, session_id={self.session_id}, provider={self.provider}, model={self.model}, cost={self.computed_cost})>"
+        return f"<LLMRequest(id={self.id}, session_id={self.session_id}, provider={self.provider}, model={self.model}, cost={self.total_cost})>"
     
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization.""" 
@@ -97,6 +104,12 @@ class LLMRequest(Base):
             "id": str(self.id),
             "session_id": str(self.session_id),
             "agent_instance_id": str(self.agent_instance_id) if self.agent_instance_id else None,
+            # Denormalized fields for fast billing queries
+            "account_id": str(self.account_id) if self.account_id else None,
+            "account_slug": self.account_slug,
+            "agent_instance_slug": self.agent_instance_slug,
+            "agent_type": self.agent_type,
+            "completion_status": self.completion_status,
             "provider": self.provider,
             "model": self.model,
             "request_body": self.request_body,

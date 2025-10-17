@@ -64,7 +64,14 @@ class LLMRequestTracker:
         tokens: Dict[str, int],  # {"prompt": 150, "completion": 75, "total": 225}
         cost_data: Dict[str, float],  # OpenRouter actuals: unit costs + computed total
         latency_ms: int,
+        # Denormalized fields for fast billing queries (no JOINs needed)
+        account_id: UUID,
+        account_slug: str,
+        agent_instance_slug: str,
+        agent_type: str,
+        # Optional parameters (with defaults)
         agent_instance_id: Optional[UUID] = None,
+        completion_status: str = "complete",
         error_metadata: Optional[Dict[str, Any]] = None
     ) -> UUID:
         """
@@ -80,6 +87,12 @@ class LLMRequestTracker:
             cost_data: Cost information from OpenRouter or computed
             latency_ms: Request duration in milliseconds
             agent_instance_id: Optional agent identifier for multi-agent tracking
+            account_id: Account UUID (denormalized for fast billing queries)
+            account_slug: Account slug (denormalized for fast billing queries)
+            agent_instance_slug: Agent instance slug (denormalized for fast billing queries)
+            agent_type: Agent type identifier (denormalized for fast billing queries)
+            completion_status: Status of LLM request completion (default: "complete")
+                Values: "complete", "partial", "error", "timeout"
             error_metadata: Error information for failed requests
             
         Returns:
@@ -116,6 +129,12 @@ class LLMRequestTracker:
             completion_cost=cost_data.get("completion_cost", 0.0),
             total_cost=cost_data.get("total_cost", 0.0),
             latency_ms=latency_ms,
+            # Denormalized fields for fast billing queries
+            account_id=account_id,
+            account_slug=account_slug,
+            agent_instance_slug=agent_instance_slug,
+            agent_type=agent_type,
+            completion_status=completion_status,
             created_at=datetime.now(UTC)
         )
         
@@ -149,7 +168,12 @@ class LLMRequestTracker:
             "total_tokens": tokens.get("total", 0),
             "computed_cost": cost_data.get("total_cost", 0.0),
             "latency_ms": latency_ms,
-            "llm_request_id": str(llm_request.id)
+            "llm_request_id": str(llm_request.id),
+            # Denormalized attribution for debugging
+            "account_slug": account_slug,
+            "agent_instance_slug": agent_instance_slug,
+            "agent_type": agent_type,
+            "completion_status": completion_status
         })
         
         return llm_request.id

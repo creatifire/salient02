@@ -410,6 +410,25 @@ async def simple_chat(
                 if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
                     response_body_full["provider_details"] = latest_message.provider_details
             
+            # Load session to extract denormalized fields for cost attribution
+            from ..models.session import Session
+            from ..database import get_database_service
+            db_service = get_database_service()
+            async with db_service.get_session() as db_session:
+                session_record = await db_session.get(Session, UUID(session_id))
+                if not session_record:
+                    logger.error({
+                        "event": "non_streaming_session_not_found",
+                        "session_id": session_id
+                    })
+                    raise ValueError(f"Session not found: {session_id}")
+                
+                # Extract denormalized fields for fast billing queries
+                account_id = session_record.account_id
+                account_slug = session_record.account_slug
+                agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
+                agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+            
             llm_request_id = await tracker.track_llm_request(
                 session_id=UUID(session_id),
                 provider="openrouter",
@@ -428,7 +447,13 @@ async def simple_chat(
                     "total_cost": Decimal(str(real_cost))
                 },
                 latency_ms=latency_ms,
-                agent_instance_id=agent_instance_id  # Multi-tenant: pass agent instance ID
+                agent_instance_id=agent_instance_id,  # Multi-tenant: pass agent instance ID
+                # Denormalized fields for fast billing queries (no JOINs)
+                account_id=account_id,
+                account_slug=account_slug,
+                agent_instance_slug=agent_instance_slug,
+                agent_type=agent_type,
+                completion_status="complete"
             )
         
         # Save messages to database for multi-tenant message attribution
@@ -843,6 +868,25 @@ async def simple_chat_stream(
                     if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
                         response_body_full["provider_details"] = latest_message.provider_details
                 
+                # Load session to extract denormalized fields for cost attribution
+                from ..models.session import Session
+                from ..database import get_database_service
+                db_service = get_database_service()
+                async with db_service.get_session() as db_session:
+                    session_record = await db_session.get(Session, UUID(session_id))
+                    if not session_record:
+                        logger.error({
+                            "event": "streaming_session_not_found",
+                            "session_id": session_id
+                        })
+                        raise ValueError(f"Session not found: {session_id}")
+                    
+                    # Extract denormalized fields for fast billing queries
+                    account_id = session_record.account_id
+                    account_slug = session_record.account_slug
+                    agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
+                    agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+                
                 # Log tracking attempt for debugging
                 logger.debug({
                     "event": "streaming_llm_tracking_start",
@@ -852,7 +896,11 @@ async def simple_chat_stream(
                     "tokens": {"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
                     "cost": cost_data.get("total_cost", 0.0),
                     "has_model_settings": model_settings is not None,
-                    "model_settings_keys": list(model_settings.keys()) if model_settings else []
+                    "model_settings_keys": list(model_settings.keys()) if model_settings else [],
+                    # Denormalized attribution
+                    "account_slug": account_slug,
+                    "agent_instance_slug": agent_instance_slug,
+                    "agent_type": agent_type
                 })
                 
                 llm_request_id = await tracker.track_llm_request(
@@ -874,7 +922,13 @@ async def simple_chat_stream(
                     },
                     cost_data=cost_data,
                     latency_ms=latency_ms,
-                    agent_instance_id=agent_instance_id
+                    agent_instance_id=agent_instance_id,
+                    # Denormalized fields for fast billing queries (no JOINs)
+                    account_id=account_id,
+                    account_slug=account_slug,
+                    agent_instance_slug=agent_instance_slug,
+                    agent_type=agent_type,
+                    completion_status="complete"
                 )
                 
                 logger.info({
