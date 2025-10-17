@@ -146,11 +146,19 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
             "model_used": model_name_simple,
             "cost_tracking": "disabled"
         })
-        return Agent(
+        agent = Agent(
             model_name_simple,
             deps_type=SessionDependencies,
             system_prompt=system_prompt
         )
+        
+        # Conditionally register vector search tool
+        if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
+            from app.agents.tools import vector_tools
+            agent.tool(vector_tools.vector_search)
+            logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+        
+        return agent
     
     # Load system prompt from instance_config (multi-tenant) or agent config (single-tenant)
     if instance_config is not None and 'system_prompt' in instance_config:
@@ -204,11 +212,19 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
     })
     
     # Create agent with OpenRouterProvider (official pattern)
-    return Agent(
+    agent = Agent(
         model,
         deps_type=SessionDependencies,
         system_prompt=system_prompt
     )
+    
+    # Conditionally register vector search tool
+    if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
+        from app.agents.tools import vector_tools
+        agent.tool(vector_tools.vector_search)
+        logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+    
+    return agent
 
 async def get_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fixed: async function
     """
@@ -254,12 +270,15 @@ async def simple_chat(
     from .config_loader import get_agent_history_limit
     default_history_limit = await get_agent_history_limit("simple_chat")
     
-    # Create session dependencies properly (Fixed)
+    # Create session dependencies with agent config for tools
     session_deps = await SessionDependencies.create(
         session_id=session_id,
         user_id=None,  # Optional for simple chat
         history_limit=default_history_limit
     )
+    # Add agent-specific fields for tool access
+    session_deps.agent_config = instance_config
+    session_deps.agent_instance_id = agent_instance_id
     
     # Load model settings using centralized cascade (Fixed: comprehensive cascade)
     from .config_loader import get_agent_model_settings
@@ -573,12 +592,15 @@ async def simple_chat_stream(
     from .config_loader import get_agent_history_limit
     default_history_limit = await get_agent_history_limit("simple_chat")
     
-    # Create session dependencies
+    # Create session dependencies with agent config for tools
     session_deps = await SessionDependencies.create(
         session_id=session_id,
         user_id=None,
         history_limit=default_history_limit
     )
+    # Add agent-specific fields for tool access
+    session_deps.agent_config = instance_config
+    session_deps.agent_instance_id = agent_instance_id
     
     # Load conversation history if not provided
     if message_history is None:

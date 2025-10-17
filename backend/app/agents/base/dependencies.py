@@ -105,6 +105,15 @@ class SessionDependencies(BaseDependencies):
     conversation_history: Optional[list] = None
     history_limit: int = 20
     
+    # Agent configuration (for tool access)
+    agent_config: Optional[Dict[str, Any]] = None
+    
+    # Database session (for tool data access)
+    db_session: Optional[Any] = None
+    
+    # Agent instance ID (for multi-tenant attribution)
+    agent_instance_id: Optional[int] = None
+    
     @classmethod
     async def create(
         cls,
