@@ -8,13 +8,16 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Add backend directory to path
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(backend_dir))
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from app.services.agent_pinecone_config import load_agent_pinecone_config
-from app.services.pinecone_client import PineconeClient
-from app.services.vector_service import VectorService
+# Backend directory for config files
+backend_dir = Path(__file__).parent.parent.parent
+
+from backend.app.services.agent_pinecone_config import load_agent_pinecone_config
+from backend.app.services.pinecone_client import PineconeClient
+from backend.app.services.vector_service import VectorService
 import yaml
 
 

@@ -6,9 +6,9 @@ Handles document ingestion, querying, and vector operations with Pinecone.
 import asyncio
 import logging
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
 from datetime import datetime, UTC
 import logfire
+from pydantic import BaseModel, Field, field_validator
 
 try:
     from pinecone.exceptions import PineconeException
@@ -23,33 +23,52 @@ from backend.app.services.embedding_service import get_embedding_service, Embedd
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class VectorDocument:
-    """Document for vector storage"""
-    id: str
-    text: str
-    metadata: Dict[str, Any]
-    embedding: Optional[List[float]] = None
-    namespace: Optional[str] = None
+class VectorDocument(BaseModel):
+    """Document for vector storage with validation"""
+    id: str = Field(..., min_length=1, description="Unique document identifier")
+    text: str = Field(..., min_length=1, description="Document text content")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Document metadata")
+    embedding: Optional[List[float]] = Field(None, description="Vector embedding")
+    namespace: Optional[str] = Field(None, description="Pinecone namespace")
+    
+    @field_validator('embedding')
+    @classmethod
+    def validate_embedding(cls, v: Optional[List[float]]) -> Optional[List[float]]:
+        """Validate embedding dimensions are consistent"""
+        if v is not None and len(v) == 0:
+            raise ValueError("Embedding cannot be empty list")
+        return v
+    
+    model_config = {"extra": "forbid"}  # Strict - no extra fields allowed
 
 
-@dataclass
-class VectorQueryResult:
-    """Result from vector similarity search"""
-    id: str
-    text: str
-    score: float
-    metadata: Dict[str, Any]
-    namespace: str
+class VectorQueryResult(BaseModel):
+    """Result from vector similarity search with validation"""
+    id: str = Field(..., min_length=1, description="Result document ID")
+    text: str = Field(default="", description="Result text content")
+    score: float = Field(..., ge=0.0, le=1.0, description="Similarity score (0-1)")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Result metadata")
+    namespace: str = Field(..., min_length=1, description="Source namespace")
+    
+    model_config = {"extra": "forbid"}  # Strict - no extra fields allowed
 
 
-@dataclass
-class VectorQueryResponse:
-    """Complete response from vector query"""
-    results: List[VectorQueryResult]
-    total_results: int
-    query_time_ms: float
-    namespace: str
+class VectorQueryResponse(BaseModel):
+    """Complete response from vector query with validation"""
+    results: List[VectorQueryResult] = Field(default_factory=list, description="Query results")
+    total_results: int = Field(..., ge=0, description="Total number of results")
+    query_time_ms: float = Field(..., ge=0.0, description="Query execution time in milliseconds")
+    namespace: str = Field(..., min_length=1, description="Query namespace")
+    
+    @field_validator('total_results')
+    @classmethod
+    def validate_total_matches_results(cls, v: int, info) -> int:
+        """Ensure total_results matches length of results list"""
+        if 'results' in info.data and v != len(info.data['results']):
+            raise ValueError(f"total_results ({v}) must match results length ({len(info.data['results'])})")
+        return v
+    
+    model_config = {"extra": "forbid"}  # Strict - no extra fields allowed
 
 
 class VectorService:
