@@ -70,9 +70,9 @@
     - [x] 0022-001-004-01 - Astro/Preact components ✅ **PRODUCTION READY**
     - [ ] 0022-001-004-02 - Create iframe embedding option (NEW, non-breaking) ⏸️ **DEFERRED**
     - [ ] 0022-001-004-03 - Multi-tenant showcase demo (educational) ⏸️ **DEFERRED**
-  - [ ] 0022-001-005 - Cost Tracking & Observability ⏸️ **MOVED TO PRIORITY 3A**
-    - [ ] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries) → See BUG-0017-005 in Priority 3A
-    - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK for cost attribution and debugging) → Moved to Priority 3A
+  - [ ] 0022-001-005 - Cost Tracking & Observability ⏸️ **MOVED TO PRIORITY 3**
+    - [ ] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries) → Now Priority 3 (BUG-0017-005)
+    - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK for cost attribution and debugging) → Now Priority 3
   - [ ] 0022-001-006 - Testing & Validation ⏸️ **DEFERRED**
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
