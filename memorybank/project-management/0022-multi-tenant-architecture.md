@@ -1217,27 +1217,126 @@ Build foundational multi-tenant architecture with account and agent instance sup
   
   **Design Reference:** [Cost Tracking Updates](../design/account-agent-instance-architecture.md#6-cost-tracking-updates) - Complete track_llm_request() signature with hybrid FK + denormalized columns, query examples for fast aggregation
   
-  - [ ] 0022-001-005-01 - CHUNK - LLM request tracker updates
+  - [ ] 0022-001-005-01 - CHUNK - LLM request tracker updates (populate denormalized fields)
+    - **CONSOLIDATES**: Original epic task + BUG-0017-005 fix
+    - **RATIONALE**: 
+      - Denormalized columns added in migration but never populated by tracker
+      - Enables fast billing queries without JOINs across 3 tables
+      - Current workaround requires expensive JOINs: llm_requests → sessions → agent_instances → accounts
+      - With denormalized fields: direct GROUP BY on account_slug (uses index)
+    - **BACKWARD COMPATIBILITY**: Not required - will DELETE existing llm_requests data before testing (clean slate)
+    - **DATA SOURCES** (all already loaded, no extra DB queries):
+      - `account_id` → from `session.account_id` (Session object)
+      - `account_slug` → from `session.account_slug` (Session object)
+      - `agent_instance_slug` → from `instance_config.get("instance_name")` (Config dict)
+      - `agent_type` → from `instance_config.get("agent_type", "simple_chat")` (Config dict)
+      - `completion_status` → hardcoded string: "complete" / "partial" / "error" / "timeout"
     - SUB-TASKS:
-      - Update `backend/app/services/llm_request_tracker.py`
-      - Add parameters to `track_llm_request()`: account_id, account_slug, agent_instance_id, agent_instance_slug, agent_type, completion_status
-      - Update SQL INSERT to include new columns
-      - Maintain backward compatibility (all new params optional with defaults)
-      - Add helper method `track_agent_request()` for agent-specific tracking
-      - Update logging to show account/instance attribution
+      - **Step 1**: Update `backend/app/services/llm_request_tracker.py`:
+        - Change `track_request()` signature: add 4 required params (account_id, account_slug, agent_instance_slug, agent_type)
+        - Add 1 optional param with default: `completion_status: str = "complete"`
+        - Update LLMRequest instantiation to include all 5 new fields
+        - **NO backward compatibility**: make params required (cleaner implementation)
+      - **Step 2**: Update `backend/app/agents/simple_chat.py` (streaming function):
+        - Extract denormalized fields from session and config (lines ~800):
+          ```python
+          account_id = session.account_id
+          account_slug = session.account_slug
+          agent_instance_slug = instance_config.get("instance_name")
+          agent_type = instance_config.get("agent_type", "simple_chat")
+          ```
+        - Pass to tracker: `track_request(..., account_id=account_id, account_slug=account_slug, agent_instance_slug=agent_instance_slug, agent_type=agent_type, completion_status="complete")`
+        - In error handler: use `completion_status="error"` or `"partial"`
+      - **Step 3**: Update `backend/app/agents/simple_chat.py` (non-streaming function):
+        - Same pattern as Step 2 at line ~400
+        - Extract fields from session and config
+        - Pass to tracker with all denormalized fields
+      - **Step 4**: Verify `backend/app/models/llm_request.py`:
+        - Confirm `to_dict()` includes: account_id, account_slug, agent_instance_slug, agent_type, completion_status
+        - Add if missing (should already exist from migration)
+      - **Step 5**: Update logging:
+        - Add debug logs showing account/instance attribution when tracking LLM requests
+        - Log completion_status for debugging partial/error cases
+    - **COMPLETION_STATUS VALUES** (documented, not enforced enum):
+      - `"complete"` - Normal successful completion
+      - `"partial"` - Streaming interrupted, partial response saved
+      - `"error"` - LLM request failed
+      - `"timeout"` - Request timed out
     - AUTOMATED-TESTS: `backend/tests/unit/test_llm_request_tracker.py`
-      - `test_track_request_with_account_instance()` - New fields saved
-      - `test_track_request_backward_compatible()` - Old calls still work
-      - `test_track_agent_request_helper()` - Helper method works
-      - `test_hybrid_fk_denormalized()` - Both FK and slug columns populated
-      - `test_completion_status_values()` - Accepts complete/partial/error
+      - `test_track_request_with_denormalized_fields()` - All 5 new fields saved correctly
+      - `test_track_request_requires_denormalized_params()` - Raises TypeError if params missing (no backward compatibility)
+      - `test_hybrid_fk_denormalized()` - Both FK (account_id, agent_instance_id) and slugs populated
+      - `test_completion_status_values()` - Accepts complete/partial/error/timeout
+      - `test_all_fields_non_null()` - Verify no NULLs for required denormalized fields
+    - AUTOMATED-TESTS: `backend/tests/integration/test_simple_chat_denormalized_tracking.py`
+      - `test_streaming_endpoint_populates_denormalized()` - Send message via stream, verify all fields populated
+      - `test_non_streaming_endpoint_populates_denormalized()` - Send message via chat, verify all fields populated
+      - `test_multiple_agents_correct_attribution()` - Test 3 agents, verify each has correct account_slug/agent_type
+      - `test_partial_completion_status()` - Simulate stream interruption, verify completion_status="partial"
+      - `test_error_completion_status()` - Simulate LLM error, verify completion_status="error"
     - MANUAL-TESTS:
-      - Call track_llm_request with new parameters, check database
-      - Verify both account_id (FK) and account_slug (denormalized) saved
-      - Verify agent_instance_id (FK) and agent_instance_slug saved
-      - Test backward compatibility with old calls (should use NULL for new fields)
-    - STATUS: Planned — Enhanced cost tracking
-    - PRIORITY: High — Required for proper billing
+      - **Pre-implementation** (clean slate):
+        ```sql
+        -- Delete existing test data
+        DELETE FROM llm_requests;
+        ```
+      - **Test each agent** (agrofresh, wyckoff, default_account/simple_chat1, default_account/simple_chat2):
+        - Send message via streaming endpoint
+        - Send message via non-streaming endpoint
+        - Check database after each request
+      - **Post-implementation verification**:
+        ```sql
+        -- Verify all new records have denormalized fields populated
+        SELECT 
+            id,
+            account_id,
+            account_slug,
+            agent_instance_slug,
+            agent_type,
+            completion_status,
+            model,
+            total_cost
+        FROM llm_requests 
+        ORDER BY created_at DESC 
+        LIMIT 10;
+        
+        -- Expected: All fields non-NULL
+        -- Expected: account_slug in ('agrofresh', 'wyckoff', 'default_account')
+        -- Expected: agent_instance_slug in ('agro_info_chat1', 'wyckoff_info_chat1', 'simple_chat1', 'simple_chat2')
+        -- Expected: agent_type = 'simple_chat' for all
+        -- Expected: completion_status = 'complete' for successful requests
+        ```
+      - **Test fast billing query** (no JOINs):
+        ```sql
+        -- Group costs by account - now uses index on account_slug
+        SELECT 
+            account_slug,
+            COUNT(*) AS requests,
+            SUM(total_cost) AS total_cost,
+            SUM(total_tokens) AS total_tokens,
+            AVG(latency_ms) AS avg_latency_ms
+        FROM llm_requests
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY account_slug
+        ORDER BY total_cost DESC;
+        
+        -- Should return results instantly (uses idx_llm_requests_account_slug)
+        -- Compare with old JOIN query timing for performance improvement
+        ```
+      - **Test agent-specific costs**:
+        ```sql
+        -- Fast query for per-agent costs (no JOINs)
+        SELECT 
+            agent_instance_slug,
+            agent_type,
+            COUNT(*) AS requests,
+            SUM(total_cost) AS total_cost
+        FROM llm_requests
+        WHERE account_slug = 'agrofresh'
+        GROUP BY agent_instance_slug, agent_type;
+        ```
+    - STATUS: Planned — Critical for fast billing/analytics queries
+    - PRIORITY: High — Blocks efficient cost reporting
   
   - [ ] 0022-001-005-02 - CHUNK - Link LLM requests to messages (data integrity)
     - **PURPOSE**: Establish proper 1:many relationship between llm_requests and messages for cost attribution
