@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "qwen/qwen3-235b-a22b-thinking-2507"  # Reliable model with great Pydantic AI support
+  model: "openai/gpt-5-chat"  # OpenAI GPT-5 for enhanced reasoning
   temperature: 0.3
   max_tokens: 2000
 
@@ -21,7 +21,7 @@ tools:
   vector_search:
     enabled: true  # ENABLED - Hospital WordPress content in Pinecone
     max_results: 5
-    similarity_threshold: 0.7
+    similarity_threshold: 0.4  # Lower threshold for better recall on medical content
     pinecone:
       index_name: "wyckoff-poc-01"  # Wyckoff WordPress site content
       # index_host will be auto-discovered via Pinecone API if not specified
