@@ -77,15 +77,15 @@
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
 
-### **Priority 3: Data Model Cleanup & Cost Attribution** 🎯 **NEXT**
-**Doing this FIRST (before vector search) - helps with debugging and cost tracking**
+### **Priority 3: Data Model Cleanup & Cost Attribution** 🚧 **IN PROGRESS** (1/4 complete)
+**Doing this to enable accurate billing and debugging**
 
-- [ ] 0022-001-005-01 - Populate denormalized fields in LLM requests (BUG-0017-005)
+- [x] 0022-001-005-01 - Populate denormalized fields in LLM requests (BUG-0017-005) ✅
   - Update `llm_request_tracker.py` to populate: account_id, account_slug, agent_instance_slug, agent_type, completion_status
   - Enables fast billing queries without JOINs across 3 tables
-  - No backward compatibility needed (clean slate with DELETE FROM llm_requests)
-  - See: [Epic 0022-001-005-01](0022-multi-tenant-architecture.md#0022-001-005-01) for detailed implementation plan
-  - See: [bugs-0017.md](bugs-0017.md) for bug context
+  - **Status**: ✅ FIXED 2025-10-18 - Database verified: 100% field population, 0 NULL values
+  - **Verification**: 5/5 recent records have all denormalized fields populated correctly
+  - See: [bugs-0017.md](bugs-0017.md) for implementation details and verification
   
 - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK)
   - Add `llm_request_id` (nullable FK) to messages table
@@ -97,6 +97,39 @@
   - Enables fast session analytics without JOINs to agent_instances table
   - Follows same denormalization pattern as llm_requests table
   - See: [Epic 0022-001-005-03](0022-multi-tenant-architecture.md#0022-001-005-03) for detailed implementation plan
+
+- [ ] 0017-005-003 - Multi-Agent Data Integrity Verification Script
+  - Create comprehensive manual test script: `backend/tests/manual/test_data_integrity.py`
+  - **Purpose**: Verify all database tables are populated correctly after Priority 3 changes
+  - **Scope**: Test all agent instances (5 agents across 3 accounts: agrofresh, wyckoff, default_account, acme)
+  - **Verification**: For each agent, send test chat request and verify:
+    - Sessions table: account_id, agent_instance_id, agent_instance_slug populated
+    - Messages table: session_id, llm_request_id FK populated, role/content correct
+    - LLM_requests table: account_id, account_slug, agent_instance_slug, agent_type, completion_status populated
+    - Costs tracked: prompt_cost, completion_cost, total_cost non-zero
+  - **Configuration**: YAML config file specifying test prompts per agent (e.g., "What products do you offer?" for AgroFresh)
+  - **Implementation Options** (3 approaches to consider):
+    1. **Sequential Database Queries** (Recommended for MVP):
+       - Direct SQLAlchemy queries after each HTTP request
+       - Simple, debuggable, no external dependencies
+       - Prints summary table with pass/fail per agent
+       - Pros: Fast to implement, easy to understand
+       - Cons: Slower execution (sequential), requires running server
+    2. **LLM-Assisted Verification** (Intelligent validation):
+       - Uses LLM to generate test prompts and verify response quality
+       - Validates data relationships are semantically correct
+       - Can catch logical errors (e.g., Wyckoff agent answering AgroFresh questions)
+       - Pros: Smart validation, catches semantic issues
+       - Cons: Costs money, slower, adds complexity
+    3. **Pytest Parametrized Suite** (Production-ready):
+       - Uses `@pytest.mark.parametrize` to test all agents
+       - Parallel execution with `pytest-xdist`
+       - Proper fixtures, setup/teardown, CI/CD integration
+       - Pros: Professional, parallel, reusable in CI pipeline
+       - Cons: More complex, pytest overhead, harder to read output
+  - **Recommendation**: Start with Option 1 (Sequential), evolve to Option 3 (Pytest) for CI/CD
+  - **Output**: Summary table showing pass/fail for each agent + data integrity checks
+  - **See**: [Epic 0017-005-003](0017-simple-chat-agent.md#0017-005-003) for detailed implementation plan
 
 ### **Priority 4: Vector Search Tool** ✅ **COMPLETE**
 **Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture**
@@ -278,7 +311,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 4 in progress 🎯 - Vector search tool and chat widget enhancements
+**Current Status**: Priority 3 in progress 🎯 - Data model cleanup and cost attribution
 
 **Progress Summary:**
 - ✅ **Priority 2B - Epic 0022 (Multi-Tenant Architecture)**: COMPLETE
@@ -286,19 +319,22 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Working endpoints, widget integration, cost tracking
   - All critical bugs fixed (CORS, sessions, markdown, SSE)
   
-- 🎯 **Priority 3 - Data Model Cleanup**: COMPLETE
-  - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
+- 🚧 **Priority 3 - Data Model Cleanup**: IN PROGRESS (1/4 complete)
+  - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005) ✅ **DONE**
+    - Database verified: 100% field population, 0 NULL values, fast billing queries working
   - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK) - remaining
   - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - remaining
+  - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script - remaining
   
 - 🚧 **Priority 4 - Vector Search Tool & Chat Widget**: IN PROGRESS
   - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
   - ✅ Vector Search Tool Implementation (3/3 chunks complete)
-  - 🚧 Bug Fixes (2/5 complete) - See [bugs-0017.md](bugs-0017.md)
-    - ✅ BUG-0017-001: Zero chunks streaming - FIXED
-    - ✅ BUG-0017-002: Missing model pricing - FIXED  
-    - 📋 BUG-0017-003: Vapid sessions with NULL IDs (remaining)
-    - 📋 BUG-0017-004: Duplicate user messages on retry (Won't Fix)
+  - ✅ Bug Fixes (4/5 complete) - See [bugs-0017.md](bugs-0017.md)
+    - ✅ BUG-0017-001: Zero chunks streaming - FIXED 2025-10-15
+    - ✅ BUG-0017-002: Missing model pricing - FIXED 2025-10-15
+    - ✅ BUG-0017-003: Vapid sessions with NULL IDs - FIXED 2025-10-18
+    - ✅ BUG-0017-005: Missing denormalized fields - FIXED 2025-10-18
+    - ⏸️ BUG-0017-004: Duplicate user messages on retry - WON'T FIX
   - 📋 0003-010: Chat Widget Maximize/Minimize Toggle - NEXT
 
 **Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
@@ -307,15 +343,16 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
 
 **Next Steps (Phase 1 MVP):**
-1. 🎯 **Priority 3: Data Model Cleanup & Cost Attribution** - NEXT (helps with debugging)
-   - 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005)
-   - 0022-001-005-02: Link llm_requests to messages (1:many FK)
-   - 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
-2. 🚧 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
+1. 🚧 **Priority 3: Data Model Cleanup & Cost Attribution** - IN PROGRESS (1/4 complete)
+   - ✅ 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005) - DONE
+   - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK) - NEXT
+   - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
+   - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script
+2. 📋 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
    - ✅ Multi-client demo site architecture (complete)
-   - 🚧 Bug fixes (2/5 fixed, 2 remaining)
-   - 📋 Vector search tool implementation with Pydantic AI
-   - 📋 Chat widget maximize/minimize (Epic 0003-010)
+   - ✅ Vector search tool implementation with Pydantic AI (complete)
+   - ✅ Bug fixes (4/5 fixed, 1 won't fix)
+   - 📋 Chat widget maximize/minimize (Epic 0003-010) - NEXT after Priority 3
 3. **Priority 5: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
 4. Priority 6: 0017-006 (Profile Fields Config & JSONB Migration)
 5. Priority 7: 0017-007 (Profile Capture Tool)

@@ -1261,7 +1261,7 @@ This multi-model architecture validates that the Pydantic AI implementation is m
       ```
       
       **Step 2**: Create `backend/app/services/agent_pinecone_config.py`
-      ```python
+```python
       from typing import Optional, Dict, Any
       from dataclasses import dataclass
       import os
@@ -1627,6 +1627,332 @@ This multi-model architecture validates that the Pydantic AI implementation is m
     
     - STATUS: ✅ COMPLETE — Production-ready validation (Commit: c0499d3, Test: verify_wyckoff_index.py ✅ PASSED)
     - PRIORITY: High — Confirms MVP readiness
+
+## Priority 2B+: Multi-Agent Data Integrity Testing
+
+### 0017-005-003 - FEATURE - Data Integrity Verification Infrastructure
+**Status**: Planned
+
+Comprehensive test infrastructure to verify database integrity across all agent instances after data model cleanup (Priority 3).
+
+- [ ] 0017-005-003-001 - TASK - Multi-Agent Data Integrity Verification Script
+  - [ ] 0017-005-003-001-01 - CHUNK - Create comprehensive test script
+    - **PURPOSE**: Verify all database tables (sessions, messages, llm_requests) are populated correctly after Priority 3 denormalization work
+    - **SCOPE**: Test all 5 agent instances across 3 accounts
+    - **LOCATION**: `backend/tests/manual/test_data_integrity.py`
+    
+    - **AGENT COVERAGE**:
+      ```
+      ACCOUNT           AGENT INSTANCE           MODEL                                 VECTOR SEARCH
+      ────────────────────────────────────────────────────────────────────────────────────────────
+      agrofresh      →  agro_info_chat1      →  deepseek/deepseek-v3.2-exp        →  Enabled (agrofresh01)
+      wyckoff        →  wyckoff_info_chat1   →  qwen/qwen3-235b-a22b-thinking    →  Enabled (wyckoff-poc-01)
+      default_account→  simple_chat1         →  moonshotai/kimi-k2-0905           →  Disabled
+      default_account→  simple_chat2         →  openai/gpt-oss-120b               →  Disabled
+      acme           →  acme_chat1           →  mistralai/mistral-small-3.2       →  Disabled
+      ```
+    
+    - **VERIFICATION CHECKS** (per agent):
+      1. **Sessions Table**:
+         - `account_id` populated (FK to accounts table)
+         - `agent_instance_id` populated (FK to agent_instances table)
+         - `agent_instance_slug` populated (denormalized for fast queries)
+         - Session cookie valid and persistent
+      
+      2. **Messages Table**:
+         - `session_id` populated (FK to sessions table)
+         - `llm_request_id` populated (nullable FK to llm_requests table)
+         - `role` correct (user/assistant)
+         - `content` matches request/response
+         - Timestamps populated
+      
+      3. **LLM_requests Table**:
+         - `account_id` populated (denormalized)
+         - `account_slug` populated (denormalized)
+         - `agent_instance_slug` populated (denormalized)
+         - `agent_type` populated (e.g., "simple_chat")
+         - `completion_status` populated (e.g., "success", "error")
+         - `prompt_cost` > 0 (non-zero for successful requests)
+         - `completion_cost` > 0 (non-zero for successful requests)
+         - `total_cost` = prompt_cost + completion_cost
+         - `request_body` and `response_body` populated
+         - `model` matches agent config
+      
+      4. **Cross-Table Relationships**:
+         - Messages.llm_request_id references valid llm_requests.id
+         - Messages.session_id references valid sessions.id
+         - Sessions.account_id references valid accounts.id
+         - Sessions.agent_instance_id references valid agent_instances.id
+      
+      5. **Cost Tracking Validation**:
+         - All costs use NUMERIC(12, 8) precision
+         - Costs match expected ranges for each model
+         - No NULL costs for successful completions
+         - `genai-prices` or `fallback_pricing.yaml` used correctly
+    
+    - **CONFIGURATION** (YAML file: `backend/tests/manual/test_data_integrity_config.yaml`):
+      ```yaml
+      test_prompts:
+        agrofresh/agro_info_chat1:
+          prompt: "What products do you offer for apples?"
+          expected_keywords: ["AgroFresh", "SmartFresh", "coating"]
+        
+        wyckoff/wyckoff_info_chat1:
+          prompt: "What cardiology services do you offer?"
+          expected_keywords: ["cardiology", "heart", "services"]
+        
+        default_account/simple_chat1:
+          prompt: "What is your knowledge cutoff date?"
+          expected_keywords: ["2023", "2024", "cutoff"]
+        
+        default_account/simple_chat2:
+          prompt: "Tell me about yourself"
+          expected_keywords: ["assistant", "help"]
+        
+        acme/acme_chat1:
+          prompt: "What can you do?"
+          expected_keywords: ["assist", "help", "answer"]
+      
+      backend:
+        url: "http://localhost:8000"
+        timeout_seconds: 30
+      
+      database:
+        connection_string: "${DATABASE_URL}"  # From .env
+      
+      verification:
+        check_costs: true
+        check_relationships: true
+        check_denormalization: true
+        strict_mode: true  # Fail on any issue
+      ```
+    
+    - **IMPLEMENTATION OPTIONS** (3 approaches):
+      
+      **Option 1: Sequential Database Queries** (Recommended for MVP):
+      ```python
+      # Pros: Simple, debuggable, no external dependencies
+      # Cons: Slower (sequential), requires running server
+      
+      async def test_agent_data_integrity(account: str, agent: str, prompt: str):
+          # 1. Send HTTP request
+          response = await client.post(f"/accounts/{account}/agents/{agent}/chat", ...)
+          
+          # 2. Query database directly (SQLAlchemy)
+          session_record = await db.query(Session).filter(...).first()
+          messages = await db.query(Message).filter(...).all()
+          llm_request = await db.query(LLMRequest).filter(...).first()
+          
+          # 3. Verify all fields
+          assert session_record.account_id is not None
+          assert session_record.agent_instance_slug == agent
+          assert llm_request.prompt_cost > 0
+          ...
+          
+          # 4. Print summary
+          print(f"✅ {account}/{agent}: PASS")
+      
+      # Run sequentially for all 5 agents
+      for agent_config in test_configs:
+          await test_agent_data_integrity(**agent_config)
+      
+      # Output: Summary table
+      """
+      AGENT                          STATUS  SESSION  MESSAGES  LLM_REQ  COSTS
+      ───────────────────────────────────────────────────────────────────────
+      agrofresh/agro_info_chat1      ✅ PASS    ✅       ✅        ✅       ✅
+      wyckoff/wyckoff_info_chat1     ✅ PASS    ✅       ✅        ✅       ✅
+      default_account/simple_chat1   ✅ PASS    ✅       ✅        ✅       ✅
+      default_account/simple_chat2   ✅ PASS    ✅       ✅        ✅       ✅
+      acme/acme_chat1                ✅ PASS    ✅       ✅        ✅       ✅
+      """
+      ```
+      
+      **Option 2: LLM-Assisted Verification** (Intelligent validation):
+      ```python
+      # Pros: Smart validation, catches semantic issues, generates test prompts
+      # Cons: Costs money, slower, adds complexity
+      
+      async def llm_verify_data_integrity(agent_config):
+          # 1. Use LLM to generate contextual test prompt
+          test_prompt = await llm.generate_test_prompt(
+              agent_type="info_bot",
+              domain=agent_config.domain,  # "agriculture" vs "healthcare"
+              purpose="test vector search for hospital services"
+          )
+          
+          # 2. Send request and get response
+          response = await send_chat_request(agent_config, test_prompt)
+          
+          # 3. Use LLM to verify response quality
+          verification = await llm.verify_response(
+              prompt=test_prompt,
+              response=response,
+              expected_behavior="Should answer about {domain} using knowledge base"
+          )
+          
+          # 4. Check database integrity (same as Option 1)
+          db_checks = await verify_database_records(agent_config)
+          
+          # 5. LLM semantic checks
+          semantic_issues = await llm.check_for_issues(
+              agent="wyckoff/hospital_chat1",
+              response=response,
+              issues_to_check=[
+                  "Is agent answering AgroFresh questions when configured for Wyckoff?",
+                  "Is agent hallucinating contact info not in knowledge base?",
+                  "Is response using correct domain terminology?"
+              ]
+          )
+          
+          return {
+              "database_integrity": db_checks,
+              "response_quality": verification,
+              "semantic_issues": semantic_issues
+          }
+      ```
+      
+      **Option 3: Pytest Parametrized Suite** (Production-ready):
+      ```python
+      # Pros: Professional, parallel execution, reusable in CI/CD, proper fixtures
+      # Cons: More complex setup, pytest overhead, harder to read output
+      
+      import pytest
+      from pytest_asyncio import fixture
+      
+      @fixture
+      async def db_session():
+          async with get_database_service().get_session() as session:
+              yield session
+      
+      @fixture
+      async def http_client():
+          async with httpx.AsyncClient(base_url="http://localhost:8000") as client:
+              yield client
+      
+      @pytest.mark.parametrize("account,agent,prompt,expected_keywords", [
+          ("agrofresh", "agro_info_chat1", "What products do you offer?", ["AgroFresh"]),
+          ("wyckoff", "wyckoff_info_chat1", "What cardiology services?", ["cardiology"]),
+          ("default_account", "simple_chat1", "What is your cutoff date?", ["2023"]),
+          ("default_account", "simple_chat2", "Tell me about yourself", ["assistant"]),
+          ("acme", "acme_chat1", "What can you do?", ["assist"]),
+      ])
+      @pytest.mark.asyncio
+      async def test_agent_data_integrity(
+          account, agent, prompt, expected_keywords,
+          http_client, db_session
+      ):
+          # Send request
+          response = await http_client.post(
+              f"/accounts/{account}/agents/{agent}/chat",
+              json={"message": prompt}
+          )
+          assert response.status_code == 200
+          
+          # Verify database
+          session_record = await db_session.execute(
+              select(Session).where(Session.agent_instance_slug == agent)
+              .order_by(Session.created_at.desc()).limit(1)
+          )
+          session_record = session_record.scalar_one()
+          
+          # All verifications...
+          assert session_record.account_id is not None
+          assert session_record.agent_instance_slug == agent
+          ...
+      
+      # Run with: pytest -xdist -n auto backend/tests/manual/test_data_integrity.py
+      # Parallel execution across CPU cores
+      ```
+    
+    - **RECOMMENDATION**: 
+      - **Start with Option 1** (Sequential Database Queries) for immediate validation
+      - **Evolve to Option 3** (Pytest Suite) for CI/CD integration in production
+      - **Option 2** (LLM-Assisted) only if semantic validation is critical
+    
+    - **OUTPUT FORMAT**:
+      ```
+      ╔════════════════════════════════════════════════════════════════════════════════╗
+      ║               MULTI-AGENT DATA INTEGRITY VERIFICATION REPORT                    ║
+      ╠════════════════════════════════════════════════════════════════════════════════╣
+      ║ Test Run: 2025-10-18 15:42:31 UTC                                              ║
+      ║ Backend: http://localhost:8000                                                  ║
+      ║ Database: salient_dev (PostgreSQL 14.2)                                         ║
+      ╚════════════════════════════════════════════════════════════════════════════════╝
+      
+      AGENT VERIFICATION RESULTS
+      ┌─────────────────────────────────┬────────┬─────────┬──────────┬─────────┬───────┐
+      │ Agent                           │ Status │ Session │ Messages │ LLM_Req │ Costs │
+      ├─────────────────────────────────┼────────┼─────────┼──────────┼─────────┼───────┤
+      │ agrofresh/agro_info_chat1       │ ✅ PASS│   ✅    │    ✅    │   ✅    │  ✅   │
+      │ wyckoff/wyckoff_info_chat1      │ ✅ PASS│   ✅    │    ✅    │   ✅    │  ✅   │
+      │ default_account/simple_chat1    │ ✅ PASS│   ✅    │    ✅    │   ✅    │  ✅   │
+      │ default_account/simple_chat2    │ ✅ PASS│   ✅    │    ✅    │   ✅    │  ✅   │
+      │ acme/acme_chat1                 │ ✅ PASS│   ✅    │    ✅    │   ✅    │  ✅   │
+      └─────────────────────────────────┴────────┴─────────┴──────────┴─────────┴───────┘
+      
+      DETAILED VERIFICATION
+      ┌─────────────────────────────────┬──────────────────────────────────────────────┐
+      │ Check                           │ Result                                        │
+      ├─────────────────────────────────┼──────────────────────────────────────────────┤
+      │ Sessions.account_id             │ ✅ All populated (5/5)                       │
+      │ Sessions.agent_instance_slug    │ ✅ All populated (5/5)                       │
+      │ Messages.llm_request_id (FK)    │ ✅ All populated (10/10)                     │
+      │ LLM_requests.account_slug       │ ✅ All populated (5/5)                       │
+      │ LLM_requests.agent_type         │ ✅ All populated (5/5)                       │
+      │ LLM_requests.completion_status  │ ✅ All "success" (5/5)                       │
+      │ Cost tracking (non-zero)        │ ✅ All > 0 (5/5)                             │
+      │ Cost precision (12,8)           │ ✅ All valid NUMERIC (5/5)                   │
+      │ Cross-table FK relationships    │ ✅ All valid (0 orphaned records)            │
+      └─────────────────────────────────┴──────────────────────────────────────────────┘
+      
+      SUMMARY
+      ═══════════════════════════════════════════════════════════════════════════════════
+      ✅ ALL CHECKS PASSED (5/5 agents verified)
+      
+      Total execution time: 42.3 seconds
+      Database queries: 75
+      HTTP requests: 5
+      LLM requests: 5
+      Total cost: $0.0234
+      
+      Next Steps:
+      1. ✅ Data model cleanup complete - safe to proceed with vector search testing
+      2. 📋 Run regression tests: pytest backend/tests/
+      3. 📋 Deploy to staging environment
+      ```
+    
+    - SUB-TASKS:
+      - Create `backend/tests/manual/test_data_integrity.py` with Option 1 implementation
+      - Create `backend/tests/manual/test_data_integrity_config.yaml` with test prompts
+      - Add database query helpers for verification checks
+      - Implement summary table formatter (ASCII table output)
+      - Add detailed logging for each verification step
+      - Include timing metrics and cost tracking
+      - Create documentation in script docstring
+      - Add error handling for network/database issues
+      - Support dry-run mode (no HTTP requests, use existing DB data)
+      - Add --strict flag for CI/CD integration (exit 1 on any failure)
+    
+    - AUTOMATED-TESTS: `backend/tests/unit/test_data_integrity_script.py`
+      - `test_verification_logic()` - Test verification checks with mock data
+      - `test_config_loading()` - Test YAML config parsing
+      - `test_summary_formatting()` - Test ASCII table output
+      - `test_error_handling()` - Test network/DB error scenarios
+    
+    - MANUAL-TESTS:
+      - Clear database tables: `DELETE FROM llm_requests; DELETE FROM messages; DELETE FROM sessions WHERE agent_instance_id IS NOT NULL;`
+      - Run script: `python backend/tests/manual/test_data_integrity.py`
+      - Verify: All 5 agents show ✅ PASS in summary table
+      - Check database: Manually query sessions, messages, llm_requests tables
+      - Verify: All denormalized fields populated correctly
+      - Verify: All FK relationships valid
+      - Verify: All costs non-zero and correctly calculated
+      - Run in strict mode: `python backend/tests/manual/test_data_integrity.py --strict`
+      - Verify: Script exits 1 if any check fails
+    
+    - STATUS: Planned — Comprehensive test infrastructure for Priority 3 validation
+    - PRIORITY: High — Required to verify data model cleanup is working correctly
 
 ## Priority 2C: Profile Configuration & Schema
 
