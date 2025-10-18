@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "deepseek/deepseek-chat-v3-0324"  # Reliable model with great Pydantic AI support
+  model: "deepseek/deepseek-v3.2-exp"  # Experimental model with tool calling support
   temperature: 0.3
   max_tokens: 2000
 

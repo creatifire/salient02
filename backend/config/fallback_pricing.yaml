@@ -65,4 +65,11 @@ models:
     source: "https://openrouter.ai/openai/gpt-5-mini"
     updated: "2025-10-18"
     notes: "Used by wyckoff/wyckoff_info_chat1. Compact GPT-5 for lighter reasoning. Supports tool use. 400k context. 80% cheaper than gpt-5-chat."
+  
+  deepseek/deepseek-v3.2-exp:
+    input_per_1m: 0.27     # $0.27 per 1M input tokens
+    output_per_1m: 0.40    # $0.40 per 1M output tokens
+    source: "https://openrouter.ai/deepseek/deepseek-v3.2-exp"
+    updated: "2025-09-29"
+    notes: "Used by agrofresh/agro_info_chat1. Experimental model with DeepSeek Sparse Attention (DSA) for long-context efficiency. Supports tool calling. 163k context. Research-oriented architecture validation."
 
