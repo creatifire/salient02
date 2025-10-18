@@ -71,7 +71,7 @@
     - [ ] 0022-001-004-02 - Create iframe embedding option (NEW, non-breaking) ⏸️ **DEFERRED**
     - [ ] 0022-001-004-03 - Multi-tenant showcase demo (educational) ⏸️ **DEFERRED**
   - [ ] 0022-001-005 - Cost Tracking & Observability ⏸️ **MOVED TO PRIORITY 3**
-    - [ ] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries) → Now Priority 3 (BUG-0017-005)
+    - [x] 0022-001-005-01 - LLM request tracker updates (denormalized columns for fast billing queries) ✅ **DONE in Priority 3**
     - [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK for cost attribution and debugging) → Now Priority 3
   - [ ] 0022-001-006 - Testing & Validation ⏸️ **DEFERRED**
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
