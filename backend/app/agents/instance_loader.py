@@ -79,112 +79,135 @@ async def load_agent_instance(
         f"Loading agent instance: account={account_slug}, instance={instance_slug}"
     )
     
-    # Get or create session
-    session_provided = session is not None
-    if not session_provided:
-        session = await anext(get_db_session())
+    # Use provided session or create our own with proper context manager
+    if session is not None:
+        # Caller manages session lifecycle
+        return await _load_with_session(session, account_slug, instance_slug)
+    else:
+        # We manage session lifecycle with async context manager
+        async with get_db_session() as session:
+            return await _load_with_session(session, account_slug, instance_slug)
+
+
+async def _load_with_session(
+    session: AsyncSession,
+    account_slug: str,
+    instance_slug: str
+) -> AgentInstance:
+    """
+    Internal helper to load agent instance with an existing session.
+    
+    This function contains the core logic but does NOT manage the session lifecycle.
+    The caller is responsible for session management via async context manager.
+    
+    Args:
+        session: Active AsyncSession (managed by caller)
+        account_slug: Account identifier
+        instance_slug: Instance identifier
+    
+    Returns:
+        AgentInstance with database metadata + loaded config
+    
+    Raises:
+        ValueError: If account/instance doesn't exist or instance is inactive
+        FileNotFoundError: If config file is missing
+        yaml.YAMLError: If config file is invalid YAML
+    """
+    # Step 1: Query database for instance metadata
+    from ..models.agent_instance import AgentInstanceModel
+    from ..models.account import Account
+    
+    query = (
+        select(AgentInstanceModel, Account)
+        .join(Account, AgentInstanceModel.account_id == Account.id)
+        .where(Account.slug == account_slug)
+        .where(AgentInstanceModel.instance_slug == instance_slug)
+    )
+    
+    result = await session.execute(query)
+    row = result.first()
+    
+    if not row:
+        logger.error(
+            f"Agent instance not found: account={account_slug}, instance={instance_slug}"
+        )
+        raise ValueError(
+            f"Agent instance not found: {account_slug}/{instance_slug}"
+        )
+    
+    instance_model, account_model = row
+    
+    # Step 2: Validate instance is active
+    if instance_model.status != 'active':
+        logger.error(
+            f"Agent instance is not active: {account_slug}/{instance_slug} "
+            f"(status={instance_model.status})"
+        )
+        raise ValueError(
+            f"Agent instance is not active: {account_slug}/{instance_slug} "
+            f"(status={instance_model.status})"
+        )
+    
+    logger.debug(
+        f"Found active instance: id={instance_model.id}, "
+        f"type={instance_model.agent_type}, "
+        f"display_name={instance_model.display_name}"
+    )
+    
+    # Step 3: Load config file
+    config_path = _get_config_path(account_slug, instance_slug)
+    logger.debug(f"Loading config from: {config_path}")
+    
+    if not config_path.exists():
+        logger.error(f"Config file not found: {config_path}")
+        raise FileNotFoundError(
+            f"Config file not found: {config_path}"
+        )
     
     try:
-        # Step 1: Query database for instance metadata
-        from ..models.agent_instance import AgentInstanceModel
-        from ..models.account import Account
-        
-        query = (
-            select(AgentInstanceModel, Account)
-            .join(Account, AgentInstanceModel.account_id == Account.id)
-            .where(Account.slug == account_slug)
-            .where(AgentInstanceModel.instance_slug == instance_slug)
-        )
-        
-        result = await session.execute(query)
-        row = result.first()
-        
-        if not row:
-            logger.error(
-                f"Agent instance not found: account={account_slug}, instance={instance_slug}"
-            )
-            raise ValueError(
-                f"Agent instance not found: {account_slug}/{instance_slug}"
-            )
-        
-        instance_model, account_model = row
-        
-        # Step 2: Validate instance is active
-        if instance_model.status != 'active':
-            logger.error(
-                f"Agent instance is not active: {account_slug}/{instance_slug} "
-                f"(status={instance_model.status})"
-            )
-            raise ValueError(
-                f"Agent instance is not active: {account_slug}/{instance_slug} "
-                f"(status={instance_model.status})"
-            )
-        
-        logger.debug(
-            f"Found active instance: id={instance_model.id}, "
-            f"type={instance_model.agent_type}, "
-            f"display_name={instance_model.display_name}"
-        )
-        
-        # Step 3: Load config file
-        config_path = _get_config_path(account_slug, instance_slug)
-        logger.debug(f"Loading config from: {config_path}")
-        
-        if not config_path.exists():
-            logger.error(f"Config file not found: {config_path}")
-            raise FileNotFoundError(
-                f"Config file not found: {config_path}"
-            )
-        
-        try:
-            with open(config_path, 'r') as f:
-                config = yaml.safe_load(f)
-        except yaml.YAMLError as e:
-            logger.error(f"Invalid YAML in config file {config_path}: {e}")
-            raise
-        
-        logger.debug(f"Config loaded successfully from {config_path}")
-        
-        # Step 4: Load system prompt if exists
-        system_prompt = None
-        system_prompt_path = config_path.parent / "system_prompt.md"
-        if system_prompt_path.exists():
-            logger.debug(f"Loading system prompt from: {system_prompt_path}")
-            with open(system_prompt_path, 'r') as f:
-                system_prompt = f.read()
-        
-        # Step 5: Update last_used_at timestamp
-        update_stmt = (
-            update(AgentInstanceModel)
-            .where(AgentInstanceModel.id == instance_model.id)
-            .values(last_used_at=datetime.now(timezone.utc))
-        )
-        await session.execute(update_stmt)
-        await session.commit()
-        
-        logger.info(
-            f"Successfully loaded instance: {account_slug}/{instance_slug} "
-            f"(type={instance_model.agent_type}, id={instance_model.id})"
-        )
-        
-        # Step 6: Return AgentInstance dataclass
-        return AgentInstance(
-            id=instance_model.id,
-            account_id=instance_model.account_id,
-            account_slug=account_slug,
-            instance_slug=instance_slug,
-            agent_type=instance_model.agent_type,
-            display_name=instance_model.display_name,
-            status=instance_model.status,
-            last_used_at=datetime.now(timezone.utc),
-            config=config,
-            system_prompt=system_prompt
-        )
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        logger.error(f"Invalid YAML in config file {config_path}: {e}")
+        raise
     
-    finally:
-        # Only close session if we created it
-        if not session_provided:
-            await session.close()
+    logger.debug(f"Config loaded successfully from {config_path}")
+    
+    # Step 4: Load system prompt if exists
+    system_prompt = None
+    system_prompt_path = config_path.parent / "system_prompt.md"
+    if system_prompt_path.exists():
+        logger.debug(f"Loading system prompt from: {system_prompt_path}")
+        with open(system_prompt_path, 'r') as f:
+            system_prompt = f.read()
+    
+    # Step 5: Update last_used_at timestamp
+    update_stmt = (
+        update(AgentInstanceModel)
+        .where(AgentInstanceModel.id == instance_model.id)
+        .values(last_used_at=datetime.now(timezone.utc))
+    )
+    await session.execute(update_stmt)
+    await session.commit()
+    
+    logger.info(
+        f"Successfully loaded instance: {account_slug}/{instance_slug} "
+        f"(type={instance_model.agent_type}, id={instance_model.id})"
+    )
+    
+    # Step 6: Return AgentInstance dataclass
+    return AgentInstance(
+        id=instance_model.id,
+        account_id=instance_model.account_id,
+        account_slug=account_slug,
+        instance_slug=instance_slug,
+        agent_type=instance_model.agent_type,
+        display_name=instance_model.display_name,
+        status=instance_model.status,
+        last_used_at=datetime.now(timezone.utc),
+        config=config,
+        system_prompt=system_prompt
+    )
 
 
 def _get_config_path(account_slug: str, instance_slug: str) -> Path:
@@ -257,63 +280,68 @@ async def list_account_instances(
         #     {'id': UUID(...), 'instance_slug': 'simple_chat2', ...}
         # ]
     """
+    # Use provided session or create our own with proper context manager
+    if session is not None:
+        # Caller manages session lifecycle
+        return await _list_account_instances_with_session(session, account_slug)
+    else:
+        # We manage session lifecycle with async context manager
+        async with get_db_session() as session:
+            return await _list_account_instances_with_session(session, account_slug)
+
+
+async def _list_account_instances_with_session(
+    session: AsyncSession,
+    account_slug: str
+) -> list[dict]:
+    """Helper function to list account instances with an existing session."""
     from ..models.account import Account
     from ..models.agent_instance import AgentInstanceModel
     
-    # Create session if not provided
-    should_close = session is None
-    if session is None:
-        session = await anext(get_db_session())
+    # Validate account exists
+    account_result = await session.execute(
+        select(Account).where(Account.slug == account_slug)
+    )
+    account = account_result.scalar_one_or_none()
     
-    try:
-        # Validate account exists
-        account_result = await session.execute(
-            select(Account).where(Account.slug == account_slug)
+    if not account:
+        logger.warning(f"Account not found for listing instances: {account_slug}")
+        raise ValueError(f"Account '{account_slug}' not found")
+    
+    logger.info(f"Listing instances for account: {account_slug} (id={account.id})")
+    
+    # Query all active instances for this account
+    stmt = (
+        select(AgentInstanceModel)
+        .where(
+            AgentInstanceModel.account_id == account.id,
+            AgentInstanceModel.status == "active"
         )
-        account = account_result.scalar_one_or_none()
-        
-        if not account:
-            logger.warning(f"Account not found for listing instances: {account_slug}")
-            raise ValueError(f"Account '{account_slug}' not found")
-        
-        logger.info(f"Listing instances for account: {account_slug} (id={account.id})")
-        
-        # Query all active instances for this account
-        stmt = (
-            select(AgentInstanceModel)
-            .where(
-                AgentInstanceModel.account_id == account.id,
-                AgentInstanceModel.status == "active"
-            )
-            .order_by(AgentInstanceModel.created_at)
-        )
-        
-        result = await session.execute(stmt)
-        instances = result.scalars().all()
-        
-        # Convert to list of dicts
-        instance_list = [
-            {
-                "id": inst.id,
-                "instance_slug": inst.instance_slug,
-                "agent_type": inst.agent_type,
-                "display_name": inst.display_name,
-                "status": inst.status,
-                "last_used_at": inst.last_used_at
-            }
-            for inst in instances
-        ]
-        
-        logger.info(
-            f"Found {len(instance_list)} active instances for account {account_slug}: "
-            f"{[i['instance_slug'] for i in instance_list]}"
-        )
-        
-        return instance_list
-        
-    finally:
-        if should_close:
-            await session.close()
+        .order_by(AgentInstanceModel.created_at)
+    )
+    
+    result = await session.execute(stmt)
+    instances = result.scalars().all()
+    
+    # Convert to list of dicts
+    instance_list = [
+        {
+            "id": inst.id,
+            "instance_slug": inst.instance_slug,
+            "agent_type": inst.agent_type,
+            "display_name": inst.display_name,
+            "status": inst.status,
+            "last_used_at": inst.last_used_at
+        }
+        for inst in instances
+    ]
+    
+    logger.info(
+        f"Found {len(instance_list)} active instances for account {account_slug}: "
+        f"{[i['instance_slug'] for i in instance_list]}"
+    )
+    
+    return instance_list
 
 
 async def get_instance_metadata(
@@ -352,67 +380,73 @@ async def get_instance_metadata(
         metadata = await get_instance_metadata('default_account', 'simple_chat1')
         # Returns: {'id': UUID(...), 'account_slug': 'default_account', ...}
     """
+    # Use provided session or create our own with proper context manager
+    if session is not None:
+        # Caller manages session lifecycle
+        return await _get_instance_metadata_with_session(session, account_slug, instance_slug)
+    else:
+        # We manage session lifecycle with async context manager
+        async with get_db_session() as session:
+            return await _get_instance_metadata_with_session(session, account_slug, instance_slug)
+
+
+async def _get_instance_metadata_with_session(
+    session: AsyncSession,
+    account_slug: str,
+    instance_slug: str
+) -> dict:
+    """Helper function to get instance metadata with an existing session."""
     from ..models.account import Account
     from ..models.agent_instance import AgentInstanceModel
     
-    # Create session if not provided
-    should_close = session is None
-    if session is None:
-        session = await anext(get_db_session())
+    # Query instance with account join for validation
+    stmt = (
+        select(AgentInstanceModel, Account)
+        .join(Account, AgentInstanceModel.account_id == Account.id)
+        .where(
+            Account.slug == account_slug,
+            AgentInstanceModel.instance_slug == instance_slug
+        )
+    )
     
-    try:
-        # Query instance with account join for validation
-        stmt = (
-            select(AgentInstanceModel, Account)
-            .join(Account, AgentInstanceModel.account_id == Account.id)
-            .where(
-                Account.slug == account_slug,
-                AgentInstanceModel.instance_slug == instance_slug
-            )
+    result = await session.execute(stmt)
+    row = result.one_or_none()
+    
+    if not row:
+        logger.warning(
+            f"Instance metadata not found: {account_slug}/{instance_slug}"
         )
-        
-        result = await session.execute(stmt)
-        row = result.one_or_none()
-        
-        if not row:
-            logger.warning(
-                f"Instance metadata not found: {account_slug}/{instance_slug}"
-            )
-            raise ValueError(
-                f"Agent instance '{instance_slug}' not found in account '{account_slug}'"
-            )
-        
-        instance, account = row
-        
-        # Check if instance is active
-        if instance.status != "active":
-            logger.warning(
-                f"Attempted to get metadata for inactive instance: "
-                f"{account_slug}/{instance_slug} (status={instance.status})"
-            )
-            raise ValueError(
-                f"Agent instance '{instance_slug}' is inactive (status={instance.status})"
-            )
-        
-        logger.debug(
-            f"Retrieved metadata for instance: {account_slug}/{instance_slug} "
-            f"(id={instance.id}, type={instance.agent_type})"
+        raise ValueError(
+            f"Agent instance '{instance_slug}' not found in account '{account_slug}'"
         )
-        
-        # Return metadata dict
-        return {
-            "id": instance.id,
-            "account_id": account.id,
-            "account_slug": account.slug,
-            "instance_slug": instance.instance_slug,
-            "agent_type": instance.agent_type,
-            "display_name": instance.display_name,
-            "status": instance.status,
-            "last_used_at": instance.last_used_at,
-            "created_at": instance.created_at,
-            "updated_at": instance.updated_at
-        }
-        
-    finally:
-        if should_close:
-            await session.close()
+    
+    instance, account = row
+    
+    # Check if instance is active
+    if instance.status != "active":
+        logger.warning(
+            f"Attempted to get metadata for inactive instance: "
+            f"{account_slug}/{instance_slug} (status={instance.status})"
+        )
+        raise ValueError(
+            f"Agent instance '{instance_slug}' is inactive (status={instance.status})"
+        )
+    
+    logger.debug(
+        f"Retrieved metadata for instance: {account_slug}/{instance_slug} "
+        f"(id={instance.id}, type={instance.agent_type})"
+    )
+    
+    # Return metadata dict
+    return {
+        "id": instance.id,
+        "account_id": account.id,
+        "account_slug": account.slug,
+        "instance_slug": instance.instance_slug,
+        "agent_type": instance.agent_type,
+        "display_name": instance.display_name,
+        "status": instance.status,
+        "last_used_at": instance.last_used_at,
+        "created_at": instance.created_at,
+        "updated_at": instance.updated_at
+    }
