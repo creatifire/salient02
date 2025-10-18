@@ -83,7 +83,7 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
             pydantic_message = ModelRequest(
                 parts=[UserPromptPart(
                     content=msg.content,
-                    timestamp=msg.created_at or datetime.now()
+                    timestamp=msg.created_at or datetime.now(UTC)
                 )]
             )
         elif msg.role == "assistant":
@@ -92,7 +92,7 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
                 parts=[TextPart(content=msg.content)],
                 usage=None,  # Historical messages don't have usage data
                 model_name="simple-chat",  # Agent name for historical messages
-                timestamp=msg.created_at or datetime.now()
+                timestamp=msg.created_at or datetime.now(UTC)
             )
         else:
             # Skip system messages and unknown roles (Pydantic AI handles system messages)
