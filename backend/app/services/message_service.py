@@ -106,6 +106,7 @@ class MessageService:
         role: str,
         content: str,
         agent_instance_id: uuid.UUID | str | None = None,
+        llm_request_id: uuid.UUID | str | None = None,
         metadata: Dict[str, Any] | None = None
     ) -> uuid.UUID:
         """
@@ -120,6 +121,7 @@ class MessageService:
             role: Message role (human, assistant, system, tool, developer)
             content: Message text content (required, non-empty)
             agent_instance_id: Agent instance UUID for multi-tenant attribution (optional for backward compatibility)
+            llm_request_id: LLM request UUID that generated this message (nullable for system messages)
             metadata: Optional metadata for RAG citations, tool calls, etc.
         
         Returns:
@@ -167,6 +169,15 @@ class MessageService:
             logger.error("agent_instance_id is required but not provided")
             raise ValueError("agent_instance_id is required for message attribution")
         
+        # Validate llm_request_id if provided (nullable, for cost attribution)
+        if llm_request_id is not None:
+            if not isinstance(llm_request_id, uuid.UUID):
+                try:
+                    llm_request_id = uuid.UUID(str(llm_request_id))
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Invalid llm_request_id format: {llm_request_id}, error: {e}")
+                    raise ValueError(f"Invalid llm_request_id format: {llm_request_id}") from e
+        
         if role not in self.VALID_ROLES:
             logger.error(f"Invalid message role: {role}, valid roles: {self.VALID_ROLES}")
             raise ValueError(f"Invalid role: {role}. Valid roles: {self.VALID_ROLES}")
@@ -192,6 +203,7 @@ class MessageService:
                 message = Message(
                     session_id=session_id,
                     agent_instance_id=agent_instance_id,
+                    llm_request_id=llm_request_id,
                     role=role,
                     content=content.strip(),
                     meta=metadata,
@@ -207,6 +219,7 @@ class MessageService:
                     "message_id": str(message.id),
                     "session_id": str(session_id),
                     "agent_instance_id": str(agent_instance_id),
+                    "llm_request_id": str(llm_request_id) if llm_request_id else None,
                     "role": role,
                     "content_length": len(content),
                     "has_metadata": metadata is not None

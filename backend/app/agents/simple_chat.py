@@ -481,18 +481,20 @@ async def simple_chat(
             message_service = MessageService()
             
             try:
-                # Save user message
+                # Save user message (link to LLM request for cost attribution)
                 await message_service.save_message(
                     session_id=UUID(session_id),
                     agent_instance_id=agent_instance_id,
+                    llm_request_id=llm_request_id,
                     role="human",
                     content=message
                 )
                 
-                # Save assistant response
+                # Save assistant response (link to same LLM request)
                 await message_service.save_message(
                     session_id=UUID(session_id),
                     agent_instance_id=agent_instance_id,
+                    llm_request_id=llm_request_id,
                     role="assistant",
                     content=response_text
                 )
@@ -973,18 +975,20 @@ async def simple_chat_stream(
             
             message_service = get_message_service()
             
-            # Save user message
+            # Save user message (link to LLM request for cost attribution)
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
+                llm_request_id=llm_request_id,
                 role="human",
                 content=message
             )
             
-            # Save assistant response
+            # Save assistant response (link to same LLM request)
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
+                llm_request_id=llm_request_id,
                 role="assistant",
                 content=response_text
             )
@@ -1022,18 +1026,23 @@ async def simple_chat_stream(
             message_service = get_message_service()
             partial_response = "".join(chunks)
             
-            # Save user message
+            # Get llm_request_id if it was created before the error (might be None if error happened early)
+            request_id = locals().get('llm_request_id', None)
+            
+            # Save user message (link to LLM request if available)
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
+                llm_request_id=request_id,
                 role="human",
                 content=message
             )
             
-            # Save partial assistant response with metadata
+            # Save partial assistant response with metadata (link to same LLM request if available)
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
+                llm_request_id=request_id,
                 role="assistant",
                 content=partial_response,
                 metadata={

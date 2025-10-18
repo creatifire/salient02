@@ -50,6 +50,15 @@ class Message(Base):
         comment="Agent instance that handled this message"
     )
     
+    # Foreign key to llm_requests table (cost attribution)
+    llm_request_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("llm_requests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="LLM request that generated this message (nullable for system messages)"
+    )
+    
     # Message role - supports OpenAI/Anthropic message patterns
     # Valid values: human, assistant, system, tool, developer
     role = Column(String(20), nullable=False)
@@ -70,6 +79,7 @@ class Message(Base):
     # Relationships
     session = relationship("Session", back_populates="messages")
     agent_instance = relationship("AgentInstanceModel", back_populates="messages")
+    llm_request = relationship("LLMRequest", back_populates="messages")
     
     def __repr__(self) -> str:
         content_preview = self.content[:50] + "..." if len(self.content) > 50 else self.content
@@ -80,6 +90,7 @@ class Message(Base):
         return {
             "id": str(self.id),
             "session_id": str(self.session_id),
+            "llm_request_id": str(self.llm_request_id) if self.llm_request_id else None,
             "role": self.role,
             "content": self.content,
             "meta": self.meta,

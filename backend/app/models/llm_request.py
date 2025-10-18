@@ -92,8 +92,9 @@ class LLMRequest(Base):
     # Timestamp
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     
-    # Relationship back to session
+    # Relationships
     session = relationship("Session", back_populates="llm_requests")
+    messages = relationship("Message", back_populates="llm_request")
     
     def __repr__(self) -> str:
         return f"<LLMRequest(id={self.id}, session_id={self.session_id}, provider={self.provider}, model={self.model}, cost={self.total_cost})>"
