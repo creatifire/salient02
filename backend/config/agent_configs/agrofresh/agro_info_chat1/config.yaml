@@ -19,14 +19,16 @@ model_settings:
 
 tools:
   vector_search:
-    enabled: false  # Disabled - no vector data loaded for AgroFresh yet
+    enabled: true  # Enabled - vector data loaded for AgroFresh website content
     max_results: 5
-    similarity_threshold: 0.7
+    similarity_threshold: 0.4  # Lower threshold for better recall on diverse content
     namespace_isolation: true
     pinecone:
-      index_name: "salient-dev-01"
-      index_host: "https://salient-dev-01-e1nildl.svc.aped-4627-b74a.pinecone.io"
-      namespace: "agrofresh_products"  # Reserved for future use
+      project: "Agrobot"
+      index_name: "agrofresh01"
+      index_host: "https://agrofresh01-ndxdzio.svc.eastus2-5e25.prod-azure.pinecone.io"
+      namespace: "__default__"
+      api_key_env: "PINECONE_API_KEY"
       embedding_model: "text-embedding-3-small"
       dimensions: 1536
       metric: "cosine"
@@ -56,7 +58,7 @@ context_management:
     summary_length: 200
 
 dependencies:
-  vector_db_required: false  # No vector data yet
+  vector_db_required: true  # Pinecone index agrofresh01 in Agrobot project
   session_required: true
   account_context: true  # Multi-tenant architecture enabled
 
