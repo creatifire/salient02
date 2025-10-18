@@ -123,6 +123,17 @@
   - **Testing**: backend/tests/manual/verify_wyckoff_index.py ✅ PASSED
   - **Dependencies**: Priority 3 complete (denormalized cost tracking helps with debugging)
 
+- [ ] 0003-010 - Chat Widget Maximize/Minimize Toggle 🎯 **NEXT**
+  - Add maximize/minimize functionality to Shadow DOM chat widget
+  - Two states: minimized (default) and maximized (fills ~90% of viewport)
+  - Maximized positioning: 25px from top, 50px from left, preserves bottom-right anchor
+  - Features: Toggle button, smooth CSS transitions (~300ms), localStorage persistence, keyboard shortcuts (Alt+M)
+  - Accessibility: ARIA labels, focus management, ESC key handling (minimize → close)
+  - Mobile: Full-screen overlay for screens <768px
+  - Implementation: Update `web/public/widget/chat-widget.js`
+  - Configuration: Add `defaultMaximized` and `enableMaximize` options
+  - See: [Epic 0003-010](0003-website-htmx-chatbot.md#0003-010) for detailed 8-task breakdown (Toggle Button, Layout, Sizing, Transitions, State Persistence, Accessibility, Cross-Framework, Testing)
+
 ### **Priority 5: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
 - [ ] 0017-006-002 - Migrate Profiles Table to JSONB
