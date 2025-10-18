@@ -50,5 +50,12 @@ models:
     output_per_1m: 0.60    # $0.60 per 1M output tokens
     source: "https://openrouter.ai/qwen/qwen3-235b-a22b-thinking-2507"
     updated: "2025-10-17"
-    notes: "Used by wyckoff/wyckoff_info_chat1. Thinking-only variant optimized for complex reasoning, math, science. 262k context, activates 22B of 235B params. MoE model."
+    notes: "Thinking-only variant optimized for complex reasoning, math, science. 262k context, activates 22B of 235B params. MoE model."
+  
+  openai/gpt-5-chat:
+    input_per_1m: 3.00     # $3.00 per 1M input tokens (estimated)
+    output_per_1m: 15.00   # $15.00 per 1M output tokens (estimated)
+    source: "https://openrouter.ai/openai/gpt-5-chat"
+    updated: "2025-10-18"
+    notes: "Used by wyckoff/wyckoff_info_chat1. Latest OpenAI flagship model with enhanced reasoning and tool usage."
 
