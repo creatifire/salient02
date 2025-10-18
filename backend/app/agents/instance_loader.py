@@ -21,7 +21,7 @@ from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db_session
+from ..database import get_database_service
 
 
 @dataclass
@@ -82,10 +82,14 @@ async def load_agent_instance(
     # Use provided session or create our own with proper context manager
     if session is not None:
         # Caller manages session lifecycle
+        logger.debug(f"Using provided session for: {account_slug}/{instance_slug}")
         return await _load_with_session(session, account_slug, instance_slug)
     else:
         # We manage session lifecycle with async context manager
-        async with get_db_session() as session:
+        logger.debug(f"Creating new session for: {account_slug}/{instance_slug}")
+        db_service = get_database_service()
+        async with db_service.get_session() as session:
+            logger.debug(f"Session created, loading instance: {account_slug}/{instance_slug}")
             return await _load_with_session(session, account_slug, instance_slug)
 
 
@@ -283,10 +287,14 @@ async def list_account_instances(
     # Use provided session or create our own with proper context manager
     if session is not None:
         # Caller manages session lifecycle
+        logger.debug(f"Using provided session for listing: {account_slug}")
         return await _list_account_instances_with_session(session, account_slug)
     else:
         # We manage session lifecycle with async context manager
-        async with get_db_session() as session:
+        logger.debug(f"Creating new session for listing: {account_slug}")
+        db_service = get_database_service()
+        async with db_service.get_session() as session:
+            logger.debug(f"Session created, listing instances: {account_slug}")
             return await _list_account_instances_with_session(session, account_slug)
 
 
@@ -383,10 +391,14 @@ async def get_instance_metadata(
     # Use provided session or create our own with proper context manager
     if session is not None:
         # Caller manages session lifecycle
+        logger.debug(f"Using provided session for metadata: {account_slug}/{instance_slug}")
         return await _get_instance_metadata_with_session(session, account_slug, instance_slug)
     else:
         # We manage session lifecycle with async context manager
-        async with get_db_session() as session:
+        logger.debug(f"Creating new session for metadata: {account_slug}/{instance_slug}")
+        db_service = get_database_service()
+        async with db_service.get_session() as session:
+            logger.debug(f"Session created, getting metadata: {account_slug}/{instance_slug}")
             return await _get_instance_metadata_with_session(session, account_slug, instance_slug)
 
 
