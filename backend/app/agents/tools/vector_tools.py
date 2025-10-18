@@ -23,8 +23,24 @@ async def vector_search(
     """
     Search the knowledge base for relevant information using vector similarity.
     
+    **IMPORTANT: Use this tool for ANY health or medical question**, even if you think
+    you know the answer from general knowledge. This ensures responses are grounded in
+    actual organization content rather than hallucinated details.
+    
+    Examples of when to use this tool:
+    - General medical questions: "What are symptoms of labor?", "How to treat diabetes?"
+    - Organization services: "What cardiology services are offered?"
+    - Facility information: "What are visiting hours?", "Where is the emergency department?"
+    - Contact information: Always search to get accurate phone numbers and addresses
+    
     This tool searches pre-loaded content from vector databases (e.g., website content,
     documentation) to find information relevant to the user's query.
+    
+    Why always search first?
+    1. Provides organization-specific context and local guidance
+    2. Ensures accurate contact information (not hallucinated phone numbers)
+    3. Grounds responses in actual published content
+    4. Gives up-to-date information about services and resources
     
     Args:
         ctx: Pydantic AI context with session dependencies
@@ -32,7 +48,8 @@ async def vector_search(
         max_results: Maximum number of results to return (defaults to agent config)
     
     Returns:
-        Formatted search results or message if no results found
+        Formatted search results with relevant content, or message if no results found.
+        Results include text excerpts, relevance scores, and metadata (e.g., page titles, URLs).
     """
     agent_config = ctx.deps.agent_config
     session_id = ctx.deps.session_id
