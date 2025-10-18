@@ -134,34 +134,10 @@
   - Configuration: Add `defaultMaximized` and `enableMaximize` options
   - See: [Epic 0003-010](0003-website-htmx-chatbot.md#0003-010) for detailed 8-task breakdown (Toggle Button, Layout, Sizing, Transitions, State Persistence, Accessibility, Cross-Framework, Testing)
 
-### **Priority 5: Profile Fields Configuration & Database Schema** 📋
-- [ ] 0017-006-001 - Profile Fields YAML Configuration
-- [ ] 0017-006-002 - Migrate Profiles Table to JSONB
-
-### **Priority 6: Profile Capture Tool** 📋
-- [ ] 0017-007-001 - Profile Capture Agent Tool
-  - Conversational capture of email/phone using @agent.tool
-
-### **Priority 7: Email Summary Tool with Mailgun** 📋
-- [ ] 0017-008-001 - Mailgun Integration
-- [ ] 0017-008-002 - Email Summary Agent Tool
-  - Completes user workflow: chat → capture → email summary
-
-### **Priority 8: Multi-Provider Infrastructure** 📋
-- [ ] 0022-001-002-01 - Provider factory and base infrastructure
-- [ ] 0022-001-002-02 - Config schema and validation
-- [ ] 0022-001-002-03 - Update simple_chat agent to use factory
-- [ ] 0022-001-002-04 - Update test instance configs (4th agent: acme/simple_chat2 with Together.ai + different model family)
-- [ ] 0022-001-002-05 - Provider-specific cost tracking
-- [ ] 0022-001-002-06 - Integration testing and validation
-  - **Rationale**: OpenRouter randomly switches LLMs which can cause glitches; Together.ai provides consistency
-  - **Test Strategy**: 4th agent (acme/simple_chat2) uses Together.ai with different model family (e.g., Llama vs Kimi/GPT/Qwen)
-  - **Regression Testing**: All unit/integration/manual tests must pass after implementation
-
-### **Priority 9: Profile Search Tool** 📋 🎯 **DEMO FEATURE**
+### **Priority 5: Profile Search Tool** 📋 🎯 **DEMO FEATURE**
 **Epic 0023 - Generic Profile Search for LLM Agents**
 
-**Why Priority 9**: Enables agents to search professional profiles (doctors, nurses, sales reps, consultants) via natural language queries. Demonstrates real-world tool usage with structured data. Positioned after email tool to complete core workflow tools first.
+**Why Priority 5**: Enables agents to search professional profiles (doctors, nurses, sales reps, consultants) via natural language queries. Demonstrates real-world tool usage with structured data. Complements vector search (Priority 4) by adding structured profile queries.
 
 **Dependencies**: Requires `accounts` and `agent_instances` tables from Epic 0022 (already complete in Priority 2B).
 
@@ -183,9 +159,33 @@
 **Initial Use Case**: Hospital doctor profiles (320 records)
 **Demo Query**: "Find me a Spanish-speaking cardiologist"
 
+### **Priority 6: Profile Fields Configuration & Database Schema** 📋
+- [ ] 0017-006-001 - Profile Fields YAML Configuration
+- [ ] 0017-006-002 - Migrate Profiles Table to JSONB
+
+### **Priority 7: Profile Capture Tool** 📋
+- [ ] 0017-007-001 - Profile Capture Agent Tool
+  - Conversational capture of email/phone using @agent.tool
+
+### **Priority 8: Email Summary Tool with Mailgun** 📋
+- [ ] 0017-008-001 - Mailgun Integration
+- [ ] 0017-008-002 - Email Summary Agent Tool
+  - Completes user workflow: chat → capture → email summary
+
+### **Priority 9: Multi-Provider Infrastructure** 📋
+- [ ] 0022-001-002-01 - Provider factory and base infrastructure
+- [ ] 0022-001-002-02 - Config schema and validation
+- [ ] 0022-001-002-03 - Update simple_chat agent to use factory
+- [ ] 0022-001-002-04 - Update test instance configs (4th agent: acme/simple_chat2 with Together.ai + different model family)
+- [ ] 0022-001-002-05 - Provider-specific cost tracking
+- [ ] 0022-001-002-06 - Integration testing and validation
+  - **Rationale**: OpenRouter randomly switches LLMs which can cause glitches; Together.ai provides consistency
+  - **Test Strategy**: 4th agent (acme/simple_chat2) uses Together.ai with different model family (e.g., Llama vs Kimi/GPT/Qwen)
+  - **Regression Testing**: All unit/integration/manual tests must pass after implementation
+
 **Note**: Simple Chat Agent is now called "InfoBot" - information sharing bot (NO web search included)
 
-**Phase 1 MVP Complete**: Priorities 3 through 7 complete the InfoBot MVP: vector search, profile capture, email summaries, multi-provider support, and profile search.
+**Phase 1 MVP Complete**: Priorities 3 through 9 complete the InfoBot MVP: vector search, chat widget enhancements, profile search, profile fields, profile capture, email summaries, and multi-provider support.
 
 ---
 
@@ -193,21 +193,21 @@
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-### **Priority 8: Email Capture & Consent** ⚠️ **DEPRECATED**
+### **Priority 10: Email Capture & Consent** ⚠️ **DEPRECATED**
 - [ ] 0017-009-001 - Email Collection System
 - [ ] 0017-009-002 - Consent and preferences management
-  - **Status**: DEPRECATED - Superseded by Priority 5 (Profile Capture Tool)
+  - **Status**: DEPRECATED - Superseded by Priority 7 (Profile Capture Tool)
   - Originally: UI-based alternative to conversational capture
-  - Decision: Profile Capture Tool (Priority 5) will handle email/phone collection conversationally
+  - Decision: Profile Capture Tool (Priority 7) will handle email/phone collection conversationally
   - Action: Revisit only if Profile Capture Tool doesn't cover this use case
 
-### **Priority 9: Periodic Summarization** 📋
+### **Priority 11: Periodic Summarization** 📋
 - [ ] 0017-010-001 - Context Window Management System
   - Token counting and threshold monitoring
   - Conversation summarization engine
   - Automatic summarization triggers
 
-### **Priority 10: OTP Authentication** 📋
+### **Priority 12: OTP Authentication** 📋
 - [ ] 0017-011-001 - OTP Authentication System
   - Twilio Verify integration
   - Session upgrade and account creation
@@ -217,7 +217,7 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 ## PHASE 3: Multi-Agent Platform
 
-### **Priority 11: Multi-Client Widget Foundation** ✅ **DONE**
+### **Priority 13: Multi-Client Widget Foundation** ✅ **DONE**
 - [x] 0003-001-001 - Shadow DOM Widget ✅
   - Implementation: `web/public/widget/chat-widget.js`
   - Demo: `web/src/pages/demo/widget.astro`
@@ -238,7 +238,7 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 All migrated to multi-tenant architecture with explicit `/accounts/{account}/agents/{instance}/*` endpoints.
 
-### **Priority 12: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
+### **Priority 14: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
 **Note**: Epic 0022 replaces old multi-account/multi-instance epics with unified architecture
 
 - [x] 0005-002-001 - Agent type registration and discovery system ✅ **SUPERSEDED**
@@ -260,25 +260,25 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Not yet implemented
   - Future enhancement for production monitoring
 
-### **Priority 13: Sales Agent Addition** 📋
+### **Priority 15: Sales Agent Addition** 📋
 - [ ] 0008-001-001 - Sales agent foundation with business tools
 - [ ] 0008-001-002 - RAG integration with business knowledge
 - [ ] 0008-001-003 - Email integration (Mailgun)
 - [ ] 0008-001-004 - Scheduling integration (Nylas/Calendly)
 - [ ] 0008-001-005 - Profile data collection and lead qualification
 
-### **Priority 14: React and Vue Chat Widgets** 📋
+### **Priority 16: React and Vue Chat Widgets** 📋
 - [ ] 0003-002-001 - React Widget Component with TypeScript
 - [ ] 0003-002-002 - Vue 3 Widget Component with Composition API
 - [ ] 0003-002-003 - NPM Package Distribution (@salient/widget-react, @salient/widget-vue)
 
-### **Priority 15: Advanced Widget Features** 📋
+### **Priority 17: Advanced Widget Features** 📋
 - [ ] 0003-003-001 - Iframe Adapter for security isolation
 - [ ] 0003-003-002 - API-Only Mode for mobile integration
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 3 starting 🎯 - Data model cleanup to help with debugging and cost tracking
+**Current Status**: Priority 4 in progress 🎯 - Vector search tool and chat widget enhancements
 
 **Progress Summary:**
 - ✅ **Priority 2B - Epic 0022 (Multi-Tenant Architecture)**: COMPLETE
@@ -286,19 +286,20 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Working endpoints, widget integration, cost tracking
   - All critical bugs fixed (CORS, sessions, markdown, SSE)
   
-- 🎯 **Priority 3 - Data Model Cleanup**: NEXT
-  - 📋 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
-  - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK)
-  - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
+- 🎯 **Priority 3 - Data Model Cleanup**: COMPLETE
+  - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
+  - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK) - remaining
+  - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - remaining
   
-- 🚧 **Priority 4 - Epic 0017-005 (Vector Search Tool)**: IN PROGRESS
+- 🚧 **Priority 4 - Vector Search Tool & Chat Widget**: IN PROGRESS
   - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
+  - ✅ Vector Search Tool Implementation (3/3 chunks complete)
   - 🚧 Bug Fixes (2/5 complete) - See [bugs-0017.md](bugs-0017.md)
     - ✅ BUG-0017-001: Zero chunks streaming - FIXED
     - ✅ BUG-0017-002: Missing model pricing - FIXED  
     - 📋 BUG-0017-003: Vapid sessions with NULL IDs (remaining)
     - 📋 BUG-0017-004: Duplicate user messages on retry (Won't Fix)
-  - 📋 Vector Search Tool Implementation (pending - after Priority 3)
+  - 📋 0003-010: Chat Widget Maximize/Minimize Toggle - NEXT
 
 **Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
 - Production-ready multi-tenant architecture with Pydantic AI agents
@@ -314,8 +315,9 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
    - ✅ Multi-client demo site architecture (complete)
    - 🚧 Bug fixes (2/5 fixed, 2 remaining)
    - 📋 Vector search tool implementation with Pydantic AI
-3. Priority 5: 0017-006 (Profile Fields Config & JSONB Migration)
-4. Priority 6: 0017-007 (Profile Capture Tool)
-5. Priority 7: 0017-008 (Email Summary with Mailgun)
-6. **Priority 8: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
-7. **Priority 9: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+   - 📋 Chat widget maximize/minimize (Epic 0003-010)
+3. **Priority 5: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+4. Priority 6: 0017-006 (Profile Fields Config & JSONB Migration)
+5. Priority 7: 0017-007 (Profile Capture Tool)
+6. Priority 8: 0017-008 (Email Summary with Mailgun)
+7. **Priority 9: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
