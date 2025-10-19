@@ -9,7 +9,10 @@ import logging
 
 from backend.app.agents.base.dependencies import SessionDependencies
 from backend.app.services.vector_service import VectorService, VectorQueryResponse
-from backend.app.services.agent_pinecone_config import load_agent_pinecone_config
+from backend.app.services.agent_pinecone_config import (
+    load_agent_pinecone_config,
+    get_cached_pinecone_client
+)
 
 
 logger = logging.getLogger(__name__)
@@ -73,9 +76,8 @@ async def vector_search(
         })
         return "Vector search configuration error."
     
-    # Create agent-specific VectorService
-    from backend.app.services.pinecone_client import PineconeClient
-    pinecone_client = PineconeClient.create_from_agent_config(pinecone_config)
+    # Get cached PineconeClient (reuses connection pool per Pinecone best practices)
+    pinecone_client = get_cached_pinecone_client(pinecone_config)
     vector_service = VectorService(pinecone_client=pinecone_client)
     
     # Query parameters: Configuration cascade (LLM param → agent → app.yaml → code)

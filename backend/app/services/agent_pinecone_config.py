@@ -13,6 +13,11 @@ from pinecone import Pinecone
 logger = logging.getLogger(__name__)
 
 
+# Module-level cache for PineconeClient instances
+# Key: "{api_key[:8]}_{index_name}" to share clients across agents with same project/index
+_pinecone_client_cache: Dict[str, Any] = {}  # Type annotation deferred to avoid circular import
+
+
 @dataclass
 class AgentPineconeConfig:
     """Per-agent Pinecone configuration"""
@@ -109,4 +114,36 @@ def load_agent_pinecone_config(
         embedding_model=embedding_model,
         dimensions=dimensions
     )
+
+
+def get_cached_pinecone_client(agent_config: AgentPineconeConfig):
+    """
+    Get or create cached PineconeClient for an agent.
+    
+    Implements Pinecone best practice: reuse client instances to leverage
+    built-in connection pooling for better performance.
+    
+    Cache key based on API key + index_name to share clients across agents
+    using the same Pinecone project/index.
+    
+    Args:
+        agent_config: AgentPineconeConfig from load_agent_pinecone_config()
+        
+    Returns:
+        Cached or new PineconeClient instance
+    """
+    from backend.app.services.pinecone_client import PineconeClient
+    
+    # Cache key: first 8 chars of API key + index name
+    # Agents with same key + index share client and connection pool
+    cache_key = f"{agent_config.api_key[:8]}_{agent_config.index_name}"
+    
+    if cache_key not in _pinecone_client_cache:
+        logger.info(f"Creating new PineconeClient for cache_key: {cache_key}")
+        _pinecone_client_cache[cache_key] = PineconeClient.create_from_agent_config(agent_config)
+        logger.info(f"PineconeClient cached. Cache size: {len(_pinecone_client_cache)}")
+    else:
+        logger.debug(f"Reusing cached PineconeClient for: {cache_key}")
+    
+    return _pinecone_client_cache[cache_key]
 
