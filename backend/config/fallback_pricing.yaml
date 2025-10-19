@@ -71,5 +71,12 @@ models:
     output_per_1m: 0.40    # $0.40 per 1M output tokens
     source: "https://openrouter.ai/deepseek/deepseek-v3.2-exp"
     updated: "2025-09-29"
-    notes: "Used by agrofresh/agro_info_chat1. Experimental model with DeepSeek Sparse Attention (DSA) for long-context efficiency. Supports tool calling. 163k context. Research-oriented architecture validation."
+    notes: "Experimental model with DeepSeek Sparse Attention (DSA) for long-context efficiency. Supports tool calling. 163k context. Research-oriented architecture validation."
+  
+  anthropic/claude-haiku-4.5:
+    input_per_1m: 1.00     # $1.00 per 1M input tokens
+    output_per_1m: 5.00    # $5.00 per 1M output tokens
+    source: "https://openrouter.ai/anthropic/claude-haiku-4.5"
+    updated: "2025-10-18"
+    notes: "Used by agrofresh/agro_info_chat1. Fastest Anthropic model with near-frontier intelligence. Extended thinking, full tool support (coding, bash, web search, computer-use). >73% SWE-bench Verified. 200k context. Created Oct 15, 2025."
 

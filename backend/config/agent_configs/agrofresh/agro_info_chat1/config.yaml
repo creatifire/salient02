@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "deepseek/deepseek-v3.2-exp"  # Experimental model with tool calling support
+  model: "anthropic/claude-haiku-4.5"  # Anthropic's fastest model with excellent tool support
   temperature: 0.3
   max_tokens: 2000
 
