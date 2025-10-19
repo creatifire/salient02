@@ -80,10 +80,6 @@ models:
     updated: "2025-10-18"
     notes: "Fastest Anthropic model with near-frontier intelligence. Extended thinking, full tool support (coding, bash, web search, computer-use). >73% SWE-bench Verified. 200k context. Created Oct 15, 2025. NOTE: Inconsistent tool-calling in streaming mode (sometimes announces 'I'll search...' without completing)."
   
-  google/gemini-2.5-flash:
-    input_per_1m: 0.30     # $0.30 per 1M input tokens
-    output_per_1m: 2.50    # $2.50 per 1M output tokens
-    source: "https://openrouter.ai/google/gemini-2.5-flash"
-    updated: "2025-10-19"
-    notes: "Used by agrofresh/agro_info_chat1. Google's state-of-the-art workhorse model for advanced reasoning, coding, math, science. Built-in 'thinking' capabilities (configurable via max_tokens_for_reasoning). 1M+ context (1,048,576 tokens). 70% cheaper input than Claude Haiku 4.5, 50% cheaper output. Created Jun 17, 2025."
+  # NOTE: google/gemini-2.5-flash is available in genai-prices (as "gemini-2.5-flash")
+  # No fallback entry needed - code strips provider prefix before calling calc_price()
 

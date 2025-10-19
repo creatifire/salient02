@@ -695,9 +695,13 @@ async def simple_chat_stream(
                     
                     # Calculate price using the actual model from agent config
                     # Model name extracted from instance_config or global config (line 549)
+                    # Strip provider prefix (e.g., "google/gemini-2.5-flash" → "gemini-2.5-flash")
+                    # genai-prices expects models without provider prefix
+                    model_for_pricing = requested_model.split('/')[-1] if '/' in requested_model else requested_model
+                    
                     price = calc_price(
                         usage=usage_data,
-                        model_ref=requested_model,  # Use actual model from config
+                        model_ref=model_for_pricing,
                         provider_id="openrouter"
                     )
                     
