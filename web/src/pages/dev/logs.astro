@@ -45,11 +45,11 @@ import Layout from '../../layouts/Layout.astro';
   </section>
   
   <script>
-    let rawLogData = []; // Store raw entries for expansion
+    let rawLogData: string[] = []; // Store raw entries for expansion
     let currentCount = 10; // Track current count
     let totalLoaded = 0; // Track total entries loaded
     
-    async function loadLogs(count = currentCount, append = false) {
+    async function loadLogs(count = currentCount, append = false): Promise<void> {
       try {
         // Load both pretty and raw formats with count parameter
         const [prettyResponse, rawResponse] = await Promise.all([
@@ -93,25 +93,31 @@ import Layout from '../../layouts/Layout.astro';
         }
         
         // Update info display
-        document.getElementById('log-info').textContent = 
-          `Showing last ${totalLoaded} entries from: ${prettyData.file || 'n/a'}`;
+        const logInfo = document.getElementById('log-info');
+        if (logInfo) {
+          logInfo.textContent = `Showing last ${totalLoaded} entries from: ${prettyData.file || 'n/a'}`;
+        }
         
         // Show/hide load more buttons
         const loadMoreSection = document.getElementById('load-more-section');
-        loadMoreSection.style.display = totalLoaded >= 10 ? 'block' : 'none';
+        if (loadMoreSection) {
+          loadMoreSection.style.display = totalLoaded >= 10 ? 'block' : 'none';
+        }
         
       } catch (error) {
-        showError(`Failed to load logs: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showError(`Failed to load logs: ${errorMessage}`);
       }
     }
     
-    function renderLogs(entries, append = false) {
+    function renderLogs(entries: string[], append = false): void {
       const container = document.getElementById('logs-container');
+      if (!container) return;
       
       if (entries && entries.length > 0) {
         const startIndex = append ? totalLoaded - entries.length : 0;
         
-        const entriesHtml = entries.map((entry, index) => {
+        const entriesHtml = entries.map((entry: string, index: number) => {
           const globalIndex = startIndex + index;
           return `<div class="log-entry" data-index="${globalIndex}" style="margin-bottom:0.75rem;">
             <div class="log-preview" style="background:#f5f5f5;padding:1rem;border-radius:.5rem;font-family:Monaco,Consolas,monospace;font-size:0.9rem;border-left:3px solid #28a745;cursor:pointer;position:relative;">
@@ -148,12 +154,17 @@ import Layout from '../../layouts/Layout.astro';
       }
     }
     
-    function handleExpand(event) {
-      const logEntry = event.currentTarget.closest('.log-entry');
-      const index = parseInt(logEntry.dataset.index);
-      const expandedDiv = logEntry.querySelector('.log-expanded');
-      const previewDiv = logEntry.querySelector('.log-preview');
-      const rawPre = logEntry.querySelector(`#raw-${index}`);
+    function handleExpand(event: Event): void {
+      const target = event.currentTarget as HTMLElement;
+      const logEntry = target.closest('.log-entry') as HTMLElement | null;
+      if (!logEntry) return;
+      
+      const index = parseInt(logEntry.dataset.index || '0');
+      const expandedDiv = logEntry.querySelector('.log-expanded') as HTMLElement | null;
+      const previewDiv = logEntry.querySelector('.log-preview') as HTMLElement | null;
+      const rawPre = logEntry.querySelector(`#raw-${index}`) as HTMLElement | null;
+      
+      if (!expandedDiv || !previewDiv || !rawPre) return;
       
       // Show expanded view
       previewDiv.style.display = 'none';
@@ -172,48 +183,74 @@ import Layout from '../../layouts/Layout.astro';
       }
     }
     
-    function handleCollapse(event) {
+    function handleCollapse(event: Event): void {
       event.stopPropagation();
-      const logEntry = event.target.closest('.log-entry');
-      const expandedDiv = logEntry.querySelector('.log-expanded');
-      const previewDiv = logEntry.querySelector('.log-preview');
+      const target = event.target as HTMLElement;
+      const logEntry = target.closest('.log-entry') as HTMLElement | null;
+      if (!logEntry) return;
+      
+      const expandedDiv = logEntry.querySelector('.log-expanded') as HTMLElement | null;
+      const previewDiv = logEntry.querySelector('.log-preview') as HTMLElement | null;
+      
+      if (!expandedDiv || !previewDiv) return;
       
       // Show preview view
       expandedDiv.style.display = 'none';
       previewDiv.style.display = 'block';
     }
     
-    function showError(message) {
-      document.getElementById('log-info').textContent = 'Error loading logs';
-      document.getElementById('logs-container').innerHTML = 
-        `<div style="background:#f8d7da;padding:1rem;border-radius:0.5rem;color:#721c24;border-left:3px solid #dc3545;">❌ ${escapeHtml(message)}</div>`;
+    function showError(message: string): void {
+      const logInfo = document.getElementById('log-info');
+      const logsContainer = document.getElementById('logs-container');
+      
+      if (logInfo) {
+        logInfo.textContent = 'Error loading logs';
+      }
+      
+      if (logsContainer) {
+        logsContainer.innerHTML = 
+          `<div style="background:#f8d7da;padding:1rem;border-radius:0.5rem;color:#721c24;border-left:3px solid #dc3545;">❌ ${escapeHtml(message)}</div>`;
+      }
     }
     
-    function escapeHtml(text) {
+    function escapeHtml(text: string): string {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
     
     // Event handlers
-    document.getElementById('count-select').addEventListener('change', function(e) {
-      currentCount = parseInt(e.target.value);
-      totalLoaded = 0;
-      loadLogs(currentCount, false); // Fresh load with new count
-    });
+    const countSelect = document.getElementById('count-select') as HTMLSelectElement | null;
+    if (countSelect) {
+      countSelect.addEventListener('change', function(e) {
+        const target = e.target as HTMLSelectElement;
+        currentCount = parseInt(target.value);
+        totalLoaded = 0;
+        loadLogs(currentCount, false); // Fresh load with new count
+      });
+    }
     
-    document.getElementById('refresh-btn').addEventListener('click', function() {
-      totalLoaded = 0;
-      loadLogs(currentCount, false); // Refresh with current count
-    });
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function() {
+        totalLoaded = 0;
+        loadLogs(currentCount, false); // Refresh with current count
+      });
+    }
     
-    document.getElementById('load-more-btn').addEventListener('click', function() {
-      loadLogs(25, true); // Load 25 more entries
-    });
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', function() {
+        loadLogs(25, true); // Load 25 more entries
+      });
+    }
     
-    document.getElementById('load-50-more-btn').addEventListener('click', function() {
-      loadLogs(50, true); // Load 50 more entries
-    });
+    const load50MoreBtn = document.getElementById('load-50-more-btn');
+    if (load50MoreBtn) {
+      load50MoreBtn.addEventListener('click', function() {
+        loadLogs(50, true); // Load 50 more entries
+      });
+    }
     
     // Load logs when page loads
     loadLogs();
