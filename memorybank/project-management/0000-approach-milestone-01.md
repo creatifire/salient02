@@ -77,7 +77,7 @@
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
 
-### **Priority 3: Data Model Cleanup & Cost Attribution** 🚧 **IN PROGRESS** (1/4 complete)
+### **Priority 3: Data Model Cleanup & Cost Attribution** 🚧 **IN PROGRESS** (2/4 complete)
 **Doing this to enable accurate billing and debugging**
 
 - [x] 0022-001-005-01 - Populate denormalized fields in LLM requests (BUG-0017-005) ✅
@@ -87,10 +87,20 @@
   - **Verification**: 5/5 recent records have all denormalized fields populated correctly
   - See: [bugs-0017.md](bugs-0017.md) for implementation details and verification
   
-- [ ] 0022-001-005-02 - Link LLM requests to messages (1:many FK)
+- [x] 0022-001-005-02 - Link LLM requests to messages (1:many FK) ✅
   - Add `llm_request_id` (nullable FK) to messages table
   - Enables cost attribution per message and debugging
+  - **Status**: ✅ COMPLETE (2025-10-18) - Migration created, models updated, agent integration complete
+  - **Verification**: 1:many relationship established, both user and assistant messages link to same LLM request
   - From: Epic 0022-001-005 (deferred from Priority 2B)
+
+- [ ] BUG-0017-006 - Pinecone multi-project API key support 🎯 **NEXT**
+  - **Issue**: Wyckoff (openthought-dev project) and AgroFresh (Agrobot project) need separate Pinecone API keys
+  - **Fix**: Per-agent `api_key_env` config parameter (architecture already supports this)
+  - **Changes**: Update config.yaml files to use project-specific env vars (PINECONE_API_KEY_OPENTHOUGHT, PINECONE_API_KEY_AGROBOT)
+  - **Testing**: Restart backend, verify both agents' vector search works without 401 errors
+  - **Note**: No code changes needed - agent_pinecone_config.py already supports per-agent keys (line 59)
+  - See: [bugs-0017.md](bugs-0017.md#bug-0017-006) for full details
 
 - [ ] 0022-001-005-03 - Add agent_instance_slug to sessions table (fast analytics)
   - Add denormalized `agent_instance_slug` (TEXT, nullable, indexed) to sessions table
@@ -319,10 +329,12 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Working endpoints, widget integration, cost tracking
   - All critical bugs fixed (CORS, sessions, markdown, SSE)
   
-- 🚧 **Priority 3 - Data Model Cleanup**: IN PROGRESS (1/4 complete)
+- 🚧 **Priority 3 - Data Model Cleanup**: IN PROGRESS (2/5 complete)
   - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005) ✅ **DONE**
     - Database verified: 100% field population, 0 NULL values, fast billing queries working
-  - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK) - remaining
+  - ✅ 0022-001-005-02: Link llm_requests to messages (1:many FK) ✅ **DONE**
+    - Migration created, models updated, 1:many FK established, agent integration complete
+  - 📋 BUG-0017-006: Pinecone multi-project API key support - **NEXT** (config updates only, no code changes)
   - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - remaining
   - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script - remaining
   
@@ -343,9 +355,10 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
 
 **Next Steps (Phase 1 MVP):**
-1. 🚧 **Priority 3: Data Model Cleanup & Cost Attribution** - IN PROGRESS (1/4 complete)
+1. 🚧 **Priority 3: Data Model Cleanup & Cost Attribution** - IN PROGRESS (2/5 complete)
    - ✅ 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005) - DONE
-   - 📋 0022-001-005-02: Link llm_requests to messages (1:many FK) - NEXT
+   - ✅ 0022-001-005-02: Link llm_requests to messages (1:many FK) - DONE
+   - 📋 BUG-0017-006: Pinecone multi-project API key support - **NEXT** (config updates, then restart backend to test)
    - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
    - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script
 2. 📋 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3

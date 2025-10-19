@@ -27,7 +27,7 @@ tools:
       # index_host will be auto-discovered via Pinecone API if not specified
       # index_host: "https://wyckoff-poc-01-xyz.svc.region.pinecone.io"  # Optional: explicit host
       namespace: "__default__"  # Pinecone default namespace
-      api_key_env: "PINECONE_API_KEY"  # Environment variable for API key
+      api_key_env: "PINECONE_API_KEY_OPENTHOUGHT"  # openthought-dev project API key
     embedding:
       model: "text-embedding-3-small"  # OpenAI embedding model
       dimensions: 1536

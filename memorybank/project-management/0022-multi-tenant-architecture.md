@@ -1342,7 +1342,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: ✅ COMPLETE (2025-10-18) — All denormalized fields populated, fast billing queries working
     - PRIORITY: High — Now resolved, cost reporting ready
   
-  - [ ] 0022-001-005-02 - CHUNK - Link LLM requests to messages (data integrity)
+  - [x] 0022-001-005-02 - CHUNK - Link LLM requests to messages (data integrity) ✅
+    - **STATUS**: ✅ COMPLETE (2025-10-18) - Migration created, models updated, agent integration complete
     - **PURPOSE**: Establish proper 1:many relationship between llm_requests and messages for cost attribution
     - **RATIONALE**: 
       - Currently no direct link between LLM requests and the messages they generate

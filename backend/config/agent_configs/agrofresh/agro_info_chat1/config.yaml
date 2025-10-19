@@ -28,7 +28,7 @@ tools:
       index_name: "agrofresh01"
       index_host: "https://agrofresh01-ndxdzio.svc.eastus2-5e25.prod-azure.pinecone.io"
       namespace: "__default__"
-      api_key_env: "PINECONE_API_KEY"
+      api_key_env: "PINECONE_API_KEY_AGROBOT"  # Agrobot project API key
       embedding_model: "text-embedding-3-small"
       dimensions: 1536
       metric: "cosine"
