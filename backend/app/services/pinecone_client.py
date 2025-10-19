@@ -257,10 +257,24 @@ class PineconeClient:
         }
 
 
-# Global Pinecone client instance
-pinecone_client = PineconeClient()
+# Global Pinecone client instance (lazy initialization)
+# Only created when actually needed (not at module import time)
+_pinecone_client: Optional[PineconeClient] = None
+
+
+def get_default_pinecone_client() -> PineconeClient:
+    """
+    Get or create the default global Pinecone client (lazy initialization).
+    Only initializes when first accessed, not at module import time.
+    This allows agent-specific clients to be created without requiring
+    global PINECONE_API_KEY environment variable.
+    """
+    global _pinecone_client
+    if _pinecone_client is None:
+        _pinecone_client = PineconeClient()
+    return _pinecone_client
 
 
 async def get_pinecone_client() -> PineconeClient:
     """Dependency injection helper for FastAPI"""
-    return pinecone_client
+    return get_default_pinecone_client()

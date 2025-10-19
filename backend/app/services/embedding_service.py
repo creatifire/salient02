@@ -9,16 +9,8 @@ import os
 from typing import List, Optional
 from dataclasses import dataclass
 
-import sys
-from pathlib import Path
 import openai
 from openai import AsyncOpenAI
-
-# Add backend directory to path for config imports
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(backend_dir))
-
-from config.pinecone_config import pinecone_config_manager
 
 
 logger = logging.getLogger(__name__)
@@ -50,13 +42,15 @@ class EmbeddingService:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
         
-        # Get embedding model from Pinecone config
-        pinecone_config = pinecone_config_manager.get_config()
+        # Use environment variables or sensible defaults for embedding
+        # Don't depend on Pinecone config - embedding service is independent
+        model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+        dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
         
         return EmbeddingConfig(
-            model=pinecone_config.embedding_model,
+            model=model,
             api_key=api_key,
-            dimensions=pinecone_config.dimensions
+            dimensions=dimensions
         )
     
     async def embed_text(self, text: str) -> List[float]:
@@ -159,15 +153,29 @@ class EmbeddingService:
         }
 
 
-# Global embedding service instance
-embedding_service = EmbeddingService()
+# Global embedding service instance (lazy initialization)
+# Only created when actually needed (not at module import time)
+_embedding_service: Optional[EmbeddingService] = None
+
+
+def get_default_embedding_service() -> EmbeddingService:
+    """
+    Get or create the default global embedding service (lazy initialization).
+    Only initializes when first accessed, not at module import time.
+    This allows agent-specific services to be created without requiring
+    global Pinecone configuration.
+    """
+    global _embedding_service
+    if _embedding_service is None:
+        _embedding_service = EmbeddingService()
+    return _embedding_service
 
 
 def get_embedding_service() -> EmbeddingService:
-    """Dependency injection helper"""
-    return embedding_service
+    """Dependency injection helper (for backwards compatibility)"""
+    return get_default_embedding_service()
 
 
 async def get_embedding_service_async() -> EmbeddingService:
     """Async dependency injection helper for FastAPI"""
-    return embedding_service
+    return get_default_embedding_service()

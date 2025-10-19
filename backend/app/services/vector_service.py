@@ -81,11 +81,17 @@ class VectorService:
         pinecone_client: Optional[PineconeClient] = None,
         embedding_service: Optional[EmbeddingService] = None
     ):
-        from backend.app.services.pinecone_client import pinecone_client as default_pinecone_client
-        from backend.app.services.embedding_service import embedding_service as default_embedding_service
+        # Lazy import and initialization - only create defaults if not provided
+        if pinecone_client is None:
+            from backend.app.services.pinecone_client import get_default_pinecone_client
+            pinecone_client = get_default_pinecone_client()
         
-        self.pinecone_client = pinecone_client or default_pinecone_client
-        self.embedding_service = embedding_service or default_embedding_service
+        if embedding_service is None:
+            from backend.app.services.embedding_service import get_default_embedding_service
+            embedding_service = get_default_embedding_service()
+        
+        self.pinecone_client = pinecone_client
+        self.embedding_service = embedding_service
     
     async def upsert_document(
         self, 
