@@ -94,12 +94,15 @@
   - **Verification**: 1:many relationship established, both user and assistant messages link to same LLM request
   - From: Epic 0022-001-005 (deferred from Priority 2B)
 
-- [ ] BUG-0017-006 - Pinecone multi-project API key support 🎯 **NEXT**
-  - **Issue**: Wyckoff (openthought-dev project) and AgroFresh (Agrobot project) need separate Pinecone API keys
-  - **Fix**: Per-agent `api_key_env` config parameter (architecture already supports this)
-  - **Changes**: Update config.yaml files to use project-specific env vars (PINECONE_API_KEY_OPENTHOUGHT, PINECONE_API_KEY_AGROBOT)
-  - **Testing**: Restart backend, verify both agents' vector search works without 401 errors
-  - **Note**: No code changes needed - agent_pinecone_config.py already supports per-agent keys (line 59)
+- [x] BUG-0017-006 - Pinecone multi-project API key support ✅ **FIXED 2025-10-19**
+  - **Issue**: Wyckoff (openthought-dev project) and AgroFresh (Agrobot project) needed separate Pinecone API keys
+  - **Fix Part 1**: Per-agent `api_key_env` config parameter (architecture already supported this)
+  - **Fix Part 2**: Lazy singleton initialization to prevent module-level API key requirement
+  - **Changes**: 
+    - Config: Updated agent config.yaml files with project-specific env vars (PINECONE_API_KEY_OPENTHOUGHT, PINECONE_API_KEY_AGROBOT)
+    - Code: Converted module-level singletons to lazy initialization (pinecone_client.py, embedding_service.py, vector_service.py)
+  - **Testing**: ✅ Both agents' vector search works without global PINECONE_API_KEY
+  - **Commits**: `3186ef5` (config), `30b50b9` (caching), `9984e99` (lazy init)
   - See: [bugs-0017.md](bugs-0017.md#bug-0017-006) for full details
 
 - [ ] 0022-001-005-03 - Add agent_instance_slug to sessions table (fast analytics)
@@ -329,13 +332,13 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Working endpoints, widget integration, cost tracking
   - All critical bugs fixed (CORS, sessions, markdown, SSE)
   
-- 🚧 **Priority 3 - Data Model Cleanup**: IN PROGRESS (2/5 complete)
+- 🚧 **Priority 3 - Data Model Cleanup**: IN PROGRESS (3/5 complete)
   - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005) ✅ **DONE**
     - Database verified: 100% field population, 0 NULL values, fast billing queries working
   - ✅ 0022-001-005-02: Link llm_requests to messages (1:many FK) ✅ **DONE**
     - Migration created, models updated, 1:many FK established, agent integration complete
-  - 📋 BUG-0017-006: Pinecone multi-project API key support - **NEXT** (config updates only, no code changes)
-  - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - remaining
+  - ✅ BUG-0017-006: Pinecone multi-project API key support ✅ **DONE** (config + lazy singleton initialization)
+  - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - **NEXT**
   - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script - remaining
   
 - 🚧 **Priority 4 - Vector Search Tool & Chat Widget**: IN PROGRESS
@@ -355,11 +358,11 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
 
 **Next Steps (Phase 1 MVP):**
-1. 🚧 **Priority 3: Data Model Cleanup & Cost Attribution** - IN PROGRESS (2/5 complete)
+1. 🚧 **Priority 3: Data Model Cleanup & Cost Attribution** - IN PROGRESS (3/5 complete)
    - ✅ 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005) - DONE
    - ✅ 0022-001-005-02: Link llm_requests to messages (1:many FK) - DONE
-   - 📋 BUG-0017-006: Pinecone multi-project API key support - **NEXT** (config updates, then restart backend to test)
-   - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
+   - ✅ BUG-0017-006: Pinecone multi-project API key support - DONE (config + lazy singleton)
+   - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - **NEXT**
    - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script
 2. 📋 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
    - ✅ Multi-client demo site architecture (complete)
