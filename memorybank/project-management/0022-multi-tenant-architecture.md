@@ -222,9 +222,9 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - ✅ 0022-001-004-01: Astro/Preact components updated and fully tested
   - ⏳ 0022-001-004-02: Embedded widgets (iframe, shadow DOM) - not started
   - ⏳ 0022-001-004-03: Demo pages - not started
-- ⏳ Task 0022-001-005 - Cost Tracking & Observability (0/3 chunks - moved to Priority 3)
-  - ⏳ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005)
-  - ⏳ 0022-001-005-02: Link LLM requests to messages (1:many FK)
+- ⏳ Task 0022-001-005 - Cost Tracking & Observability (2/3 chunks complete - moved to Priority 3)
+  - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005) ✅ **DONE 2025-10-18**
+  - ✅ 0022-001-005-02: Link LLM requests to messages (1:many FK) ✅ **DONE 2025-10-18**
   - ⏳ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
 - ⏳ Task 0022-001-006 - Testing & Validation (not started)
 - ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
