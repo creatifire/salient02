@@ -264,7 +264,8 @@ class SessionService:
         session_id: UUID,
         account_id: UUID,
         account_slug: str,
-        agent_instance_id: UUID
+        agent_instance_id: UUID,
+        agent_instance_slug: str
     ) -> bool:
         """
         Update session with account and agent instance context.
@@ -277,6 +278,7 @@ class SessionService:
             account_id: Account UUID
             account_slug: Account slug for fast queries
             agent_instance_id: Agent instance UUID
+            agent_instance_slug: Agent instance slug for fast analytics
             
         Returns:
             bool: True if session was updated, False if session not found
@@ -285,7 +287,7 @@ class SessionService:
             SessionError: If database update fails
         """
         try:
-            # Update session with account/agent context
+            # Update session with account/agent context (including denormalized slug)
             stmt = (
                 update(Session)
                 .where(Session.id == session_id)
@@ -293,6 +295,7 @@ class SessionService:
                     account_id=account_id,
                     account_slug=account_slug,
                     agent_instance_id=agent_instance_id,
+                    agent_instance_slug=agent_instance_slug,
                     updated_at=datetime.now(timezone.utc)
                 )
             )
@@ -310,7 +313,8 @@ class SessionService:
                         "session_id": str(session_id),
                         "account_id": str(account_id),
                         "account_slug": account_slug,
-                        "agent_instance_id": str(agent_instance_id)
+                        "agent_instance_id": str(agent_instance_id),
+                        "agent_instance_slug": agent_instance_slug
                     }
                 )
             else:

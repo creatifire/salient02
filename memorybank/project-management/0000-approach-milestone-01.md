@@ -114,34 +114,22 @@
 - [ ] 0017-005-003 - Multi-Agent Data Integrity Verification Script
   - Create comprehensive manual test script: `backend/tests/manual/test_data_integrity.py`
   - **Purpose**: Verify all database tables are populated correctly after Priority 3 changes
-  - **Scope**: Test all agent instances (5 agents across 3 accounts: agrofresh, wyckoff, default_account, acme)
+  - **Scope**: Test 5 multi-tenant agents only (excludes legacy non-multi-tenant endpoints - see BUG-0017-007)
+    - agrofresh/agro_info_chat1, wyckoff/wyckoff_info_chat1, default_account/simple_chat1, default_account/simple_chat2, acme/acme_chat1
   - **Verification**: For each agent, send test chat request and verify:
     - Sessions table: account_id, agent_instance_id, agent_instance_slug populated
     - Messages table: session_id, llm_request_id FK populated, role/content correct
     - LLM_requests table: account_id, account_slug, agent_instance_slug, agent_type, completion_status populated
     - Costs tracked: prompt_cost, completion_cost, total_cost non-zero
+    - **Multi-tenant isolation** (all 3 scenarios):
+      - Session-level: Messages don't leak between sessions
+      - Agent-level: Data properly attributed within account
+      - Account-level: Complete data isolation between accounts
+  - **Implementation**: ✅ Option 1 chosen - Sequential Database Queries
+    - 3 output formats: `--format rich|simple|json` (rich default)
+    - Data preserved by default for manual inspection
+    - Separate cleanup script: `cleanup_test_data.py` with `--dry-run`, `--agent`, `--all` flags
   - **Configuration**: YAML config file specifying test prompts per agent (e.g., "What products do you offer?" for AgroFresh)
-  - **Implementation Options** (3 approaches to consider):
-    1. **Sequential Database Queries** (Recommended for MVP):
-       - Direct SQLAlchemy queries after each HTTP request
-       - Simple, debuggable, no external dependencies
-       - Prints summary table with pass/fail per agent
-       - Pros: Fast to implement, easy to understand
-       - Cons: Slower execution (sequential), requires running server
-    2. **LLM-Assisted Verification** (Intelligent validation):
-       - Uses LLM to generate test prompts and verify response quality
-       - Validates data relationships are semantically correct
-       - Can catch logical errors (e.g., Wyckoff agent answering AgroFresh questions)
-       - Pros: Smart validation, catches semantic issues
-       - Cons: Costs money, slower, adds complexity
-    3. **Pytest Parametrized Suite** (Production-ready):
-       - Uses `@pytest.mark.parametrize` to test all agents
-       - Parallel execution with `pytest-xdist`
-       - Proper fixtures, setup/teardown, CI/CD integration
-       - Pros: Professional, parallel, reusable in CI pipeline
-       - Cons: More complex, pytest overhead, harder to read output
-  - **Recommendation**: Start with Option 1 (Sequential), evolve to Option 3 (Pytest) for CI/CD
-  - **Output**: Summary table showing pass/fail for each agent + data integrity checks
   - **See**: [Epic 0017-005-003](0017-simple-chat-agent.md#0017-005-003) for detailed implementation plan
 
 ### **Priority 4: Vector Search Tool** ✅ **COMPLETE**
@@ -344,12 +332,13 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - 🚧 **Priority 4 - Vector Search Tool & Chat Widget**: IN PROGRESS
   - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
   - ✅ Vector Search Tool Implementation (3/3 chunks complete)
-  - ✅ Bug Fixes (4/5 complete) - See [bugs-0017.md](bugs-0017.md)
+  - ✅ Bug Fixes (4/6 complete) - See [bugs-0017.md](bugs-0017.md)
     - ✅ BUG-0017-001: Zero chunks streaming - FIXED 2025-10-15
     - ✅ BUG-0017-002: Missing model pricing - FIXED 2025-10-15
     - ✅ BUG-0017-003: Vapid sessions with NULL IDs - FIXED 2025-10-18
     - ✅ BUG-0017-005: Missing denormalized fields - FIXED 2025-10-18
     - ⏸️ BUG-0017-004: Duplicate user messages on retry - WON'T FIX
+    - 📋 BUG-0017-007: Legacy non-multi-tenant endpoints still active - PLANNED (P2)
   - 📋 0003-010: Chat Widget Maximize/Minimize Toggle - NEXT
 
 **Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
@@ -367,7 +356,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 2. 📋 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
    - ✅ Multi-client demo site architecture (complete)
    - ✅ Vector search tool implementation with Pydantic AI (complete)
-   - ✅ Bug fixes (4/5 fixed, 1 won't fix)
+   - ✅ Bug fixes (4/6 fixed, 1 won't fix, 1 planned for cleanup)
    - 📋 Chat widget maximize/minimize (Epic 0003-010) - NEXT after Priority 3
 3. **Priority 5: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
 4. Priority 6: 0017-006 (Profile Fields Config & JSONB Migration)

@@ -156,6 +156,13 @@ class Session(Base):
         comment="Agent instance handling this session"
     )
     
+    agent_instance_slug: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment="Denormalized agent instance slug for fast analytics - avoids JOINs to agent_instances"
+    )
+    
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
@@ -241,7 +248,11 @@ class Session(Base):
                 'is_anonymous': False,
                 'created_at': '2024-01-01T12:00:00+00:00',
                 'last_activity_at': '2024-01-01T12:30:00+00:00',
-                'meta': {}
+                'meta': {},
+                'account_id': 'xyz...',
+                'account_slug': 'acme',
+                'agent_instance_id': 'abc...',
+                'agent_instance_slug': 'simple_chat1'
             }
         """
         return {
@@ -254,5 +265,9 @@ class Session(Base):
                 self.last_activity_at.isoformat() 
                 if self.last_activity_at else None
             ),
-            "meta": self.meta or {}
+            "meta": self.meta or {},
+            "account_id": str(self.account_id) if self.account_id else None,
+            "account_slug": self.account_slug,
+            "agent_instance_id": str(self.agent_instance_id) if self.agent_instance_id else None,
+            "agent_instance_slug": self.agent_instance_slug
         }

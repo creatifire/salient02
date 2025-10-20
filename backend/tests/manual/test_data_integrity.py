@@ -578,6 +578,14 @@ async def main():
         print(f"{Colors.RED}Error loading configuration: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
     
+    # Initialize database service
+    db_service = get_database_service()
+    try:
+        await db_service.initialize()
+    except Exception as e:
+        print(f"{Colors.RED}Error initializing database: {e}{Colors.RESET}", file=sys.stderr)
+        sys.exit(1)
+    
     # Test all agents
     results = []
     for agent_key, agent_config in config['agents'].items():

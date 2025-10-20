@@ -245,8 +245,15 @@ async def main():
     print(f"{Colors.CYAN}⏱️  Time window: Last {args.time_window} minutes{Colors.RESET}")
     print()
     
-    # Get test data statistics
+    # Initialize and get database service
     db_service = get_database_service()
+    try:
+        await db_service.initialize()
+    except Exception as e:
+        print(f"{Colors.RED}Error initializing database: {e}{Colors.RESET}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Get test data statistics
     async with db_service.get_session() as db:
         stats = await get_test_data_stats(
             db,
