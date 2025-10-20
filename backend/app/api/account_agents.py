@@ -884,13 +884,15 @@ async def history_endpoint(
                     session_id=session.id,
                     account_id=instance.account_id,
                     account_slug=instance.account_slug,
-                    agent_instance_id=instance.id
+                    agent_instance_id=instance.id,
+                    agent_instance_slug=instance.instance_slug
                 )
             
             # Update local session object for use in this request
             session.account_id = instance.account_id
             session.account_slug = instance.account_slug
             session.agent_instance_id = instance.id
+            session.agent_instance_slug = instance.instance_slug
         
         # ====================================================================
         # STEP 3: LOAD HISTORY FILTERED BY SESSION + AGENT INSTANCE
