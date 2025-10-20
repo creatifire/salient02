@@ -440,13 +440,15 @@ def format_rich(results: List[Dict[str, Any]], config: Dict[str, Any]):
         status_icon = "✅" if result['status'] == 'PASS' else "❌"
         
         db_checks = result['database_checks']
-        sess_icon = "✅" if db_checks['sessions']['status'] == 'PASS' else "❌"
-        msg_icon = "✅" if db_checks['messages']['status'] == 'PASS' else "❌"
-        llm_icon = "✅" if db_checks['llm_requests']['status'] == 'PASS' else "❌"
-        cost_icon = "✅" if db_checks['llm_requests'].get('total_cost', 0) > 0 else "❌"
+        # Handle empty db_checks when HTTP request fails
+        sess_icon = "✅" if db_checks.get('sessions', {}).get('status') == 'PASS' else "❌"
+        msg_icon = "✅" if db_checks.get('messages', {}).get('status') == 'PASS' else "❌"
+        llm_icon = "✅" if db_checks.get('llm_requests', {}).get('status') == 'PASS' else "❌"
+        cost_icon = "✅" if db_checks.get('llm_requests', {}).get('total_cost', 0) > 0 else "❌"
         
         iso_checks = result['isolation_checks']
-        iso_all_pass = all(check['status'] == 'PASS' for check in iso_checks.values())
+        # Handle empty iso_checks when HTTP request fails
+        iso_all_pass = all(check['status'] == 'PASS' for check in iso_checks.values()) if iso_checks else False
         iso_icon = "✅" if iso_all_pass else "❌"
         
         # Truncate agent name if too long
@@ -463,10 +465,19 @@ def format_rich(results: List[Dict[str, Any]], config: Dict[str, Any]):
     print("│ Scenario                   │ Result                                            │")
     print("├────────────────────────────┼───────────────────────────────────────────────────┤")
     
-    # Check overall isolation
-    all_session_pass = all(r['isolation_checks']['session_level']['status'] == 'PASS' for r in results)
-    all_agent_pass = all(r['isolation_checks']['agent_level']['status'] == 'PASS' for r in results)
-    all_account_pass = all(r['isolation_checks']['account_level']['status'] == 'PASS' for r in results)
+    # Check overall isolation (skip results with empty isolation_checks)
+    all_session_pass = all(
+        r['isolation_checks'].get('session_level', {}).get('status') == 'PASS' 
+        for r in results if r['isolation_checks']
+    )
+    all_agent_pass = all(
+        r['isolation_checks'].get('agent_level', {}).get('status') == 'PASS' 
+        for r in results if r['isolation_checks']
+    )
+    all_account_pass = all(
+        r['isolation_checks'].get('account_level', {}).get('status') == 'PASS' 
+        for r in results if r['isolation_checks']
+    )
     
     sess_status = f"{Colors.GREEN}✅ PASS{Colors.RESET}" if all_session_pass else f"{Colors.RED}❌ FAIL{Colors.RESET}"
     agent_status = f"{Colors.GREEN}✅ PASS{Colors.RESET}" if all_agent_pass else f"{Colors.RED}❌ FAIL{Colors.RESET}"
