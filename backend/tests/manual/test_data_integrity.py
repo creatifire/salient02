@@ -430,9 +430,9 @@ def format_rich(results: List[Dict[str, Any]], config: Dict[str, Any]):
     
     # Agent results table
     print(f"{Colors.BOLD}AGENT VERIFICATION RESULTS{Colors.RESET}")
-    print("┌─────────────────────────────────┬────────┬──────────┬──────────┬──────────┬────────┬───────────┐")
-    print("│ Agent                           │ Status │ Sessions │ Messages │ LLM_Reqs │ Costs  │ Isolation │")
-    print("├─────────────────────────────────┼────────┼──────────┼──────────┼──────────┼────────┼───────────┤")
+    print("┌─────────────────────────────────┬────────┬──────────┬──────────┬──────────┬────────┬───────────┬────────┐")
+    print("│ Agent                           │ Status │ Sessions │ Messages │ LLM_Reqs │ Costs  │ Isolation │ Time   │")
+    print("├─────────────────────────────────┼────────┼──────────┼──────────┼──────────┼────────┼───────────┼────────┤")
     
     for result in results:
         agent_full = f"{result['account']}/{result['agent']}"
@@ -454,9 +454,13 @@ def format_rich(results: List[Dict[str, Any]], config: Dict[str, Any]):
         # Truncate agent name if too long
         agent_display = agent_full if len(agent_full) <= 31 else agent_full[:28] + "..."
         
-        print(f"│ {agent_display:<31} │ {status_color}{status_icon} {result['status']:<4}{Colors.RESET} │    {sess_icon}     │    {msg_icon}     │    {llm_icon}     │   {cost_icon}    │     {iso_icon}     │")
+        # Format elapsed time
+        elapsed_sec = result['elapsed_ms'] / 1000
+        time_display = f"{elapsed_sec:5.1f}s"
+        
+        print(f"│ {agent_display:<31} │ {status_color}{status_icon} {result['status']:<4}{Colors.RESET} │    {sess_icon}     │    {msg_icon}     │    {llm_icon}     │   {cost_icon}    │     {iso_icon}     │ {time_display} │")
     
-    print("└─────────────────────────────────┴────────┴──────────┴──────────┴──────────┴────────┴───────────┘")
+    print("└─────────────────────────────────┴────────┴──────────┴──────────┴──────────┴────────┴───────────┴────────┘")
     print()
     
     # Isolation verification table
