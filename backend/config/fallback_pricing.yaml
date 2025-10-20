@@ -57,14 +57,14 @@ models:
     output_per_1m: 10.00   # $10.00 per 1M output tokens
     source: "https://openrouter.ai/openai/gpt-5"
     updated: "2025-10-20"
-    notes: "OpenAI flagship GPT-5 model (Aug 2025) with advanced reasoning. Used by wyckoff/wyckoff_info_chat1. 400k context. Major improvements in reasoning, code quality, and accuracy."
+    notes: "OpenAI flagship GPT-5 model (Aug 2025). Used by wyckoff/wyckoff_info_chat1. 400k context, 128k max output. SUPPORTS TOOLS (vector search, reasoning). Major improvements in reasoning, code quality, and accuracy vs GPT-4."
   
   openai/gpt-5-chat:
     input_per_1m: 1.25     # $1.25 per 1M input tokens
     output_per_1m: 10.00   # $10.00 per 1M output tokens
     source: "https://openrouter.ai/openai/gpt-5-chat"
-    updated: "2025-10-18"
-    notes: "OpenAI flagship model (Aug 2025). WARNING: Does NOT support tool use on OpenRouter (404 error). Use gpt-5-mini instead for tool-enabled agents. 128k context."
+    updated: "2025-10-20"
+    notes: "DIFFERENT MODEL from openai/gpt-5. Conversational variant for enterprise apps. 128k context (smaller than gpt-5's 400k). Tool support unknown - use openai/gpt-5 or gpt-5-mini for tool-enabled agents."
   
   openai/gpt-5-mini:
     input_per_1m: 0.25     # $0.25 per 1M input tokens
