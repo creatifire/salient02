@@ -222,10 +222,10 @@ Build foundational multi-tenant architecture with account and agent instance sup
   - ✅ 0022-001-004-01: Astro/Preact components updated and fully tested
   - ⏳ 0022-001-004-02: Embedded widgets (iframe, shadow DOM) - not started
   - ⏳ 0022-001-004-03: Demo pages - not started
-- ⏳ Task 0022-001-005 - Cost Tracking & Observability (2/3 chunks complete - moved to Priority 3)
+- ✅ Task 0022-001-005 - Cost Tracking & Observability (3/3 chunks complete - moved to Priority 3) ✅ **DONE**
   - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005) ✅ **DONE 2025-10-18**
   - ✅ 0022-001-005-02: Link LLM requests to messages (1:many FK) ✅ **DONE 2025-10-18**
-  - ⏳ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics)
+  - ✅ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) ✅ **DONE 2025-10-20**
 - ⏳ Task 0022-001-006 - Testing & Validation (not started)
 - ⏳ Task 0022-001-007 - Simple Admin UI (not started - optional)
 
@@ -1428,7 +1428,7 @@ Build foundational multi-tenant architecture with account and agent instance sup
     - STATUS: Planned — Critical data integrity feature
     - PRIORITY: High — Enables accurate cost attribution, debugging, and analytics
   
-  - [ ] 0022-001-005-03 - CHUNK - Add agent_instance_slug to sessions table (fast analytics)
+  - [x] 0022-001-005-03 - CHUNK - Add agent_instance_slug to sessions table (fast analytics) ✅ **COMPLETE 2025-10-20**
     - **PURPOSE**: Add denormalized `agent_instance_slug` to sessions for fast queries without JOINs
     - **RATIONALE**:
       - Sessions currently have `agent_instance_id` (FK) but not the slug
@@ -1449,7 +1449,8 @@ Build foundational multi-tenant architecture with account and agent instance sup
       - sessions: will have both agent_instance_id FK + agent_instance_slug (denormalized)
       ```
     - **BACKWARD COMPATIBILITY**: Not required - existing sessions can have NULL agent_instance_slug initially, will populate on first use
-    - **DATA SOURCE**: `instance_config.get("instance_name")` when updating session context in endpoints
+    - **DATA SOURCE**: `instance.instance_slug` (from AgentInstance) when updating session context in endpoints
+    - **IMPLEMENTATION**: Migration `48d95232d581_add_agent_instance_slug_to_sessions.py` created and applied
     - SUB-TASKS:
       - **Step 1**: Create Alembic migration
         - Add column: `agent_instance_slug TEXT` (nullable initially for existing sessions)

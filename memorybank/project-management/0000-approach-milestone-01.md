@@ -77,8 +77,8 @@
   - [ ] 0022-001-007 - Simple Admin UI (Optional) ⏸️ **DEFERRED**
 - [ ] 0022-002 - Authentication & Authorization ⏸️ **DEFERRED**
 
-### **Priority 3: Data Model Cleanup & Cost Attribution** 🚧 **IN PROGRESS** (2/4 complete)
-**Doing this to enable accurate billing and debugging**
+### **Priority 3: Data Model Cleanup & Cost Attribution** ✅ **COMPLETE** (4/4 complete)
+**Completed to enable accurate billing and debugging**
 
 - [x] 0022-001-005-01 - Populate denormalized fields in LLM requests (BUG-0017-005) ✅
   - Update `llm_request_tracker.py` to populate: account_id, account_slug, agent_instance_slug, agent_type, completion_status
@@ -105,13 +105,15 @@
   - **Commits**: `3186ef5` (config), `30b50b9` (caching), `9984e99` (lazy init)
   - See: [bugs-0017.md](bugs-0017.md#bug-0017-006) for full details
 
-- [ ] 0022-001-005-03 - Add agent_instance_slug to sessions table (fast analytics)
+- [x] 0022-001-005-03 - Add agent_instance_slug to sessions table (fast analytics) ✅ **COMPLETE 2025-10-20**
   - Add denormalized `agent_instance_slug` (TEXT, nullable, indexed) to sessions table
   - Enables fast session analytics without JOINs to agent_instances table
   - Follows same denormalization pattern as llm_requests table
+  - **Implementation**: Migration `48d95232d581_add_agent_instance_slug_to_sessions.py` created and applied
+  - **Testing**: Manual testing confirmed all agents populate agent_instance_slug correctly
   - See: [Epic 0022-001-005-03](0022-multi-tenant-architecture.md#0022-001-005-03) for detailed implementation plan
 
-- [ ] 0017-005-003 - Multi-Agent Data Integrity Verification Script
+- [x] 0017-005-003 - Multi-Agent Data Integrity Verification Script ✅ **COMPLETE 2025-10-20**
   - Create comprehensive manual test script: `backend/tests/manual/test_data_integrity.py`
   - **Purpose**: Verify all database tables are populated correctly after Priority 3 changes
   - **Scope**: Test 5 multi-tenant agents only (excludes legacy non-multi-tenant endpoints - see BUG-0017-007)
@@ -129,7 +131,13 @@
     - 3 output formats: `--format rich|simple|json` (rich default)
     - Data preserved by default for manual inspection
     - Separate cleanup script: `cleanup_test_data.py` with `--dry-run`, `--agent`, `--all` flags
-  - **Configuration**: YAML config file specifying test prompts per agent (e.g., "What products do you offer?" for AgroFresh)
+    - Timing added to track LLM performance per agent
+  - **Configuration**: YAML config file `test_data_integrity_config.yaml` specifying test prompts per agent
+  - **Testing**: Manual testing confirmed all 5 agents PASS with proper isolation and cost tracking
+  - **Files Created**:
+    - `backend/tests/manual/test_data_integrity.py` (main test script)
+    - `backend/tests/manual/cleanup_test_data.py` (cleanup script)
+    - `backend/tests/manual/test_data_integrity_config.yaml` (test configuration)
   - **See**: [Epic 0017-005-003](0017-simple-chat-agent.md#0017-005-003) for detailed implementation plan
 
 ### **Priority 4: Vector Search Tool** ✅ **COMPLETE**
@@ -312,7 +320,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
 - [ ] 0003-003-004 - Widget Analytics and performance monitoring
 
-**Current Status**: Priority 3 in progress 🎯 - Data model cleanup and cost attribution
+**Current Status**: Priority 3 complete ✅ - Data model cleanup and cost attribution finished
 
 **Progress Summary:**
 - ✅ **Priority 2B - Epic 0022 (Multi-Tenant Architecture)**: COMPLETE
@@ -320,14 +328,16 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Working endpoints, widget integration, cost tracking
   - All critical bugs fixed (CORS, sessions, markdown, SSE)
   
-- 🚧 **Priority 3 - Data Model Cleanup**: IN PROGRESS (3/5 complete)
+- ✅ **Priority 3 - Data Model Cleanup**: COMPLETE (4/4 complete) ✅ **2025-10-20**
   - ✅ 0022-001-005-01: Populate denormalized fields in llm_requests (BUG-0017-005) ✅ **DONE**
     - Database verified: 100% field population, 0 NULL values, fast billing queries working
   - ✅ 0022-001-005-02: Link llm_requests to messages (1:many FK) ✅ **DONE**
     - Migration created, models updated, 1:many FK established, agent integration complete
   - ✅ BUG-0017-006: Pinecone multi-project API key support ✅ **DONE** (config + lazy singleton initialization)
-  - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - **NEXT**
-  - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script - remaining
+  - ✅ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) ✅ **DONE**
+    - Migration created, models updated, manual testing confirmed all agents populate correctly
+  - ✅ 0017-005-003: Multi-Agent Data Integrity Verification Script ✅ **DONE**
+    - Comprehensive test script with 3 output formats, cleanup script, all 5 agents verified
   
 - 🚧 **Priority 4 - Vector Search Tool & Chat Widget**: IN PROGRESS
   - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
@@ -347,19 +357,19 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 - All critical bugs fixed (CORS, sessions, markdown, SSE, cost tracking)
 
 **Next Steps (Phase 1 MVP):**
-1. 🚧 **Priority 3: Data Model Cleanup & Cost Attribution** - IN PROGRESS (3/5 complete)
+1. ✅ **Priority 3: Data Model Cleanup & Cost Attribution** - COMPLETE (4/4 complete) ✅ **2025-10-20**
    - ✅ 0022-001-005-01: Denormalized fields in llm_requests (BUG-0017-005) - DONE
    - ✅ 0022-001-005-02: Link llm_requests to messages (1:many FK) - DONE
    - ✅ BUG-0017-006: Pinecone multi-project API key support - DONE (config + lazy singleton)
-   - 📋 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - **NEXT**
-   - 📋 0017-005-003: Multi-Agent Data Integrity Verification Script
-2. 📋 **Priority 4: 0017-005 (Vector Search Tool)** - After Priority 3
+   - ✅ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - DONE
+   - ✅ 0017-005-003: Multi-Agent Data Integrity Verification Script - DONE
+2. 🚧 **Priority 4: 0017-005 (Vector Search Tool)** - IN PROGRESS 🎯 **CURRENT**
    - ✅ Multi-client demo site architecture (complete)
    - ✅ Vector search tool implementation with Pydantic AI (complete)
    - ✅ Bug fixes (4/6 fixed, 1 won't fix, 1 planned for cleanup)
-   - 📋 Chat widget maximize/minimize (Epic 0003-010) - NEXT after Priority 3
-3. **Priority 5: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
-4. Priority 6: 0017-006 (Profile Fields Config & JSONB Migration)
-5. Priority 7: 0017-007 (Profile Capture Tool)
-6. Priority 8: 0017-008 (Email Summary with Mailgun)
-7. **Priority 9: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
+   - 📋 Chat widget maximize/minimize (Epic 0003-010) - **NEXT**
+3. 📋 **Priority 5: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+4. 📋 Priority 6: 0017-006 (Profile Fields Config & JSONB Migration)
+5. 📋 Priority 7: 0017-007 (Profile Capture Tool)
+6. 📋 Priority 8: 0017-008 (Email Summary with Mailgun)
+7. 📋 **Priority 9: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
