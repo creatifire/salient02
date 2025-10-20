@@ -4,7 +4,7 @@
 
 backend:
   url: "http://localhost:8000"
-  timeout_seconds: 30
+  timeout_seconds: 90  # Increased for slower LLMs (wyckoff vector search can be slow)
 
 database:
   # Connection string loaded from DATABASE_URL environment variable

@@ -494,8 +494,8 @@ def format_rich(results: List[Dict[str, Any]], config: Dict[str, Any]):
     total = len(results)
     total_time = sum(r['elapsed_ms'] for r in results)
     total_cost = sum(
-        r['database_checks']['llm_requests'].get('total_cost', 0) 
-        for r in results
+        r['database_checks'].get('llm_requests', {}).get('total_cost', 0) 
+        for r in results if r['database_checks']
     )
     
     if passed == total:
