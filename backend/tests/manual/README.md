@@ -74,6 +74,173 @@ is September 2024...
 ✅ TEST PASSED
 ```
 
+### `test_data_integrity.py` 🆕
+
+**Comprehensive multi-agent database integrity verification script** that tests all 5 multi-tenant agent instances to ensure proper data model implementation after Priority 3 changes.
+
+**What it tests:**
+- **Sessions table**: account_id, agent_instance_id, agent_instance_slug populated correctly
+- **Messages table**: session_id, llm_request_id FK, role/content validation
+- **LLM_requests table**: Denormalized fields (account_slug, agent_type, completion_status)
+- **Cost tracking**: prompt_cost, completion_cost, total_cost non-zero for successful requests
+- **Multi-tenant isolation** (all 3 scenarios):
+  - Session-level: Messages don't leak between sessions
+  - Agent-level: Data properly attributed within account
+  - Account-level: Complete data isolation between accounts
+
+**Prerequisites:**
+- FastAPI server must be running (`uvicorn app.main:app --reload`)
+- Database initialized with multi-tenant schema (Epic 0022)
+- All 5 agents configured: agrofresh/agro_info_chat1, wyckoff/wyckoff_info_chat1, default_account/simple_chat1, default_account/simple_chat2, acme/acme_chat1
+
+**How to run:**
+```bash
+# Rich output (default) - ASCII tables with colors
+python backend/tests/manual/test_data_integrity.py
+
+# Simple output - grep-friendly plain text
+python backend/tests/manual/test_data_integrity.py --format simple
+
+# JSON output - for CI/CD integration
+python backend/tests/manual/test_data_integrity.py --format json > results.json
+
+# Strict mode - exit 1 on any failure
+python backend/tests/manual/test_data_integrity.py --strict
+```
+
+**Expected output (rich format):**
+```
+╔════════════════════════════════════════════════════════════════════════════════╗
+║          MULTI-AGENT DATA INTEGRITY VERIFICATION REPORT                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+AGENT VERIFICATION RESULTS
+┌─────────────────────────────────┬────────┬──────────┬──────────┬──────────┬────────┬───────────┐
+│ Agent                           │ Status │ Sessions │ Messages │ LLM_Reqs │ Costs  │ Isolation │
+├─────────────────────────────────┼────────┼──────────┼──────────┼──────────┼────────┼───────────┤
+│ agrofresh/agro_info_chat1       │ ✅ PASS│    ✅     │    ✅     │    ✅     │   ✅    │     ✅     │
+│ wyckoff/wyckoff_info_chat1      │ ✅ PASS│    ✅     │    ✅     │    ✅     │   ✅    │     ✅     │
+│ default_account/simple_chat1    │ ✅ PASS│    ✅     │    ✅     │    ✅     │   ✅    │     ✅     │
+│ default_account/simple_chat2    │ ✅ PASS│    ✅     │    ✅     │    ✅     │   ✅    │     ✅     │
+│ acme/acme_chat1                 │ ✅ PASS│    ✅     │    ✅     │    ✅     │   ✅    │     ✅     │
+└─────────────────────────────────┴────────┴──────────┴──────────┴──────────┴────────┴───────────┘
+
+ISOLATION VERIFICATION (3 scenarios)
+┌────────────────────────────┬───────────────────────────────────────────────────┐
+│ Scenario                   │ Result                                            │
+├────────────────────────────┼───────────────────────────────────────────────────┤
+│ Session-level isolation    │ ✅ PASS - No cross-session data leakage           │
+│ Agent-level isolation      │ ✅ PASS - Agents within account isolated          │
+│ Account-level isolation    │ ✅ PASS - Complete account separation             │
+└────────────────────────────┴───────────────────────────────────────────────────┘
+
+✅ ALL CHECKS PASSED (5/5 agents verified)
+
+💾 Test data preserved for manual inspection
+🧹 Run cleanup_test_data.py to delete test data
+```
+
+**Configuration:**
+Edit `test_data_integrity_config.yaml` to customize:
+- Test prompts per agent
+- Expected keywords for validation
+- Backend URL and timeouts
+- Field validation rules
+
+**Important Notes:**
+- ⚠️ **Test data is preserved by default** - Manual inspection is required
+- 🧹 Use `cleanup_test_data.py` to delete test data after verification
+- 🚫 **Legacy endpoints excluded** - Only tests multi-tenant agents (see BUG-0017-007)
+- 📊 **See**: Epic 0017-005-003 in project management docs for detailed implementation
+
+### `cleanup_test_data.py` 🆕
+
+**Safe test data cleanup script** with confirmation prompts, dry-run mode, and production environment protection.
+
+**What it does:**
+- Deletes test data created by `test_data_integrity.py`
+- Removes sessions, messages, and llm_requests in proper order (respects foreign keys)
+- Provides summary of what will be deleted before confirmation
+- Supports selective deletion by agent or time window
+
+**Safety features:**
+- ✅ Interactive confirmation prompt (unless --all flag)
+- ✅ Dry-run mode to preview deletions
+- ✅ Production environment detection and blocking
+- ✅ Selective deletion by agent
+- ✅ Time window filtering (default: last 60 minutes)
+
+**How to run:**
+```bash
+# Interactive mode with confirmation
+python backend/tests/manual/cleanup_test_data.py
+
+# Dry-run - see what would be deleted
+python backend/tests/manual/cleanup_test_data.py --dry-run
+
+# Delete specific agent's test data
+python backend/tests/manual/cleanup_test_data.py --agent wyckoff/wyckoff_info_chat1
+
+# Custom time window (last 120 minutes)
+python backend/tests/manual/cleanup_test_data.py --time-window 120
+
+# Skip confirmation (dangerous!)
+python backend/tests/manual/cleanup_test_data.py --all
+```
+
+**Expected output:**
+```
+═══════════════════════════════════════════════════════════════════════════════
+  TEST DATA CLEANUP SCRIPT
+═══════════════════════════════════════════════════════════════════════════════
+
+⏱️  Time window: Last 60 minutes
+
+Data to be deleted:
+
+  Sessions:           5
+  Messages:          10
+  LLM Requests:       5
+
+  Affected agents:
+    • agrofresh/agro_info_chat1
+    • wyckoff/wyckoff_info_chat1
+    • default_account/simple_chat1
+    • default_account/simple_chat2
+    • acme/acme_chat1
+
+⚠️  WARNING: About to delete test data
+
+Are you sure you want to delete this data? [y/N]: y
+
+Deleting data...
+
+═══════════════════════════════════════════════════════════════════════════════
+  DELETION SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+  ✓ Sessions deleted:           5
+  ✓ Messages deleted:          10
+  ✓ LLM Requests deleted:       5
+
+✅ Cleanup complete!
+```
+
+**Typical Workflow:**
+```bash
+# 1. Run integrity tests
+python backend/tests/manual/test_data_integrity.py
+
+# 2. Review test results and manually inspect database
+psql $DATABASE_URL -c "SELECT account_slug, agent_instance_slug, COUNT(*) FROM llm_requests GROUP BY 1,2;"
+
+# 3. Preview cleanup (dry-run)
+python backend/tests/manual/cleanup_test_data.py --dry-run
+
+# 4. Clean up test data
+python backend/tests/manual/cleanup_test_data.py
+```
+
 ### `test_config_loader.py`
 
 Verifies that agent instance configuration loading works correctly across multiple accounts and instances.

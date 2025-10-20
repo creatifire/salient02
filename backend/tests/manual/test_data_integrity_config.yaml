@@ -1,0 +1,74 @@
+# Multi-Agent Data Integrity Verification Configuration
+# Tests 5 multi-tenant agents across 3 accounts
+# Legacy non-multi-tenant endpoints excluded (see BUG-0017-007)
+
+backend:
+  url: "http://localhost:8000"
+  timeout_seconds: 30
+
+database:
+  # Connection string loaded from DATABASE_URL environment variable
+  connection_string: "${DATABASE_URL}"
+
+# Test configuration for each multi-tenant agent
+agents:
+  agrofresh/agro_info_chat1:
+    prompt: "What products do you offer for tomatoes?"
+    expected_keywords: ["AgroFresh", "products", "tomato"]
+    notes: "Tests AgroFresh agricultural products agent with vector search enabled"
+    
+  wyckoff/wyckoff_info_chat1:
+    prompt: "What cardiology services do you offer?"
+    expected_keywords: ["cardiology", "heart", "services"]
+    notes: "Tests Wyckoff hospital agent with vector search enabled"
+    
+  default_account/simple_chat1:
+    prompt: "What is your knowledge cutoff date?"
+    expected_keywords: ["2024", "cutoff", "knowledge"]
+    notes: "Tests default agent with Moonshot AI Kimi model"
+    
+  default_account/simple_chat2:
+    prompt: "Tell me about yourself"
+    expected_keywords: ["assistant", "help", "answer"]
+    notes: "Tests alternative default agent with OpenAI GPT-OSS model"
+    
+  acme/acme_chat1:
+    prompt: "What can you do to help me?"
+    expected_keywords: ["assist", "help", "answer"]
+    notes: "Tests Acme agent with Mistral model"
+
+# Verification settings
+verification:
+  check_costs: true
+  check_relationships: true
+  check_denormalization: true
+  check_isolation: true  # All 3 scenarios: session, agent, account
+  strict_mode: false  # Set to true for CI/CD (exit 1 on any failure)
+
+# Expected field validations
+expected_fields:
+  sessions:
+    - account_id
+    - agent_instance_id
+    - agent_instance_slug
+    - created_at
+  
+  messages:
+    - session_id
+    - llm_request_id  # Nullable FK, but should be populated for successful requests
+    - role
+    - content
+    - created_at
+  
+  llm_requests:
+    - account_id
+    - account_slug
+    - agent_instance_slug
+    - agent_type
+    - completion_status
+    - prompt_cost
+    - completion_cost
+    - total_cost
+    - model
+    - created_at
+
