@@ -1635,13 +1635,14 @@ This multi-model architecture validates that the Pydantic AI implementation is m
 
 Comprehensive test infrastructure to verify database integrity across all agent instances after data model cleanup (Priority 3).
 
-- [ ] 0017-005-003-001 - TASK - Multi-Agent Data Integrity Verification Script
-  - [ ] 0017-005-003-001-01 - CHUNK - Create comprehensive test script
+- [ ] 0017-005-003 - TASK - Multi-Agent Data Integrity Verification Script
+  - [ ] 0017-005-003-001 - CHUNK - Create comprehensive test script
     - **PURPOSE**: Verify all database tables (sessions, messages, llm_requests) are populated correctly after Priority 3 denormalization work
-    - **SCOPE**: Test all 5 agent instances across 3 accounts
+    - **SCOPE**: Test all 5 multi-tenant agent instances across 3 accounts
     - **LOCATION**: `backend/tests/manual/test_data_integrity.py`
+    - **EXCLUSIONS**: Legacy non-multi-tenant endpoints (`/`, `/chat`, `/events/stream`, `/agents/simple-chat/chat`) excluded from testing (see BUG-0017-007)
     
-    - **AGENT COVERAGE**:
+    - **AGENT COVERAGE** (5 multi-tenant agents only):
       ```
       ACCOUNT           AGENT INSTANCE           MODEL                                 VECTOR SEARCH
       ────────────────────────────────────────────────────────────────────────────────────────────
@@ -1650,6 +1651,10 @@ Comprehensive test infrastructure to verify database integrity across all agent 
       default_account→  simple_chat1         →  moonshotai/kimi-k2-0905           →  Disabled
       default_account→  simple_chat2         →  openai/gpt-oss-120b               →  Disabled
       acme           →  acme_chat1           →  mistralai/mistral-small-3.2       →  Disabled
+      
+      NOTE: Legacy "simple_chat" endpoint (non-multi-tenant) is NOT tested - it bypasses
+            the multi-tenant data model and doesn't populate account_id/agent_instance_id.
+            See BUG-0017-007 for legacy endpoint cleanup plan.
       ```
     
     - **VERIFICATION CHECKS** (per agent):
@@ -1684,7 +1689,20 @@ Comprehensive test infrastructure to verify database integrity across all agent 
          - Sessions.account_id references valid accounts.id
          - Sessions.agent_instance_id references valid agent_instances.id
       
-      5. **Cost Tracking Validation**:
+      5. **Multi-Tenant Isolation** (All 3 scenarios tested):
+         - **Scenario 1: Session-Level Isolation**
+           - Same agent, different sessions → messages/llm_requests don't leak between sessions
+           - Query: Messages from session A don't appear in queries for session B
+         - **Scenario 2: Agent-Level Isolation** 
+           - Same account, different agents → sessions/messages properly attributed
+           - Query: simple_chat1 data separate from simple_chat2 data
+         - **Scenario 3: Account-Level Isolation**
+           - Different accounts → complete data isolation
+           - Query: agrofresh data never appears in wyckoff queries
+         - **LLM Request Isolation**: llm_requests properly scoped by account/agent
+         - **FK Integrity**: No orphaned records, all foreign keys valid
+      
+      6. **Cost Tracking Validation**:
          - All costs use NUMERIC(12, 8) precision
          - Costs match expected ranges for each model
          - No NULL costs for successful completions
@@ -1727,15 +1745,16 @@ Comprehensive test infrastructure to verify database integrity across all agent 
         strict_mode: true  # Fail on any issue
       ```
     
-    - **IMPLEMENTATION OPTIONS** (3 approaches):
+    - **IMPLEMENTATION APPROACH** (Chosen: Option 1 - Sequential Database Queries):
       
-      **Option 1: Sequential Database Queries** (Recommended for MVP):
+      **Selected Implementation**:
       ```python
-      # Pros: Simple, debuggable, no external dependencies
-      # Cons: Slower (sequential), requires running server
+      # CHOSEN: Simple, debuggable, no external dependencies
+      # Data preservation: Test data preserved by default for manual inspection
+      # Cleanup: Separate script (cleanup_test_data.py) handles data deletion
       
       async def test_agent_data_integrity(account: str, agent: str, prompt: str):
-          # 1. Send HTTP request
+          # 1. Send HTTP request to multi-tenant endpoint
           response = await client.post(f"/accounts/{account}/agents/{agent}/chat", ...)
           
           # 2. Query database directly (SQLAlchemy)
@@ -1743,32 +1762,114 @@ Comprehensive test infrastructure to verify database integrity across all agent 
           messages = await db.query(Message).filter(...).all()
           llm_request = await db.query(LLMRequest).filter(...).first()
           
-          # 3. Verify all fields
+          # 3. Verify all fields (database integrity)
           assert session_record.account_id is not None
           assert session_record.agent_instance_slug == agent
           assert llm_request.prompt_cost > 0
-          ...
           
-          # 4. Print summary
-          print(f"✅ {account}/{agent}: PASS")
+          # 4. Verify multi-tenant isolation (all 3 scenarios)
+          await verify_multi_tenant_isolation(session_record, account, agent)
+          
+          # 5. Return results for formatting
+          return {
+              'account': account,
+              'agent': agent,
+              'database_checks': 'PASS',
+              'isolation_checks': {'session': 'PASS', 'agent': 'PASS', 'account': 'PASS'}
+          }
       
       # Run sequentially for all 5 agents
+      results = []
       for agent_config in test_configs:
-          await test_agent_data_integrity(**agent_config)
+          result = await test_agent_data_integrity(**agent_config)
+          results.append(result)
       
-      # Output: Summary table
-      """
-      AGENT                          STATUS  SESSION  MESSAGES  LLM_REQ  COSTS
-      ───────────────────────────────────────────────────────────────────────
-      agrofresh/agro_info_chat1      ✅ PASS    ✅       ✅        ✅       ✅
-      wyckoff/wyckoff_info_chat1     ✅ PASS    ✅       ✅        ✅       ✅
-      default_account/simple_chat1   ✅ PASS    ✅       ✅        ✅       ✅
-      default_account/simple_chat2   ✅ PASS    ✅       ✅        ✅       ✅
-      acme/acme_chat1                ✅ PASS    ✅       ✅        ✅       ✅
-      """
+      # Format output based on --format flag
+      if args.format == 'rich':
+          format_rich(results)  # ASCII tables with box-drawing
+      elif args.format == 'simple':
+          format_simple(results)  # Plain text (grep-friendly)
+      elif args.format == 'json':
+          format_json(results)  # JSON for CI/CD
+      
+      # Data preserved by default - run cleanup_test_data.py separately
       ```
       
-      **Option 2: LLM-Assisted Verification** (Intelligent validation):
+      **Output Format Examples**:
+      
+      **Rich Format** (default - ASCII tables):
+      ```
+      ╔════════════════════════════════════════════════════════════════════════════════╗
+      ║               MULTI-AGENT DATA INTEGRITY VERIFICATION REPORT                    ║
+      ╚════════════════════════════════════════════════════════════════════════════════╝
+      
+      AGENT                          STATUS  SESSION  MESSAGES  LLM_REQ  COSTS  ISOLATION
+      ───────────────────────────────────────────────────────────────────────────────────
+      agrofresh/agro_info_chat1      ✅ PASS    ✅       ✅        ✅       ✅      ✅
+      wyckoff/wyckoff_info_chat1     ✅ PASS    ✅       ✅        ✅       ✅      ✅
+      default_account/simple_chat1   ✅ PASS    ✅       ✅        ✅       ✅      ✅
+      default_account/simple_chat2   ✅ PASS    ✅       ✅        ✅       ✅      ✅
+      acme/acme_chat1                ✅ PASS    ✅       ✅        ✅       ✅      ✅
+      
+      ISOLATION VERIFICATION (3 scenarios)
+      ┌────────────────────────────┬────────────────────────────────────────────────┐
+      │ Scenario                   │ Result                                         │
+      ├────────────────────────────┼────────────────────────────────────────────────┤
+      │ Session-level isolation    │ ✅ PASS - No cross-session data leakage       │
+      │ Agent-level isolation      │ ✅ PASS - Agents within account isolated      │
+      │ Account-level isolation    │ ✅ PASS - Complete account separation         │
+      └────────────────────────────┴────────────────────────────────────────────────┘
+      
+      ✅ ALL CHECKS PASSED (5/5 agents verified)
+      💾 Test data preserved for manual inspection
+      🧹 Run cleanup_test_data.py to delete test data
+      ```
+      
+      **Simple Format** (`--format simple` - grep-friendly):
+      ```
+      MULTI-AGENT DATA INTEGRITY REPORT
+      ==================================
+      Agent: agrofresh/agro_info_chat1 - PASS
+      Agent: wyckoff/wyckoff_info_chat1 - PASS
+      Agent: default_account/simple_chat1 - PASS
+      Agent: default_account/simple_chat2 - PASS
+      Agent: acme/acme_chat1 - PASS
+      
+      Isolation: Session-level - PASS
+      Isolation: Agent-level - PASS
+      Isolation: Account-level - PASS
+      
+      Summary: 5/5 PASS
+      ```
+      
+      **JSON Format** (`--format json` - CI/CD integration):
+      ```json
+      {
+        "test_run": "2025-10-19T15:42:31Z",
+        "backend_url": "http://localhost:8000",
+        "results": [
+          {
+            "account": "agrofresh",
+            "agent": "agro_info_chat1",
+            "database_checks": "PASS",
+            "isolation_checks": {
+              "session": "PASS",
+              "agent": "PASS",
+              "account": "PASS"
+            }
+          }
+        ],
+        "summary": {
+          "total_agents": 5,
+          "passed": 5,
+          "failed": 0
+        }
+      }
+      ```
+      
+      **Rejected Options** (for reference):
+      
+      **Option 2: LLM-Assisted Verification**:
       ```python
       # Pros: Smart validation, catches semantic issues, generates test prompts
       # Cons: Costs money, slower, adds complexity
@@ -1812,63 +1913,25 @@ Comprehensive test infrastructure to verify database integrity across all agent 
           }
       ```
       
-      **Option 3: Pytest Parametrized Suite** (Production-ready):
+      **Option 3: Pytest Parametrized Suite**:
       ```python
+      # NOT CHOSEN - Too complex for manual verification
       # Pros: Professional, parallel execution, reusable in CI/CD, proper fixtures
       # Cons: More complex setup, pytest overhead, harder to read output
-      
-      import pytest
-      from pytest_asyncio import fixture
-      
-      @fixture
-      async def db_session():
-          async with get_database_service().get_session() as session:
-              yield session
-      
-      @fixture
-      async def http_client():
-          async with httpx.AsyncClient(base_url="http://localhost:8000") as client:
-              yield client
-      
-      @pytest.mark.parametrize("account,agent,prompt,expected_keywords", [
-          ("agrofresh", "agro_info_chat1", "What products do you offer?", ["AgroFresh"]),
-          ("wyckoff", "wyckoff_info_chat1", "What cardiology services?", ["cardiology"]),
-          ("default_account", "simple_chat1", "What is your cutoff date?", ["2023"]),
-          ("default_account", "simple_chat2", "Tell me about yourself", ["assistant"]),
-          ("acme", "acme_chat1", "What can you do?", ["assist"]),
-      ])
-      @pytest.mark.asyncio
-      async def test_agent_data_integrity(
-          account, agent, prompt, expected_keywords,
-          http_client, db_session
-      ):
-          # Send request
-          response = await http_client.post(
-              f"/accounts/{account}/agents/{agent}/chat",
-              json={"message": prompt}
-          )
-          assert response.status_code == 200
-          
-          # Verify database
-          session_record = await db_session.execute(
-              select(Session).where(Session.agent_instance_slug == agent)
-              .order_by(Session.created_at.desc()).limit(1)
-          )
-          session_record = session_record.scalar_one()
-          
-          # All verifications...
-          assert session_record.account_id is not None
-          assert session_record.agent_instance_slug == agent
-          ...
-      
-      # Run with: pytest -xdist -n auto backend/tests/manual/test_data_integrity.py
-      # Parallel execution across CPU cores
+      # Decision: Rejected in favor of simple sequential approach (Option 1)
       ```
     
-    - **RECOMMENDATION**: 
-      - **Start with Option 1** (Sequential Database Queries) for immediate validation
-      - **Evolve to Option 3** (Pytest Suite) for CI/CD integration in production
-      - **Option 2** (LLM-Assisted) only if semantic validation is critical
+    - **FINAL DECISION**: 
+      - ✅ **Option 1 chosen** - Sequential Database Queries with multiple output formats
+      - ❌ **Option 2 rejected** - LLM-assisted adds unnecessary cost/complexity
+      - ❌ **Option 3 rejected** - Pytest overhead not needed for manual testing
+      
+    - **KEY FEATURES**:
+      - **Data Preservation**: Test data kept by default for manual inspection
+      - **Separate Cleanup**: `cleanup_test_data.py` script handles deletion
+      - **Flexible Output**: `--format` flag (rich/simple/json) for different use cases
+      - **Multi-Tenant Isolation**: All 3 isolation scenarios tested
+      - **Multi-Tenant Only**: Legacy endpoints excluded (BUG-0017-007)
     
     - **OUTPUT FORMAT**:
       ```
@@ -1923,16 +1986,36 @@ Comprehensive test infrastructure to verify database integrity across all agent 
       ```
     
     - SUB-TASKS:
-      - Create `backend/tests/manual/test_data_integrity.py` with Option 1 implementation
-      - Create `backend/tests/manual/test_data_integrity_config.yaml` with test prompts
-      - Add database query helpers for verification checks
-      - Implement summary table formatter (ASCII table output)
-      - Add detailed logging for each verification step
-      - Include timing metrics and cost tracking
-      - Create documentation in script docstring
-      - Add error handling for network/database issues
-      - Support dry-run mode (no HTTP requests, use existing DB data)
-      - Add --strict flag for CI/CD integration (exit 1 on any failure)
+      
+      **File 1: `backend/tests/manual/test_data_integrity.py`** (Main test script)
+      - Implement sequential database queries approach (Option 1)
+      - Test all 5 multi-tenant agents (exclude legacy endpoints)
+      - Verify database integrity (sessions, messages, llm_requests)
+      - Test multi-tenant isolation (all 3 scenarios: session, agent, account)
+      - Add `verify_multi_tenant_isolation()` function
+      - CLI argument parsing with argparse
+      - Three output formatters: `format_rich()`, `format_simple()`, `format_json()`
+      - `--format` flag: rich (default), simple, json
+      - `--strict` flag: Exit 1 on any failure (CI/CD mode)
+      - Preserve test data by default (no automatic cleanup)
+      - Comprehensive logging for each verification step
+      - Error handling for network/database issues
+      - Timing metrics and cost tracking
+      
+      **File 2: `backend/tests/manual/cleanup_test_data.py`** (Separate cleanup script)
+      - Delete test data from sessions, messages, llm_requests tables
+      - Confirmation prompt before deletion ("Are you sure? [y/N]")
+      - `--dry-run` flag: Show what would be deleted without actually deleting
+      - `--agent` flag: Clean specific agent data only (e.g., `--agent agrofresh/agro_info_chat1`)
+      - `--all` flag: Skip confirmation, delete immediately (dangerous!)
+      - Summary of deleted records (counts per table)
+      - Safety checks (don't delete production data)
+      
+      **File 3: `backend/tests/manual/test_data_integrity_config.yaml`** (Test configuration)
+      - Test prompts for each of the 5 agents
+      - Expected keywords for validation
+      - Backend URL and timeouts
+      - Database connection string reference
     
     - AUTOMATED-TESTS: `backend/tests/unit/test_data_integrity_script.py`
       - `test_verification_logic()` - Test verification checks with mock data
@@ -1941,15 +2024,58 @@ Comprehensive test infrastructure to verify database integrity across all agent 
       - `test_error_handling()` - Test network/DB error scenarios
     
     - MANUAL-TESTS:
-      - Clear database tables: `DELETE FROM llm_requests; DELETE FROM messages; DELETE FROM sessions WHERE agent_instance_id IS NOT NULL;`
-      - Run script: `python backend/tests/manual/test_data_integrity.py`
-      - Verify: All 5 agents show ✅ PASS in summary table
-      - Check database: Manually query sessions, messages, llm_requests tables
-      - Verify: All denormalized fields populated correctly
-      - Verify: All FK relationships valid
-      - Verify: All costs non-zero and correctly calculated
-      - Run in strict mode: `python backend/tests/manual/test_data_integrity.py --strict`
-      - Verify: Script exits 1 if any check fails
+      
+      **Test Execution**:
+      ```bash
+      # 1. Run test with default rich output (ASCII tables)
+      python backend/tests/manual/test_data_integrity.py
+      
+      # 2. Run with simple output (grep-friendly)
+      python backend/tests/manual/test_data_integrity.py --format simple
+      
+      # 3. Run with JSON output (CI/CD integration)
+      python backend/tests/manual/test_data_integrity.py --format json > results.json
+      
+      # 4. Run in strict mode (exit 1 on failure)
+      python backend/tests/manual/test_data_integrity.py --strict
+      ```
+      
+      **Verification Checklist**:
+      - ✅ All 5 agents show ✅ PASS in summary table
+      - ✅ Session-level isolation: PASS
+      - ✅ Agent-level isolation: PASS
+      - ✅ Account-level isolation: PASS
+      - ✅ Database fields: All denormalized fields populated
+      - ✅ FK relationships: All foreign keys valid
+      - ✅ Cost tracking: All costs non-zero and correctly calculated
+      - ✅ Test data preserved after script completes
+      
+      **Manual Database Inspection** (after test run):
+      ```sql
+      -- Verify test data was created and preserved
+      SELECT account_slug, agent_instance_slug, COUNT(*) 
+      FROM llm_requests 
+      WHERE created_at > NOW() - INTERVAL '5 minutes'
+      GROUP BY account_slug, agent_instance_slug;
+      
+      -- Check session isolation
+      SELECT session_id, COUNT(*) FROM messages GROUP BY session_id;
+      ```
+      
+      **Cleanup After Testing**:
+      ```bash
+      # 1. Dry-run: Show what would be deleted
+      python backend/tests/manual/cleanup_test_data.py --dry-run
+      
+      # 2. Delete specific agent's test data
+      python backend/tests/manual/cleanup_test_data.py --agent wyckoff/wyckoff_info_chat1
+      
+      # 3. Delete all test data (with confirmation)
+      python backend/tests/manual/cleanup_test_data.py
+      
+      # 4. Delete all test data (skip confirmation - dangerous!)
+      python backend/tests/manual/cleanup_test_data.py --all
+      ```
     
     - STATUS: Planned — Comprehensive test infrastructure for Priority 3 validation
     - PRIORITY: High — Required to verify data model cleanup is working correctly
