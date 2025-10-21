@@ -164,6 +164,12 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
             agent.tool(vector_tools.vector_search)
             logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
         
+        # Conditionally register directory search tool
+        if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
+            from backend.app.agents.tools.directory_tools import search_directory
+            agent.tool(search_directory)
+            logger.info(f"Directory search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+        
         return agent
     
     # Load system prompt from instance_config (multi-tenant) or agent config (single-tenant)
@@ -229,6 +235,12 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
         from backend.app.agents.tools import vector_tools
         agent.tool(vector_tools.vector_search)
         logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+    
+    # Conditionally register directory search tool
+    if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
+        from backend.app.agents.tools.directory_tools import search_directory
+        agent.tool(search_directory)
+        logger.info(f"Directory search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
     
     return agent
 

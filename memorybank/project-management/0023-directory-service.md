@@ -974,11 +974,11 @@ async def search_directory(
 ```
 
 **Tests**: Tool call, tag/JSONB filters, config integration, access control, multiple entry types
-**STATUS**: Planned
+**STATUS**: Complete ✅
 
 ---
 
-- [ ] **0023-002-001-02 - CHUNK - Register with wyckoff_info_chat1**
+- [x] **0023-002-001-02 - CHUNK - Register with wyckoff_info_chat1**
 
 **Config**:
 ```yaml
@@ -1027,7 +1027,7 @@ if directory_config.get("enabled", False):
 ```
 
 **Tests**: Tool registered, agent calls correctly, formatted results
-**STATUS**: Planned
+**STATUS**: Complete ✅
 
 ---
 
