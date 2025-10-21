@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Chat Endpoints & Pydantic AI Implementation Matrix
 
 > **Last Updated**: January 12, 2025

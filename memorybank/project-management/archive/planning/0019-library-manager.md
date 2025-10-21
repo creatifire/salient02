@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0019 - Library Manager (Knowledge Base Orchestration)
 
 > Goal: Create a comprehensive library management system for organizing, indexing, and maintaining document collections across multiple sources, enabling AI agents to access curated knowledge bases through vector database integration.

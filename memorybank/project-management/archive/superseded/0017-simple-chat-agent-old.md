@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0017 - Simple Chat Agent (Pydantic AI Implementation)
 
 > Goal: Implement production-ready Pydantic AI-powered chat agent with multi-tool capabilities, context management, and streaming integration based on the simple-chat.md design.

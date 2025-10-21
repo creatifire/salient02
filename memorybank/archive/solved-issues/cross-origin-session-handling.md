@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Cross-Origin Session Handling
 
 This document explains session cookie behavior across different ports and origins in the Salient Sales Bot application, particularly for demo pages and development testing.

@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0016 - Deep Research Agent
 
 > Goal: Implement Pydantic AI-powered autonomous deep research agent with multi-step investigation workflows, hypothesis formation, evidence validation, and comprehensive analytical capabilities for complex research tasks.

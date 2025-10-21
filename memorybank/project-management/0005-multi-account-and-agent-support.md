@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0005 - Multi-Agent Support
 > **Last Updated**: September 04, 2025
 

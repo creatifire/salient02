@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0022 - Multi-Tenant Account-Instance Architecture
 > **Last Updated**: October 11, 2025
 

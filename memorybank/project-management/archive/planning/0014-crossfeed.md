@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0014 - CrossFeed MCP Server
 
 > Goal: Develop extensible platform for upsell, cross-sell, and competitive positioning data management via MCP Server architecture.

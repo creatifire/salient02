@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0006 - Public Chat
 
 > Goal: Create a public-facing chat system for general customer interactions, support, and information sharing without requiring authentication or user accounts.

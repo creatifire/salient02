@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Demo Integrations Strategy
 
 This document describes how we demo multiple integration options (Shadow DOM widget, HTMX pages, Preact/React components) using a single Astro playground, without creating multiple web apps.

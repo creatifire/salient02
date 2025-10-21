@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Automated Testing Standards
 
 > Barebones minimal automated testing strategy for reliable development and deployment

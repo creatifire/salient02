@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Manual Verification Tests
 
 This directory contains standalone Python scripts for manual verification and sanity checking during development.

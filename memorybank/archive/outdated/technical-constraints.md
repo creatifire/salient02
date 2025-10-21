@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Technical Constraints
 
 - Transport/Rendering: SSE streaming with Jinja2-rendered snippets for HTMX swaps.

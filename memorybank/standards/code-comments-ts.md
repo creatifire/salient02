@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # JavaScript/TypeScript Code Commenting Best Practices
 
 > Guidelines for writing clear, maintainable comments in JavaScript and TypeScript code

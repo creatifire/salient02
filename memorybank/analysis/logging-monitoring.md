@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Production Logging & Monitoring Analysis
 
 > Analysis of cost-effective logging and monitoring solutions for early production stage

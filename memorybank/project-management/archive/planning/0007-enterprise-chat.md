@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0007 - Enterprise Chat
 
 > Goal: Implement enterprise-grade chat functionality with advanced authentication, multi-tenancy, role-based access control, and comprehensive audit trails for business and organizational use.

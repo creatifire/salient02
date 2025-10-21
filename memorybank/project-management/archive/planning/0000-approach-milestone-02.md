@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Milestone 2: Multi-CRM & WordPress Integration - Streamlined
 > Expand sales agent capabilities with WordPress content processing and multi-CRM platform support
 

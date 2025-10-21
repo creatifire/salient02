@@ -9,10 +9,17 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-COPYRIGHT_HEADER = '''"""
+COPYRIGHT_HEADER_PYTHON = '''"""
 Copyright (c) 2025 Ape4, Inc. All rights reserved.
 Unauthorized copying of this file is strictly prohibited.
 """
+
+'''
+
+COPYRIGHT_HEADER_MARKDOWN = '''<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
 
 '''
 
@@ -21,6 +28,7 @@ INCLUDE_DIRS = [
     "backend/app",
     "backend/scripts",
     "backend/tests",
+    "memorybank",
 ]
 
 # Directories to skip
@@ -51,8 +59,8 @@ def should_process_file(filepath: Path) -> bool:
     if filepath.name in EXCLUDE_FILES:
         return False
     
-    # Only process .py files
-    if filepath.suffix != ".py":
+    # Only process .py and .md files
+    if filepath.suffix not in [".py", ".md"]:
         return False
     
     return True
@@ -64,7 +72,7 @@ def has_copyright_header(content: str) -> bool:
 
 
 def add_header_to_file(filepath: Path, dry_run: bool = False) -> bool:
-    """Add copyright header to a Python file."""
+    """Add copyright header to a Python or Markdown file."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -73,24 +81,34 @@ def add_header_to_file(filepath: Path, dry_run: bool = False) -> bool:
         if has_copyright_header(content):
             return False
         
-        # Handle shebang
-        if content.startswith('#!'):
-            lines = content.split('\n', 1)
-            new_content = lines[0] + '\n' + COPYRIGHT_HEADER + (lines[1] if len(lines) > 1 else '')
-        # Handle existing docstring
-        elif content.startswith('"""') or content.startswith("'''"):
-            # Find end of existing docstring
-            quote = '"""' if content.startswith('"""') else "'''"
-            end_idx = content.find(quote, 3)
-            if end_idx != -1:
-                # Add copyright after existing docstring
-                new_content = content[:end_idx + 3] + '\n' + COPYRIGHT_HEADER + content[end_idx + 3:]
+        # Determine file type and appropriate header
+        if filepath.suffix == ".md":
+            header = COPYRIGHT_HEADER_MARKDOWN
+            # For Markdown, just prepend at the top
+            new_content = header + content
+        
+        elif filepath.suffix == ".py":
+            header = COPYRIGHT_HEADER_PYTHON
+            # Handle shebang
+            if content.startswith('#!'):
+                lines = content.split('\n', 1)
+                new_content = lines[0] + '\n' + header + (lines[1] if len(lines) > 1 else '')
+            # Handle existing docstring
+            elif content.startswith('"""') or content.startswith("'''"):
+                # Find end of existing docstring
+                quote = '"""' if content.startswith('"""') else "'''"
+                end_idx = content.find(quote, 3)
+                if end_idx != -1:
+                    # Add copyright after existing docstring
+                    new_content = content[:end_idx + 3] + '\n' + header + content[end_idx + 3:]
+                else:
+                    # Malformed docstring, add at top
+                    new_content = header + content
             else:
-                # Malformed docstring, add at top
-                new_content = COPYRIGHT_HEADER + content
+                # Add at the very top
+                new_content = header + content
         else:
-            # Add at the very top
-            new_content = COPYRIGHT_HEADER + content
+            return False
         
         if not dry_run:
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -104,7 +122,7 @@ def add_header_to_file(filepath: Path, dry_run: bool = False) -> bool:
 
 
 def main():
-    """Process all Python files and add copyright headers."""
+    """Process all Python and Markdown files and add copyright headers."""
     repo_root = Path(__file__).parent.parent
     
     print(f"🔍 Scanning repository: {repo_root}")
@@ -114,18 +132,18 @@ def main():
     
     files_to_process = []
     
-    # Collect all Python files
+    # Collect all Python and Markdown files
     for include_dir in INCLUDE_DIRS:
         dir_path = repo_root / include_dir
         if not dir_path.exists():
             print(f"⚠️  Directory not found: {include_dir}")
             continue
         
-        for py_file in dir_path.rglob("*.py"):
-            if should_process_file(py_file):
-                files_to_process.append(py_file)
+        for file in dir_path.rglob("*"):
+            if file.is_file() and should_process_file(file):
+                files_to_process.append(file)
     
-    print(f"📝 Found {len(files_to_process)} Python files to process")
+    print(f"📝 Found {len(files_to_process)} files to process (.py and .md)")
     print()
     
     # Process files

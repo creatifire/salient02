@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0017 - Simple Chat Agent (InfoBot - Pydantic AI Implementation)
 > **Last Updated**: October 17, 2025
 

@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Technology Stack
 - Front End:
     - [HTML](https://developer.mozilla.org/en-US/docs/Web/HTML)

@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Agent Conversation Loading Tests - TASK 0017-003-005
 
 > Automated test suite for agent conversation loading functionality with cross-endpoint continuity

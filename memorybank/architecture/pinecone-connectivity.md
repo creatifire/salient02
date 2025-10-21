@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Pinecone Multi-Project API Key Architecture
 
 > **Last Updated**: October 19, 2025

@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Test Suite Analysis - Epic 0022 Multi-Tenant Migration
 
 **Date**: 2025-10-08  

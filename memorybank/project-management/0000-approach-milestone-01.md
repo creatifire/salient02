@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Tactical Development Approach - Streamlined
 > **Last Updated**: October 11, 2025
 > Sequential development approach focused on incremental enhancement and systematic scaling

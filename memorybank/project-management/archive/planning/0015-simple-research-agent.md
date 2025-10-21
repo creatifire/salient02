@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0015 - Intelligent Research Agent
 
 > Goal: Implement Pydantic AI-powered research agent with advanced document intelligence, research methodology, conversation history, web search capabilities, memory management, and comprehensive document analysis for sophisticated research workflows.

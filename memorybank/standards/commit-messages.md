@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Git Commit Message Conventions
 
 This project uses a hybrid of Conventional Commits and classic best practices (Chris Beams). The goal is clear, searchable history that explains what and why, not just how.

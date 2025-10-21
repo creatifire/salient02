@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # 0003 - Website & HTMX Chatbot (Host Demo)
 > **Last Updated**: August 23, 2025
 

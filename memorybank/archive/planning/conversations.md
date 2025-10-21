@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Conversation Management System Design
 
 > **Scope Note**: This document outlines the advanced conversation management system documented in Epic 0004-012 and related features. While comprehensive, this functionality is **likely not needed for the simple-chat agent** implementation, which can rely on Pydantic AI's native message history management with basic database persistence.

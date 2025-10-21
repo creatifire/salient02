@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0008 - Sales Agent (Milestone 1)
 > **Last Updated**: August 28, 2025
 

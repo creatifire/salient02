@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0018 - AI Spaces (Collaborative Intelligence Workspaces)
 
 > Goal: Create collaborative AI-powered workspaces that combine document libraries, intelligent agents, and team collaboration to enable shared knowledge creation, exploration, and management.

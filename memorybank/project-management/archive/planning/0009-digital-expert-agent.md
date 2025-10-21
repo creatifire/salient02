@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0009 - Digital Expert
 
 > Goal: Create Pydantic AI-powered digital personas that embody the knowledge, expertise, and communication style of real experts by ingesting and learning from their content, enabling them to answer questions and provide guidance in their absence.

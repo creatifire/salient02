@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0013 - Scheduling Integration
 
 > Goal: Implement comprehensive appointment scheduling capabilities using Nylas (primary), Calendly, and CRM-based scheduling to enable seamless meeting booking directly from chat conversations.

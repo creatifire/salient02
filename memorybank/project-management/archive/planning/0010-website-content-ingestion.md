@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0010 - Website Content Ingestion
 
 > Goal: Implement comprehensive website content ingestion pipeline to convert WordPress XML dumps and Astro websites to markdown, then index the content into Pinecone vector database for RAG-powered sales agent responses.

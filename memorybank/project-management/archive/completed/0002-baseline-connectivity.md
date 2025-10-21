@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # 0002 - Baseline Connectivity (HTMX → Middle Tier → OpenRouter LLM)
 
 ## 0002-001 - FEATURE - Minimal UI + SSE
