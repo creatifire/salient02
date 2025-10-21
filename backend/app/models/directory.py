@@ -14,12 +14,12 @@ from sqlalchemy import Column, String, ARRAY, Text, TIMESTAMP, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
-from app.database import Base
+from . import Base
 import uuid
 from typing import Optional, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.models.account import Account
+    from .account import Account
 
 
 class DirectoryList(Base):
