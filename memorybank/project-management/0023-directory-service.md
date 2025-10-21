@@ -68,9 +68,11 @@ Schema file → defines entry_data structure
 ## Implementation Architecture
 
 **Tool Layer**: `backend/app/agents/tools/directory_tools.py`
-- Pydantic AI tool using `@agent.tool` decorator pattern
-- `search_directory()` function with `RunContext[SessionDependencies]`
+- Single Pydantic AI tool: `search_directory(list_name, query, tag, **filters)`
+- Uses `@agent.tool` decorator pattern with `RunContext[SessionDependencies]`
 - Registered dynamically per agent based on config
+- **Explicit list_name parameter** (LLM chooses which list to search)
+- System prompt auto-generated from config + schemas
 - Direct LLM interaction (natural language queries → structured searches)
 
 **Service Layer**: `backend/app/services/directory_service.py`
@@ -83,16 +85,20 @@ Schema file → defines entry_data structure
 - SQLAlchemy models: `DirectoryList`, `DirectoryEntry`
 - Relationships to `Account` model
 - JSONB and ARRAY type mappings
+- **1:1 mapping**: `entry_type` column exactly matches schema filename (without .yaml)
 
 **Import/Seeding**: `backend/app/services/directory_importer.py`
 - Generic CSV parser with configurable field mappers
-- `DirectoryImporter` class with type-specific mappers
+- **Phase 1**: YAML config + Python function reference (hybrid approach)
+- `DirectoryImporter` class with pre-built mappers (medical_professional, pharmaceutical, product)
 - Seeding script: `backend/scripts/seed_directory.py`
+- **Delete-and-replace strategy** (no incremental updates in Phase 1)
 
 **Schema Definitions**: `backend/config/directory_schemas/*.yaml`
 - YAML schema files per entry type
 - Define JSONB structure, required/optional fields
 - Version controlled, reusable across accounts
+- Filename = entry_type (enforced)
 
 ---
 
@@ -211,7 +217,6 @@ CREATE TABLE directory_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     directory_list_id UUID NOT NULL REFERENCES directory_lists(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active',
     tags TEXT[] DEFAULT '{}',
     contact_info JSONB DEFAULT '{}',
     entry_data JSONB DEFAULT '{}',
@@ -221,7 +226,6 @@ CREATE TABLE directory_entries (
 
 CREATE INDEX idx_directory_entries_list_id ON directory_entries(directory_list_id);
 CREATE INDEX idx_directory_entries_name ON directory_entries(name);
-CREATE INDEX idx_directory_entries_status ON directory_entries(status);
 CREATE INDEX idx_directory_entries_tags ON directory_entries USING GIN(tags);
 CREATE INDEX idx_directory_entries_entry_data ON directory_entries USING GIN(entry_data);
 
@@ -233,12 +237,14 @@ COMMENT ON COLUMN directory_entries.entry_data IS 'JSONB structure defined by sc
 **Design Decisions**:
 - UUID primary keys (gen_random_uuid())
 - Account-level isolation via FK
-- Schema reference via `schema_file` column
+- Schema reference via `schema_file` column (1:1 mapping to entry_type)
 - JSONB structure varies by entry_type
 - Flexible tags array (languages, categories, drug classes)
+- **No status field** (in DB = active, delete-and-replace strategy)
 - Skip empty fields in JSONB
 - Normalize spelling (American)
 - Parse comma-separated tags gracefully
+- **Runtime CSV validation** against schema files
 
 **Tests**: Table structure, constraints, cascades, indexes, FK relationships
 **Verify**: `alembic upgrade head` → tables exist → `alembic downgrade -1` → rollback
@@ -291,7 +297,6 @@ class DirectoryEntry(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     directory_list_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("directory_lists.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="active", index=True)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     contact_info: Mapped[dict] = mapped_column(JSONB, default=dict)
     entry_data: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -305,7 +310,6 @@ class DirectoryEntry(Base):
             "id": str(self.id),
             "directory_list_id": str(self.directory_list_id),
             "name": self.name,
-            "status": self.status,
             "tags": self.tags,
             "contact_info": self.contact_info,
             "entry_data": self.entry_data,
@@ -385,9 +389,6 @@ class DirectoryImporter:
         tags_raw = row.get('language', '').strip()
         tags = [tag.strip() for tag in tags_raw.split(',') if tag.strip()] if tags_raw else []
         
-        # Parse status
-        status = 'active' if row.get('is_active') == '1' else 'inactive'
-        
         # Build contact_info JSONB (skip empty fields)
         contact_info = {}
         if row.get('phone', '').strip():
@@ -416,7 +417,6 @@ class DirectoryImporter:
         
         return {
             'name': row.get('doctor_name', '').strip(),
-            'status': status,
             'tags': tags,
             'contact_info': contact_info,
             'entry_data': entry_data
@@ -451,7 +451,6 @@ class DirectoryImporter:
         
         return {
             'name': row.get('drug_name', '').strip(),
-            'status': row.get('status', 'active').strip(),
             'tags': tags,
             'contact_info': {
                 'manufacturer_website': row.get('website', '').strip(),
@@ -503,7 +502,6 @@ class DirectoryImporter:
         
         return {
             'name': row.get('product_name', '').strip(),
-            'status': 'active' if entry_data.get('in_stock') else 'out_of_stock',
             'tags': tags,
             'contact_info': {
                 'product_url': row.get('url', '').strip(),
@@ -673,7 +671,6 @@ class DirectoryService:
         accessible_list_ids: List[UUID],
         name_query: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        status: str = "active",
         jsonb_filters: Optional[dict] = None,
         limit: int = 10
     ) -> List[DirectoryEntry]:
@@ -682,7 +679,7 @@ class DirectoryService:
             return []
         
         query = select(DirectoryEntry).where(
-            and_(DirectoryEntry.directory_list_id.in_(accessible_list_ids), DirectoryEntry.status == status)
+            DirectoryEntry.directory_list_id.in_(accessible_list_ids)
         )
         
         if name_query:
@@ -722,20 +719,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-async def search_directory(ctx: RunContext[SessionDependencies], query: Optional[str] = None, tag: Optional[str] = None, **kwargs) -> str:
+async def search_directory(
+    ctx: RunContext[SessionDependencies],
+    list_name: str,
+    query: Optional[str] = None,
+    tag: Optional[str] = None,
+    **kwargs
+) -> str:
     """
     Search directory for entries (doctors, drugs, products, consultants, etc.).
     
     Use for: Name searches, tag/attribute filters, entry-specific fields
     
     Args:
+        list_name: Which list to search (e.g., "doctors", "nurse_practitioners")
         query: Name to search (partial match)
         tag: Tag filter (language, drug class, category, etc.)
         **kwargs: Entry-type specific filters (department, specialty, drug_class, category, price)
+    
+    Example: search_directory(list_name="doctors", query="smith", tag="Spanish")
     """
     session = ctx.deps.db_session
     agent_config = ctx.deps.agent_config
-    account_id = ctx.deps.account_id
+    account_id = ctx.deps.account_id  # NOTE: Must add account_id to SessionDependencies
     
     if not account_id:
         return "Error: Account context not available"
@@ -746,11 +752,15 @@ async def search_directory(ctx: RunContext[SessionDependencies], query: Optional
     if not accessible_lists:
         return "Directory not configured"
     
+    # Validate list_name is accessible
+    if list_name not in accessible_lists:
+        return f"List '{list_name}' not accessible. Available: {', '.join(accessible_lists)}"
+    
     service = DirectoryService()
-    list_ids = await service.get_accessible_lists(session, account_id, accessible_lists)
+    list_ids = await service.get_accessible_lists(session, account_id, [list_name])
     
     if not list_ids:
-        return "No directory available"
+        return f"List '{list_name}' not found"
     
     tags = [tag] if tag else None
     jsonb_filters = {k: kwargs[k] for k in ['department', 'specialty', 'drug_class', 'category', 'brand', 'price'] if k in kwargs and kwargs[k]}
@@ -834,17 +844,29 @@ tools:
     max_results: 5
 ```
 
-**System Prompt**:
+**System Prompt** (auto-generated section):
 ```markdown
 # backend/config/agent_configs/wyckoff/wyckoff_info_chat1/system_prompt.md
 
 ## Tools
 
 1. **vector_search**: Hospital services, facilities, departments, general info
-2. **search_directory**: Medical professionals (doctors, nurses, specialists)
+2. **search_directory**: Search directory lists for structured data
 
-**Decision Rule**: Person queries → search_directory | Service queries → vector_search
+## Available Directory Lists
+- **doctors** (medical_professional): Search by department, specialty. Tags: languages spoken.
+  - Example: `search_directory(list_name="doctors", query="cardiologist", tag="Spanish")`
+- **nurse_practitioners** (medical_professional): Search by department, specialty. Tags: languages spoken.
+
+**Decision Rule**: 
+- Person/staff queries (doctors, nurses) → use `search_directory` with appropriate `list_name`
+- Service/facility queries → use `vector_search`
 ```
+
+**Note**: The "Available Directory Lists" section should be auto-generated from:
+1. Agent config (`accessible_lists`)
+2. Schema files (`directory_schemas/{entry_type}.yaml`)
+3. Database (`directory_lists` table for entry counts)
 
 **Registration**:
 ```python
@@ -923,3 +945,270 @@ Create `backend/tests/integration/test_directory_integration.py`:
 **Account-level lists**: True multi-tenancy, privacy/compliance (HIPAA), customization.
 
 **2 tables vs 3**: YAGNI principle. Can add join table later.
+
+**Single tool with explicit list_name**: Better than two-tool approach (list_directories + search). Lower latency, fewer tokens, explicit intent. System prompt auto-generated from config eliminates need for discovery tool in most cases.
+
+---
+
+## Phase 2 Enhancements (Future)
+
+### Config-Driven CSV Mappers (Option A)
+
+**Replace Python function references with pure YAML column mapping:**
+
+```yaml
+# backend/config/directory_schemas/medical_professional.yaml
+entry_type: medical_professional
+schema_version: "1.0"
+
+csv_mapping:
+  name_column: "doctor_name"
+  tags_column: "language"
+  tags_transform: "split_comma"
+  
+  contact_info:
+    phone: "phone"
+    location: "location"
+    facility: "facility"
+  
+  entry_data:
+    department: "department"
+    specialty: 
+      source: "speciality"
+      transform: "normalize_american"
+    board_certifications: "board_certifications"
+    education: "education"
+    residencies: "residencies"
+    fellowships: "fellowships"
+    internship: "internship"
+    gender: "gender"
+    profile_pic: "profile_pic"
+
+transforms:
+  split_comma:
+    type: "array"
+    delimiter: ","
+    strip: true
+  normalize_american:
+    type: "spelling"
+    rules:
+      "speciality": "specialty"
+```
+
+**Benefits:**
+- No Python code changes for new entry types
+- Non-developers can add mappers
+- Self-documenting
+- Validation-friendly
+
+**Complexity**: ~150-200 lines for transform engine
+
+---
+
+### Centralized Tool Registry
+
+**Replace inline tool registration with declarative registry:**
+
+```python
+# backend/app/agents/tools/registry.py
+from typing import Dict, Callable, List
+from dataclasses import dataclass
+
+@dataclass
+class ToolDefinition:
+    name: str
+    module: str
+    function: str
+    requires: List[str]  # ["account_id", "db_session", "agent_config"]
+    description: str
+
+TOOL_REGISTRY: Dict[str, ToolDefinition] = {
+    "vector_search": ToolDefinition(
+        name="vector_search",
+        module="backend.app.agents.tools.vector_tools",
+        function="vector_search",
+        requires=["db_session", "agent_config"],
+        description="Semantic search in vector database"
+    ),
+    "directory": ToolDefinition(
+        name="directory",
+        module="backend.app.agents.tools.directory_tools",
+        function="search_directory",
+        requires=["account_id", "db_session", "agent_config"],
+        description="Search structured directory entries"
+    ),
+}
+
+
+def register_tools_from_config(agent, instance_config, deps):
+    """Auto-register tools based on config and validate dependencies."""
+    for tool_name, tool_config in instance_config.get("tools", {}).items():
+        if not tool_config.get("enabled", False):
+            continue
+        
+        if tool_name not in TOOL_REGISTRY:
+            logger.warning(f"Unknown tool: {tool_name}")
+            continue
+        
+        tool_def = TOOL_REGISTRY[tool_name]
+        
+        # Validate dependencies
+        for req in tool_def.requires:
+            if not hasattr(deps, req):
+                raise ValueError(f"Tool {tool_name} requires {req} in SessionDependencies")
+        
+        # Auto-import and register
+        module = __import__(tool_def.module, fromlist=[tool_def.function])
+        tool_func = getattr(module, tool_def.function)
+        agent.tool(tool_func)
+        logger.info(f"✅ Registered tool: {tool_name}")
+```
+
+**Usage:**
+```python
+# backend/app/agents/simple_chat.py
+from app.agents.tools.registry import register_tools_from_config
+
+agent = await get_chat_agent(instance_config)
+register_tools_from_config(agent, instance_config, session_deps)
+```
+
+**Benefits:**
+- Single source of truth for tool metadata
+- Automatic dependency validation
+- Easier to add new tools (no agent code changes)
+- Self-documenting
+
+**Complexity**: ~100 lines
+
+---
+
+### Two-Tool Discovery Pattern (Optional)
+
+**If dynamic list discovery becomes necessary:**
+
+```python
+# backend/app/agents/tools/directory_tools.py
+
+async def list_directories(ctx: RunContext[SessionDependencies]) -> str:
+    """
+    List available directory lists for this agent.
+    
+    Returns list names, entry types, searchable fields, and tag meanings.
+    """
+    account_id = ctx.deps.account_id
+    agent_config = ctx.deps.agent_config
+    session = ctx.deps.db_session
+    
+    accessible_lists = agent_config.get("tools", {}).get("directory", {}).get("accessible_lists", [])
+    
+    if not accessible_lists:
+        return "No directories configured"
+    
+    service = DirectoryService()
+    
+    # Get list metadata from DB
+    lists = await service.get_lists_metadata(session, account_id, accessible_lists)
+    
+    # Load schema definitions
+    result = ["Available directory lists:\n"]
+    for list_meta in lists:
+        schema = load_schema(list_meta.schema_file)
+        result.append(f"- **{list_meta.list_name}** ({list_meta.entry_type})")
+        result.append(f"  Entries: {list_meta.entry_count}")
+        result.append(f"  Searchable fields: {', '.join(schema.searchable_fields)}")
+        result.append(f"  Tags: {schema.tags_usage}\n")
+    
+    return '\n'.join(result)
+```
+
+**Use case**: Accounts with frequently changing lists, or advanced multi-tenant scenarios.
+
+**Cost**: 2x LLM calls per query, higher latency
+
+---
+
+### Incremental CSV Updates
+
+**Support partial updates instead of delete-and-replace:**
+
+```python
+# backend/scripts/seed_directory.py --mode merge|replace|update
+
+modes:
+  replace: Delete existing, insert all (current behavior)
+  merge: Insert new, skip existing (by name)
+  update: Insert new, update existing (by name), delete missing
+```
+
+**Requires:**
+- Unique constraint on (directory_list_id, name)
+- Conflict resolution logic
+- Change tracking
+
+---
+
+### Status Field Revival
+
+**If needed for soft-deletes or state management:**
+
+```sql
+ALTER TABLE directory_entries ADD COLUMN status TEXT DEFAULT 'active';
+CREATE INDEX idx_directory_entries_status ON directory_entries(status);
+```
+
+**Use cases:**
+- Mark doctor as "on_leave" without deleting
+- Mark product as "discontinued" 
+- Support workflow states
+
+---
+
+### Performance Optimizations for 10K+ Entries
+
+**If datasets exceed 10K entries:**
+
+1. **Pagination**:
+   ```python
+   async def search(..., offset: int = 0, limit: int = 10)
+   ```
+
+2. **Full-text search**:
+   ```sql
+   ALTER TABLE directory_entries ADD COLUMN search_vector tsvector;
+   CREATE INDEX idx_fts ON directory_entries USING GIN(search_vector);
+   ```
+
+3. **Materialized views for common queries**
+
+4. **Pinecone semantic search** (0023-003)
+
+---
+
+### SessionDependencies Changes
+
+**Must add `account_id` field:**
+
+```python
+# backend/app/agents/base/dependencies.py
+
+@dataclass
+class SessionDependencies(BaseDependencies):
+    # ... existing fields ...
+    
+    # Multi-tenant support
+    account_id: Optional[UUID] = None  # ADD THIS
+    agent_instance_id: Optional[int] = None
+    
+    # Agent configuration (for tool access)
+    agent_config: Optional[Dict[str, Any]] = None
+    
+    # Database session (for tool data access)
+    db_session: Optional[Any] = None
+```
+
+**Populate in agent execution:**
+```python
+# backend/app/agents/simple_chat.py
+session_deps.account_id = instance.account_id  # From AgentInstance model
+```
