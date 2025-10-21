@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+from uuid import UUID
 
 from ...database import get_db_session, get_database_service  # Existing database integration
 from ...config import load_config  # Existing configuration system
@@ -114,8 +115,9 @@ class SessionDependencies(BaseDependencies):
     # Database session (for tool data access)
     db_session: Optional[Any] = None
     
-    # Agent instance ID (for multi-tenant attribution)
-    agent_instance_id: Optional[int] = None
+    # Multi-tenant support
+    agent_instance_id: Optional[int] = None  # Agent instance ID (for attribution)
+    account_id: Optional[UUID] = None  # Account ID (for multi-tenant data isolation)
     
     @classmethod
     async def create(

@@ -461,6 +461,7 @@ async def chat_endpoint(
                 message=user_message,
                 session_id=str(session.id),
                 agent_instance_id=instance.id,  # Multi-tenant: pass agent instance ID
+                account_id=instance.account_id,  # Multi-tenant: pass account ID for data isolation
                 message_history=message_history,  # Pass pre-loaded history
                 instance_config=full_instance_config  # Pass instance-specific config with system_prompt
             )
@@ -725,6 +726,7 @@ async def stream_endpoint(
                     message=message,
                     session_id=str(session.id),
                     agent_instance_id=instance.id,
+                    account_id=instance.account_id,  # Multi-tenant: pass account ID for data isolation
                     message_history=message_history,
                     instance_config=full_instance_config
                 ):

@@ -251,6 +251,7 @@ async def simple_chat(
     message: str, 
     session_id: str,  # Fixed: simplified interface - create SessionDependencies internally
     agent_instance_id: Optional[int] = None,  # Multi-tenant: agent instance ID for message attribution
+    account_id: Optional[UUID] = None,  # Multi-tenant: account ID for data isolation
     message_history: Optional[List[ModelMessage]] = None,  # Fixed: proper type annotation
     instance_config: Optional[dict] = None  # Multi-tenant: instance-specific configuration
 ) -> dict:
@@ -285,6 +286,7 @@ async def simple_chat(
     # Add agent-specific fields for tool access
     session_deps.agent_config = instance_config
     session_deps.agent_instance_id = agent_instance_id
+    session_deps.account_id = account_id  # Multi-tenant: for directory tool data isolation
     
     # Load model settings using centralized cascade (Fixed: comprehensive cascade)
     from .config_loader import get_agent_model_settings
@@ -572,6 +574,7 @@ async def simple_chat_stream(
     message: str,
     session_id: str,
     agent_instance_id: UUID,
+    account_id: UUID,  # Multi-tenant: account ID for data isolation
     message_history: Optional[List[ModelMessage]] = None,
     instance_config: Optional[dict] = None
 ):
@@ -609,6 +612,7 @@ async def simple_chat_stream(
     # Add agent-specific fields for tool access
     session_deps.agent_config = instance_config
     session_deps.agent_instance_id = agent_instance_id
+    session_deps.account_id = account_id  # Multi-tenant: for directory tool data isolation
     
     # Load conversation history if not provided
     if message_history is None:
