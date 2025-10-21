@@ -730,7 +730,7 @@ if __name__ == "__main__":
 ```
 
 **Tests**: Creates records, idempotent, error handling, multiple entry types
-**STATUS**: Planned
+**STATUS**: Complete ✅
 
 ---
 
@@ -756,7 +756,9 @@ python backend/scripts/seed_directory.py \
 4. Check logs for validation warnings (skipped rows due to missing required fields)
 
 **Tests**: End-to-end data loading, validation reporting, database persistence
-**STATUS**: Planned
+**STATUS**: Complete ✅
+
+**Results**: 124 doctors loaded (65.6% success rate), 65 rows skipped (missing specialty field)
 
 ---
 
