@@ -3,14 +3,14 @@ Copyright (c) 2025 Ape4, Inc. All rights reserved.
 Unauthorized copying of this file is strictly prohibited.
 """
 
+from __future__ import annotations
+
 """
 Directory search tool for Pydantic AI agents.
 
 Provides natural language search across multi-tenant directory lists
 (doctors, drugs, products, consultants, services, etc.)
 """
-
-from __future__ import annotations
 
 from pydantic_ai import RunContext
 from app.agents.base.dependencies import SessionDependencies
