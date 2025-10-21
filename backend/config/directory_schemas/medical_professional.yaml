@@ -1,0 +1,167 @@
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
+# Medical Professional Directory Schema
+# Used for doctors, physicians, nurses, therapists, and other healthcare professionals
+
+entry_type: medical_professional
+schema_version: "1.0"
+description: "Schema for medical professionals including doctors, nurses, therapists, and healthcare providers"
+
+# Required fields that must be present in entry_data JSONB
+required_fields:
+  - department
+  - specialty
+
+# Optional fields that may be present in entry_data JSONB
+optional_fields:
+  - board_certifications
+  - education
+  - residencies
+  - fellowships
+  - internship
+  - gender
+  - profile_pic
+  - insurance
+
+# Field definitions with types and examples
+fields:
+  department:
+    type: string
+    description: "Primary department or medical service area"
+    examples:
+      - "Emergency Medicine"
+      - "Surgery"
+      - "Cardiology"
+      - "Pediatrics"
+      - "Internal Medicine"
+  
+  specialty:
+    type: string
+    description: "Medical specialty or subspecialty (American spelling)"
+    examples:
+      - "Interventional Cardiology"
+      - "Plastic Surgery"
+      - "Orthopedic Surgery"
+      - "Pediatric Cardiology"
+    notes: "CSV column 'speciality' is normalized to 'specialty'"
+  
+  board_certifications:
+    type: text
+    description: "Board certifications with certification name and year"
+    format: "Free-form text, often multi-line with certification name and year"
+    example: "Plastic Surgery, 2006\nSurgery (General Surgery), 2003"
+  
+  education:
+    type: string
+    description: "Medical school and degree"
+    examples:
+      - "Harvard Medical School, MD"
+      - "Universidad Central del Este"
+      - "Johns Hopkins University School of Medicine, MD"
+  
+  residencies:
+    type: text
+    description: "Residency training programs with institution, specialty, and years"
+    format: "Free-form text, often multi-line"
+    example: "Brooklyn Hospital Center, Surgery (General Surgery) 1997-2002"
+  
+  fellowships:
+    type: text
+    description: "Fellowship training programs with institution, specialty, and years"
+    format: "Free-form text, often multi-line"
+    example: "University of Mississippi, Surgery of the Hand 2002-2003"
+  
+  internship:
+    type: text
+    description: "Internship program with institution, specialty, and years"
+    format: "Free-form text"
+    example: "Metropolitan Hospital Center, Pediatrics, Internal Medicine 1994-1995"
+  
+  gender:
+    type: string
+    description: "Gender identification"
+    examples:
+      - "male"
+      - "female"
+      - "non-binary"
+  
+  profile_pic:
+    type: string
+    description: "URL or path to profile picture"
+    example: "https://example.com/profiles/doctor_123.jpg"
+  
+  insurance:
+    type: text
+    description: "Accepted insurance providers"
+    format: "Free-form text or comma-separated list"
+
+# Tags usage (stored in tags[] ARRAY column)
+tags_usage:
+  description: "Languages spoken by the medical professional"
+  source_column: "language"
+  format: "Comma-separated list, will be split into array"
+  examples:
+    - "English"
+    - "Spanish"
+    - "Hindi"
+    - "Mandarin"
+    - "French"
+  notes: "Empty or null language values are skipped"
+
+# Contact info usage (stored in contact_info JSONB column)
+contact_info_fields:
+  phone:
+    description: "Primary contact phone number"
+    example: "555-1234"
+  
+  location:
+    description: "Office location or building"
+    example: "Building A, Floor 3"
+  
+  facility:
+    description: "Hospital or medical facility name"
+    example: "Main Hospital Campus"
+
+# Data handling rules
+data_handling:
+  empty_fields: "Skip empty or null values (don't store in JSONB)"
+  spelling: "Normalize 'speciality' to 'specialty' (American English)"
+  tags_parsing: "Gracefully parse comma-separated languages, strip whitespace"
+  multiline: "Preserve multiline formatting for certifications, residencies, fellowships"
+
+# Validation rules (Phase 1)
+validation:
+  required_on_import: true
+  name_required: true  # name column is always required
+  required_fields_check: true  # Check department and specialty are present
+  type_checking: false  # Phase 2 enhancement
+  format_validation: false  # Phase 2 enhancement
+
+# Search and filter capabilities
+searchable_by:
+  - name  # Indexed column, fast text search
+  - tags  # Languages spoken, GIN indexed array
+  - department  # JSONB field, can filter
+  - specialty  # JSONB field, can filter
+  - gender  # JSONB field, can filter
+
+# Example entry
+example:
+  name: "Dr. Jane Smith, MD"
+  tags:
+    - "English"
+    - "Spanish"
+  contact_info:
+    phone: "555-0123"
+    location: "Building A, Room 301"
+    facility: "Main Hospital"
+  entry_data:
+    department: "Cardiology"
+    specialty: "Interventional Cardiology"
+    board_certifications: "Cardiology, 2010\nInterventional Cardiology, 2012"
+    education: "Harvard Medical School, MD"
+    residencies: "Mass General Hospital, Internal Medicine 2005-2008"
+    fellowships: "Cleveland Clinic, Cardiology 2008-2011"
+    gender: "female"
+
