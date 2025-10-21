@@ -188,13 +188,13 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Dependencies**: Requires `accounts` and `agent_instances` tables from Epic 0022 (already complete in Priority 2B).
 
-- [ ] 0023-001 - Core Profile Infrastructure
-  - [ ] 0023-001-001 - Database Schema Design & Migration (profile_lists, profiles, agent_profile_lists with UUIDs)
-  - [ ] 0023-001-002 - CSV Import & Data Seeding (doctors_profile.csv → PostgreSQL)
-  - [ ] 0023-001-003 - Profile Service (CRUD Operations with SQLAlchemy)
-- [ ] 0023-002 - Profile Search Tool (Pydantic AI)
-  - [ ] 0023-002-001 - Pydantic AI Tool Implementation (@agent.tool decorator with agent-level access control)
-  - [ ] 0023-002-002 - Tool Integration & Testing (manual + automated tests)
+- [x] 0023-001 - Core Profile Infrastructure ✅
+  - [x] 0023-001-001 - Database Schema Design & Migration (directory_lists, directory_entries with UUIDs) ✅
+  - [x] 0023-001-002 - CSV Import & Data Seeding (doctors_profile.csv → PostgreSQL - 124 doctors) ✅
+  - [x] 0023-001-003 - Directory Service (CRUD Operations with SQLAlchemy + multi-tenant access) ✅
+- [x] 0023-002 - Profile Search Tool (Pydantic AI) ✅
+  - [x] 0023-002-001 - Pydantic AI Tool Implementation (@agent.tool with account_id isolation) ✅
+  - [x] 0023-002-002 - Tool Integration & Testing (manual curl testing, end-to-end verified) ✅
 - [ ] 0023-003 - Semantic Search Enhancement (Pinecone) - DEFERRED to post-demo
 
 **Architecture Highlights**:
