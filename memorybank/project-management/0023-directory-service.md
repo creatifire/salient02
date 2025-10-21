@@ -65,6 +65,37 @@ Schema file → defines entry_data structure
 
 ---
 
+## Implementation Architecture
+
+**Tool Layer**: `backend/app/agents/tools/directory_tools.py`
+- Pydantic AI tool using `@agent.tool` decorator pattern
+- `search_directory()` function with `RunContext[SessionDependencies]`
+- Registered dynamically per agent based on config
+- Direct LLM interaction (natural language queries → structured searches)
+
+**Service Layer**: `backend/app/services/directory_service.py`
+- `DirectoryService` class for database operations
+- SQLAlchemy queries with multi-tenant filtering
+- No direct LLM interaction (pure data access layer)
+- Reusable across tools and API endpoints
+
+**Data Layer**: `backend/app/models/directory.py`
+- SQLAlchemy models: `DirectoryList`, `DirectoryEntry`
+- Relationships to `Account` model
+- JSONB and ARRAY type mappings
+
+**Import/Seeding**: `backend/app/services/directory_importer.py`
+- Generic CSV parser with configurable field mappers
+- `DirectoryImporter` class with type-specific mappers
+- Seeding script: `backend/scripts/seed_directory.py`
+
+**Schema Definitions**: `backend/config/directory_schemas/*.yaml`
+- YAML schema files per entry type
+- Define JSONB structure, required/optional fields
+- Version controlled, reusable across accounts
+
+---
+
 ## 2-Table Design
 
 ```sql
