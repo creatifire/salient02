@@ -33,6 +33,38 @@ graph TB
 
 ---
 
+## Architecture Overview
+
+**Three-Layer Design**:
+
+1. **Schema Definitions** (`backend/config/directory_schemas/*.yaml`)
+   - Define field structure for entry types (medical_professional, pharmaceutical, product, etc.)
+   - Reusable across accounts
+   - Version controlled
+   - Example: `medical_professional.yaml` defines fields like department, specialty, board_certifications
+
+2. **Database Storage** (account-level)
+   - `directory_lists`: Collections per account (e.g., wyckoff's "doctors" list)
+     - Links list_name to schema_file: `list_name="doctors", schema_file="medical_professional.yaml"`
+   - `directory_entries`: Actual data entries (318 Wyckoff doctors, drug information, products)
+   - Multi-tenant isolation via account_id FK
+
+3. **Agent Access Control** (`agent_instance/config.yaml`)
+   - Each agent config specifies `accessible_lists: ["doctors"]` (list names only)
+   - **No direct schema reference** - agent references list name, database links list to schema
+   - Runtime: DirectoryService queries database to resolve list names → list IDs → applies filters
+
+**Schema Reference Flow**:
+```
+Agent config → list_name ("doctors")
+    ↓
+Database directory_lists → schema_file ("medical_professional.yaml")
+    ↓
+Schema file → defines entry_data structure
+```
+
+---
+
 ## 2-Table Design
 
 ```sql
