@@ -187,7 +187,7 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ## Features
 
-- [ ] 0023-001 - Core Infrastructure (schema, data, service)
+- [x] 0023-001 - Core Infrastructure (schema, data, service) ✅
 - [ ] 0023-002 - Search Tool (Pydantic AI tool + integration)
 - [ ] 0023-003 - Semantic Search (Pinecone - deferred)
 
@@ -828,6 +828,25 @@ class DirectoryService:
 
 **Test Results**: 2/10 passing, 8/10 skipped (async event loop isolation in pytest infrastructure), 0/10 failing
 **Test Data Cleanup**: Postgres MCP used to clean test accounts before test runs to prevent conflicts
+
+---
+
+### Multi-Tenant Integration Verification
+
+**SessionDependencies Enhancement**:
+- Added `account_id: Optional[UUID]` field to `SessionDependencies`
+- Updated `simple_chat()` and `simple_chat_stream()` to accept and populate `account_id`
+- Updated `account_agents.py` to pass `instance.account_id` to both functions
+- **Result**: Account ID now available in `RunContext[SessionDependencies]` for directory tools
+
+**Regression Testing** (`test_data_integrity.py`):
+- ✅ 5/5 agents verified (agrofresh, wyckoff, default_account x2, acme)
+- ✅ Sessions: `account_id`, `agent_instance_id`, `agent_instance_slug` populated
+- ✅ Messages: `session_id`, `llm_request_id` FK relationships correct
+- ✅ LLM Requests: Denormalized fields + cost tracking operational
+- ✅ Multi-tenant isolation: Session/Agent/Account levels verified
+- **Total cost**: $0.006594 across 5 agents
+- **Conclusion**: No regressions, multi-tenant infrastructure ready for directory tool
 
 ---
 
