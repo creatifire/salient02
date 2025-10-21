@@ -336,258 +336,258 @@ async def simple_chat(
             result = await agent.run(message, deps=session_deps, message_history=message_history)
             end_time = datetime.now(UTC)
             latency_ms = int((end_time - start_time).total_seconds() * 1000)
-        
-        # Extract response and usage data
-        response_text = result.output
-        usage_data = result.usage() if hasattr(result, 'usage') else None
-        
-        if usage_data:
-            prompt_tokens = getattr(usage_data, 'input_tokens', 0)
-            completion_tokens = getattr(usage_data, 'output_tokens', 0)
-            total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
             
-            # Extract costs from OpenRouter provider_details
+            # Extract response and usage data
+            response_text = result.output
+            usage_data = result.usage() if hasattr(result, 'usage') else None
+            
+            if usage_data:
+                prompt_tokens = getattr(usage_data, 'input_tokens', 0)
+                completion_tokens = getattr(usage_data, 'output_tokens', 0)
+                total_tokens = getattr(usage_data, 'total_tokens', prompt_tokens + completion_tokens)
+                
+                # Extract costs from OpenRouter provider_details
+                prompt_cost = 0.0
+                completion_cost = 0.0
+                real_cost = 0.0
+                
+                # Get the latest message response with OpenRouter metadata
+                new_messages = result.new_messages()
+                if new_messages:
+                    latest_message = new_messages[-1]  # Last message (assistant response)
+                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                        # DEBUG: Log full provider_details to see what OpenRouter returned
+                        logger.warning({
+                            "event": "openrouter_provider_details_debug",
+                            "provider_details": latest_message.provider_details,
+                            "requested_model": requested_model
+                        })
+                    
+                        # Extract total cost
+                        vendor_cost = latest_message.provider_details.get('cost')
+                        if vendor_cost is not None:
+                            real_cost = float(vendor_cost)
+                    
+                        # Extract detailed costs from cost_details
+                        cost_details = latest_message.provider_details.get('cost_details', {})
+                        if cost_details:
+                            prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
+                            completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
+                            logger.info(f"✅ OpenRouter cost extraction: total=${real_cost}, prompt=${prompt_cost}, completion=${completion_cost}")
+            else:
+                prompt_tokens = 0
+                completion_tokens = 0
+                total_tokens = 0
+                prompt_cost = 0.0
+                completion_cost = 0.0
+                real_cost = 0.0
+            
+            # Log OpenRouterModel results
+            logger.info({
+                "event": "openrouter_model_execution",
+                "session_id": session_id,
+                "tokens": {
+                    "prompt": prompt_tokens,
+                    "completion": completion_tokens,
+                    "total": total_tokens
+                },
+                "real_cost": real_cost,
+                "method": "openrouter_model_vendor_details",
+                "cost_tracking": "enabled",
+                "cost_found": real_cost > 0,
+                "latency_ms": latency_ms
+            })
+        
+            # Store cost data using LLMRequestTracker
+            llm_request_id = None  # Initialize to None for cases where tracking is skipped
+            if prompt_tokens > 0 or completion_tokens > 0:
+                from decimal import Decimal
+                tracker = LLMRequestTracker()
+            
+                # Get tracking model from instance_config (multi-tenant) or cascade (single-tenant)
+                if instance_config is not None:
+                    # Multi-tenant mode: use the instance-specific config
+                    tracking_model = instance_config.get("model_settings", {}).get("model", requested_model)
+                    logger.info(f"Using tracking_model from instance_config: {tracking_model}")
+                else:
+                    # Single-tenant mode: use the centralized cascade
+                    tracking_model = model_settings["model"]
+                    logger.info(f"Using tracking_model from cascade: {tracking_model}")
+            
+                # Build full request body with actual messages sent to LLM
+                request_messages = []
+                # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
+                if message_history:
+                    for msg in message_history:
+                        # Determine role and extract content from Pydantic AI message objects
+                        if isinstance(msg, ModelRequest):
+                            role = "user"
+                            content = msg.parts[0].content if msg.parts else ""
+                        elif isinstance(msg, ModelResponse):
+                            role = "assistant"
+                            content = msg.parts[0].content if msg.parts else ""
+                        else:
+                            continue
+                    
+                        request_messages.append({
+                            "role": role,
+                            "content": content
+                        })
+                # Add current user message
+                request_messages.append({
+                    "role": "user",
+                    "content": message
+                })
+            
+                # Build full response body with actual LLM response
+                response_body_full = {
+                    "content": response_text,
+                    "usage": {
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": total_tokens
+                    },
+                    "model": requested_model
+                }
+            
+                # Add provider details if available
+                new_messages = result.new_messages()
+                if new_messages:
+                    latest_message = new_messages[-1]
+                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
+                        response_body_full["provider_details"] = latest_message.provider_details
+            
+                # Load session to extract denormalized fields for cost attribution
+                from ..models.session import Session
+                from ..database import get_database_service
+                db_service = get_database_service()
+                async with db_service.get_session() as db_session:
+                    session_record = await db_session.get(Session, UUID(session_id))
+                    if not session_record:
+                        logger.error({
+                            "event": "non_streaming_session_not_found",
+                            "session_id": session_id
+                        })
+                        raise ValueError(f"Session not found: {session_id}")
+                
+                    # Extract denormalized fields for fast billing queries
+                    account_id = session_record.account_id
+                    account_slug = session_record.account_slug
+                    agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
+                    agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+            
+                llm_request_id = await tracker.track_llm_request(
+                    session_id=UUID(session_id),
+                    provider="openrouter",
+                    model=tracking_model,
+                    request_body={
+                        "messages": request_messages,
+                        "model": requested_model,
+                        "temperature": model_settings.get("temperature"),
+                        "max_tokens": model_settings.get("max_tokens")
+                    },
+                    response_body=response_body_full,
+                    tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
+                    cost_data={
+                        "prompt_cost": prompt_cost,
+                        "completion_cost": completion_cost,
+                        "total_cost": Decimal(str(real_cost))
+                    },
+                    latency_ms=latency_ms,
+                    agent_instance_id=agent_instance_id,  # Multi-tenant: pass agent instance ID
+                    # Denormalized fields for fast billing queries (no JOINs)
+                    account_id=account_id,
+                    account_slug=account_slug,
+                    agent_instance_slug=agent_instance_slug,
+                    agent_type=agent_type,
+                    completion_status="complete"
+                )
+        
+            # Save messages to database for multi-tenant message attribution
+            if agent_instance_id is not None:
+                from ..services.message_service import MessageService
+                message_service = MessageService()
+            
+                try:
+                    # Save user message (link to LLM request for cost attribution)
+                    await message_service.save_message(
+                        session_id=UUID(session_id),
+                        agent_instance_id=agent_instance_id,
+                        llm_request_id=llm_request_id,
+                        role="human",
+                        content=message
+                    )
+                
+                    # Save assistant response (link to same LLM request)
+                    await message_service.save_message(
+                        session_id=UUID(session_id),
+                        agent_instance_id=agent_instance_id,
+                        llm_request_id=llm_request_id,
+                        role="assistant",
+                        content=response_text
+                    )
+                
+                    logger.info({
+                        "event": "messages_saved",
+                        "session_id": session_id,
+                        "agent_instance_id": agent_instance_id,
+                        "user_message_length": len(message),
+                        "assistant_message_length": len(response_text)
+                    })
+                except Exception as msg_error:
+                    logger.error({
+                        "event": "message_save_failed",
+                        "error": str(msg_error),
+                        "session_id": session_id,
+                        "agent_instance_id": agent_instance_id
+                    })
+                    # Don't fail the request if message saving fails
+                
+        except Exception as e:
+            # Log tracking errors but don't break the response
+            logger.error(f"Cost tracking failed (non-critical): {e}")
+            import traceback
+            logger.debug(f"Cost tracking error traceback: {traceback.format_exc()}")
+            llm_request_id = None
             prompt_cost = 0.0
             completion_cost = 0.0
             real_cost = 0.0
-            
-            # Get the latest message response with OpenRouter metadata
-            new_messages = result.new_messages()
-            if new_messages:
-                latest_message = new_messages[-1]  # Last message (assistant response)
-                if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                    # DEBUG: Log full provider_details to see what OpenRouter returned
-                    logger.warning({
-                        "event": "openrouter_provider_details_debug",
-                        "provider_details": latest_message.provider_details,
-                        "requested_model": requested_model
-                    })
-                    
-                    # Extract total cost
-                    vendor_cost = latest_message.provider_details.get('cost')
-                    if vendor_cost is not None:
-                        real_cost = float(vendor_cost)
-                    
-                    # Extract detailed costs from cost_details
-                    cost_details = latest_message.provider_details.get('cost_details', {})
-                    if cost_details:
-                        prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
-                        completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
-                        logger.info(f"✅ OpenRouter cost extraction: total=${real_cost}, prompt=${prompt_cost}, completion=${completion_cost}")
-        else:
-            prompt_tokens = 0
+            response_text = "Error processing request"
+            prompt_tokens = 0.0
             completion_tokens = 0
             total_tokens = 0
-            prompt_cost = 0.0
-            completion_cost = 0.0
-            real_cost = 0.0
-            
-        # Log OpenRouterModel results
-        logger.info({
-            "event": "openrouter_model_execution",
-            "session_id": session_id,
-            "tokens": {
-                "prompt": prompt_tokens,
-                "completion": completion_tokens,
-                "total": total_tokens
+            latency_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
+    
+        # Create usage data object for compatibility
+        class UsageData:
+            def __init__(self, prompt_tokens, completion_tokens, total_tokens):
+                self.input_tokens = prompt_tokens
+                self.output_tokens = completion_tokens
+                self.total_tokens = total_tokens
+                self.requests = 1
+                self.details = {}
+    
+        usage_obj = UsageData(prompt_tokens, completion_tokens, total_tokens)
+    
+        # Get session stats for continuity monitoring
+        from ..services.agent_session import get_session_stats
+        session_stats = await get_session_stats(session_id)
+    
+        return {
+            'response': response_text,  # Response from Pydantic AI
+            'usage': usage_obj,  # Compatible usage object
+            'llm_request_id': str(llm_request_id) if llm_request_id else None,
+            # Cost tracking data (via OpenRouterModel)
+            'cost_tracking': {
+                'real_cost': real_cost,
+                'method': 'openrouter_model_vendor_details',
+                'provider': 'OpenRouterProvider',
+                'cost_found': real_cost > 0,
+                'status': 'enabled'
             },
-            "real_cost": real_cost,
-            "method": "openrouter_model_vendor_details",
-            "cost_tracking": "enabled",
-            "cost_found": real_cost > 0,
-            "latency_ms": latency_ms
-        })
-        
-        # Store cost data using LLMRequestTracker
-        llm_request_id = None  # Initialize to None for cases where tracking is skipped
-        if prompt_tokens > 0 or completion_tokens > 0:
-            from decimal import Decimal
-            tracker = LLMRequestTracker()
-            
-            # Get tracking model from instance_config (multi-tenant) or cascade (single-tenant)
-            if instance_config is not None:
-                # Multi-tenant mode: use the instance-specific config
-                tracking_model = instance_config.get("model_settings", {}).get("model", requested_model)
-                logger.info(f"Using tracking_model from instance_config: {tracking_model}")
-            else:
-                # Single-tenant mode: use the centralized cascade
-                tracking_model = model_settings["model"]
-                logger.info(f"Using tracking_model from cascade: {tracking_model}")
-            
-            # Build full request body with actual messages sent to LLM
-            request_messages = []
-            # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
-            if message_history:
-                for msg in message_history:
-                    # Determine role and extract content from Pydantic AI message objects
-                    if isinstance(msg, ModelRequest):
-                        role = "user"
-                        content = msg.parts[0].content if msg.parts else ""
-                    elif isinstance(msg, ModelResponse):
-                        role = "assistant"
-                        content = msg.parts[0].content if msg.parts else ""
-                    else:
-                        continue
-                    
-                    request_messages.append({
-                        "role": role,
-                        "content": content
-                    })
-            # Add current user message
-            request_messages.append({
-                "role": "user",
-                "content": message
-            })
-            
-            # Build full response body with actual LLM response
-            response_body_full = {
-                "content": response_text,
-                "usage": {
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": total_tokens
-                },
-                "model": requested_model
-            }
-            
-            # Add provider details if available
-            new_messages = result.new_messages()
-            if new_messages:
-                latest_message = new_messages[-1]
-                if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                    response_body_full["provider_details"] = latest_message.provider_details
-            
-            # Load session to extract denormalized fields for cost attribution
-            from ..models.session import Session
-            from ..database import get_database_service
-            db_service = get_database_service()
-            async with db_service.get_session() as db_session:
-                session_record = await db_session.get(Session, UUID(session_id))
-                if not session_record:
-                    logger.error({
-                        "event": "non_streaming_session_not_found",
-                        "session_id": session_id
-                    })
-                    raise ValueError(f"Session not found: {session_id}")
-                
-                # Extract denormalized fields for fast billing queries
-                account_id = session_record.account_id
-                account_slug = session_record.account_slug
-                agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
-                agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
-            
-            llm_request_id = await tracker.track_llm_request(
-                session_id=UUID(session_id),
-                provider="openrouter",
-                model=tracking_model,
-                request_body={
-                    "messages": request_messages,
-                    "model": requested_model,
-                    "temperature": model_settings.get("temperature"),
-                    "max_tokens": model_settings.get("max_tokens")
-                },
-                response_body=response_body_full,
-                tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
-                cost_data={
-                    "prompt_cost": prompt_cost,
-                    "completion_cost": completion_cost,
-                    "total_cost": Decimal(str(real_cost))
-                },
-                latency_ms=latency_ms,
-                agent_instance_id=agent_instance_id,  # Multi-tenant: pass agent instance ID
-                # Denormalized fields for fast billing queries (no JOINs)
-                account_id=account_id,
-                account_slug=account_slug,
-                agent_instance_slug=agent_instance_slug,
-                agent_type=agent_type,
-                completion_status="complete"
-            )
-        
-        # Save messages to database for multi-tenant message attribution
-        if agent_instance_id is not None:
-            from ..services.message_service import MessageService
-            message_service = MessageService()
-            
-            try:
-                # Save user message (link to LLM request for cost attribution)
-                await message_service.save_message(
-                    session_id=UUID(session_id),
-                    agent_instance_id=agent_instance_id,
-                    llm_request_id=llm_request_id,
-                    role="human",
-                    content=message
-                )
-                
-                # Save assistant response (link to same LLM request)
-                await message_service.save_message(
-                    session_id=UUID(session_id),
-                    agent_instance_id=agent_instance_id,
-                    llm_request_id=llm_request_id,
-                    role="assistant",
-                    content=response_text
-                )
-                
-                logger.info({
-                    "event": "messages_saved",
-                    "session_id": session_id,
-                    "agent_instance_id": agent_instance_id,
-                    "user_message_length": len(message),
-                    "assistant_message_length": len(response_text)
-                })
-            except Exception as msg_error:
-                logger.error({
-                    "event": "message_save_failed",
-                    "error": str(msg_error),
-                    "session_id": session_id,
-                    "agent_instance_id": agent_instance_id
-                })
-                # Don't fail the request if message saving fails
-            
-    except Exception as e:
-        # Log tracking errors but don't break the response
-        logger.error(f"Cost tracking failed (non-critical): {e}")
-        import traceback
-        logger.debug(f"Cost tracking error traceback: {traceback.format_exc()}")
-        llm_request_id = None
-        prompt_cost = 0.0
-        completion_cost = 0.0
-        real_cost = 0.0
-        response_text = "Error processing request"
-        prompt_tokens = 0
-        completion_tokens = 0
-        total_tokens = 0
-        latency_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
-    
-    # Create usage data object for compatibility
-    class UsageData:
-        def __init__(self, prompt_tokens, completion_tokens, total_tokens):
-            self.input_tokens = prompt_tokens
-            self.output_tokens = completion_tokens
-            self.total_tokens = total_tokens
-            self.requests = 1
-            self.details = {}
-    
-    usage_obj = UsageData(prompt_tokens, completion_tokens, total_tokens)
-    
-    # Get session stats for continuity monitoring
-    from ..services.agent_session import get_session_stats
-    session_stats = await get_session_stats(session_id)
-    
-    return {
-        'response': response_text,  # Response from Pydantic AI
-        'usage': usage_obj,  # Compatible usage object
-        'llm_request_id': str(llm_request_id) if llm_request_id else None,
-        # Cost tracking data (via OpenRouterModel)
-        'cost_tracking': {
-            'real_cost': real_cost,
-            'method': 'openrouter_model_vendor_details',
-            'provider': 'OpenRouterProvider',
-            'cost_found': real_cost > 0,
-            'status': 'enabled'
-        },
-        # Session continuity monitoring
-        'session_continuity': session_stats
-    }
+            # Session continuity monitoring
+            'session_continuity': session_stats
+        }
 
 
 async def simple_chat_stream(
