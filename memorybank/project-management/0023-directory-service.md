@@ -257,7 +257,7 @@ COMMENT ON COLUMN directory_entries.entry_data IS 'JSONB structure defined by sc
 
 ---
 
-- [ ] **0023-001-001-02 - CHUNK - SQLAlchemy models**
+- [x] **0023-001-001-02 - CHUNK - SQLAlchemy models**
 
 ```python
 # backend/app/models/directory.py
@@ -329,7 +329,7 @@ class Account(Base):
 ```
 
 **Tests**: Model instantiation, to_dict(), relationships, cascade deletes
-**STATUS**: Planned
+**STATUS**: Complete ✅
 
 ---
 

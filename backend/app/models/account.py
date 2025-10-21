@@ -53,6 +53,7 @@ class Account(Base):
     # Relationships
     agent_instances = relationship("AgentInstanceModel", back_populates="account", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="account", cascade="all, delete-orphan")
+    directory_lists = relationship("DirectoryList", back_populates="account", cascade="all, delete-orphan")
     
     def __repr__(self) -> str:
         return f"<Account(id={self.id}, slug='{self.slug}', name='{self.name}', status='{self.status}')>"
