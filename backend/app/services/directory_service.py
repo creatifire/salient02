@@ -145,9 +145,9 @@ class DirectoryService:
         if name_query:
             query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
         
-        # Tag filtering (array overlap)
+        # Tag filtering (array overlap - PostgreSQL && operator)
         if tags:
-            query = query.where(DirectoryEntry.tags.overlap(tags))
+            query = query.where(DirectoryEntry.tags.op('&&')(tags))
         
         # JSONB field filtering (case-insensitive partial match)
         if jsonb_filters:
