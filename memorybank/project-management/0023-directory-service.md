@@ -367,7 +367,7 @@ for field in schema['required_fields']:
 
 ---
 
-- [ ] **0023-001-003-01 - CHUNK - Generic CSV importer with validation**
+- [x] **0023-001-003-01 - CHUNK - Generic CSV importer with validation**
 
 ```python
 # backend/app/services/directory_importer.py
@@ -609,7 +609,7 @@ class DirectoryImporter:
 
 ---
 
-- [ ] **0023-001-003-02 - CHUNK - Seeding script**
+- [x] **0023-001-003-02 - CHUNK - Seeding script**
 
 ```python
 # backend/scripts/seed_directory.py
@@ -734,7 +734,7 @@ if __name__ == "__main__":
 
 ---
 
-- [ ] **0023-001-003-03 - CHUNK - Load Wyckoff doctors CSV**
+- [x] **0023-001-003-03 - CHUNK - Load Wyckoff doctors CSV**
 
 **Verification**: Immediately test the seeding script with real data
 
