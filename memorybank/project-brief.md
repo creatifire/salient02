@@ -31,60 +31,52 @@
 
 ---
 
-## Purpose of System
-    - Answer questions about a company's products and services, based on:
-        - Company's Website Content (HTML)
-        - Other Website Content (HTML)
-        - Company provided white papers (PDF)
-        - Company provided data sheets (PDF)
-    - Collect preferences and build a profile of the customer
-    - Maintain session history
-    - Maintain Chat history
-    - Connect the customer to the local sales rep
-    - Send a conversation summary to the customer after:
-        - a period of inactivity
-        - when the conversation ends
+## Purpose
+Multi-tenant AI agent platform for customer engagement, information retrieval, and profile building:
+- Answer questions using RAG (website content, PDFs, documentation)
+- Search structured data directories (medical staff, products, pharmaceuticals, services)
+- Build customer profiles (preferences, contact info, interests)
+- Maintain conversation history with session persistence
+- Connect customers to sales representatives
+- Automated conversation summaries via email
 
-## A Sales Bot powered by:
-    - Large Language Model (LLM)
-        - OpenRouter
-    - Memory
-        - Chat History
-        - Chat Summary
-        - Customer Profile
-            - Products of Interest
-            - Services of Interest
-            - Customer Name
-            - Customer Contact Information
-                - Phone Number
-                - Email Address
-                - Physical Address
-                    - Street Address
-                    - City
-                    - State
-                    - Zip
-        - Past emails
-    - Knowledge
-        - Indexed from Vector Database
+## Core Capabilities
+**Knowledge Sources:**
+- Website content (HTML), PDFs (whitepapers, datasheets)
+- Vector database indexed content (Pinecone)
+- Structured data directories via Directory Service
 
-## Config File
-    - YAML
-        - Which LLM to use
-            - Legacy endpoints: configured in `app.yaml`
-            - Agent endpoints: configured in `agent_configs/{agent_type}.yaml` (overrides app.yaml)
-        - Which Agent to Use
-        - Which Vector Database
-            - Pinecone
-            - Which Pinecone Database
-    - Environment Variables
-        - OpenRouter API Key
-        - Pinecone API Key
+**Directory Service:**
+- Account-level lists (doctors, products, pharmaceuticals, services, etc.)
+- Flexible JSONB schema per entry type
+- Agent-configurable access control
+- Schema definitions: `backend/config/directory_schemas/*.yaml`
+- Tables: `directory_lists`, `directory_entries`
+- Tool: `search_directory()` for Pydantic AI agents
+
+**Customer Profiles:**
+- Contact information (name, email, phone, address)
+- Product/service interests
+- Conversation history and summaries
+
+## Configuration
+**Agent-Level** (`agent_configs/{account}/{agent}/config.yaml`):
+- LLM model selection
+- Tool enablement (vector search, directory search, web search)
+- Directory access: `accessible_lists: ["doctors", "products"]`
+- Vector database namespace and API keys
+
+**System-Level** (`app.yaml`, `.env`):
+- Default LLM models
+- API keys (OpenRouter, Pinecone, OpenAI)
+- Database connections
 
 ## Architecture
-    - RAG Application
-    - Memories in a Relational Database (Postgres)
-    - Knowledge Indexed in a Vector Database (Pinecone)
-    - Pydantic AI Multi-Agent System
+- **RAG Application**: Pydantic AI multi-agent system
+- **Memory**: PostgreSQL (sessions, messages, profiles, LLM requests)
+- **Knowledge**: Pinecone vector database
+- **Structured Data**: Directory Service (multi-tenant, flexible schema)
+- **Multi-Tenancy**: Account → Agent Instance → Configuration cascade
 
 ### Core Architecture Documents
 - [Technology Stack](./architecture/technology-stack.md)
