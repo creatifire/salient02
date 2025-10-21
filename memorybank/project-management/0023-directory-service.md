@@ -346,12 +346,34 @@ Create `backend/config/directory_schemas/medical_professional.yaml` (see schema 
 
 ### 0023-001-003 - TASK - CSV Import
 
-- [ ] **0023-001-003-01 - CHUNK - Generic CSV importer**
+**CSV Validation Strategy (Phase 1)**:
+
+1. **Schema Loading**: Load YAML schema file for entry_type before parsing CSV
+2. **Required Field Validation**: Check `required_fields` from schema are present in entry_data
+3. **Error Handling**: Log warnings for invalid rows, skip and continue (don't fail entire import)
+4. **Validation Timing**: During `parse_csv()` after field mapping but before creating DirectoryEntry
+5. **Reporting**: Log summary: total rows, successful, skipped, validation errors
+
+```python
+# Example validation pseudo-code:
+schema = load_schema(f"{entry_type}.yaml")
+for field in schema['required_fields']:
+    if field not in entry_data or not entry_data[field]:
+        logger.warning(f"Row {row_num}: Missing required field '{field}'")
+        continue  # Skip this row
+```
+
+**Phase 2 Enhancements**: Type validation, format validation, referential integrity checks
+
+---
+
+- [ ] **0023-001-003-01 - CHUNK - Generic CSV importer with validation**
 
 ```python
 # backend/app/services/directory_importer.py
 import csv
-from typing import List, Dict, Callable
+import yaml
+from typing import List, Dict, Callable, Optional
 from uuid import UUID
 from pathlib import Path
 from app.models.directory import DirectoryEntry
@@ -361,30 +383,89 @@ logger = logging.getLogger(__name__)
 
 
 class DirectoryImporter:
-    """Generic CSV importer with configurable field mapping."""
+    """Generic CSV importer with configurable field mapping and schema validation."""
     
     @staticmethod
-    def parse_csv(csv_path: str, directory_list_id: UUID, field_mapper: Callable[[Dict], Dict]) -> List[DirectoryEntry]:
+    def load_schema(schema_file: str) -> Dict:
+        """Load YAML schema definition."""
+        schema_path = Path(__file__).parent.parent.parent / "config" / "directory_schemas" / schema_file
+        
+        if not schema_path.exists():
+            raise FileNotFoundError(f"Schema file not found: {schema_path}")
+        
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+    
+    @staticmethod
+    def validate_entry(entry_data: Dict, schema: Dict, row_num: int) -> bool:
+        """Validate entry_data against schema required fields."""
+        required_fields = schema.get('required_fields', [])
+        
+        # Check name (always required)
+        if not entry_data.get('name', '').strip():
+            logger.warning(f"Row {row_num}: Missing required field 'name'")
+            return False
+        
+        # Check required fields in entry_data JSONB
+        for field in required_fields:
+            if field not in entry_data.get('entry_data', {}) or not entry_data['entry_data'][field]:
+                logger.warning(f"Row {row_num}: Missing required field '{field}' in entry_data")
+                return False
+        
+        return True
+    
+    @staticmethod
+    def parse_csv(
+        csv_path: str, 
+        directory_list_id: UUID, 
+        field_mapper: Callable[[Dict], Dict],
+        schema_file: Optional[str] = None
+    ) -> List[DirectoryEntry]:
+        """Parse CSV with optional schema validation."""
         entries = []
         csv_file = Path(csv_path)
         
         if not csv_file.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
         
+        # Load schema if provided
+        schema = None
+        if schema_file:
+            try:
+                schema = DirectoryImporter.load_schema(schema_file)
+                logger.info(f"Loaded schema: {schema_file}")
+            except Exception as e:
+                logger.error(f"Failed to load schema {schema_file}: {e}")
+                raise
+        
+        # Parse CSV
+        total_rows = 0
+        skipped_rows = 0
+        
         with open(csv_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            row_num = 0
             for row in reader:
-                row_num += 1
+                total_rows += 1
                 try:
                     entry_data = field_mapper(row)
+                    
+                    # Validate against schema
+                    if schema and not DirectoryImporter.validate_entry(entry_data, schema, total_rows):
+                        skipped_rows += 1
+                        continue
+                    
                     entry = DirectoryEntry(directory_list_id=directory_list_id, **entry_data)
                     entries.append(entry)
                 except Exception as e:
-                    logger.warning(f"Error parsing row {row_num}: {e}")
+                    logger.warning(f"Row {total_rows}: Error parsing - {e}")
+                    skipped_rows += 1
                     continue
         
-        logger.info(f"Parsed {len(entries)} entries from {csv_file.name}")
+        logger.info(f"✅ Parsed {len(entries)} entries from {csv_file.name}")
+        if skipped_rows > 0:
+            logger.warning(f"⚠️  Skipped {skipped_rows} invalid rows")
+        logger.info(f"📊 Success rate: {len(entries)}/{total_rows} ({len(entries)/total_rows*100:.1f}%)")
+        
         return entries
     
     @staticmethod
@@ -516,7 +597,14 @@ class DirectoryImporter:
         }
 ```
 
-**Tests**: Parse CSV, verify mapping, tag variations, status conversion, multiple entry types
+**Tests**: 
+- Schema loading and YAML parsing
+- Required field validation (skip rows with missing required fields)
+- CSV parsing with field mapping
+- Tag variations (comma-separated, empty)
+- Multiple entry types (medical, pharmaceutical, product)
+- Validation error reporting
+
 **STATUS**: Planned
 
 ---
@@ -600,7 +688,12 @@ async def seed_directory(account_slug: str, list_name: str, entry_type: str, sch
             logger.error(f"❌ CSV not found: {csv_path}")
             return
         
-        entries = DirectoryImporter.parse_csv(csv_path=str(csv_file), directory_list_id=directory_list.id, field_mapper=mapper)
+        entries = DirectoryImporter.parse_csv(
+            csv_path=str(csv_file), 
+            directory_list_id=directory_list.id, 
+            field_mapper=mapper,
+            schema_file=schema_file
+        )
         session.add_all(entries)
         await session.commit()
         
