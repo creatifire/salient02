@@ -41,11 +41,20 @@ async def search_directory(
     
     Example: search_directory(list_name="doctors", query="smith", tag="Spanish")
     """
+    logger.info({
+        "event": "directory_search_called",
+        "list_name": list_name,
+        "query": query,
+        "tag": tag,
+        "filters": kwargs
+    })
+    
     session = ctx.deps.db_session
     agent_config = ctx.deps.agent_config
     account_id = ctx.deps.account_id
     
     if not account_id:
+        logger.error({"event": "directory_search_no_account", "list_name": list_name})
         return "Error: Account context not available"
     
     directory_config = agent_config.get("tools", {}).get("directory", {})
@@ -61,11 +70,28 @@ async def search_directory(
     service = DirectoryService()
     list_ids = await service.get_accessible_lists(session, account_id, [list_name])
     
+    logger.info({
+        "event": "directory_lists_resolved",
+        "list_name": list_name,
+        "list_ids": [str(lid) for lid in list_ids],
+        "account_id": str(account_id)
+    })
+    
     if not list_ids:
+        logger.warning({"event": "directory_list_not_found", "list_name": list_name})
         return f"List '{list_name}' not found"
     
     tags = [tag] if tag else None
     jsonb_filters = {k: kwargs[k] for k in ['department', 'specialty', 'drug_class', 'category', 'brand', 'price'] if k in kwargs and kwargs[k]}
+    
+    logger.info({
+        "event": "directory_search_executing",
+        "list_ids": [str(lid) for lid in list_ids],
+        "name_query": query,
+        "tags": tags,
+        "jsonb_filters": jsonb_filters,
+        "limit": directory_config.get("max_results", 5)
+    })
     
     entries = await service.search(
         session=session,
@@ -75,6 +101,12 @@ async def search_directory(
         jsonb_filters=jsonb_filters if jsonb_filters else None,
         limit=directory_config.get("max_results", 5)
     )
+    
+    logger.info({
+        "event": "directory_search_complete",
+        "entries_found": len(entries),
+        "list_name": list_name
+    })
     
     if not entries:
         return "No entries found"

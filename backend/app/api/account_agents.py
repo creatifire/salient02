@@ -501,12 +501,14 @@ async def chat_endpoint(
         # Re-raise HTTPExceptions
         raise
     except Exception as e:
+        import traceback
         logger.error({
             "event": "agent_call_failed",
             "session_id": str(session.id),
             "agent_type": agent_type,
             "error": str(e),
-            "error_type": type(e).__name__
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
         })
         raise HTTPException(
             status_code=500,

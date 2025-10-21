@@ -320,14 +320,22 @@ async def simple_chat(
     config_to_use = instance_config if instance_config is not None else load_config()
     requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
     
-    # Pure Pydantic AI agent execution
-    start_time = datetime.now(UTC)
+    # Get database session for tools (directory_search, etc.) - wrap execution in context manager
+    from ..database import get_database_service
+    db_service = get_database_service()
     
-    try:
-        # Execute agent with Pydantic AI
-        result = await agent.run(message, deps=session_deps, message_history=message_history)
-        end_time = datetime.now(UTC)
-        latency_ms = int((end_time - start_time).total_seconds() * 1000)
+    async with db_service.get_session() as db_session:
+        # Assign session to dependencies for tools to use
+        session_deps.db_session = db_session
+        
+        # Pure Pydantic AI agent execution
+        start_time = datetime.now(UTC)
+        
+        try:
+            # Execute agent with Pydantic AI
+            result = await agent.run(message, deps=session_deps, message_history=message_history)
+            end_time = datetime.now(UTC)
+            latency_ms = int((end_time - start_time).total_seconds() * 1000)
         
         # Extract response and usage data
         response_text = result.output
@@ -548,7 +556,7 @@ async def simple_chat(
         prompt_tokens = 0
         completion_tokens = 0
         total_tokens = 0
-        latency_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        latency_ms = int((datetime.now(UTC) - start_time).total_seconds() * 1000)
     
     # Create usage data object for compatibility
     class UsageData:
