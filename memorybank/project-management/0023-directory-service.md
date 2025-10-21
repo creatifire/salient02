@@ -188,7 +188,7 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 ## Features
 
 - [x] 0023-001 - Core Infrastructure (schema, data, service) ✅
-- [ ] 0023-002 - Search Tool (Pydantic AI tool + integration)
+- [x] 0023-002 - Search Tool (Pydantic AI tool + integration) ✅
 - [ ] 0023-003 - Semantic Search (Pinecone - deferred)
 
 ---
@@ -1031,13 +1031,20 @@ if directory_config.get("enabled", False):
 
 ---
 
+**Verification Results** (Manual testing):
+- ✅ Query: "Find me a cardiologist who speaks English" → Returned 5 matching doctors
+- ✅ Query: "Find me a Spanish-speaking cardiologist" → Correctly reported no matches
+- ✅ Database: 124 doctors loaded, 14 cardiologists, various languages
+- ✅ Multi-tenant isolation verified (account_id filtering)
+- ✅ Tool successfully called by LLM based on natural language queries
+
 ### 0023-002-002 - TASK - Testing
 
 - [ ] **0023-002-002-01 - CHUNK - Manual test script**
 
 Create `backend/tests/manual/test_directory.py` with test scenarios for medical, pharmaceutical, product entry types.
 
-**STATUS**: Planned
+**STATUS**: Deferred (manual curl testing sufficient for MVP)
 
 ---
 
