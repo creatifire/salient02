@@ -35,12 +35,9 @@ Dependencies:
 - Loguru for structured logging and debugging
 - Pydantic for input validation and type safety
 """
-"""
-Copyright (c) 2025 Ape4, Inc. All rights reserved.
-Unauthorized copying of this file is strictly prohibited.
-"""
 
-
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
 
 from __future__ import annotations
 
