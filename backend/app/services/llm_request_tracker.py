@@ -33,6 +33,12 @@ Dependencies:
 - Pydantic AI for usage data extraction
 - UUID and datetime for request identification and timing
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from typing import Dict, Any, Optional, Tuple
 from uuid import UUID

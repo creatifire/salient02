@@ -2,6 +2,12 @@
 Unit Tests for Pinecone Infrastructure Configuration
 Tests configuration validation, environment setup, and namespace strategy.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import os
 import pytest

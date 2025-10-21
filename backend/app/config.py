@@ -67,6 +67,12 @@ Dependencies:
 - pathlib for cross-platform file path handling
 - typing for comprehensive type hints and validation
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from __future__ import annotations
 

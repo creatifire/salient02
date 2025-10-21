@@ -20,6 +20,12 @@ Usage:
     # Get agent type for a route
     agent_type = get_agent_for_route("/chat")
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from __future__ import annotations
 

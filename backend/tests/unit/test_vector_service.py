@@ -2,6 +2,12 @@
 Unit Tests for Vector Service Implementation
 Tests VectorService class behavior for RAG operations.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 import asyncio

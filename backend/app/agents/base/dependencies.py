@@ -15,6 +15,12 @@ Design:
 - Integrates with existing FastAPI database and session infrastructure
 - Provides account isolation and resource management
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from __future__ import annotations
 

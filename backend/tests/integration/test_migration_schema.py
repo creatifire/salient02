@@ -2,6 +2,12 @@
 Automated tests for multi-tenant database schema migration.
 Tests for 0022-001-001-02 - Multi-tenant database schema migration.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import inspect, text

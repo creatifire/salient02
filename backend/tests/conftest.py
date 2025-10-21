@@ -1,6 +1,12 @@
 """
 Shared pytest fixtures and configuration for the backend test suite.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import asyncio
 import os

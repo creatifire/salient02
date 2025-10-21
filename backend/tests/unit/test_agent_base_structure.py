@@ -2,6 +2,12 @@
 Unit tests for Agent Module Structure (Pydantic AI Architecture)
 Tests the Pydantic AI-based agent infrastructure and dependency injection patterns.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 from unittest.mock import MagicMock
 

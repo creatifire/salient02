@@ -11,6 +11,12 @@ Progressive Session Context Flow:
 3. Chat endpoint updates session with account_id, account_slug, agent_instance_id
 4. Subsequent requests → session loaded with remembered context
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 

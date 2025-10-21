@@ -30,6 +30,12 @@ Business Logic:
 - Database integrity constraints prevent session key collisions
 - Failed operations trigger automatic rollback for data consistency
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import secrets
 import string

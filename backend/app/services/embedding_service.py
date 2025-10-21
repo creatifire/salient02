@@ -2,6 +2,12 @@
 Embedding Service
 Handles text embedding generation using OpenAI's embedding models.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import logging

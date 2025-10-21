@@ -4,6 +4,12 @@ Tests for tool configuration cascade functionality.
 Tests the agent-first configuration cascade for tool configurations,
 ensuring per-agent tool enable/disable capability and proper parameter inheritance.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from app.agents.config_loader import get_agent_tool_config

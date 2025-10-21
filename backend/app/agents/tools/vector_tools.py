@@ -2,6 +2,12 @@
 Vector Search Tool for Pydantic AI Agents
 Enables agents to search vector databases (Pinecone) for relevant information.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from pydantic_ai import RunContext
 from typing import Optional

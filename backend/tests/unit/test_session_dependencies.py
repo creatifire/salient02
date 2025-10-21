@@ -3,6 +3,12 @@ Unit tests for SessionDependencies class parameter standardization.
 
 Tests for CHUNK 0017-004-001-03: Update SessionDependencies class for standardized parameters
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from app.agents.base.dependencies import SessionDependencies

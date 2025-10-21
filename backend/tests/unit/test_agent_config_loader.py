@@ -2,6 +2,12 @@
 Unit tests for CHUNK 0005-001-001-03 - Configuration Integration & Agent Selection
 Tests agent configuration loading and selection mechanisms.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import asyncio
 import yaml

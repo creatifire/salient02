@@ -10,6 +10,12 @@ This model captures detailed information about every LLM API call for:
 
 Based on datamodel specification in memorybank/architecture/datamodel.md
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import uuid
 from datetime import datetime

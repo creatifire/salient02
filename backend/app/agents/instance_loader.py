@@ -10,6 +10,12 @@ Architecture:
 
 Path: {configs_directory}/{account_slug}/{instance_slug}/config.yaml
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path

@@ -17,6 +17,12 @@ Design Principles:
 - Structured outputs with validation
 - Integration with Pydantic AI tool decorators
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from __future__ import annotations
 

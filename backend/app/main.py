@@ -86,6 +86,12 @@ Usage:
     export DATABASE_URL="postgresql+asyncpg://user:pass@localhost/db"
     export OPENROUTER_API_KEY="your-api-key"
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import glob

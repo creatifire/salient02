@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+"""
 Test script to verify instance loader retrieves different LLM settings
 for each configured agent instance.
 """

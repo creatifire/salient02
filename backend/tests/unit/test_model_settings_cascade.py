@@ -4,6 +4,12 @@ Tests for model settings cascade implementation.
 Tests for CHUNK 0017-004-003-01: Model settings cascade implementation
 Verifies generic cascade infrastructure, model settings cascade, and monitoring integration.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock

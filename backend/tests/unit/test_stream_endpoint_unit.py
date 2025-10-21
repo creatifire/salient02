@@ -3,6 +3,12 @@ Unit tests for streaming endpoint with mocked generator.
 
 Tests SSE format and event flow without database or real LLM calls.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch

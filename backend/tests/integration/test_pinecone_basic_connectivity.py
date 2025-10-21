@@ -3,6 +3,12 @@ Basic Pinecone Connectivity Test
 Simple test to verify Pinecone API connection is working.
 Similar to siphon project test_api_connections.py
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import os
 import pytest

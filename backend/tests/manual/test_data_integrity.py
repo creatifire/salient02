@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+"""
 Multi-Agent Data Integrity Verification Script
 
 Tests all 5 multi-tenant agent instances to verify database integrity:

@@ -2,6 +2,12 @@
 Pinecone Client Service
 Manages Pinecone connections, health checks, and retry logic.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import time

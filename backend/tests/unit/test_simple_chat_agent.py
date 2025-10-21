@@ -4,6 +4,12 @@ Unit Tests for Simple Chat Agent Parameter Standardization - TASK 0017-004-001-0
 Tests the simple_chat function's parameter standardization and configuration cascade
 with comprehensive mocking to isolate from external dependencies.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 import uuid

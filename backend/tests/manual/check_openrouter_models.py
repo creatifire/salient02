@@ -7,6 +7,12 @@ and helps verify the correct model IDs to use in config files.
 Usage:
     python backend/tests/manual/check_openrouter_models.py
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import sys
 import os

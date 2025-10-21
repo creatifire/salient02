@@ -5,6 +5,12 @@ This is a simple test to validate that the session service works correctly
 with database operations. For production, this should be moved to a proper
 tests/ directory with pytest fixtures.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 from datetime import datetime, timedelta

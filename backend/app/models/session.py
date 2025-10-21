@@ -20,6 +20,12 @@ Security Considerations:
 - Email addresses are indexed but not unique (allows multiple sessions per email)
 - All timestamps use timezone-aware datetime for consistency
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import uuid
 from datetime import datetime

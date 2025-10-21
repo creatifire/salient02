@@ -4,6 +4,12 @@ FastAPI router for agent endpoints.
 This module provides RESTful endpoints for interacting with AI agents,
 with comprehensive session handling, message persistence, and error handling.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse

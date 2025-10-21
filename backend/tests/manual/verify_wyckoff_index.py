@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+"""
 Verify Wyckoff Pinecone Index Connectivity and Content
 Checks that the wyckoff-poc-01 index is accessible and contains WordPress content.
 """

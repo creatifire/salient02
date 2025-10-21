@@ -2,6 +2,12 @@
 Automated tests for agent instance loader.
 Tests for 0022-001-001-03 - Agent instance loader implementation.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import pytest_asyncio
 from pathlib import Path

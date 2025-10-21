@@ -22,6 +22,12 @@ Expected behavior:
 - Each stream ends with a "done" event
 - Messages are saved to database after streaming completes
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import sys
 import os

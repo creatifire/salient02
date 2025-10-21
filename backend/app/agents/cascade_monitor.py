@@ -6,6 +6,12 @@ for the configuration cascade system.
 
 CHUNK 0017-004-002-03: Enhanced cascade logging and monitoring
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import time
 from datetime import datetime, UTC

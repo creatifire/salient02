@@ -20,6 +20,12 @@ Dependencies:
 - Pydantic AI message types for proper agent integration
 - UUID handling for session identification
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from typing import List, Dict, Any, Optional
 from .message_service import get_message_service

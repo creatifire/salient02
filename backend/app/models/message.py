@@ -3,6 +3,12 @@ Message model for complete chat history with role-based messages.
 
 Based on datamodel specification in memorybank/architecture/datamodel.md
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import uuid
 from datetime import datetime

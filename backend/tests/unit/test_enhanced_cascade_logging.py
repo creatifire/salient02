@@ -4,6 +4,12 @@ Tests for enhanced cascade logging and monitoring system.
 Tests for CHUNK 0017-004-002-03: Enhanced cascade logging and monitoring
 Verifies comprehensive audit trails, performance monitoring, and troubleshooting guidance.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock

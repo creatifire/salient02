@@ -2,6 +2,12 @@
 Agent-Specific Pinecone Configuration
 Loads per-agent Pinecone settings from agent config YAML files.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import os
 import logging

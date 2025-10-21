@@ -16,6 +16,12 @@ Test Coverage:
 - 0022-001-002-03: Streaming chat endpoint (future)
 - 0022-001-002-04: Instance listing endpoint (future)
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import pytest

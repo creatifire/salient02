@@ -2,6 +2,12 @@
 Automated tests for multi-tenant agent configuration files.
 Tests for 0022-001-001-01 - Test instance configuration files.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import yaml
 from pathlib import Path

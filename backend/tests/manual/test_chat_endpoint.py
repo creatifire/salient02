@@ -23,6 +23,12 @@ Expected behavior:
 - Different LLMs provide different responses to the same question,
   identifying themselves and their knowledge cutoff dates correctly
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import sys
 import os

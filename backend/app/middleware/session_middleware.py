@@ -14,6 +14,12 @@ The middleware runs on every request and ensures that:
 3. Session cookies are managed securely
 4. Session data is available in request.state
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 from typing import Callable, Optional

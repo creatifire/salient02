@@ -26,6 +26,12 @@ Dependencies:
 - MessageService: Message persistence with agent_instance_id attribution
 - LLMRequestTracker: Cost tracking with account/instance attribution
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from fastapi import APIRouter, Request, HTTPException, Path, Query
 from fastapi.responses import JSONResponse

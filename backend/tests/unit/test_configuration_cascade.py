@@ -4,6 +4,12 @@ Configuration cascade verification tests.
 Tests for CHUNK 0017-004-001-11: Configuration cascade verification tests
 Verifies config.yaml → app.yaml → hardcoded value cascade behavior.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 import tempfile

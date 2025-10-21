@@ -8,6 +8,12 @@ This test verifies that the session middleware:
 - Sets session cookies properly
 - Provides session context to route handlers
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 from typing import Dict, Any

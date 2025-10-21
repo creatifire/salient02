@@ -2,6 +2,12 @@
 Vector Database Service
 Handles document ingestion, querying, and vector operations with Pinecone.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import logging
