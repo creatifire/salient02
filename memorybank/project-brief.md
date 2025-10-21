@@ -1,5 +1,5 @@
 # Project Brief
-> **Last Updated**: January 12, 2025
+> **Last Updated**: October 20, 2025
 
 ## Core Architectural Principles
 
@@ -88,29 +88,26 @@
 
 ### Core Architecture Documents
 - [Technology Stack](./architecture/technology-stack.md)
-- [Technical Constraints](./architecture/technical-constraints.md)
 - [Code Organization](./architecture/code-organization.md)
 - [Configuration Reference](./architecture/configuration-reference.md)
 - [Agent Configuration](./architecture/agent-configuration.md)
-- [Agent Configuration Storage](./architecture/agent-configuration-storage.md)
 - [API Endpoints](./architecture/endpoints.md)
+- [Endpoint Pydantic AI Matrix](./architecture/endpoint-pydantic-ai-matrix.md)
 - [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md)
-- [Chat Widget Architecture](./architecture/chat-widget-architecture.md)
 - [Data Model & ER Diagram](./architecture/datamodel.md)
-- [Multi-Account Support](./architecture/multi-account-support.md)
+- [Simple Chat Agent Design](./architecture/simple-chat-agent-design.md)
+- [Tool Selection & Routing](./architecture/tool-selection-routing.md)
+- [Pinecone Connectivity](./architecture/pinecone-connectivity.md)
+- [SSE Streaming Fix](./architecture/sse-streaming-fix.md)
+- [LLM Tool Calling Performance](./architecture/llm-tool-calling-performance.md)
+- [Open Questions](./architecture/open-questions.md)
 
 ### Research & Analysis
 - [🎯 OpenRouter Cost Tracking Research](../backend/explore/openrouter-cost-tracking/README.md) - **COMPREHENSIVE ANALYSIS** of OpenRouter integration with Python agent frameworks, including breakthrough discovery of perfect hybrid solution
-
-### Integration & Deployment
-- [SalesBot Integration Options](./architecture/salesbot-integration.md)
-- [Demo Integration Strategy](./architecture/demo-integrations.md)
-- [Cross-Origin Session Handling](./architecture/cross-origin-session-handling.md)
-- [Production Cross-Origin Plan](./architecture/production-cross-origin-plan.md)
-- [Production Deployment Configuration](./architecture/production-deployment-config.md)
-- [Deploying on Render](./architecture/deploying-on-render.md)
-- [API Gateway Kong Policies](./architecture/api-gateway-kong-policies.md)
-- [Redis Usage Policy](./architecture/redis-usage-policy.md)
+- [Advanced Logging](./analysis/advanced-logging.md)
+- [Epic 0022 Library Review](./analysis/epic-0022-library-review.md)
+- [Logging & Monitoring](./analysis/logging-monitoring.md)
+- [Test Suite Analysis](./analysis/test_suite_analysis.md)
 
 ## Planning
 
@@ -119,14 +116,17 @@
 - [Master Epic List](./project-management/0000-epics.md)
 
 ### Active Epics (Milestone 1 Focus)
+- [Website HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
 - [Chat Memory & Persistence](./project-management/0004-chat-memory.md) - ✅ Completed
 - [Multi-Account and Agent Support](./project-management/0005-multi-account-and-agent-support.md)
 - [Sales Agent](./project-management/0008-sales-agent.md)
 - [Vector Database Integration](./project-management/0011-vector-db-integration.md) - ✅ Completed
 - [Outbound Email Integration](./project-management/0012-outbound-email.md)
 - [Simple Chat Agent](./project-management/0017-simple-chat-agent.md) - 🚧 In Progress
+- [Profile Builder](./project-management/0018-profile-builder.md)
 - [Multi-Tenant Account-Instance Architecture](./project-management/0022-multi-tenant-architecture.md) - 🚧 In Progress
-- [Profile Search Tool](./project-management/0023-profile-search-tool.md)
+- [Multi-Purpose Directory Service](./project-management/0023-directory-service.md)
+- [Bugs - Simple Chat Agent](./project-management/bugs-0017.md)
 
 ### Archived Epics
 For completed early-phase work, superseded approaches, Milestone 2 planning, and future/aspirational capabilities, see:
@@ -142,5 +142,10 @@ For completed early-phase work, superseded approaches, Milestone 2 planning, and
 
 ### Documentation Standards
 - [Commit Message Conventions](./standards/commit-messages.md)
+- [Epic Documentation Standards](./standards/epic-documentation.md)
+- [Milestone Documentation Standards](./standards/milestone-documentation.md)
 - [Python Code Commenting Best Practices](./standards/code-comments-py.md)
 - [JavaScript/TypeScript Code Commenting Best Practices](./standards/code-comments-ts.md)
+
+### Testing Standards
+- [Automated Testing Guidelines](./standards/automated-testing.md)
