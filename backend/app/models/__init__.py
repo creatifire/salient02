@@ -31,6 +31,7 @@ from .llm_request import LLMRequest
 from .profile import Profile
 from .account import Account
 from .agent_instance import AgentInstanceModel
+from .directory import DirectoryList, DirectoryEntry
 
 __all__ = [
     "Base",
@@ -39,5 +40,7 @@ __all__ = [
     "LLMRequest", 
     "Profile",
     "Account",
-    "AgentInstanceModel"
+    "AgentInstanceModel",
+    "DirectoryList",
+    "DirectoryEntry"
 ]
