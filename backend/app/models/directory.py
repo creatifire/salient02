@@ -10,7 +10,7 @@ Models:
 """
 from __future__ import annotations
 
-from sqlalchemy import Column, String, ARRAY, Text, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, String, ARRAY, Text, TIMESTAMP, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
@@ -43,12 +43,12 @@ class DirectoryList(Base):
     schema_file: Mapped[Optional[str]] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), 
-        default=datetime.utcnow
+        default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), 
-        default=datetime.utcnow, 
-        onupdate=datetime.utcnow
+        default=func.now(), 
+        onupdate=func.now()
     )
     
     # Relationships
@@ -101,12 +101,12 @@ class DirectoryEntry(Base):
     entry_data: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), 
-        default=datetime.utcnow
+        default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), 
-        default=datetime.utcnow, 
-        onupdate=datetime.utcnow
+        default=func.now(), 
+        onupdate=func.now()
     )
     
     # Relationships
