@@ -734,6 +734,32 @@ if __name__ == "__main__":
 
 ---
 
+- [ ] **0023-001-003-03 - CHUNK - Load Wyckoff doctors CSV**
+
+**Verification**: Immediately test the seeding script with real data
+
+```bash
+# Load 318 Wyckoff doctors
+python backend/scripts/seed_directory.py \
+    --account wyckoff \
+    --list doctors \
+    --entry-type medical_professional \
+    --csv backend/data/wyckoff/doctors_profile.csv \
+    --mapper medical_professional \
+    --description "Wyckoff Heights Medical Center - Medical Professionals"
+```
+
+**Verify**:
+1. Check database: `SELECT COUNT(*) FROM directory_lists WHERE account_id = '481d3e72-c0f5-47dd-8d6e-291c5a44a5c7';` (should be 1)
+2. Check entries: `SELECT COUNT(*) FROM directory_entries WHERE directory_list_id IN (SELECT id FROM directory_lists WHERE list_name = 'doctors');` (should be ~318, depending on validation)
+3. Sample query: `SELECT name, entry_data->>'department', entry_data->>'specialty', tags FROM directory_entries LIMIT 5;`
+4. Check logs for validation warnings (skipped rows due to missing required fields)
+
+**Tests**: End-to-end data loading, validation reporting, database persistence
+**STATUS**: Planned
+
+---
+
 ### 0023-001-004 - TASK - Directory Service
 
 - [ ] **0023-001-004-01 - CHUNK - DirectoryService**
