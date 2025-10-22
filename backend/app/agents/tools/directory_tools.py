@@ -26,7 +26,12 @@ async def search_directory(
     list_name: str,
     query: Optional[str] = None,
     tag: Optional[str] = None,
-    **kwargs
+    specialty: Optional[str] = None,
+    department: Optional[str] = None,
+    gender: Optional[str] = None,
+    drug_class: Optional[str] = None,
+    category: Optional[str] = None,
+    brand: Optional[str] = None,
 ) -> str:
     """
     Search directory for entries (doctors, drugs, products, consultants, etc.).
@@ -36,17 +41,30 @@ async def search_directory(
     Args:
         list_name: Which list to search (e.g., "doctors", "nurse_practitioners")
         query: Name to search (partial match)
-        tag: Tag filter (language, drug class, category, etc.)
-        **kwargs: Entry-type specific filters (department, specialty, drug_class, category, price)
+        tag: Tag filter (language spoken, drug class, product category, etc.)
+        specialty: Medical specialty filter (e.g., "Cardiology", "Endocrinology")
+        department: Department filter (e.g., "Emergency Medicine", "Surgery")
+        gender: Gender filter (e.g., "male", "female")
+        drug_class: Drug class filter (for pharmaceutical entries)
+        category: Product category filter (for product entries)
+        brand: Brand filter (for product entries)
     
-    Example: search_directory(list_name="doctors", query="smith", tag="Spanish")
+    Examples:
+        search_directory(list_name="doctors", specialty="Cardiology", tag="Spanish")
+        search_directory(list_name="doctors", query="smith", gender="female")
+        search_directory(list_name="doctors", specialty="Endocrinology", tag="Hindi", gender="female")
     """
     logger.info({
         "event": "directory_search_called",
         "list_name": list_name,
         "query": query,
         "tag": tag,
-        "filters": kwargs
+        "specialty": specialty,
+        "department": department,
+        "gender": gender,
+        "drug_class": drug_class,
+        "category": category,
+        "brand": brand
     })
     
     session = ctx.deps.db_session
@@ -82,7 +100,21 @@ async def search_directory(
         return f"List '{list_name}' not found"
     
     tags = [tag] if tag else None
-    jsonb_filters = {k: kwargs[k] for k in ['department', 'specialty', 'drug_class', 'category', 'brand', 'price'] if k in kwargs and kwargs[k]}
+    
+    # Build JSONB filters from explicit parameters
+    jsonb_filters = {}
+    if specialty:
+        jsonb_filters['specialty'] = specialty
+    if department:
+        jsonb_filters['department'] = department
+    if gender:
+        jsonb_filters['gender'] = gender
+    if drug_class:
+        jsonb_filters['drug_class'] = drug_class
+    if category:
+        jsonb_filters['category'] = category
+    if brand:
+        jsonb_filters['brand'] = brand
     
     logger.info({
         "event": "directory_search_executing",

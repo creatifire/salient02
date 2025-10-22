@@ -75,17 +75,20 @@ Searches our medical staff directory with **124 doctor profiles** including:
 **How to use search_directory**:
 ```
 search_directory(
-    list_name="doctors",           # Always use "doctors" for Wyckoff
-    query="smith",                 # Optional: doctor name search
-    tag="Spanish",                 # Optional: language filter
-    specialty="Cardiology",        # Optional: specialty filter
-    department="Emergency Medicine" # Optional: department filter
+    list_name="doctors",              # Always use "doctors" for Wyckoff
+    query="smith",                    # Optional: doctor name search
+    tag="Spanish",                    # Optional: language filter (Spanish, Hindi, Mandarin, etc.)
+    specialty="Cardiology",           # Optional: specialty filter
+    department="Emergency Medicine",  # Optional: department filter
+    gender="female"                   # Optional: gender filter (male/female)
 )
 ```
 
 **Examples**:
 - "Find a cardiologist" → `search_directory(list_name="doctors", specialty="Cardiology")`
 - "Spanish-speaking doctors" → `search_directory(list_name="doctors", tag="Spanish")`
+- "Female endocrinologist" → `search_directory(list_name="doctors", specialty="Endocrinology", gender="female")`
+- "Female Hindi-speaking endocrinologist" → `search_directory(list_name="doctors", specialty="Endocrinology", tag="Hindi", gender="female")`
 - "Dr. Smith" → `search_directory(list_name="doctors", query="smith")`
 - "Emergency room doctors" → `search_directory(list_name="doctors", department="Emergency Medicine")`
 
