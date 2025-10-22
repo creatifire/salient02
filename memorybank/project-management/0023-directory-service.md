@@ -1107,6 +1107,167 @@ Create `backend/tests/integration/test_directory_integration.py`:
 
 ## Phase 2 Enhancements (Future)
 
+### Schema-Driven Generic Filters (Priority 1)
+
+**Problem**: Current implementation hardcodes type-specific parameters (`specialty`, `gender`, `department`, `drug_class`, `category`, `brand`) in the tool signature. This is not truly configurable - adding new directory types (consultants, services, etc.) requires code changes.
+
+**Solution**: Replace type-specific params with generic `filters` dict + auto-generate system prompt from schema files.
+
+**Tool Signature**:
+```python
+# backend/app/agents/tools/directory_tools.py
+
+async def search_directory(
+    ctx: RunContext[SessionDependencies],
+    list_name: str,
+    query: Optional[str] = None,              # Universal: name search
+    tag: Optional[str] = None,                # Universal: languages/categories
+    filters: Optional[Dict[str, str]] = None  # Type-specific JSONB filters
+) -> str:
+    """
+    Search directory for entries (doctors, drugs, products, consultants, etc.).
+    
+    Args:
+        list_name: Which list to search (e.g., "doctors", "prescription_drugs")
+        query: Name to search (partial match, case-insensitive)
+        tag: Tag filter (language for medical, drug class for pharma, category for products)
+        filters: Type-specific JSONB filters (e.g., {"specialty": "Cardiology", "gender": "female"})
+    
+    Examples:
+        # Medical professionals
+        search_directory(list_name="doctors", filters={"specialty": "Cardiology", "gender": "female"}, tag="Spanish")
+        
+        # Pharmaceuticals
+        search_directory(list_name="prescription_drugs", filters={"drug_class": "NSAID", "indications": "pain"})
+        
+        # Products
+        search_directory(list_name="electronics", filters={"category": "Laptops", "brand": "Dell", "in_stock": "true"})
+    """
+    # ... implementation uses filters dict for jsonb_filters ...
+```
+
+**Schema Enhancements**:
+```yaml
+# backend/config/directory_schemas/medical_professional.yaml
+entry_type: medical_professional
+schema_version: "1.0"
+required_fields: [department, specialty]
+optional_fields: [board_certifications, education, residencies, fellowships, internship, gender, profile_pic]
+
+# NEW: Searchable fields for system prompt generation
+searchable_fields:
+  department:
+    type: string
+    description: "Medical department (Cardiology, Emergency Medicine, Surgery, etc.)"
+    examples: ["Cardiology", "Emergency Medicine", "Pediatrics"]
+  specialty:
+    type: string
+    description: "Medical specialty or sub-specialty"
+    examples: ["Interventional Cardiology", "Pediatric Surgery"]
+  gender:
+    type: string
+    description: "Gender (male/female)"
+    examples: ["male", "female"]
+  education:
+    type: string
+    description: "Medical school and degree"
+    examples: ["Harvard Medical School, MD"]
+
+tags_usage:
+  description: "Languages spoken by medical professional"
+  examples: ["English", "Spanish", "Hindi", "Mandarin", "Arabic"]
+```
+
+**System Prompt Generation**:
+```python
+# backend/app/agents/tools/prompt_generator.py
+
+def generate_directory_tool_docs(agent_config: dict, account_id: UUID, db_session) -> str:
+    """
+    Auto-generate system prompt documentation for directory tool based on:
+    1. Agent's accessible_lists (from config.yaml)
+    2. Schema files for each list's entry_type
+    3. Database (entry counts, list metadata)
+    """
+    directory_config = agent_config.get("tools", {}).get("directory", {})
+    accessible_lists = directory_config.get("accessible_lists", [])
+    
+    if not accessible_lists:
+        return ""
+    
+    # Get list metadata from DB
+    service = DirectoryService()
+    lists_metadata = await service.get_lists_metadata(db_session, account_id, accessible_lists)
+    
+    docs = ["## Directory Search Tool\n"]
+    docs.append("Search structured directory entries with natural language:\n")
+    
+    for list_meta in lists_metadata:
+        schema = DirectoryImporter.load_schema(list_meta.schema_file)
+        
+        docs.append(f"\n### {list_meta.list_name} ({list_meta.entry_type})")
+        docs.append(f"Entries: {list_meta.entry_count}\n")
+        
+        # Tags documentation
+        if schema.get('tags_usage'):
+            docs.append(f"**Tags**: {schema['tags_usage']['description']}")
+            docs.append(f"Examples: {', '.join(schema['tags_usage']['examples'])}\n")
+        
+        # Searchable fields
+        if schema.get('searchable_fields'):
+            docs.append("**Filters**:")
+            for field, field_def in schema['searchable_fields'].items():
+                docs.append(f"- `{field}`: {field_def['description']}")
+                if field_def.get('examples'):
+                    docs.append(f"  Examples: {', '.join(field_def['examples'])}")
+        
+        # Usage examples
+        docs.append("\n**Examples**:")
+        if list_meta.entry_type == 'medical_professional':
+            docs.append('- Female cardiologist: `search_directory(list_name="doctors", filters={"specialty": "Cardiology", "gender": "female"})`')
+            docs.append('- Spanish-speaking ER doctor: `search_directory(list_name="doctors", filters={"department": "Emergency Medicine"}, tag="Spanish")`')
+        elif list_meta.entry_type == 'pharmaceutical':
+            docs.append('- Pain medications: `search_directory(list_name="prescription_drugs", filters={"indications": "pain"})`')
+            docs.append('- NSAIDs: `search_directory(list_name="prescription_drugs", tag="NSAID")`')
+        
+        docs.append("")
+    
+    return '\n'.join(docs)
+```
+
+**Integration**:
+```python
+# backend/app/agents/simple_chat.py
+
+# Generate system prompt dynamically
+if directory_config.get("enabled", False):
+    from app.agents.tools.directory_tools import search_directory
+    from app.agents.tools.prompt_generator import generate_directory_tool_docs
+    
+    agent.tool(search_directory)
+    
+    # Append directory docs to system prompt
+    directory_docs = await generate_directory_tool_docs(instance_config, instance.account_id, db_session)
+    enhanced_system_prompt = system_prompt + "\n\n" + directory_docs
+```
+
+**Benefits**:
+- ✅ Zero code changes for new directory types (add schema YAML + CSV only)
+- ✅ LLM gets explicit filter guidance from schemas
+- ✅ Truly generic and infinitely scalable
+- ✅ Type-safe for universal params (query, tag)
+- ✅ Self-documenting (schema → system prompt)
+- ✅ Config-driven (agent config → accessible lists → schemas)
+
+**Tradeoffs**:
+- ⚠️ No compile-time validation for filter field names (runtime only)
+- ⚠️ LLM must construct dict correctly (but schemas provide guidance)
+- ⚠️ One-time build: ~150 lines for prompt generator + schema enhancements
+
+**Complexity**: ~150 lines (prompt generator) + schema YAML updates
+
+---
+
 ### Config-Driven CSV Mappers (Option A)
 
 **Replace Python function references with pure YAML column mapping:**
