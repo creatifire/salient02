@@ -187,9 +187,17 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ## Features
 
+**Phase 1 (Complete)**:
 - [x] 0023-001 - Core Infrastructure (schema, data, service) ✅
 - [x] 0023-002 - Search Tool (Pydantic AI tool + integration) ✅
 - [ ] 0023-003 - Semantic Search (Pinecone - deferred)
+
+**Phase 2 (Planned)**:
+- [ ] 0023-004 - Advanced Configurability (schema-driven filters, CSV mappers, tool registry)
+- [ ] 0023-005 - Data Management (incremental updates, status field)
+- [ ] 0023-006 - Advanced Search Patterns (two-tool discovery)
+- [ ] 0023-007 - Performance Optimizations (pagination, FTS, materialized views)
+- [x] 0023-008 - Multi-Tenant Dependencies (infrastructure) ✅
 
 ---
 
@@ -1107,7 +1115,11 @@ Create `backend/tests/integration/test_directory_integration.py`:
 
 ## Phase 2 Enhancements (Future)
 
-### Schema-Driven Generic Filters (Priority 1)
+---
+
+## 0023-004 - FEATURE - Advanced Configurability
+
+### 0023-004-001 - TASK - Schema-Driven Generic Filters (Priority 1)
 
 **Problem**: Current implementation hardcodes type-specific parameters (`specialty`, `gender`, `department`, `drug_class`, `category`, `brand`) in the tool signature. This is not truly configurable - adding new directory types (consultants, services, etc.) requires code changes.
 
@@ -1266,9 +1278,17 @@ if directory_config.get("enabled", False):
 
 **Complexity**: ~150 lines (prompt generator) + schema YAML updates
 
+**Sub-Tasks:**
+- [ ] **0023-004-001-01 - CHUNK - Update tool signature with filters dict**
+- [ ] **0023-004-001-02 - CHUNK - Add searchable_fields to schema YAML**
+- [ ] **0023-004-001-03 - CHUNK - Create prompt generator module**
+- [ ] **0023-004-001-04 - CHUNK - Integrate with simple_chat**
+
+**STATUS**: Planned
+
 ---
 
-### Config-Driven CSV Mappers (Option A)
+### 0023-004-002 - TASK - Config-Driven CSV Mappers
 
 **Replace Python function references with pure YAML column mapping:**
 
@@ -1319,9 +1339,15 @@ transforms:
 
 **Complexity**: ~150-200 lines for transform engine
 
+**Sub-Tasks:**
+- [ ] **0023-004-002-01 - CHUNK - CSV mapping transform engine**
+- [ ] **0023-004-002-02 - CHUNK - Update schemas with csv_mapping sections**
+
+**STATUS**: Planned
+
 ---
 
-### Centralized Tool Registry
+### 0023-004-003 - TASK - Centralized Tool Registry
 
 **Replace inline tool registration with declarative registry:**
 
@@ -1397,9 +1423,67 @@ register_tools_from_config(agent, instance_config, session_deps)
 
 **Complexity**: ~100 lines
 
+**Sub-Tasks:**
+- [ ] **0023-004-003-01 - CHUNK - Create registry module**
+- [ ] **0023-004-003-02 - CHUNK - Integrate with simple_chat**
+
+**STATUS**: Planned
+
 ---
 
-### Two-Tool Discovery Pattern (Optional)
+## 0023-005 - FEATURE - Data Management
+
+### 0023-005-001 - TASK - Incremental CSV Updates
+
+**Support partial updates instead of delete-and-replace:**
+
+```python
+# backend/scripts/seed_directory.py --mode merge|replace|update
+
+modes:
+  replace: Delete existing, insert all (current behavior)
+  merge: Insert new, skip existing (by name)
+  update: Insert new, update existing (by name), delete missing
+```
+
+**Requires:**
+- Unique constraint on (directory_list_id, name)
+- Conflict resolution logic
+- Change tracking
+
+**Sub-Tasks:**
+- [ ] **0023-005-001-01 - CHUNK - Add unique constraint migration**
+- [ ] **0023-005-001-02 - CHUNK - Implement merge/replace/update modes**
+
+**STATUS**: Planned
+
+---
+
+### 0023-005-002 - TASK - Status Field Revival
+
+**If needed for soft-deletes or state management:**
+
+```sql
+ALTER TABLE directory_entries ADD COLUMN status TEXT DEFAULT 'active';
+CREATE INDEX idx_directory_entries_status ON directory_entries(status);
+```
+
+**Use cases:**
+- Mark doctor as "on_leave" without deleting
+- Mark product as "discontinued" 
+- Support workflow states
+
+**Sub-Tasks:**
+- [ ] **0023-005-002-01 - CHUNK - Add status column migration**
+- [ ] **0023-005-002-02 - CHUNK - Update DirectoryService queries with status filter**
+
+**STATUS**: Planned
+
+---
+
+## 0023-006 - FEATURE - Advanced Search Patterns
+
+### 0023-006-001 - TASK - Two-Tool Discovery Pattern (Optional)
 
 **If dynamic list discovery becomes necessary:**
 
@@ -1442,68 +1526,77 @@ async def list_directories(ctx: RunContext[SessionDependencies]) -> str:
 
 **Cost**: 2x LLM calls per query, higher latency
 
+**Sub-Tasks:**
+- [ ] **0023-006-001-01 - CHUNK - Create list_directories tool**
+- [ ] **0023-006-001-02 - CHUNK - Add get_lists_metadata to DirectoryService**
+
+**STATUS**: Planned
+
 ---
 
-### Incremental CSV Updates
+## 0023-007 - FEATURE - Performance Optimizations
 
-**Support partial updates instead of delete-and-replace:**
+### 0023-007-001 - TASK - Pagination
+
+**Add offset/limit support for large result sets:**
 
 ```python
-# backend/scripts/seed_directory.py --mode merge|replace|update
-
-modes:
-  replace: Delete existing, insert all (current behavior)
-  merge: Insert new, skip existing (by name)
-  update: Insert new, update existing (by name), delete missing
+async def search(..., offset: int = 0, limit: int = 10)
 ```
 
-**Requires:**
-- Unique constraint on (directory_list_id, name)
-- Conflict resolution logic
-- Change tracking
+**Sub-Tasks:**
+- [ ] **0023-007-001-01 - CHUNK - Add offset/limit to DirectoryService.search()**
+
+**STATUS**: Planned
 
 ---
 
-### Status Field Revival
+### 0023-007-002 - TASK - Full-text search
 
-**If needed for soft-deletes or state management:**
+**Add PostgreSQL full-text search for performance:**
 
 ```sql
-ALTER TABLE directory_entries ADD COLUMN status TEXT DEFAULT 'active';
-CREATE INDEX idx_directory_entries_status ON directory_entries(status);
+ALTER TABLE directory_entries ADD COLUMN search_vector tsvector;
+CREATE INDEX idx_fts ON directory_entries USING GIN(search_vector);
 ```
 
-**Use cases:**
-- Mark doctor as "on_leave" without deleting
-- Mark product as "discontinued" 
-- Support workflow states
+**Sub-Tasks:**
+- [ ] **0023-007-002-01 - CHUNK - Add tsvector column migration**
+- [ ] **0023-007-002-02 - CHUNK - Update search queries to use FTS**
+
+**STATUS**: Planned
 
 ---
 
-### Performance Optimizations for 10K+ Entries
+### 0023-007-003 - TASK - Materialized views
 
-**If datasets exceed 10K entries:**
+**Create materialized views for common query patterns:**
 
-1. **Pagination**:
-   ```python
-   async def search(..., offset: int = 0, limit: int = 10)
-   ```
+**Sub-Tasks:**
+- [ ] **0023-007-003-01 - CHUNK - Identify common query patterns**
+- [ ] **0023-007-003-02 - CHUNK - Create materialized views**
 
-2. **Full-text search**:
-   ```sql
-   ALTER TABLE directory_entries ADD COLUMN search_vector tsvector;
-   CREATE INDEX idx_fts ON directory_entries USING GIN(search_vector);
-   ```
-
-3. **Materialized views for common queries**
-
-4. **Pinecone semantic search** (0023-003)
+**STATUS**: Planned
 
 ---
 
-### SessionDependencies Changes
+### 0023-007-004 - TASK - Pinecone semantic search integration
 
-**Must add `account_id` field:**
+**Leverage existing Pinecone infrastructure (from 0023-003) for semantic search on directory entries:**
+
+**Sub-Tasks:**
+- [ ] **0023-007-004-01 - CHUNK - Generate embeddings for directory entries**
+- [ ] **0023-007-004-02 - CHUNK - Create hybrid search (exact + semantic)**
+
+**STATUS**: Deferred (requires 0023-003 completion)
+
+---
+
+## 0023-008 - FEATURE - Multi-Tenant Dependencies (Infrastructure)
+
+### 0023-008-001 - TASK - SessionDependencies Enhancement
+
+**Added `account_id` and `db_session` fields to SessionDependencies for multi-tenant data isolation:**
 
 ```python
 # backend/app/agents/base/dependencies.py
@@ -1513,18 +1606,26 @@ class SessionDependencies(BaseDependencies):
     # ... existing fields ...
     
     # Multi-tenant support
-    account_id: Optional[UUID] = None  # ADD THIS
+    account_id: Optional[UUID] = None  # ✅ ADDED
     agent_instance_id: Optional[int] = None
     
     # Agent configuration (for tool access)
     agent_config: Optional[Dict[str, Any]] = None
     
     # Database session (for tool data access)
-    db_session: Optional[Any] = None
+    db_session: Optional[Any] = None  # ✅ ADDED
 ```
 
-**Populate in agent execution:**
+**Populated in agent execution:**
 ```python
 # backend/app/agents/simple_chat.py
 session_deps.account_id = instance.account_id  # From AgentInstance model
+session_deps.db_session = db_session  # From async context manager
 ```
+
+**Verified with `test_data_integrity.py`**:
+- ✅ 5/5 agents tested (agrofresh, wyckoff, default_account x2, acme)
+- ✅ Sessions properly populated with account_id
+- ✅ Multi-tenant isolation verified at session/agent/account levels
+
+**STATUS**: Complete ✅
