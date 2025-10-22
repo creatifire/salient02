@@ -201,6 +201,186 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ---
 
+## Implementation Roadmap
+
+### **Phase 1: MVP (Complete ✅)**
+
+**Goal**: Working directory service with exact/substring search for medical professionals.
+
+**Completed**:
+1. ✅ Database schema (2 tables: directory_lists, directory_entries)
+2. ✅ SQLAlchemy models with relationships
+3. ✅ DirectoryService (exact/substring search with multi-tenant filtering)
+4. ✅ DirectoryImporter (CSV parser with validation)
+5. ✅ Seeding script (124 Wyckoff doctors loaded)
+6. ✅ search_directory Pydantic AI tool (explicit params workaround)
+7. ✅ Integration with wyckoff_info_chat1 agent
+8. ✅ SessionDependencies enhancement (account_id + db_session)
+
+**Current Status**: Working MVP - users can search doctors by specialty, gender, department, and languages.
+
+**Known Limitation**: Tool uses explicit parameters (specialty, gender, department, drug_class, category, brand) which requires code changes to add new directory types.
+
+---
+
+### **Phase 2: Schema-Driven Configurability (Next Priority 🎯)**
+
+**Goal**: Zero-code addition of new directory types (pharmaceuticals, products, consultants, services).
+
+**Recommended Implementation Order**:
+
+#### **1. Schema-Driven Generic Filters (0023-004-001) - Priority 1**
+**Status**: Planned 📋
+**Effort**: 2-3 days
+**Value**: HIGH - Unblocks scalability
+
+**Why First?**
+- Most critical blocker for adding new directory types
+- Low risk (doesn't change search algorithm, just tool interface)
+- Enables pharmaceuticals, products, consultants without code changes
+
+**Implementation Steps**:
+1. **Enhance Schema Files** (4 hours)
+   - Add `searchable_fields` section to YAML schemas
+   - Define field types, search modes, descriptions, examples
+   - Update `medical_professional.yaml` as reference implementation
+
+2. **Create Prompt Generator** (6 hours)
+   - New module: `backend/app/agents/tools/prompt_generator.py`
+   - Read agent's `accessible_lists` from config
+   - Load schemas for each list
+   - Generate markdown documentation with examples
+   - Unit tests for prompt generation
+
+3. **Update Tool Signature** (2 hours)
+   - Change from explicit params to generic `filters: Optional[Dict[str, str]]`
+   - Keep universal params: `list_name`, `query`, `tag`
+   - Update DirectoryService queries to use filters dict
+
+4. **Integrate with simple_chat** (4 hours)
+   - Auto-generate directory tool docs on agent initialization
+   - Append to system prompt dynamically
+   - Test with existing Wyckoff data
+
+5. **Regression Testing** (4 hours)
+   - Verify existing queries still work
+   - Test "female Spanish-speaking endocrinologist"
+   - Ensure no performance degradation
+
+**Result**: Can add new directory types by:
+1. Create schema YAML file (e.g., `pharmaceutical.yaml`)
+2. Add CSV data
+3. Update agent config to include new list
+4. System prompt auto-generates - no code changes
+
+---
+
+#### **2. Full-Text Search (0023-007-002) - Optional Enhancement**
+**Status**: Planned 📋
+**Effort**: 4-6 hours
+**Value**: MEDIUM - Improves word-level matching
+
+**Why Second?**
+- Quick win (native PostgreSQL)
+- Handles "cardio" → "cardiology", "cardiologist", "cardiovascular"
+- Solves 80% of similarity needs without embeddings
+
+**Implementation Steps**:
+1. **Add tsvector Column** (1 hour)
+   - Alembic migration: `ALTER TABLE directory_entries ADD COLUMN search_vector tsvector GENERATED`
+   - GIN index for fast FTS queries
+
+2. **Update DirectoryService** (2 hours)
+   - Add FTS query mode based on schema `search_mode` config
+   - Support 3 modes: `exact`, `substring`, `fts`
+
+3. **Update Schemas** (1 hour)
+   - Add `search_mode: "fts"` to specialty field in `medical_professional.yaml`
+   - Keep exact match for gender, status fields
+
+**Result**: Better matching for medical terms, drug names, product categories.
+
+---
+
+#### **3. Semantic Search (0023-003) - Major Enhancement**
+**Status**: Deferred 📋
+**Effort**: 3-4 weeks
+**Value**: HIGH (for complex NL queries)
+
+**Why Last?**
+- High complexity (embeddings + Pinecone sync)
+- High operational overhead (cost, latency, monitoring)
+- Only needed for complex queries ("heart doctor" → "cardiologist")
+- Phase 1+2 solve 90% of needs
+
+**Implementation Steps**:
+1. **Database Schema** (1 day)
+   - New table: `directory_embeddings` (tracks sync state with Pinecone)
+   - No changes to directory_entries or directory_lists
+
+2. **Embedding Service** (1 week)
+   - Generate embeddings for directory entries
+   - Upload to Pinecone with metadata
+   - Sync state tracking (pending, synced, failed, stale)
+
+3. **Background Job** (1 week)
+   - Queue-based embedding generation
+   - Handle updates, deletes
+   - Monitor sync health
+
+4. **Hybrid Search** (1 week)
+   - Try exact/substring filters first (fast path)
+   - Semantic fallback if 0 results
+   - Combine semantic similarity + exact filters (gender, tags)
+
+**Result**: True semantic understanding - "heart doctor" finds "cardiologist", "pain medication" finds "NSAID".
+
+---
+
+### **Phase 3: Additional Enhancements (Future)**
+
+**Other Phase 2 Features** (lower priority):
+- Config-Driven CSV Mappers (0023-004-002)
+- Centralized Tool Registry (0023-004-003)
+- Incremental CSV Updates (0023-005-001)
+- Status Field Revival (0023-005-002)
+- Two-Tool Discovery Pattern (0023-006-001)
+- Pagination (0023-007-001)
+- Materialized Views (0023-007-003)
+
+---
+
+### **Decision Matrix**
+
+| Enhancement | Effort | Risk | Value | When to Implement |
+|-------------|--------|------|-------|-------------------|
+| **Schema-Driven Filters** | 2-3 days | Low | HIGH | **NOW** - Unblocks new types |
+| **Full-Text Search** | 6 hours | Low | Medium | **Optional** - If substring insufficient |
+| **Semantic Search** | 3-4 weeks | Medium | High | **Later** - For complex NL queries |
+| Config-Driven CSV | 1 week | Low | Medium | After schema-driven filters |
+| Tool Registry | 3 days | Low | Medium | After multiple tools exist |
+| Incremental Updates | 1 week | Medium | Low | When data changes frequently |
+| Status Field | 2 days | Low | Low | When workflow states needed |
+
+---
+
+### **Recommended Next Steps**
+
+1. **Implement 0023-004-001 (Schema-Driven Generic Filters)** - 2-3 days
+   - Highest value, lowest risk
+   - Enables adding pharmaceuticals, products, consultants
+   - No dependency on external services
+
+2. **Evaluate FTS Need** - After schema-driven filters
+   - Test with substring matching
+   - If users struggle with word variations, add FTS (6 hours)
+
+3. **Defer Semantic Search** - Until proven necessary
+   - Current substring + FTS should handle 90% of cases
+   - Re-evaluate if complex queries become common
+
+---
+
 ## 0023-001 - FEATURE - Core Infrastructure
 
 ### 0023-001-001 - TASK - Database Schema

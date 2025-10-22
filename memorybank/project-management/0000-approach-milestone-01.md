@@ -181,30 +181,59 @@ Unauthorized copying of this file is strictly prohibited.
   - Configuration: Add `defaultMaximized` and `enableMaximize` options
   - See: [Epic 0003-010](0003-website-htmx-chatbot.md#0003-010) for detailed 8-task breakdown (Toggle Button, Layout, Sizing, Transitions, State Persistence, Accessibility, Cross-Framework, Testing)
 
-### **Priority 5: Profile Search Tool** 📋 🎯 **DEMO FEATURE**
-**Epic 0023 - Generic Profile Search for LLM Agents**
+### **Priority 5: Directory Search Tool** 📋 🎯 **DEMO FEATURE**
+**Epic 0023 - Multi-Purpose Directory Service**
 
-**Why Priority 5**: Enables agents to search professional profiles (doctors, nurses, sales reps, consultants) via natural language queries. Demonstrates real-world tool usage with structured data. Complements vector search (Priority 4) by adding structured profile queries.
+**Why Priority 5**: Generic directory service for searching structured entries (doctors, drugs, products, consultants, services) via natural language. Enables agents to answer specific queries about people, inventory, or resources. Demonstrates real-world tool usage with flexible data types.
 
 **Dependencies**: Requires `accounts` and `agent_instances` tables from Epic 0022 (already complete in Priority 2B).
 
-- [x] 0023-001 - Core Profile Infrastructure ✅
-  - [x] 0023-001-001 - Database Schema Design & Migration (directory_lists, directory_entries with UUIDs) ✅
-  - [x] 0023-001-002 - CSV Import & Data Seeding (doctors_profile.csv → PostgreSQL - 124 doctors) ✅
-  - [x] 0023-001-003 - Directory Service (CRUD Operations with SQLAlchemy + multi-tenant access) ✅
-- [x] 0023-002 - Profile Search Tool (Pydantic AI) ✅
-  - [x] 0023-002-001 - Pydantic AI Tool Implementation (@agent.tool with account_id isolation) ✅
-  - [x] 0023-002-002 - Tool Integration & Testing (manual curl testing, end-to-end verified) ✅
-- [ ] 0023-003 - Semantic Search Enhancement (Pinecone) - DEFERRED to post-demo
+**Phase 1 - MVP (Complete ✅)**:
+- [x] 0023-001 - Core Infrastructure ✅
+  - [x] 0023-001-001 - Database Schema (directory_lists, directory_entries with UUIDs, GIN indexes) ✅
+  - [x] 0023-001-002 - Schema Definitions (medical_professional.yaml) ✅
+  - [x] 0023-001-003 - CSV Import (DirectoryImporter + seed script - 124 Wyckoff doctors) ✅
+  - [x] 0023-001-004 - DirectoryService (SQLAlchemy queries with multi-tenant filtering) ✅
+- [x] 0023-002 - Search Tool ✅
+  - [x] 0023-002-001 - search_directory Pydantic AI tool (with explicit params) ✅
+  - [x] 0023-002-002 - Wyckoff integration & testing (manual curl verified) ✅
+- [x] 0023-008 - Multi-Tenant Dependencies ✅
+  - [x] 0023-008-001 - SessionDependencies (account_id + db_session) ✅
+
+**Phase 2 - Advanced Configurability (Planned)**:
+- [ ] 0023-004 - Advanced Configurability 📋 **NEXT PRIORITY**
+  - [ ] 0023-004-001 - Schema-Driven Generic Filters (Priority 1) 🎯
+    - Replace explicit params with generic `filters` dict
+    - Add `searchable_fields` to schema YAML files
+    - Auto-generate system prompt from schemas
+    - Enable zero-code addition of new directory types
+    - **Effort**: 2-3 days | **Value**: HIGH (unblocks scalability)
+  - [ ] 0023-004-002 - Config-Driven CSV Mappers
+  - [ ] 0023-004-003 - Centralized Tool Registry
+
+**Phase 2 - Performance & Search (Optional)**:
+- [ ] 0023-007 - Performance Optimizations 📋
+  - [ ] 0023-007-002 - PostgreSQL Full-Text Search (word-level matching + stemming)
+    - **Effort**: 4-6 hours | **Value**: MEDIUM
+  - [ ] 0023-007-001 - Pagination
+  - [ ] 0023-007-003 - Materialized views
+- [ ] 0023-003 - Semantic Search (Pinecone) 📋 **DEFERRED**
+  - [ ] 0023-003-001 - directory_embeddings table
+  - [ ] 0023-003-002 - Embedding generation pipeline
+  - [ ] 0023-003-003 - Hybrid search (exact + semantic)
+  - **Effort**: 3-4 weeks | **Value**: HIGH (for complex NL queries)
+  - **Status**: DEFERRED - current substring matching sufficient for MVP
 
 **Architecture Highlights**:
-- Multi-list support per account (e.g., doctors, nurses, sales_east, sales_west)
-- Agent-level access control (agents can access one or more profile lists)
-- Hybrid schema: Core columns + JSONB for type-specific fields
-- PostgreSQL structured queries (Phase 1), Pinecone semantic search (Phase 2 - deferred)
+- Multi-list support per account (doctors, drugs, products, consultants, services)
+- Agent-level access control via config YAML
+- Flexible schema: Core columns + JSONB for type-specific fields
+- Search strategy: Exact/substring (Phase 1) → FTS (Phase 2) → Semantic (Phase 3)
 
-**Initial Use Case**: Hospital doctor profiles (320 records)
-**Demo Query**: "Find me a Spanish-speaking cardiologist"
+**Current Capabilities**:
+- ✅ Wyckoff: 124 doctors, filter by specialty/gender/department, language tags
+- ✅ Queries: "Find a female Spanish-speaking endocrinologist"
+- ⏸️ Future: Pharmaceuticals, products, consultants (after 0023-004-001)
 
 ### **Priority 6: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
