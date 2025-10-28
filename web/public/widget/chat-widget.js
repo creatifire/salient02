@@ -18,6 +18,11 @@
   const ssePreferred = globalConfig.sse !== false && (script && script.getAttribute('data-sse')) !== '0'; // default on
   const copyIconSrc = (script && script.getAttribute('data-copy-icon')) || '/widget/chat-copy.svg';
   
+  // SVG icon paths for maximize/minimize/close
+  const maximizeIconSrc = '/widget/chat-maximize.svg';
+  const minimizeIconSrc = '/widget/chat-minimize.svg';
+  const closeIconSrc = '/widget/chat-close.svg';
+  
   // Multi-tenant configuration attributes
   const accountSlug = globalConfig.account || (script && script.getAttribute('data-account')) || 'default_account';
   const agentInstanceSlug = globalConfig.agent || (script && script.getAttribute('data-agent')) || 'simple_chat1';
@@ -81,11 +86,19 @@
       #overlay{ position: fixed; inset: 0; background: rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 2147483630; }
       :host([data-open="1"]) #overlay{ opacity: 1; pointer-events: auto; }
       #fab{ position: fixed; right: 16px; bottom: 16px; z-index: 2147483646; border: 0; border-radius: 9999px; padding: .65rem .9rem; background: #108D43; color: #fff; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,.2); font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-      #pane{ position: fixed; right: 16px; bottom: 72px; width: min(92vw, 380px); max-height: 72vh; background: #fff; color: #111; border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,.25); transform: translateX(120%); transition: transform .25s ease; overflow: hidden; z-index: 2147483645; display: flex; flex-direction: column; }
+      #pane{ position: fixed; right: 16px; bottom: 72px; width: min(92vw, 380px); height: 480px; background: #fff; color: #111; border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,.25); transform: translateX(120%); transition: transform .25s ease, width .5s cubic-bezier(0.4, 0, 0.2, 1), height .5s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; z-index: 2147483645; display: flex; flex-direction: column; }
       :host([data-open="1"]) #pane{ transform: translateX(0); }
-      header{ padding: .6rem .85rem; background: #169CB5; color: #fff; font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:flex; justify-content:space-between; align-items:center; }
+      #pane.maximized{ width: calc(100vw - 66px); height: calc(100vh - 97px); }
+      header{ padding: .6rem .85rem; background: #169CB5; color: #fff; font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+      .header-title{ flex:1; text-align:center; }
+      .header-btn{ background:transparent; border:none; color:#fff; cursor:pointer; padding:4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; opacity:.9; transition:opacity .15s ease; }
+      .header-btn:hover{ opacity:1; }
+      .header-btn img{ width:18px; height:18px; display:block; }
+      @media (max-width: 767px){ #maximize-btn{ display:none !important; } #pane.maximized{ top:auto; left:auto; right:16px; bottom:72px; width:min(92vw, 380px); max-height:72vh; } }
       .body{ padding: .75rem; overflow: auto; display:flex; flex-direction:column; gap:.5rem; }
       .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 240px; overflow:auto; display:flex; flex-direction:column; gap:.4rem; background:#fff; }
+      #pane.maximized .body{ flex: 1; overflow: hidden; }
+      #pane.maximized .chat{ flex: 1; height: auto; }
       .msg{ position: relative; padding:.6rem .8rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
       .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
       .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
@@ -164,10 +177,47 @@
     pane.setAttribute('aria-modal', 'true');
     pane.setAttribute('aria-hidden', 'true');
 
+    // Helper function to create header button with SVG icon
+    function createHeaderButton(iconSrc, ariaLabel, clickHandler) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'header-btn';
+      btn.setAttribute('aria-label', ariaLabel);
+      btn.title = ariaLabel;
+      
+      const img = document.createElement('img');
+      img.src = iconSrc;
+      img.alt = '';
+      btn.appendChild(img);
+      
+      if (clickHandler) {
+        btn.addEventListener('click', clickHandler);
+      }
+      
+      return btn;
+    }
+
     const header = document.createElement('header');
-    header.textContent = 'Salient Chat';
-    const closeX = document.createElement('button'); closeX.textContent = '×'; closeX.className='btn'; closeX.style.background='transparent'; closeX.style.color='#fff'; closeX.style.borderColor='transparent'; closeX.addEventListener('click', close);
-    header.appendChild(closeX);
+    
+    // Create maximize/minimize button (left side)
+    // Note: Handler is assigned later after toggleMaximize function is defined
+    const maximizeBtn = createHeaderButton(maximizeIconSrc, 'Maximize chat', null);
+    maximizeBtn.id = 'maximize-btn';
+    maximizeBtn.setAttribute('aria-expanded', 'false');
+    
+    // Create title (center)
+    const headerTitle = document.createElement('span');
+    headerTitle.className = 'header-title';
+    headerTitle.textContent = 'Salient Chat';
+    
+    // Create close button (right side) - now with SVG
+    const closeBtn = createHeaderButton(closeIconSrc, 'Close chat', close);
+    closeBtn.id = 'close-btn';
+    
+    // Assemble header: [Maximize] [Title] [Close]
+    header.appendChild(maximizeBtn);
+    header.appendChild(headerTitle);
+    header.appendChild(closeBtn);
 
     const body = document.createElement('div');
     body.className = 'body';
@@ -225,6 +275,14 @@
     let busy=false; let activeSSE=null; let activeBotDiv=null; let accumulated='';
     let configCache = null;
     let historyLoaded = false;
+    
+    // Maximize/minimize state management
+    // TODO: Migrate to per-agent localStorage when Epic 0017-007 (per-agent cookies) is implemented
+    const STORAGE_KEY = 'salient_chat_widget_maximized';
+    let isMaximized = false;
+    
+    // Mobile detection
+    const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
     
     async function loadHistory(){
       if (historyLoaded) return;
@@ -408,10 +466,106 @@
     function open(){ host.setAttribute('data-open', '1'); fab.setAttribute('aria-expanded','true'); pane.setAttribute('aria-hidden','false'); maybeFetch(); loadHistory(); }
     function close(){ host.removeAttribute('data-open'); fab.setAttribute('aria-expanded','false'); pane.setAttribute('aria-hidden','true'); if(activeSSE){ try{ activeSSE.close(); }catch{} activeSSE=null; setBusy(false);} }
     function toggle(){ host.hasAttribute('data-open') ? close() : open(); }
+    
+    // Toggle maximize/minimize state
+    function toggleMaximize() {
+      // Prevent maximize on mobile
+      if (isMobile() && !isMaximized) {
+        debugLog('Maximize disabled on mobile');
+        return;
+      }
+      
+      isMaximized = !isMaximized;
+      
+      // Apply/remove maximized CSS class
+      if (isMaximized) {
+        pane.classList.add('maximized');
+      } else {
+        pane.classList.remove('maximized');
+      }
+      
+      // Save preference to localStorage
+      try {
+        localStorage.setItem(STORAGE_KEY, isMaximized ? '1' : '0');
+      } catch (e) {
+        debugLog('localStorage save failed:', e);
+      }
+      
+      updateMaximizeButton();
+      debugLog('Maximize toggled:', isMaximized);
+    }
+    
+    // Load maximize preference from localStorage
+    function loadMaximizePreference() {
+      if (isMobile()) {
+        // Force minimized on mobile
+        isMaximized = false;
+        return;
+      }
+      
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved === '1') {
+          isMaximized = true;
+          pane.classList.add('maximized');
+          updateMaximizeButton();
+          debugLog('Loaded maximize preference: true');
+        }
+      } catch (e) {
+        debugLog('localStorage load failed:', e);
+      }
+    }
+    
+    // Handle window resize - force minimized on mobile
+    function handleResize() {
+      if (isMobile() && isMaximized) {
+        isMaximized = false;
+        pane.classList.remove('maximized');
+        updateMaximizeButton();
+        debugLog('Auto-minimized on mobile resize');
+      }
+    }
+    
+    // Update maximize button icon and ARIA attributes
+    function updateMaximizeButton() {
+      const img = maximizeBtn.querySelector('img');
+      if (isMaximized) {
+        img.src = minimizeIconSrc;
+        maximizeBtn.setAttribute('aria-label', 'Minimize chat');
+        maximizeBtn.setAttribute('aria-expanded', 'true');
+        maximizeBtn.title = 'Minimize chat';
+      } else {
+        img.src = maximizeIconSrc;
+        maximizeBtn.setAttribute('aria-label', 'Maximize chat');
+        maximizeBtn.setAttribute('aria-expanded', 'false');
+        maximizeBtn.title = 'Maximize chat';
+      }
+    }
 
     fab.addEventListener('click', toggle);
     overlay.addEventListener('click', close);
-    window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+    maximizeBtn.addEventListener('click', toggleMaximize);
+    
+    // ESC key two-step behavior: maximize → minimize → close
+    window.addEventListener('keydown', (e)=>{ 
+      if(e.key === 'Escape') {
+        if (!host.hasAttribute('data-open')) return; // Widget closed, do nothing
+        
+        if (isMaximized) {
+          // First press: minimize
+          toggleMaximize();
+        } else {
+          // Second press: close
+          close();
+        }
+      }
+    });
+    
+    // Handle window resize for mobile behavior
+    window.addEventListener('resize', handleResize);
+    
+    // Load maximize preference on initialization
+    loadMaximizePreference();
 
     window.SalientChatWidget = Object.assign(window.SalientChatWidget || {}, { 
       open, 

@@ -170,16 +170,16 @@ Unauthorized copying of this file is strictly prohibited.
   - **Testing**: backend/tests/manual/verify_wyckoff_index.py ✅ PASSED
   - **Dependencies**: Priority 3 complete (denormalized cost tracking helps with debugging)
 
-- [ ] 0003-010 - Chat Widget Maximize/Minimize Toggle 🎯 **NEXT**
+- [x] 0003-010 - Chat Widget Maximize/Minimize Toggle ✅ **COMPLETE**
   - Add maximize/minimize functionality to Shadow DOM chat widget
-  - Two states: minimized (default) and maximized (fills ~90% of viewport)
-  - Maximized positioning: 25px from top, 50px from left, preserves bottom-right anchor
-  - Features: Toggle button, smooth CSS transitions (~300ms), localStorage persistence, keyboard shortcuts (Alt+M)
-  - Accessibility: ARIA labels, focus management, ESC key handling (minimize → close)
-  - Mobile: Full-screen overlay for screens <768px
-  - Implementation: Update `web/public/widget/chat-widget.js`
-  - Configuration: Add `defaultMaximized` and `enableMaximize` options
-  - See: [Epic 0003-010](0003-website-htmx-chatbot.md#0003-010) for detailed 8-task breakdown (Toggle Button, Layout, Sizing, Transitions, State Persistence, Accessibility, Cross-Framework, Testing)
+  - Implementation: Size-based transitions (width/height) with bottom-right anchor preserved
+  - Minimized: 480px height (fixed) | Maximized: calc(100vh - 97px)
+  - Features: Toggle button (left side), smooth 500ms CSS transitions with cubic-bezier easing, localStorage persistence
+  - Accessibility: ARIA labels, tab order, ESC key two-step (maximize→minimize→close)
+  - Mobile: Force minimized on <768px, hide maximize button, auto-minimize on resize
+  - SVG icons: chat-maximize.svg, chat-minimize.svg, chat-close.svg
+  - Testing: Manual testing complete ✅ - smooth transitions, no regressions, seamless during SSE streaming
+  - See: [Epic 0003-010](0003-website-htmx-chatbot.md#0003-010) for detailed implementation (8 tasks, 7 complete, 1 doc deferred)
 
 ### **Priority 5: Directory Search Tool** 📋 🎯 **DEMO FEATURE**
 **Epic 0023 - Multi-Purpose Directory Service**
@@ -422,7 +422,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - ✅ 0017-005-003: Multi-Agent Data Integrity Verification Script ✅ **DONE**
     - Comprehensive test script with 3 output formats, cleanup script, all 5 agents verified
   
-- 🚧 **Priority 4 - Vector Search Tool & Chat Widget**: IN PROGRESS
+- ✅ **Priority 4 - Vector Search Tool & Chat Widget**: COMPLETE
   - ✅ Multi-Client Demo Site Architecture (3/3 chunks complete)
   - ✅ Vector Search Tool Implementation (3/3 chunks complete)
   - ✅ Bug Fixes (4/6 complete) - See [bugs-0017.md](bugs-0017.md)
@@ -432,7 +432,7 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
     - ✅ BUG-0017-005: Missing denormalized fields - FIXED 2025-10-18
     - ⏸️ BUG-0017-004: Duplicate user messages on retry - WON'T FIX
     - 📋 BUG-0017-007: Legacy non-multi-tenant endpoints still active - PLANNED (P2)
-  - 📋 0003-010: Chat Widget Maximize/Minimize Toggle - NEXT
+  - ✅ 0003-010: Chat Widget Maximize/Minimize Toggle - COMPLETE (2025-10-28)
 
 **Previous Milestone (Priority 2B - Epic 0022):** ✅ COMPLETE
 - Production-ready multi-tenant architecture with Pydantic AI agents
@@ -446,13 +446,14 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
    - ✅ BUG-0017-006: Pinecone multi-project API key support - DONE (config + lazy singleton)
    - ✅ 0022-001-005-03: Add agent_instance_slug to sessions table (fast analytics) - DONE
    - ✅ 0017-005-003: Multi-Agent Data Integrity Verification Script - DONE
-2. 🚧 **Priority 4: 0017-005 (Vector Search Tool)** - IN PROGRESS 🎯 **CURRENT**
+2. ✅ **Priority 4: Vector Search Tool & Chat Widget** - COMPLETE ✅ **2025-10-28**
    - ✅ Multi-client demo site architecture (complete)
    - ✅ Vector search tool implementation with Pydantic AI (complete)
    - ✅ Bug fixes (4/6 fixed, 1 won't fix, 1 planned for cleanup)
-   - 📋 Chat widget maximize/minimize (Epic 0003-010) - **NEXT**
-3. 📋 **Priority 5: Epic 0023 (Profile Search Tool)** - Generic profile search for natural language queries
+   - ✅ Chat widget maximize/minimize (Epic 0003-010) - COMPLETE
+3. 📋 **Priority 5: Epic 0023 (Directory Search Tool)** - Generic directory search for natural language queries 🎯 **NEXT**
 4. 📋 Priority 6: 0017-006 (Profile Fields Config & JSONB Migration)
-5. 📋 Priority 7: 0017-007 (Profile Capture Tool)
+5. 📋 Priority 7: 0017-012 (Profile Capture Tool)
 6. 📋 Priority 8: 0017-008 (Email Summary with Mailgun)
-7. 📋 **Priority 9: Multi-Provider Infrastructure** - Together.ai integration for LLM consistency
+7. 📋 Priority 9: Multi-Provider Infrastructure - Together.ai integration for LLM consistency
+8. 📋 Priority 10: 0017-007 (Per-Agent Cookie Configuration) - Session isolation per agent instance

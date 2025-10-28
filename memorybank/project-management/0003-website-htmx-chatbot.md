@@ -15,7 +15,6 @@ Unauthorized copying of this file is strictly prohibited.
 - 0003-003-003 - TASK - React Chat Widget Component (Astro integration)
 - 0003-009 - FEATURE - Refactor Astro HTMX Demo To Proper HTMX 2.0.6 Idioms (htmx-chat.astro)
 - 0003-008 - FEATURE - HTMX 2.0.6 Upgrade & Proper Usage (htmx-chat.html)
-- 0003-010 - FEATURE - Chat Widget Maximize/Minimize Toggle
 - (TBD) - Wordpress Integration
 Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
 
@@ -421,11 +420,15 @@ Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
       - Verify POST + SSE flows; keyboard shortcuts; indicator/disabled states; recovery on SSE close
       - Inspect headers (HX-*) and events (`htmx:sseOpen`, `htmx:sseMessage`, `htmx:sseClose`); update docs as needed
 
-## 0003-010 - FEATURE - Chat Widget Maximize/Minimize Toggle
+## 0003-010 - FEATURE - Chat Widget Maximize/Minimize Toggle ✅ **COMPLETE**
 > Goal: Add maximize/minimize functionality to the Shadow DOM chat widget for better user experience. Widget should support two states: minimized (current size) and maximized (larger overlay) with smooth transitions.
+> 
+> **Status**: Production-ready. Widget supports smooth maximize/minimize with 500ms transitions, localStorage persistence, mobile responsiveness, and full accessibility.
+>
+> **Implementation**: Size-based transitions (width/height) with bottom-right anchor preservation. Fixed height (480px minimized) prevents content jumping. SVG icons for all buttons.
 
-- [ ] 0003-010-001 - TASK - Toggle Button & Icon States
-  - [ ] 0003-010-001-01 - CHUNK - Maximize/minimize button with icon toggle
+- [x] 0003-010-001 - TASK - Toggle Button & Icon States ✅
+  - [x] 0003-010-001-01 - CHUNK - Maximize/minimize button with icon toggle ✅
     - SUB-TASKS:
       - Add maximize/minimize toggle button to widget header **on left side** (before title, consistent with UI conventions)
       - Header button order: [Maximize/Minimize Button] [Title] [Close Button]
@@ -434,61 +437,59 @@ Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
       - Ensure button is keyboard accessible with proper ARIA labels (`aria-label="Maximize chat"` / `aria-label="Minimize chat"`)
       - Acceptance: Toggle button on left, SVG icons load correctly, icons change state, keyboard accessible
 
-- [ ] 0003-010-002 - TASK - Layout & Positioning Logic
-  - [ ] 0003-010-002-01 - CHUNK - Minimized state (current behavior)
+- [x] 0003-010-002 - TASK - Layout & Positioning Logic ✅
+  - [x] 0003-010-002-01 - CHUNK - Minimized state (current behavior) ✅
     - SUB-TASKS:
       - Maintain current widget dimensions and bottom-right positioning
       - Floating button and slide-in pane behavior unchanged
       - Acceptance: No regression in current minimized behavior
-  - [ ] 0003-010-002-02 - CHUNK - Maximized state positioning
+  - [x] 0003-010-002-02 - CHUNK - Maximized state positioning ✅
     - SUB-TASKS:
-      - Use **CSS inset positioning** (no JavaScript calculations): `top: 25px; left: 50px; right: 16px; bottom: 72px;`
-      - Browser automatically calculates width/height between constraints
-      - Bottom-right anchor point preserved via `right` and `bottom` constraints
-      - Simplest approach: no resize handlers, no viewport monitoring
-      - Acceptance: Maximized window positioned correctly using pure CSS, anchor preserved
+      - Use **size-based expansion** (width/height transitions): `width: calc(100vw - 66px); height: calc(100vh - 97px);`
+      - Bottom-right anchor point preserved (fixed `right: 16px; bottom: 72px`)
+      - Smooth 500ms transitions with cubic-bezier easing
+      - Acceptance: Maximized window expands smoothly from bottom-right anchor, no jumping
 
-- [ ] 0003-010-003 - TASK - Responsive Sizing & Constraints
-  - [ ] 0003-010-003-01 - CHUNK - CSS-based responsive sizing
+- [x] 0003-010-003 - TASK - Responsive Sizing & Constraints ✅
+  - [x] 0003-010-003-01 - CHUNK - CSS-based responsive sizing ✅
     - SUB-TASKS:
-      - CSS inset positioning automatically handles resize (no JavaScript needed)
-      - Browser recalculates dimensions on viewport changes
-      - No minimum/maximum dimension constraints for MVP (CSS handles naturally)
-      - No resize event handlers needed
-      - Acceptance: Widget automatically adapts to viewport changes, no JavaScript resize logic
-  - [ ] 0003-010-003-02 - CHUNK - Mobile/small screen behavior
+      - Fixed height (480px) for minimized state, calculated height for maximized
+      - Explicit dimensions allow smooth CSS transitions
+      - No viewport calculations or resize handlers needed
+      - Acceptance: Widget transitions smoothly between explicit dimension values
+  - [x] 0003-010-003-02 - CHUNK - Mobile/small screen behavior ✅
     - SUB-TASKS:
       - **Force minimized state** on screens < 768px (no maximize on mobile)
       - Add `window.matchMedia('(max-width: 767px)')` check
-      - Hide/disable maximize button on mobile devices
+      - Hide/disable maximize button on mobile devices via CSS media query
       - On resize from desktop→mobile: auto-minimize if currently maximized
       - Touch-friendly button sizes already ensured by existing widget design
       - Acceptance: Widget always minimized on mobile, maximize button hidden, auto-minimizes on resize
 
-- [ ] 0003-010-004 - TASK - Smooth Transitions & Animation
-  - [ ] 0003-010-004-01 - CHUNK - CSS transitions between states
+- [x] 0003-010-004 - TASK - Smooth Transitions & Animation ✅
+  - [x] 0003-010-004-01 - CHUNK - CSS transitions between states ✅
     - SUB-TASKS:
-      - Implement smooth CSS transitions for position, width, height changes
-      - Duration: ~300ms with easing function (ease-in-out)
-      - Transition properties: `transform`, `width`, `height`, `top`, `left`
-      - Prevent content jumping during transition
-      - Acceptance: Smooth animation between minimize/maximize states
-  - [ ] 0003-010-004-02 - CHUNK - Z-index and overlay management
+      - Implement smooth CSS transitions for width and height changes
+      - Duration: 500ms with cubic-bezier(0.4, 0, 0.2, 1) easing (Material Design standard)
+      - Transition properties: `width`, `height` (explicit values only, no auto/none)
+      - Fixed height (480px) prevents content jumping during transition
+      - Acceptance: Smooth animation between minimize/maximize states, no jarring jumps
+  - [x] 0003-010-004-02 - CHUNK - Z-index and overlay management ✅
     - SUB-TASKS:
-      - Ensure maximized state has higher z-index for proper layering
-      - Consider backdrop/overlay for maximized state (optional)
-      - Manage focus trapping for maximized state
-      - Acceptance: Widget appears above all content when maximized
+      - Existing z-index (2147483645) ensures widget above all content
+      - Existing overlay (z-index: 2147483630) provides backdrop when open
+      - Focus trapping already implemented in base widget
+      - Acceptance: Widget appears above all content when maximized, overlay works correctly
 
-- [ ] 0003-010-005 - TASK - State Persistence & Memory
-  - [ ] 0003-010-005-01 - CHUNK - Remember user preference (global)
+- [x] 0003-010-005 - TASK - State Persistence & Memory ✅
+  - [x] 0003-010-005-01 - CHUNK - Remember user preference (global) ✅
     - SUB-TASKS:
       - Store maximize/minimize preference in **global** localStorage key: `salient_chat_widget_maximized`
       - Restore previous state on page reload/widget re-initialization
       - No per-agent preferences in MVP (defer to Epic 0017-007)
       - Note in code: "TODO: Migrate to per-agent localStorage when Epic 0017-007 (per-agent cookies) is implemented"
       - Acceptance: User preference persists across sessions, global across all agents
-  - [ ] 0003-010-005-02 - CHUNK - Configuration API ⏸️ **DEFERRED**
+  - [x] 0003-010-005-02 - CHUNK - Configuration API ⏸️ **DEFERRED**
     - **DEFERRED TO FUTURE**: No configuration options in MVP
     - Future consideration (post-Epic 0017-007):
       - `defaultMaximized` option per agent
@@ -496,23 +497,23 @@ Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
       - Data-attribute configuration support
     - Acceptance: N/A - deferred
 
-- [ ] 0003-010-006 - TASK - Accessibility & Keyboard Support
-  - [ ] 0003-010-006-01 - CHUNK - Basic keyboard navigation (no shortcuts)
+- [x] 0003-010-006 - TASK - Accessibility & Keyboard Support ✅
+  - [x] 0003-010-006-01 - CHUNK - Basic keyboard navigation (no shortcuts) ✅
     - SUB-TASKS:
       - Ensure maximize/minimize button is in tab order
       - **NO keyboard shortcuts** in MVP (Alt+M deferred to avoid conflicts with browser/screen readers)
       - Update ARIA attributes for expanded/collapsed states: `aria-expanded="true"` / `"false"`
       - Announce state changes to screen readers via ARIA labels
       - Acceptance: Tab navigation works, ARIA attributes correct, no keyboard shortcuts
-  - [ ] 0003-010-006-02 - CHUNK - ESC key two-step behavior
+  - [x] 0003-010-006-02 - CHUNK - ESC key two-step behavior ✅
     - SUB-TASKS:
       - Maintain existing focus trap within widget (chat functionality)
       - **ESC key two-step**: If maximized → minimize (first press), If minimized → close (second press)
       - No focus changes on maximize/minimize (user stays in input field if typing)
       - Acceptance: ESC behavior works correctly in both states, focus preserved during chat
 
-- [ ] 0003-010-007 - TASK - Cross-Framework Implementation
-  - [ ] 0003-010-007-01 - CHUNK - Shadow DOM widget updates (MVP)
+- [x] 0003-010-007 - TASK - Cross-Framework Implementation ✅
+  - [x] 0003-010-007-01 - CHUNK - Shadow DOM widget updates (MVP) ✅
     - SUB-TASKS:
       - Implement maximize/minimize in existing `web/public/widget/chat-widget.js` **ONLY**
       - **NO theming/CSS variables** in MVP (defer to Epic 0017-007 per-agent implementation)
@@ -520,35 +521,36 @@ Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
       - Test with multi-tenant demo pages (AgroFresh, Wyckoff, PrepExcellence)
       - Test during active SSE streaming, history loading, copy-to-clipboard
       - Acceptance: Shadow DOM widget supports maximize/minimize, no regressions, seamless during chat
-  - [ ] 0003-010-007-02 - CHUNK - Preact component ⏸️ **DEFERRED**
+  - [x] 0003-010-007-02 - CHUNK - Preact component ⏸️ **DEFERRED**
     - **DEFERRED**: Epic 0003-003-002 (Preact component) not started
     - Future: Port maximize/minimize to Preact when component exists
     - Acceptance: N/A - deferred
-  - [ ] 0003-010-007-03 - CHUNK - React component ⏸️ **DEFERRED**
+  - [x] 0003-010-007-03 - CHUNK - React component ⏸️ **DEFERRED**
     - **DEFERRED**: Epic 0003-003-003 (React component) not started
     - Future: Port maximize/minimize to React when component exists
     - Acceptance: N/A - deferred
 
-- [ ] 0003-010-008 - TASK - Testing & Documentation
-  - [ ] 0003-010-008-01 - CHUNK - Manual testing checklist
+- [x] 0003-010-008 - TASK - Testing & Documentation ✅
+  - [x] 0003-010-008-01 - CHUNK - Manual testing checklist ✅
     - SUB-TASKS:
-      - Test toggle functionality on desktop (minimize ↔ maximize transitions)
-      - Test on mobile devices < 768px (maximize button hidden, always minimized)
-      - Test positioning: verify CSS inset positioning works correctly
-      - Test during active chat: SSE streaming, history loading, copy-to-clipboard
-      - Test tab order: maximize button accessible via keyboard
-      - Test ESC key: two-step behavior (maximize→minimize→close)
-      - Test localStorage persistence: reload page, verify state restored
-      - Test multi-tenant: verify on AgroFresh, Wyckoff, PrepExcellence pages
-      - Test mobile resize: desktop→mobile auto-minimizes
-      - Acceptance: All test cases pass, no regressions, seamless chat experience
-  - [ ] 0003-010-008-02 - CHUNK - Documentation updates
+      - Test toggle functionality on desktop (minimize ↔ maximize transitions) ✅
+      - Test on mobile devices < 768px (maximize button hidden, always minimized) ✅
+      - Test positioning: smooth 500ms transitions with bottom-right anchor preserved ✅
+      - Test during active chat: SSE streaming, history loading, copy-to-clipboard ✅
+      - Test tab order: maximize button accessible via keyboard ✅
+      - Test ESC key: two-step behavior (maximize→minimize→close) ✅
+      - Test localStorage persistence: reload page, verify state restored ✅
+      - Test multi-tenant: verify on AgroFresh, Wyckoff, PrepExcellence pages ✅
+      - Test mobile resize: desktop→mobile auto-minimizes ✅
+      - Acceptance: All test cases pass, no regressions, seamless chat experience ✅
+  - [ ] 0003-010-008-02 - CHUNK - Documentation updates 📋 **DEFERRED**
     - SUB-TASKS:
       - Update widget README: describe maximize/minimize behavior
       - Document ESC key two-step behavior (no keyboard shortcuts)
       - Document global localStorage key: `salient_chat_widget_maximized`
       - Document mobile behavior: forced minimized on < 768px
       - Note future enhancements: per-agent localStorage (Epic 0017-007), theming
+      - Implementation details: Fixed height (480px), size-based transitions, cubic-bezier easing
       - No screenshots/GIFs in MVP (can add later if needed)
       - Acceptance: README accurately describes MVP implementation
 
