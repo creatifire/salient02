@@ -1636,7 +1636,7 @@ This multi-model architecture validates that the Pydantic AI implementation is m
 ## Priority 2B+: PrepExcellence Demo Site
 
 ### 0017-005-004 - TASK - PrepExcellence Demo Site Implementation
-**Status**: 📋 Planned
+**Status**: 🚧 In Progress (3/5 complete)
 
 Create PrepExcellence test prep demo site following established multi-client patterns from AgroFresh and Wyckoff implementations.
 
@@ -1659,7 +1659,7 @@ Create PrepExcellence test prep demo site following established multi-client pat
 - Responsive design with mobile-first approach
 - Suggested questions UI for user engagement
 
-- [ ] 0017-005-004-001 - CHUNK - Database and backend agent configuration
+- [x] 0017-005-004-001 - CHUNK - Database and backend agent configuration ✅ **COMPLETE**
   - **PURPOSE**: Create PrepExcellence account, agent instance, and backend configuration files
   
   - **DATABASE SETUP**:
@@ -1757,10 +1757,10 @@ Create PrepExcellence test prep demo site following established multi-client pat
       - Test backend endpoint with vector search query: `curl -X POST http://localhost:8000/accounts/prepexcellence/agents/prepexcel_info_chat1/chat -H "Content-Type: application/json" -d '{"message": "What SAT courses do you offer?"}'`
       - Verify agent uses vector search tool in response (check logs for vector_search_start/vector_search_complete events)
     
-  - STATUS: Planned — Backend infrastructure for PrepExcellence demo
+  - STATUS: ✅ COMPLETE — Backend configuration, database records, Pinecone connectivity verified, agent tested with vector search (Commit: 68fb83a)
   - PRIORITY: High — Foundation for all frontend work
 
-- [ ] 0017-005-004-002 - CHUNK - Frontend folder structure and layouts
+- [x] 0017-005-004-002 - CHUNK - Frontend folder structure and layouts ✅ **COMPLETE**
   - **PURPOSE**: Create PrepExcellence-specific layouts, components, and styling following established patterns
   
   - **FOLDER STRUCTURE** (following AgroFresh/Wyckoff pattern):
@@ -1896,10 +1896,10 @@ Create PrepExcellence test prep demo site following established multi-client pat
       - Review CSS theme colors (purple/blue academic palette)
       - Test demo selector shows PrepExcellence card
     
-  - STATUS: Planned — Frontend infrastructure for PrepExcellence
+  - STATUS: ✅ COMPLETE — Layout, components, styles, homepage created and integrated into demo selector (Commit: 68fb83a)
   - PRIORITY: High — Required before creating pages
 
-- [ ] 0017-005-004-003 - CHUNK - Create PrepExcellence demo pages
+- [ ] 0017-005-004-003 - CHUNK - Create PrepExcellence demo pages ⏸️ **PARTIAL**
   - **PURPOSE**: Build realistic test prep demo site with pages showcasing courses, tutoring, and admissions
   
   - **PAGES TO CREATE** (8 pages total):
@@ -2021,10 +2021,10 @@ Create PrepExcellence test prep demo site following established multi-client pat
       - Test accessibility: keyboard navigation, screen reader compatibility, semantic HTML
       - Verify chat history persists across page navigation within PrepExcellence site
     
-  - STATUS: Planned — Complete PrepExcellence demo site
+  - STATUS: ⏸️ PARTIAL — Homepage created with hero section, feature cards, testimonials, and chat widget integration. Remaining pages (About, Courses, Tutoring, Admissions, Contact) not yet created
   - PRIORITY: High — User-facing demo showcase
 
-- [ ] 0017-005-004-004 - CHUNK - Demo selector integration and testing
+- [x] 0017-005-004-004 - CHUNK - Demo selector integration and testing ✅ **COMPLETE**
   - **PURPOSE**: Update root demo selector page and perform end-to-end validation
   
   - **DEMO SELECTOR UPDATE** (`web/src/pages/index.astro`):
@@ -2108,8 +2108,13 @@ Create PrepExcellence test prep demo site following established multi-client pat
       - Test suggested questions on PrepExcellence pages
       - Verify responsive design on all viewports
     
-  - STATUS: Planned — Final integration and validation
+  - STATUS: ✅ COMPLETE — Demo selector updated with PrepExcellence card, multi-client isolation verified (Commit: 68fb83a)
   - PRIORITY: Medium — Completion and polish
+
+- [x] 0017-005-004-005 - CHUNK - Vector search end-to-end testing ✅ **TESTED**
+  - **PURPOSE**: Verify vector search works correctly with prepexcellence-poc-01 index
+  - **STATUS**: ✅ TESTED — Vector search tool working with Gemini 2.5 Flash model. Test query "what sat classes do you offer" successfully retrieved PrepExcellence course information from Pinecone. See LLM Tool Calling Evaluation for model selection rationale (Commit: 68fb83a)
+  - **PRIORITY**: High — Required for functional demo
 
 **TESTING SUMMARY**:
 
@@ -2636,7 +2641,471 @@ Comprehensive test infrastructure to verify database integrity across all agent 
       - **Features**: Timing tracking, 3 isolation scenarios, data preservation by default
     - PRIORITY: High — Required to verify data model cleanup is working correctly
 
-## Priority 2C: Profile Configuration & Schema
+## Priority 2C: Per-Agent Session Management
+
+### 0017-007 - FEATURE - Per-Agent Cookie Configuration
+**Status**: 📋 Planned — Ready for Implementation
+
+Implement backend-controlled per-agent cookie naming to ensure proper session isolation between agent instances.
+
+**RATIONALE**: Currently all agents share a single session cookie name, which can cause session conflicts when users interact with multiple agents. Per-agent cookie names ensure complete session isolation at the browser level.
+
+**COOKIE NAME FORMAT**: `<account_slug>_<agent_instance_slug>_sk`
+- Example: `prepexcellence_prepexcel_info_chat1_sk`
+- Example: `wyckoff_wyckoff_info_chat1_sk`
+- Example: `agrofresh_agro_info_chat1_sk`
+
+**BREAKING CHANGE**: This implementation has no backwards compatibility. All existing sessions will be invalidated when deployed. This is acceptable since there are no production deployments yet.
+
+**SECURITY CONSIDERATIONS**:
+- ✅ Cookie names are predictable (session ID is the secret, not the cookie name)
+- ✅ Per-agent isolation prevents session leakage between agents
+- ✅ SameSite, Secure, and Domain attributes must be properly configured for embedded widgets
+- ✅ HttpOnly flag prevents JavaScript access to session tokens
+- ✅ Cookie name length: ~37 chars + session ID (~32 chars) = ~69 chars (well within 4KB browser limit)
+
+- [ ] 0017-007-001 - TASK - Backend Session Cookie Configuration
+
+  - [ ] 0017-007-001-001 - CHUNK - Add cookie configuration to agent config.yaml
+    - **PURPOSE**: Define per-agent cookie naming in agent configuration files
+    
+    - **CONFIGURATION STRUCTURE**:
+      ```yaml
+      # backend/config/agent_configs/prepexcellence/prepexcel_info_chat1/config.yaml
+      
+      agent_type: "simple_chat"
+      account: "prepexcellence"
+      instance_name: "prepexcel_info_chat1"
+      
+      # NEW: Session cookie configuration
+      session:
+        cookie_name: "prepexcellence_prepexcel_info_chat1_sk"  # Format: {account}_{instance}_sk
+        cookie_max_age: 2592000  # 30 days in seconds (optional, defaults to 30 days)
+        cookie_domain: null  # null = current domain only (optional, defaults to null)
+        cookie_secure: true  # Require HTTPS (optional, defaults to true in production)
+        cookie_samesite: "lax"  # "strict", "lax", or "none" (optional, defaults to "lax")
+        cookie_httponly: true  # Prevent JavaScript access (optional, defaults to true)
+      ```
+    
+    - **VALIDATION RULES**:
+      - `cookie_name` must match pattern: `^[a-z0-9]+_[a-z0-9_]+_sk$`
+      - `cookie_name` length must be ≤ 50 characters
+      - `cookie_name` must be unique across all agents (no duplicates)
+      - `cookie_secure` must be `true` if `cookie_samesite` is `"none"`
+    
+    - SUB-TASKS:
+      - Update all existing agent config.yaml files (5 agents: agrofresh, wyckoff, prepexcellence, simple_chat1, simple_chat2)
+      - Add session.cookie_name for each agent using format: `{account}_{instance}_sk`
+      - Add cookie configuration validation to `config_loader.py`
+      - Create `get_agent_cookie_config()` function in `config_loader.py`
+      - Add uniqueness check: verify no duplicate cookie names across agents
+      - Document cookie configuration in `backend/README.md`
+    
+    - AUTOMATED-TESTS: `backend/tests/unit/test_cookie_config.py`
+      - `test_cookie_config_loads()` - Verify cookie config loads from agent YAML
+      - `test_cookie_name_validation()` - Test pattern validation (alphanumeric + underscores + "_sk" suffix)
+      - `test_cookie_name_length_limit()` - Verify 50 character limit enforced
+      - `test_cookie_name_uniqueness()` - Verify no duplicate names across agents
+      - `test_cookie_defaults()` - Verify default values (max_age=30 days, secure=true, etc.)
+      - `test_invalid_cookie_configs()` - Test error handling for malformed configs
+    
+    - MANUAL-TESTS:
+      - Review all 5 agent config.yaml files for correct cookie_name values
+      - Verify each cookie_name matches format: `{account}_{instance}_sk`
+      - Check for duplicate cookie names: `grep -r "cookie_name:" backend/config/agent_configs/`
+      - Test config loader: `python -c "from app.services.config_loader import get_agent_cookie_config; print(get_agent_cookie_config('prepexcellence/prepexcel_info_chat1'))"`
+      - Verify validation errors for invalid cookie names
+    
+    - STATUS: Planned — Configuration structure defined
+    - PRIORITY: High — Foundation for session isolation
+
+  - [ ] 0017-007-001-002 - CHUNK - Update session middleware for per-agent cookies
+    - **PURPOSE**: Modify backend session middleware to use agent-specific cookie names
+    
+    - **IMPLEMENTATION APPROACH**:
+      ```python
+      # backend/app/middleware/session_middleware.py
+      
+      from app.services.config_loader import get_agent_cookie_config
+      
+      async def get_or_create_session(request: Request, account: str, agent: str) -> Session:
+          """
+          Get or create session using agent-specific cookie name.
+          
+          Args:
+              request: FastAPI request object
+              account: Account slug (e.g., "prepexcellence")
+              agent: Agent instance slug (e.g., "prepexcel_info_chat1")
+          
+          Returns:
+              Session object with proper cookie configuration
+          """
+          # 1. Load agent cookie config
+          cookie_config = get_agent_cookie_config(f"{account}/{agent}")
+          cookie_name = cookie_config["cookie_name"]
+          
+          # 2. Check for existing session via agent-specific cookie
+          session_id = request.cookies.get(cookie_name)
+          
+          if session_id:
+              # Retrieve existing session from database
+              session = await get_session_by_id(session_id)
+              if session:
+                  return session
+          
+          # 3. Create new session with agent context
+          new_session = await create_session(
+              account_id=get_account_id(account),
+              agent_instance_id=get_agent_instance_id(account, agent)
+          )
+          
+          return new_session
+      
+      def set_session_cookie(response: Response, session: Session, cookie_config: dict):
+          """
+          Set session cookie with agent-specific name and attributes.
+          
+          Args:
+              response: FastAPI response object
+              session: Session object
+              cookie_config: Cookie configuration from agent config.yaml
+          """
+          response.set_cookie(
+              key=cookie_config["cookie_name"],
+              value=str(session.id),
+              max_age=cookie_config.get("cookie_max_age", 2592000),  # 30 days default
+              domain=cookie_config.get("cookie_domain"),  # None = current domain
+              secure=cookie_config.get("cookie_secure", True),
+              httponly=cookie_config.get("cookie_httponly", True),
+              samesite=cookie_config.get("cookie_samesite", "lax")
+          )
+      ```
+    
+    - **SECURITY ENHANCEMENTS**:
+      - Validate session ID format (UUID4) before database lookup
+      - Add session expiry check (delete expired sessions)
+      - Implement CSRF token validation for state-changing operations
+      - Add rate limiting per session ID (prevent session enumeration)
+    
+    - SUB-TASKS:
+      - Update `session_middleware.py` to accept `account` and `agent` parameters
+      - Modify `get_or_create_session()` to load agent cookie config
+      - Update cookie reading logic to use agent-specific cookie name
+      - Update cookie writing logic in response with agent-specific name and attributes
+      - Remove old global cookie name constants (breaking change)
+      - Update all endpoint handlers to pass account/agent to session middleware
+      - Add session ID validation (must be valid UUID4)
+      - Implement session expiry cleanup (delete sessions older than max_age)
+      - Add logging for cookie operations (set, read, errors)
+    
+    - AUTOMATED-TESTS: `backend/tests/integration/test_session_middleware_cookies.py`
+      - `test_session_cookie_created_with_agent_name()` - Verify agent-specific cookie name used
+      - `test_session_cookie_attributes()` - Test secure, httponly, samesite attributes
+      - `test_session_cookie_isolation()` - Multiple agents create separate cookies
+      - `test_session_retrieval_by_cookie()` - Verify session lookup by agent-specific cookie
+      - `test_invalid_session_id_format()` - Test rejection of malformed session IDs
+      - `test_expired_session_cleanup()` - Verify expired sessions are deleted
+      - `test_missing_cookie_creates_new_session()` - Test new session creation flow
+    
+    - MANUAL-TESTS:
+      - Start backend, navigate to `http://localhost:4321/prepexcellence/`
+      - Open DevTools → Application → Cookies
+      - Send chat message, verify cookie created: `prepexcellence_prepexcel_info_chat1_sk`
+      - Check cookie attributes: Secure=true, HttpOnly=true, SameSite=Lax
+      - Navigate to `http://localhost:4321/wyckoff/`
+      - Send chat message, verify separate cookie: `wyckoff_wyckoff_info_chat1_sk`
+      - Verify both cookies coexist with different session IDs
+      - Test session persistence: Refresh page, verify same session ID used
+      - Clear cookies, verify new session created on next message
+    
+    - STATUS: Planned — Session middleware updated
+    - PRIORITY: High — Core backend functionality
+
+  - [ ] 0017-007-001-003 - CHUNK - Update chat widget for per-agent cookies
+    - **PURPOSE**: Modify frontend chat widget to read/write agent-specific cookies
+    
+    - **WIDGET COOKIE HANDLING**:
+      ```javascript
+      // public/widget/chat-widget.js
+      
+      class SalientChatWidget {
+          constructor(config) {
+              this.config = config;
+              // Generate agent-specific cookie name from config
+              this.cookieName = `${config.account}_${config.agent}_sk`;
+          }
+          
+          /**
+           * Get session ID from agent-specific cookie
+           * @returns {string|null} Session ID or null if not found
+           */
+          getSessionId() {
+              const cookies = document.cookie.split(';');
+              for (let cookie of cookies) {
+                  const [name, value] = cookie.trim().split('=');
+                  if (name === this.cookieName) {
+                      return value;
+                  }
+              }
+              return null;
+          }
+          
+          /**
+           * Set session ID in agent-specific cookie (if needed)
+           * Note: Backend sets the cookie, widget only reads it
+           * @param {string} sessionId - Session ID from backend response
+           */
+          setSessionId(sessionId) {
+              // Widget primarily READS cookies set by backend
+              // Only sets cookie if backend didn't (edge case)
+              if (!this.getSessionId()) {
+                  document.cookie = `${this.cookieName}=${sessionId}; path=/; max-age=2592000; SameSite=Lax; Secure`;
+              }
+          }
+          
+          /**
+           * Include session ID in API requests
+           */
+          async sendMessage(message) {
+              const sessionId = this.getSessionId();
+              
+              const response = await fetch(`${this.config.backend}/accounts/${this.config.account}/agents/${this.config.agent}/chat`, {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json'
+                  },
+                  credentials: 'include',  // Send cookies with request
+                  body: JSON.stringify({
+                      message: message,
+                      session_id: sessionId  // Optional: can also rely on cookie
+                  })
+              });
+              
+              return response;
+          }
+      }
+      ```
+    
+    - **CROSS-ORIGIN CONSIDERATIONS**:
+      - Widget embedded in `prepexcellence.com` must send cookies to `localhost:8000`
+      - Backend must set `Access-Control-Allow-Credentials: true`
+      - Backend must set `Access-Control-Allow-Origin` to specific origin (not `*`)
+      - Cookie must have `SameSite=None; Secure` for cross-origin (if needed)
+    
+    - SUB-TASKS:
+      - Update widget constructor to generate cookie name from `config.account` and `config.agent`
+      - Modify `getSessionId()` to read agent-specific cookie name
+      - Update `sendMessage()` to include `credentials: 'include'` for cookie transmission
+      - Add cookie name validation in widget (match backend pattern)
+      - Update widget initialization to log cookie name for debugging
+      - Test cross-origin cookie handling (embedded widget scenarios)
+      - Add error handling for missing/invalid cookies
+      - Document widget cookie behavior in `web/README.md`
+    
+    - AUTOMATED-TESTS: `web/tests/test_widget_cookies.spec.ts` (Playwright)
+      - `test_widget_reads_agent_cookie()` - Verify widget reads correct cookie name
+      - `test_widget_sends_credentials()` - Verify cookies sent with API requests
+      - `test_multiple_widgets_different_cookies()` - Test widget isolation (multiple agents on same page)
+      - `test_cross_origin_cookie_handling()` - Test embedded widget cookie behavior
+      - `test_missing_cookie_creates_new_session()` - Verify new session flow when cookie absent
+    
+    - MANUAL-TESTS:
+      - Navigate to `http://localhost:4321/prepexcellence/`
+      - Open DevTools Console, check for cookie name log: "Using cookie: prepexcellence_prepexcel_info_chat1_sk"
+      - Send chat message, verify Network tab shows cookie sent with request
+      - Navigate to `http://localhost:4321/wyckoff/`
+      - Verify different cookie name logged: "Using cookie: wyckoff_wyckoff_info_chat1_sk"
+      - Open two different agent pages in separate tabs
+      - Verify each tab uses its own cookie (check DevTools → Application → Cookies)
+      - Test conversation persistence: Send messages, refresh page, verify history loads
+      - Test cross-origin: Embed widget in external site (if applicable), verify cookies work
+    
+    - STATUS: Planned — Widget cookie handling updated
+    - PRIORITY: High — Frontend integration required
+
+  - [ ] 0017-007-001-004 - CHUNK - Database cleanup and migration
+    - **PURPOSE**: Clean up old session data and verify no legacy cookie dependencies
+    
+    - **CLEANUP STRATEGY**:
+      - Delete all existing sessions (breaking change, no backwards compatibility)
+      - Verify no hardcoded cookie names remain in codebase
+      - Update session creation to always use agent-specific cookies
+      - Add database indexes for efficient session lookup by account/agent
+    
+    - **MIGRATION SCRIPT**:
+      ```python
+      # backend/scripts/cleanup_legacy_sessions.py
+      
+      async def cleanup_legacy_sessions():
+          """
+          Delete all existing sessions (breaking change).
+          No migration needed since there's no backwards compatibility.
+          """
+          async with get_db_session() as db:
+              # Count existing sessions
+              count = await db.execute("SELECT COUNT(*) FROM sessions")
+              total = count.scalar()
+              
+              print(f"Found {total} existing sessions")
+              print("Deleting all sessions (breaking change)...")
+              
+              # Delete all sessions
+              await db.execute("DELETE FROM sessions")
+              await db.commit()
+              
+              print(f"✅ Deleted {total} sessions")
+              print("All users will need to start new sessions with agent-specific cookies")
+      ```
+    
+    - SUB-TASKS:
+      - Create cleanup script: `backend/scripts/cleanup_legacy_sessions.py`
+      - Add confirmation prompt before deletion ("Are you sure? [y/N]")
+      - Delete all records from `sessions` table
+      - Delete orphaned records from `messages` table (if foreign key not set to CASCADE)
+      - Verify no hardcoded cookie names in codebase: `grep -r "salient_session" backend/`
+      - Add database index: `CREATE INDEX idx_sessions_account_agent ON sessions(account_id, agent_instance_id);`
+      - Document breaking change in `CHANGELOG.md`
+      - Update deployment documentation with cleanup steps
+    
+    - AUTOMATED-TESTS: `backend/tests/integration/test_session_cleanup.py`
+      - `test_cleanup_script_deletes_all_sessions()` - Verify all sessions deleted
+      - `test_no_orphaned_messages()` - Verify foreign key CASCADE or manual cleanup works
+      - `test_fresh_session_creation()` - Verify new sessions work after cleanup
+    
+    - MANUAL-TESTS:
+      - Backup database before running cleanup: `pg_dump salient_dev > backup_before_cookie_migration.sql`
+      - Check existing session count: `SELECT COUNT(*) FROM sessions;`
+      - Run cleanup script: `python backend/scripts/cleanup_legacy_sessions.py`
+      - Verify sessions deleted: `SELECT COUNT(*) FROM sessions;` (should be 0)
+      - Test new session creation: Send chat message via widget
+      - Verify new session created with agent-specific cookie: `SELECT * FROM sessions ORDER BY created_at DESC LIMIT 5;`
+      - Check no hardcoded cookie names: `grep -rn "salient_session[^_]" backend/`
+      - Verify database indexes: `\d sessions` in psql
+    
+    - STATUS: Planned — Database cleanup and verification
+    - PRIORITY: Medium — Cleanup before deployment
+
+  - [ ] 0017-007-001-005 - CHUNK - End-to-end testing and documentation
+    - **PURPOSE**: Comprehensive testing of per-agent cookie isolation and user documentation
+    
+    - **END-TO-END TEST SCENARIOS**:
+      1. **Single Agent Conversation**:
+         - User visits PrepExcellence site
+         - Sends messages, verify correct cookie created
+         - Refresh page, verify session persists
+         - Clear cookie, verify new session created
+      
+      2. **Multi-Agent Isolation**:
+         - User opens PrepExcellence tab (tab A)
+         - User opens Wyckoff tab (tab B)
+         - Send messages in both tabs
+         - Verify separate cookies and sessions for each
+         - Verify conversation history doesn't leak between tabs
+      
+      3. **Cross-Origin Widget**:
+         - Embed widget in external site (if applicable)
+         - Verify cookies work across origins
+         - Test SameSite and Secure attributes
+      
+      4. **Session Expiry**:
+         - Create session, wait for max_age to expire (or manually age session in DB)
+         - Verify expired session deleted
+         - Verify new session created on next request
+      
+      5. **Security Testing**:
+         - Attempt session hijacking with wrong cookie name
+         - Verify CSRF protection (if implemented)
+         - Test malformed session IDs rejected
+    
+    - **DOCUMENTATION UPDATES**:
+      - Update `backend/README.md` with cookie configuration guide
+      - Update `web/README.md` with widget cookie behavior
+      - Document cookie name format and validation rules
+      - Add troubleshooting guide for cookie issues
+      - Update API documentation with cookie requirements
+      - Document breaking change in `CHANGELOG.md`
+      - Add migration guide for future deployments
+    
+    - SUB-TASKS:
+      - Create comprehensive E2E test suite: `web/tests/e2e_cookie_isolation.spec.ts`
+      - Test all 5 scenarios listed above
+      - Add session expiry testing (manual or time-mocked)
+      - Security testing: malformed cookies, session hijacking attempts
+      - Update `backend/README.md` with cookie configuration section
+      - Update `web/README.md` with widget cookie documentation
+      - Create troubleshooting guide: `docs/troubleshooting-cookies.md`
+      - Document breaking change in `CHANGELOG.md`
+      - Add cookie migration guide for future deployments
+    
+    - AUTOMATED-TESTS: `web/tests/e2e_cookie_isolation.spec.ts` (Playwright)
+      - `test_single_agent_session_persistence()` - Single agent conversation flow
+      - `test_multi_agent_cookie_isolation()` - Multiple agents, separate sessions
+      - `test_cross_origin_widget_cookies()` - Cross-origin cookie handling (if applicable)
+      - `test_session_expiry_and_renewal()` - Expired session cleanup and new session creation
+      - `test_malformed_cookie_rejection()` - Security: reject invalid session IDs
+      - `test_cross_account_session_isolation()` - Verify agrofresh session ≠ wyckoff session
+    
+    - MANUAL-TESTS:
+      - **Scenario 1: Single Agent**
+        - Navigate to `http://localhost:4321/prepexcellence/`
+        - Send 3-5 messages, verify conversation builds up
+        - Refresh page, verify history persists (same cookie)
+        - Clear cookies in DevTools, send new message
+        - Verify new cookie created with different session ID
+      
+      - **Scenario 2: Multi-Agent Isolation**
+        - Open `http://localhost:4321/prepexcellence/` in tab 1
+        - Open `http://localhost:4321/wyckoff/` in tab 2
+        - Send messages in both tabs
+        - Verify DevTools shows different cookies (prepexcellence_* vs wyckoff_*)
+        - Verify conversation history doesn't appear in wrong tab
+      
+      - **Scenario 3: Database Verification**
+        - Query sessions: `SELECT account_slug, agent_instance_slug, session_id FROM sessions JOIN accounts ON sessions.account_id = accounts.id;`
+        - Verify each session tied to correct account and agent
+        - Check messages: `SELECT session_id, role, content FROM messages ORDER BY created_at DESC LIMIT 10;`
+        - Verify no cross-session message leakage
+      
+      - **Scenario 4: Security Testing**
+        - Manually edit cookie in DevTools to invalid UUID
+        - Send message, verify backend rejects and creates new session
+        - Try cookie from one agent on another agent's endpoint
+        - Verify backend creates new session (no hijacking)
+      
+      - **Scenario 5: Documentation Review**
+        - Read `backend/README.md` cookie configuration section
+        - Follow steps to configure new agent
+        - Verify documentation is clear and complete
+        - Check troubleshooting guide covers common issues
+    
+    - STATUS: Planned — Final validation and documentation
+    - PRIORITY: High — Required for release
+
+**TESTING SUMMARY**:
+
+**AUTOMATED-TESTS** (25 tests total):
+- **Unit Tests**: `test_cookie_config.py` (6 tests - config validation)
+- **Integration Tests**: `test_session_middleware_cookies.py` (7 tests - backend session handling)
+- **Integration Tests**: `test_session_cleanup.py` (3 tests - database cleanup)
+- **Widget Tests**: `test_widget_cookies.spec.ts` (5 tests - frontend cookie handling)
+- **E2E Tests**: `e2e_cookie_isolation.spec.ts` (6 tests - full stack validation)
+
+**MANUAL-TESTS**:
+- Configuration verification (5 agents, cookie names, uniqueness)
+- Backend session middleware testing (cookie creation, attributes, isolation)
+- Widget integration testing (cookie reading, API requests, cross-origin)
+- Database cleanup verification (session deletion, fresh start)
+- End-to-end scenarios (5 scenarios covering all use cases)
+- Security testing (malformed cookies, session hijacking)
+
+**DOCUMENTATION UPDATES**:
+- `backend/README.md` - Cookie configuration guide
+- `web/README.md` - Widget cookie behavior
+- `docs/troubleshooting-cookies.md` - Troubleshooting guide (NEW)
+- `CHANGELOG.md` - Breaking change documentation
+- API documentation - Cookie requirements
+
+## Priority 2D: Profile Configuration & Schema
 
 ### 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
 **Status**: Planned
@@ -2670,13 +3139,15 @@ Configure dynamic profile fields via YAML and migrate profiles table to JSONB st
 
 ## Priority 2D: Profile Capture Tool
 
-### 0017-007 - FEATURE - Profile Capture Tool
+### 0017-012 - FEATURE - Profile Capture Tool
 **Status**: Planned
 
 Implement agent tool to capture and validate profile information during conversation.
 
-- [ ] 0017-007-001 - TASK - Profile Capture Agent Tool
-  - [ ] 0017-007-001-01 - CHUNK - Implement @agent.tool for profile capture
+**Note**: Renumbered from 0017-007 to 0017-012 to avoid conflict with Per-Agent Cookie Configuration (Priority 10).
+
+- [ ] 0017-012-001 - TASK - Profile Capture Agent Tool
+  - [ ] 0017-012-001-01 - CHUNK - Implement @agent.tool for profile capture
     - SUB-TASKS:
       - Tool validates captured data against profile_fields.yaml
       - Stores data in captured_profile_fields JSONB

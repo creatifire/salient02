@@ -201,17 +201,18 @@ Unauthorized copying of this file is strictly prohibited.
   - [x] 0023-008-001 - SessionDependencies (account_id + db_session) ✅
 
 **Phase 2 - Advanced Configurability (Planned)**:
-- [ ] 0017-005-004 - PrepExcellence Demo Site Implementation 📋 🎯 **NEXT**
-  - [ ] 0017-005-004-001 - Database and backend agent configuration
-  - [ ] 0017-005-004-002 - Frontend folder structure and layouts
-  - [ ] 0017-005-004-003 - Create PrepExcellence demo pages
-  - [ ] 0017-005-004-004 - Demo selector integration and testing
-  - [ ] 0017-005-004-005 - Vector search end-to-end testing
+- [ ] 0017-005-004 - PrepExcellence Demo Site Implementation 🚧 **IN PROGRESS (3/5 complete)**
+  - [x] 0017-005-004-001 - Database and backend agent configuration ✅
+  - [x] 0017-005-004-002 - Frontend folder structure and layouts ✅
+  - [ ] 0017-005-004-003 - Create PrepExcellence demo pages ⏸️ (Homepage only)
+  - [x] 0017-005-004-004 - Demo selector integration and testing ✅
+  - [x] 0017-005-004-005 - Vector search end-to-end testing ✅
   - **Purpose**: SAT/ACT/PSAT test prep demo site with Dr. Kaisar Alam
   - **Vector Search**: Enabled (prepexcellence-poc-01 index, __default__ namespace, PINECONE_API_KEY_OPENTHOUGHT)
-  - **Model**: anthropic/claude-3.5-sonnet (educational content)
+  - **Model**: google/gemini-2.5-flash (excellent tool calling, educational content)
   - **Theme**: Purple/blue academic palette (#6A1B9A, #1976D2)
-  - **Pages**: Homepage, About, Courses (SAT/ACT/PSAT/Summer), Tutoring, Admissions, Contact
+  - **Pages**: Homepage (complete), About, Courses (SAT/ACT/PSAT/Summer), Tutoring, Admissions, Contact (pending)
+  - **Status**: Backend ✅, Frontend Structure ✅, Demo Selector ✅, Vector Search ✅, Remaining Pages ⏸️
   - **See**: [Epic 0017-005-004](0017-simple-chat-agent.md#0017-005-004) for detailed implementation plan
 
 - [ ] 0023-004 - Advanced Configurability 📋
@@ -253,7 +254,9 @@ Unauthorized copying of this file is strictly prohibited.
 - [ ] 0017-006-002 - Migrate Profiles Table to JSONB
 
 ### **Priority 7: Profile Capture Tool** 📋
-- [ ] 0017-007-001 - Profile Capture Agent Tool
+**Epic 0017-012** (Renumbered from 0017-007)
+
+- [ ] 0017-012-001 - Profile Capture Agent Tool
   - Conversational capture of email/phone using @agent.tool
 
 ### **Priority 8: Email Summary Tool with Mailgun** 📋
@@ -274,7 +277,40 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Note**: Simple Chat Agent is now called "InfoBot" - information sharing bot (NO web search included)
 
-**Phase 1 MVP Complete**: Priorities 3 through 9 complete the InfoBot MVP: vector search, chat widget enhancements, profile search, profile fields, profile capture, email summaries, and multi-provider support.
+**Phase 1 MVP Complete**: Priorities 3 through 10 complete the InfoBot MVP: vector search, chat widget enhancements, profile search, profile fields, profile capture, email summaries, multi-provider support, and per-agent session isolation.
+
+### **Priority 10: Per-Agent Cookie Configuration** 📋 **PLANNED - Ready for Implementation**
+**Epic 0017-007 - Per-Agent Session Management**
+
+**Why Priority 10**: Implement backend-controlled per-agent cookie naming to ensure proper session isolation between agent instances. Currently all agents share a single session cookie, which can cause session conflicts when users interact with multiple agents.
+
+**Status**: Comprehensive implementation plan complete with 5 chunks, 25 automated tests, and security considerations documented.
+
+**Dependencies**: Requires multi-tenant architecture from Epic 0022 (complete in Priority 2B).
+
+- [ ] 0017-007-001 - Backend Session Cookie Configuration 📋
+  - [ ] 0017-007-001-001 - Add cookie configuration to agent config.yaml
+  - [ ] 0017-007-001-002 - Update session middleware for per-agent cookies
+  - [ ] 0017-007-001-003 - Update chat widget for per-agent cookies
+  - [ ] 0017-007-001-004 - Database cleanup and migration
+  - [ ] 0017-007-001-005 - End-to-end testing and documentation
+
+**Key Features**:
+- Cookie name format: `<account_slug>_<agent_instance_slug>_sk`
+- Example: `prepexcellence_prepexcel_info_chat1_sk`
+- Complete session isolation per agent instance
+- **Breaking Change**: No backwards compatibility (acceptable - no production deployments)
+
+**Security Enhancements**:
+- UUID4 session ID validation
+- HttpOnly, Secure, SameSite cookie attributes
+- Session expiry cleanup
+- CSRF protection guidance
+- Rate limiting per session
+
+**Testing**: 25 automated tests (unit, integration, widget, E2E)
+
+**See**: [Epic 0017-007](0017-simple-chat-agent.md#0017-007) for detailed 5-chunk implementation plan
 
 ---
 
@@ -282,7 +318,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-### **Priority 10: Email Capture & Consent** ⚠️ **DEPRECATED**
+### **Priority 11: Email Capture & Consent** ⚠️ **DEPRECATED**
 - [ ] 0017-009-001 - Email Collection System
 - [ ] 0017-009-002 - Consent and preferences management
   - **Status**: DEPRECATED - Superseded by Priority 7 (Profile Capture Tool)
@@ -290,13 +326,13 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
   - Decision: Profile Capture Tool (Priority 7) will handle email/phone collection conversationally
   - Action: Revisit only if Profile Capture Tool doesn't cover this use case
 
-### **Priority 11: Periodic Summarization** 📋
+### **Priority 12: Periodic Summarization** 📋
 - [ ] 0017-010-001 - Context Window Management System
   - Token counting and threshold monitoring
   - Conversation summarization engine
   - Automatic summarization triggers
 
-### **Priority 12: OTP Authentication** 📋
+### **Priority 13: OTP Authentication** 📋
 - [ ] 0017-011-001 - OTP Authentication System
   - Twilio Verify integration
   - Session upgrade and account creation
@@ -306,7 +342,7 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 ## PHASE 3: Multi-Agent Platform
 
-### **Priority 13: Multi-Client Widget Foundation** ✅ **DONE**
+### **Priority 14: Multi-Client Widget Foundation** ✅ **DONE**
 - [x] 0003-001-001 - Shadow DOM Widget ✅
   - Implementation: `web/public/widget/chat-widget.js`
   - Demo: `web/src/pages/demo/widget.astro`
@@ -327,7 +363,7 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 All migrated to multi-tenant architecture with explicit `/accounts/{account}/agents/{instance}/*` endpoints.
 
-### **Priority 14: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
+### **Priority 15: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
 **Note**: Epic 0022 replaces old multi-account/multi-instance epics with unified architecture
 
 - [x] 0005-002-001 - Agent type registration and discovery system ✅ **SUPERSEDED**
@@ -349,19 +385,19 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Not yet implemented
   - Future enhancement for production monitoring
 
-### **Priority 15: Sales Agent Addition** 📋
+### **Priority 16: Sales Agent Addition** 📋
 - [ ] 0008-001-001 - Sales agent foundation with business tools
 - [ ] 0008-001-002 - RAG integration with business knowledge
 - [ ] 0008-001-003 - Email integration (Mailgun)
 - [ ] 0008-001-004 - Scheduling integration (Nylas/Calendly)
 - [ ] 0008-001-005 - Profile data collection and lead qualification
 
-### **Priority 16: React and Vue Chat Widgets** 📋
+### **Priority 17: React and Vue Chat Widgets** 📋
 - [ ] 0003-002-001 - React Widget Component with TypeScript
 - [ ] 0003-002-002 - Vue 3 Widget Component with Composition API
 - [ ] 0003-002-003 - NPM Package Distribution (@salient/widget-react, @salient/widget-vue)
 
-### **Priority 17: Advanced Widget Features** 📋
+### **Priority 18: Advanced Widget Features** 📋
 - [ ] 0003-003-001 - Iframe Adapter for security isolation
 - [ ] 0003-003-002 - API-Only Mode for mobile integration
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
