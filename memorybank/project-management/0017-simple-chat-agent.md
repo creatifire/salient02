@@ -1633,6 +1633,553 @@ This multi-model architecture validates that the Pydantic AI implementation is m
     - STATUS: ✅ COMPLETE — Production-ready validation (Commit: c0499d3, Test: verify_wyckoff_index.py ✅ PASSED)
     - PRIORITY: High — Confirms MVP readiness
 
+## Priority 2B+: PrepExcellence Demo Site
+
+### 0017-005-004 - TASK - PrepExcellence Demo Site Implementation
+**Status**: 📋 Planned
+
+Create PrepExcellence test prep demo site following established multi-client patterns from AgroFresh and Wyckoff implementations.
+
+**Client Context**: [PrepExcellence](https://prepexcellence.com) - SAT/ACT/PSAT test preparation with Dr. Kaisar Alam, offering winter courses, tutoring, and college admissions support.
+
+**Reference Implementations**: 
+- Pattern established in 0017-005-001 (Multi-Client Demo Site Architecture)
+- AgroFresh: `/web/src/pages/agrofresh` (agricultural products, simple structure)
+- Wyckoff: `/web/src/pages/wyckoff` (healthcare services, doctor search, departments)
+
+**Architecture Decision**: Follow same multi-tenant pattern with separate account, agent instance, and PrepExcellence-specific branding (purple/blue academic theme).
+
+**SCOPE**: Complete demo site creation including folder structure, layouts, components, pages, backend configuration, and chat widget integration.
+
+**KEY DESIGN PRINCIPLES** (from established patterns):
+- Separate account (`prepexcellence`) for true multi-tenant isolation
+- Client-specific layout and components (PrepExcellenceLayout, PrepExcellenceHeader, PrepExcellenceFooter)
+- Chat widget integrated via footer with account/agent configuration
+- Academic theme colors (purple/blue palette: #6A1B9A, #1976D2)
+- Responsive design with mobile-first approach
+- Suggested questions UI for user engagement
+
+- [ ] 0017-005-004-001 - CHUNK - Database and backend agent configuration
+  - **PURPOSE**: Create PrepExcellence account, agent instance, and backend configuration files
+  
+  - **DATABASE SETUP**:
+      ```sql
+      -- Create prepexcellence account
+      INSERT INTO accounts (slug, name) VALUES ('prepexcellence', 'PrepExcellence');
+      
+      -- Create agent instance (will be referenced by UUID after creation)
+      INSERT INTO agent_instances (account_id, instance_slug, agent_type, display_name, status)
+      VALUES (
+        (SELECT id FROM accounts WHERE slug = 'prepexcellence'),
+        'prepexcel_info_chat1',
+        'simple_chat',
+        'PrepExcellence Assistant',
+        'active'
+      );
+      ```
+  
+  - **AGENT CONFIGURATION STRUCTURE**:
+    ```
+    backend/config/agent_configs/
+    └── prepexcellence/
+        └── prepexcel_info_chat1/
+            ├── config.yaml          # NEW - Agent settings
+            └── system_prompt.md     # NEW - Education-focused prompt
+    ```
+  
+  - **CONFIG.YAML EXAMPLE**:
+      ```yaml
+      agent_type: "simple_chat"
+      account: "prepexcellence"
+      instance_name: "prepexcel_info_chat1"
+      display_name: "PrepExcellence Assistant"
+      
+      model_settings:
+        model: "anthropic/claude-3.5-sonnet"  # Good for educational content
+        temperature: 0.3
+        max_tokens: 2000
+      
+      tools:
+        vector_search:
+          enabled: true
+          max_results: 5
+          similarity_threshold: 0.5
+          pinecone:
+            index_name: "prepexcellence-poc-01"
+            namespace: "__default__"
+            api_key_env: "PINECONE_API_KEY_OPENTHOUGHT"
+          embedding:
+            model: "text-embedding-3-small"
+            dimensions: 1536
+        directory:
+          enabled: false    # No directory data for test prep
+      
+      context_management:
+        history_limit: 50
+      ```
+  
+  - **SYSTEM PROMPT FOCUS**:
+    - Test preparation specialist (SAT, ACT, PSAT)
+    - Dr. Kaisar Alam's teaching methodology and success stories
+    - Course information (winter courses, summer enrichment, tutoring)
+    - College admissions guidance
+    - Student testimonials and score improvement guarantees
+    - Professional, encouraging, educational tone
+    - **Vector Search Tool Usage**: You have access to a vector search tool to search PrepExcellence's knowledge base. Use it when users ask about courses, test preparation strategies, Dr. Alam's teaching methods, pricing, schedules, or general information about PrepExcellence services. The knowledge base contains website content, course details, and educational resources
+  
+  - SUB-TASKS:
+      - Create `prepexcellence` account in database (INSERT statement)
+      - Create `prepexcel_info_chat1` agent instance in database
+      - Create directory: `backend/config/agent_configs/prepexcellence/prepexcel_info_chat1/`
+      - Create `config.yaml` with vector search enabled (index: prepexcellence-poc-01, namespace: __default__, api_key_env: PINECONE_API_KEY_OPENTHOUGHT)
+      - Create `system_prompt.md` with test prep/education focus and vector search tool guidance
+      - Document PrepExcellence-specific system prompt guidelines (emphasize Dr. Alam's teaching style, score improvement, student success, vector search usage)
+      - Verify `PINECONE_API_KEY_OPENTHOUGHT` environment variable is set
+      - Test Pinecone connectivity: `python backend/scripts/verify_prepexcel_index.py` (create verification script similar to verify_wyckoff_index.py)
+      - Test agent loads via: `python -c "from app.services.config_loader import get_agent_config; print(get_agent_config('prepexcellence/prepexcel_info_chat1'))"`
+  
+  - AUTOMATED-TESTS: `backend/tests/integration/test_prepexcel_agent.py`
+    - `test_prepexcel_agent_loads()` - Agent config loads successfully
+    - `test_prepexcel_account_exists()` - Database account record exists
+    - `test_prepexcel_agent_instance_exists()` - Database agent instance record exists
+    - `test_prepexcel_vector_enabled()` - Vector search enabled and configured correctly
+    - `test_prepexcel_pinecone_config()` - Pinecone settings correct (index, namespace, api_key_env)
+    - `test_prepexcel_system_prompt()` - System prompt contains education keywords and vector search guidance
+  
+  - MANUAL-TESTS:
+      - Verify database records: `SELECT * FROM accounts WHERE slug = 'prepexcellence';`
+      - Verify agent instance: `SELECT * FROM agent_instances WHERE instance_slug = 'prepexcel_info_chat1';`
+      - Load config: Verify YAML parses without errors and vector_search enabled
+      - Check Pinecone config: Verify index name, namespace, and api_key_env are correct
+      - Verify environment variable: `echo $PINECONE_API_KEY_OPENTHOUGHT` (should not be empty)
+      - Run Pinecone verification script: `python backend/scripts/verify_prepexcel_index.py`
+      - Check system prompt: Review for educational tone, PrepExcellence context, and vector search tool guidance
+      - Test backend endpoint with vector search query: `curl -X POST http://localhost:8000/accounts/prepexcellence/agents/prepexcel_info_chat1/chat -H "Content-Type: application/json" -d '{"message": "What SAT courses do you offer?"}'`
+      - Verify agent uses vector search tool in response (check logs for vector_search_start/vector_search_complete events)
+    
+  - STATUS: Planned — Backend infrastructure for PrepExcellence demo
+  - PRIORITY: High — Foundation for all frontend work
+
+- [ ] 0017-005-004-002 - CHUNK - Frontend folder structure and layouts
+  - **PURPOSE**: Create PrepExcellence-specific layouts, components, and styling following established patterns
+  
+  - **FOLDER STRUCTURE** (following AgroFresh/Wyckoff pattern):
+      ```
+      web/src/
+      ├── pages/
+      │   └── prepexcellence/              # NEW - PrepExcellence client
+      │       ├── index.astro              # Homepage
+      │       ├── about.astro              # About Dr. Alam and teaching methodology
+      │       ├── courses/                 # Course pages
+      │       │   ├── index.astro          # All courses overview
+      │       │   ├── sat.astro            # SAT preparation
+      │       │   ├── act.astro            # ACT preparation
+      │       │   ├── psat.astro           # PSAT preparation
+      │       │   └── summer.astro         # Summer enrichment
+      │       ├── tutoring.astro           # 1-on-1 tutoring information
+      │       ├── admissions.astro         # College admissions support
+      │       └── contact.astro            # Contact information
+      │
+      ├── layouts/
+      │   └── PrepExcellenceLayout.astro   # NEW - PrepExcellence layout
+      │
+      ├── components/
+      │   └── prepexcellence/              # NEW - PrepExcellence components
+      │       ├── PrepExcellenceHeader.astro
+      │       ├── PrepExcellenceFooter.astro
+      │       └── SuggestedQuestions.astro  # Reuse from Wyckoff or adapt
+      │
+      └── styles/
+          └── prepexcellence.css           # NEW - Purple/blue academic theme
+      ```
+  
+  - **LAYOUT EXAMPLE** (`PrepExcellenceLayout.astro`):
+      ```astro
+      ---
+      import PrepExcellenceHeader from "../components/prepexcellence/PrepExcellenceHeader.astro";
+      import PrepExcellenceFooter from "../components/prepexcellence/PrepExcellenceFooter.astro";
+      import "../styles/global.css";
+      import "../styles/prepexcellence.css";
+      
+      interface Props {
+        title?: string;
+      }
+      
+      const { title = "PrepExcellence - SAT & ACT Test Prep" } = Astro.props;
+      ---
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width" />
+          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+          <meta name="generator" content={Astro.generator} />
+          <title>{title}</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0;">
+          <a href="#main" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Skip to content</a>
+          <header role="banner">
+            <PrepExcellenceHeader />
+          </header>
+          <main id="main" role="main" style="max-width: 1200px; margin: 0 auto; padding: 1rem;">
+            <slot />
+          </main>
+          <footer role="contentinfo">
+            <PrepExcellenceFooter />
+          </footer>
+        </body>
+      </html>
+      ```
+  
+  - **FOOTER WITH WIDGET** (`PrepExcellenceFooter.astro`):
+      ```astro
+      ---
+      // PrepExcellence Footer with integrated chat widget
+      ---
+      <footer class="footer-bg" style="padding:2rem 1rem;margin-top:4rem;text-align:center;">
+        <div style="max-width:1200px;margin:0 auto;">
+          <p style="margin:0;opacity:.8;">© 2025 PrepExcellence. All rights reserved.</p>
+        </div>
+      </footer>
+      
+      <!-- Chat Widget Configuration for PrepExcellence -->
+      <script is:inline define:vars={{ isDev: import.meta.env.DEV }}>
+        window.__SALIENT_WIDGET_CONFIG = {
+          account: 'prepexcellence',
+          agent: 'prepexcel_info_chat1',
+          backend: 'http://localhost:8000',
+          allowCross: true,
+          debug: isDev
+        };
+      </script>
+      <script is:inline src="/widget/chat-widget.js"></script>
+      ```
+  
+  - **THEME COLORS** (`prepexcellence.css`):
+      ```css
+      /* PrepExcellence Academic Theme - Purple/Blue Palette */
+      :root {
+        --prepexcel-primary: #6A1B9A;      /* Deep Purple */
+        --prepexcel-secondary: #1976D2;    /* Blue */
+        --prepexcel-accent: #9C27B0;       /* Medium Purple */
+        --prepexcel-light: #E1BEE7;        /* Light Purple */
+        --prepexcel-bg: #F3E5F5;           /* Very Light Purple */
+      }
+      
+      .footer-bg {
+        background: linear-gradient(135deg, var(--prepexcel-primary), var(--prepexcel-secondary));
+        color: white;
+      }
+      ```
+  
+  - SUB-TASKS:
+      - Create `web/src/pages/prepexcellence/` folder
+      - Create `PrepExcellenceLayout.astro` with academic theme
+      - Create `PrepExcellenceHeader.astro` with navigation (Courses, Tutoring, Admissions, Contact)
+      - Create `PrepExcellenceFooter.astro` with widget config (`prepexcellence/prepexcel_info_chat1`)
+      - Create `prepexcellence.css` with purple/blue color scheme (#6A1B9A, #1976D2)
+      - Adapt `SuggestedQuestions.astro` component for PrepExcellence use
+      - Update root `web/src/pages/index.astro` demo selector to include PrepExcellence card
+  
+  - AUTOMATED-TESTS: `web/tests/test_prepexcel_structure.spec.ts` (Playwright)
+      - `test_prepexcel_folder_exists()` - Folder structure created
+      - `test_layout_exists()` - PrepExcellenceLayout.astro exists and parses
+      - `test_components_exist()` - Header and Footer components exist
+      - `test_styles_exist()` - prepexcellence.css exists with theme variables
+      - `test_demo_selector_updated()` - Root index.astro includes PrepExcellence option
+  
+  - MANUAL-TESTS:
+      - Verify folder structure matches design
+      - Review layout file for completeness
+      - Check header navigation structure
+      - Verify footer includes widget configuration
+      - Review CSS theme colors (purple/blue academic palette)
+      - Test demo selector shows PrepExcellence card
+    
+  - STATUS: Planned — Frontend infrastructure for PrepExcellence
+  - PRIORITY: High — Required before creating pages
+
+- [ ] 0017-005-004-003 - CHUNK - Create PrepExcellence demo pages
+  - **PURPOSE**: Build realistic test prep demo site with pages showcasing courses, tutoring, and admissions
+  
+  - **PAGES TO CREATE** (8 pages total):
+      
+      **1. Homepage** (`index.astro`):
+      - Hero section: "Achieve Your Best SAT/ACT Scores"
+      - Feature cards: Expert Instruction, Proven Results, Personalized Support
+      - Student testimonials (from website: Rick S, Areeq H, Malia A, etc.)
+      - Call-to-action: "View Courses" button
+      - Winter courses highlight
+      - Suggested questions: "What SAT courses do you offer?", "Tell me about Dr. Alam's teaching method", "What is your score improvement guarantee?" (these will trigger vector search)
+      
+      **2. About Page** (`about.astro`):
+      - Dr. Kaisar Alam biography and credentials
+      - Teaching methodology and philosophy
+      - Success statistics (150+ point improvement guarantee)
+      - Student testimonials with score improvements
+      - Suggested questions: "Who is Dr. Alam?", "What makes your teaching unique?", "What are your success rates?"
+      
+      **3. Courses Overview** (`courses/index.astro`):
+      - SAT, ACT, PSAT course listings
+      - Summer enrichment programs
+      - Computer Science/Coding courses
+      - Course schedules and pricing (if applicable)
+      - Registration information
+      - Suggested questions: "What courses are available?", "When do winter courses start?", "How do I register?"
+      
+      **4. SAT Course** (`courses/sat.astro`):
+      - SAT Strategies Prep details
+      - SAT Weekend Review options
+      - Curriculum overview
+      - Scoring strategies and time-saving techniques
+      - Suggested questions: "What's covered in SAT prep?", "How long are the courses?", "What materials are included?"
+      
+      **5. ACT Course** (`courses/act.astro`):
+      - ACT preparation program details
+      - Test strategies specific to ACT format
+      - Score improvement focus areas
+      - Suggested questions: "How is ACT different from SAT?", "What ACT prep do you offer?", "Which test should I take?"
+      
+      **6. PSAT Course** (`courses/psat.astro`):
+      - PSAT preparation and National Merit Scholarship
+      - Foundational test-taking skills
+      - Transition to SAT preparation
+      - Suggested questions: "Why is PSAT important?", "How do I qualify for National Merit?", "Should I take PSAT prep?"
+      
+      **7. Tutoring** (`tutoring.astro`):
+      - 1-to-1 personalized tutoring
+      - Custom lesson plans
+      - Flexible scheduling
+      - Subject areas (SAT Math, Reading, Writing, ACT sections)
+      - Suggested questions: "Do you offer private tutoring?", "How does 1-on-1 tutoring work?", "What's the tutoring schedule?"
+      
+      **8. College Admissions** (`admissions.astro`):
+      - College admissions consulting
+      - Essay review and editing
+      - Application strategy
+      - College selection guidance
+      - Suggested questions: "Do you help with college essays?", "What admissions support do you provide?", "How do I choose the right college?"
+      
+      **9. Contact** (`contact.astro`):
+      - Contact information (phone: +1 214-603-2254, +1 848-448-3331)
+      - Email: info@prepexcellence.com
+      - Location/office hours (if applicable)
+      - Contact form or chat encouragement
+      - Suggested questions: "How do I get in touch?", "What are your office hours?", "Can I schedule a consultation?"
+  
+  - **CONTENT GUIDELINES**:
+      - Professional, encouraging, educational tone
+      - Emphasize Dr. Alam's expertise and personalized approach
+      - Highlight score improvement guarantees (150+ points)
+      - Include student testimonials throughout
+      - Use academic imagery (books, studying, test materials)
+      - Mobile-responsive design
+      - Accessibility (ARIA labels, semantic HTML, keyboard navigation)
+  
+  - **SUGGESTED QUESTIONS INTEGRATION**:
+      - Each page includes `<SuggestedQuestions questions={[...]} />` component
+      - Questions contextual to page content
+      - Clicking question opens chat widget with pre-filled message
+  
+  - SUB-TASKS:
+      - Create 9 page files in `web/src/pages/prepexcellence/`
+      - Write content for each page (minimal placeholder or detailed based on prepexcellence.com)
+      - Add suggested questions UI to relevant pages
+      - Include student testimonials on homepage and about page
+      - Add course cards with navigation to course detail pages
+      - Create responsive layouts for mobile/tablet/desktop
+      - Add call-to-action buttons (Register, Contact, Learn More)
+      - Integrate PrepExcellenceLayout on all pages
+      - Test navigation between pages
+      - Add accessibility features (skip links, ARIA labels, semantic HTML)
+  
+  - AUTOMATED-TESTS: `web/tests/test_prepexcel_pages.spec.ts` (Playwright)
+      - `test_all_prepexcel_pages_load()` - All 9 pages load without errors
+      - `test_chat_widget_on_all_pages()` - Chat widget present on all pages
+      - `test_widget_configured_correctly()` - Widget uses prepexcellence/prepexcel_info_chat1
+      - `test_widget_backend_urls()` - Widget hits `/accounts/prepexcellence/agents/prepexcel_info_chat1/...`
+      - `test_suggested_questions_clickable()` - Example questions trigger chat
+      - `test_vector_search_integration()` - Questions trigger vector search (check for knowledge base responses)
+      - `test_navigation_between_pages()` - All internal links work with `/prepexcellence/` prefix
+      - `test_responsive_design()` - Pages render correctly on mobile/tablet/desktop
+      - `test_testimonials_display()` - Student testimonials appear on homepage
+  
+  - MANUAL-TESTS:
+      - Navigate through all 9 PrepExcellence pages
+      - Test chat widget on each page: send example questions
+      - **Test vector search queries**: Ask "What SAT courses are available?", "Tell me about your teaching methodology", "What are your course prices?"
+      - Verify agent responses contain knowledge base content (not just general responses)
+      - Check browser console/network tab: verify vector_search tool is called
+      - Check backend logs: verify `vector_search_start` and `vector_search_complete` events appear
+      - Verify suggested questions appear on relevant pages
+      - Click suggested questions, verify chat widget pre-fills and sends, and uses vector search
+      - Test homepage: verify hero section, feature cards, testimonials display
+      - Test courses pages: verify course information and navigation
+      - Verify backend hits correct endpoint: `/accounts/prepexcellence/agents/prepexcel_info_chat1/stream`
+      - Verify purple/blue academic theme consistent across pages
+      - Test responsive design on mobile (iPhone), tablet (iPad), desktop viewports
+      - Test accessibility: keyboard navigation, screen reader compatibility, semantic HTML
+      - Verify chat history persists across page navigation within PrepExcellence site
+    
+  - STATUS: Planned — Complete PrepExcellence demo site
+  - PRIORITY: High — User-facing demo showcase
+
+- [ ] 0017-005-004-004 - CHUNK - Demo selector integration and testing
+  - **PURPOSE**: Update root demo selector page and perform end-to-end validation
+  
+  - **DEMO SELECTOR UPDATE** (`web/src/pages/index.astro`):
+      ```astro
+      ---
+      import Layout from '../layouts/Layout.astro';
+      ---
+      <Layout title="Salient Multi-Client Demos">
+        <section style="padding:3rem 0;text-align:center;">
+          <h1 style="font-size:2.5rem;margin:0 0 2rem;">Demo Client Sites</h1>
+          
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:2rem;max-width:1200px;margin:0 auto;">
+            
+            <!-- AgroFresh -->
+            <a href="/agrofresh/" style="display:block;padding:2rem;background:#f0f9f0;border-radius:12px;text-decoration:none;border:2px solid #2E7D32;transition:transform 0.2s;">
+              <h2 style="font-size:1.5rem;color:#2E7D32;margin:0 0 1rem;">🌾 AgroFresh Solutions</h2>
+              <p style="margin:0;color:#555;">Agricultural produce freshness and quality solutions</p>
+            </a>
+            
+            <!-- Wyckoff -->
+            <a href="/wyckoff/" style="display:block;padding:2rem;background:#e3f2fd;border-radius:12px;text-decoration:none;border:2px solid #0277BD;transition:transform 0.2s;">
+              <h2 style="font-size:1.5rem;color:#0277BD;margin:0 0 1rem;">🏥 Wyckoff Hospital</h2>
+              <p style="margin:0;color:#555;">Healthcare services with doctor profiles and departments</p>
+            </a>
+            
+            <!-- PrepExcellence - NEW -->
+            <a href="/prepexcellence/" style="display:block;padding:2rem;background:#f3e5f5;border-radius:12px;text-decoration:none;border:2px solid #6A1B9A;transition:transform 0.2s;">
+              <h2 style="font-size:1.5rem;color:#6A1B9A;margin:0 0 1rem;">📚 PrepExcellence</h2>
+              <p style="margin:0;color:#555;">SAT, ACT, PSAT test preparation and college admissions</p>
+            </a>
+            
+          </div>
+          
+          <div style="margin:3rem 0;">
+            <a href="/demo/simple-chat" style="display:inline-block;padding:1rem 2rem;background:#333;color:white;border-radius:8px;text-decoration:none;">Technical Demos →</a>
+          </div>
+        </section>
+      </Layout>
+      
+      <style>
+        a[href^="/agrofresh/"]:hover,
+        a[href^="/wyckoff/"]:hover,
+        a[href^="/prepexcellence/"]:hover {
+          transform: translateY(-4px);
+        }
+      </style>
+      ```
+  
+  - **END-TO-END VALIDATION**:
+      - All 3 demo sites accessible from selector
+      - Each demo uses correct account/agent configuration
+      - Chat widgets work independently per client
+      - Session isolation between clients
+      - Cost tracking attributes to correct accounts
+  
+  - SUB-TASKS:
+      - Update `web/src/pages/index.astro` to include PrepExcellence card
+      - Add purple/blue themed card matching PrepExcellence branding
+      - Test all 3 demo site links from selector
+      - Verify chat widget works on all PrepExcellence pages
+      - Test cross-client isolation (agrofresh session ≠ prepexcellence session)
+      - Verify database tracking: `SELECT * FROM sessions WHERE account_slug = 'prepexcellence';`
+      - Check LLM request attribution: `SELECT * FROM llm_requests WHERE account_slug = 'prepexcellence';`
+      - Run data integrity test: `python backend/tests/manual/test_data_integrity.py --agent prepexcellence/prepexcel_info_chat1`
+  
+  - AUTOMATED-TESTS: `web/tests/test_demo_selector.spec.ts` (Playwright)
+      - `test_demo_selector_loads()` - Root page loads with 3 client cards
+      - `test_all_demo_links_work()` - All 3 client links navigate correctly
+      - `test_prepexcel_card_visible()` - PrepExcellence card displays with correct styling
+      - `test_technical_demos_link()` - Technical demos link still works
+      - `test_cross_client_isolation()` - Sessions don't leak between clients
+  
+  - MANUAL-TESTS:
+      - Navigate to `http://localhost:4321/`
+      - Verify 3 client cards displayed: AgroFresh (green), Wyckoff (blue), PrepExcellence (purple)
+      - Click PrepExcellence card, verify redirects to `/prepexcellence/`
+      - Open chat on PrepExcellence site, send message
+      - Verify backend logs show correct account: `prepexcellence`
+      - Check database: `SELECT account_slug, agent_instance_slug FROM llm_requests ORDER BY created_at DESC LIMIT 5;`
+      - Navigate to AgroFresh, verify separate chat session
+      - Test suggested questions on PrepExcellence pages
+      - Verify responsive design on all viewports
+    
+  - STATUS: Planned — Final integration and validation
+  - PRIORITY: Medium — Completion and polish
+
+**TESTING SUMMARY**:
+
+**AUTOMATED-TESTS** (Integration - all chunks):
+- **Backend**: `backend/tests/integration/test_prepexcel_agent.py` (6 tests - includes vector search config)
+- **Frontend Structure**: `web/tests/test_prepexcel_structure.spec.ts` (5 tests)
+- **Frontend Pages**: `web/tests/test_prepexcel_pages.spec.ts` (9 tests - includes vector search integration)
+- **Demo Selector**: `web/tests/test_demo_selector.spec.ts` (5 tests)
+- **Vector Search**: `backend/tests/integration/test_prepexcel_vector.py` (5 tests - end-to-end vector search validation)
+- **Total**: 30 automated tests
+
+**MANUAL-TESTS** (End-to-End Validation):
+- Backend configuration verification (database, config files, agent loading)
+- Frontend structure validation (layouts, components, styles)
+- Page content and navigation testing (9 pages)
+- Chat widget integration on all pages
+- Cross-client isolation verification
+- Responsive design testing (mobile/tablet/desktop)
+- Accessibility testing (keyboard navigation, screen reader)
+- Demo selector integration
+
+**DOCUMENTATION UPDATES**:
+- Update multi-model configuration summary table (add PrepExcellence row with vector search enabled)
+- Update multi-tenant architecture diagram (add prepexcellence account)
+- Document PrepExcellence system prompt guidelines (including vector search tool usage)
+- Create `backend/scripts/verify_prepexcel_index.py` (Pinecone connectivity verification script)
+
+**ADDITIONAL CHUNK - Vector Search Testing**:
+
+- [ ] 0017-005-004-005 - CHUNK - Vector search end-to-end testing
+  - **PURPOSE**: Verify vector search works correctly with prepexcellence-poc-01 index
+  
+  - **VERIFICATION SCRIPT** (`backend/scripts/verify_prepexcel_index.py`):
+    - Verify Pinecone connectivity with PINECONE_API_KEY_OPENTHOUGHT
+    - Check index prepexcellence-poc-01 exists and is accessible
+    - Verify __default__ namespace contains vectors
+    - Test sample queries: "SAT courses", "Dr. Alam methodology", "test prep pricing"
+    - Verify similarity threshold 0.5 returns relevant results
+    - Display vector count and sample results
+  
+  - SUB-TASKS:
+    - Create verification script based on `verify_wyckoff_index.py` pattern
+    - Test connectivity to prepexcellence-poc-01 index
+    - Verify namespace __default__ is populated
+    - Run test queries and validate responses
+    - Create integration tests in `test_prepexcel_vector.py`
+    - Test vector search with various PrepExcellence-specific queries
+    - Verify similarity_threshold: 0.5 returns quality results
+    - Test agent uses vector search tool automatically for relevant questions
+  
+  - AUTOMATED-TESTS: `backend/tests/integration/test_prepexcel_vector.py`
+    - `test_prepexcel_vector_tool_registered()` - Vector search tool is registered for agent
+    - `test_vector_query_sat_courses()` - Query "SAT courses" returns relevant results
+    - `test_vector_query_methodology()` - Query about teaching methods returns content
+    - `test_vector_query_no_match()` - Irrelevant query (e.g., "weather") handled gracefully
+    - `test_vector_similarity_threshold()` - Threshold 0.5 filters results appropriately
+  
+  - MANUAL-TESTS:
+    - Run: `python backend/scripts/verify_prepexcel_index.py`
+    - Verify output shows index stats (vector count, dimensions)
+    - Test queries return PrepExcellence-specific content
+    - Open Pinecone console, verify prepexcellence-poc-01 index exists
+    - Check namespace __default__ has vectors
+    - Test agent with knowledge-base queries via chat widget
+    - Verify responses contain specific PrepExcellence information
+    - Check Logfire for vector_search events
+  
+  - STATUS: Planned — Vector search validation and testing
+  - PRIORITY: High — Required for functional demo
+
 ## Priority 2B+: Multi-Agent Data Integrity Testing
 
 ### 0017-005-003 - FEATURE - Data Integrity Verification Infrastructure
