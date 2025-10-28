@@ -549,3 +549,62 @@ Refer to [How to Demo Integrtions](../architecture/demo-integrations.md)
 - **Viewport calculations**: Use `window.innerWidth` and `window.innerHeight` for accurate viewport dimensions
 - **Performance**: Ensure transitions don't impact chat functionality or cause layout thrashing
 - **Fallback**: Graceful degradation if CSS transforms or localStorage are unavailable
+
+## Implementation Clarifications (2025-10-28)
+
+### Design Decisions
+1. **Anchor Strategy**: Use CSS inset positioning (Option A - simplest)
+   - Maximized state: `top: 25px; left: 50px; right: 16px; bottom: 72px;`
+   - Automatically fills space between constraints
+   - No complex dimension calculations required
+   - True preservation of bottom-right anchor
+
+2. **Toggle Button Placement**: Left side of header (Option A - UI convention consistency)
+   - Order: [Maximize/Minimize] [Title] [Close]
+   - Both buttons always accessible
+
+3. **Active Chat Handling**: Maximize/minimize works seamlessly during SSE streaming (Option B)
+   - No interruption to active chat requests
+   - Smooth transition without blocking
+
+4. **localStorage Key**: Global preference for MVP
+   - Key: `salient_chat_widget_maximized` (boolean)
+   - **Future Enhancement**: When implementing per-agent session keys (Epic 0017-007), migrate to per-agent preference:
+     - Key format: `salient_${accountSlug}_${agentInstanceSlug}_maximized`
+     - See Epic 0017-007-001 for migration plan
+
+5. **Mobile Behavior**: Force minimized state on screens < 768px
+   - Full viewport overlay disabled
+   - FAB button remains visible
+   - Close button behavior unchanged (X closes entirely)
+
+6. **Icon Implementation**: SVG files provided in `/web/public/widget/`
+   - `chat-maximize.svg` - for minimized state
+   - `chat-minimize.svg` - for maximized state
+   - `chat-close.svg` - replace text × character with SVG
+
+7. **Keyboard Shortcuts**: Deferred for MVP
+   - Alt+M shortcut skipped to avoid conflicts
+   - ESC behavior: maximized → minimize → close (two-step)
+
+8. **Theming**: Deferred to agent-specific implementation
+   - No CSS variables for theming in this epic
+   - **Future Enhancement**: When implementing per-agent session keys (Epic 0017-007), add agent-specific theming:
+     - CSS variables for accent/bg/radius colors
+     - Per-agent theme configuration in agent config.yaml
+     - See Epic 0017-007 for theming requirements
+
+### Scope
+- **Single file modification**: `web/public/widget/chat-widget.js` only
+- **No backend changes**: Purely frontend feature
+- **No demo page updates**: Widget script auto-loads new functionality
+- **Shadow DOM isolation**: No CSS leakage or conflicts
+
+### Testing Strategy
+- Manual testing across multi-tenant agents (agrofresh, wyckoff, prepexcellence)
+- Verify SSE streaming continues during maximize/minimize
+- Test history loading in both states
+- Verify copy-to-clipboard in both states
+- Test mobile responsive behavior (force minimized <768px)
+- Test localStorage persistence across page reloads
+- Test ESC key two-step behavior (maximize → minimize → close)
