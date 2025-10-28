@@ -1,0 +1,125 @@
+---
+import PrepExcellenceLayout from "../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "Do you offer private tutoring?",
+  "How does 1-on-1 tutoring work?",
+  "What's the tutoring schedule?",
+  "How much does tutoring cost?"
+];
+---
+
+<PrepExcellenceLayout title="Private Tutoring - PrepExcellence">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 2.5rem; margin-bottom: 1rem;">1-on-1 Private Tutoring</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #555;">
+      Personalized instruction tailored to your unique learning needs
+    </p>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Why Choose Private Tutoring?</h2>
+      <p style="line-height: 1.8; margin-bottom: 2rem;">
+        While our group courses are highly effective, some students benefit from the individualized attention and customized pacing 
+        that private tutoring provides. Our 1-on-1 sessions are perfect if you:
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">📅 Need Flexible Scheduling</h3>
+          <p style="line-height: 1.6;">Work around your busy schedule with sessions at times that work for you.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">🎯 Want Targeted Help</h3>
+          <p style="line-height: 1.6;">Focus on specific sections or topics where you need the most improvement.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">⚡ Prefer Individual Attention</h3>
+          <p style="line-height: 1.6;">Get undivided attention and immediate feedback on every question.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Tutoring Services</h2>
+      
+      <div style="margin-bottom: 2rem; padding: 2rem; background: white; border: 2px solid var(--prepexcel-primary, #6A1B9A); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">SAT/ACT/PSAT Tutoring</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Complete test preparation tailored to your needs:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Diagnostic assessment to identify strengths and weaknesses</li>
+          <li>Custom lesson plans targeting your specific needs</li>
+          <li>One-on-one review of practice tests and homework</li>
+          <li>Flexible focus on Math, Reading, Writing, or Science</li>
+          <li>Test-taking strategies and time management</li>
+          <li>Progress tracking and goal setting</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">Subject-Specific Tutoring</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Get help with specific areas:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Math: Algebra, Geometry, Trigonometry, Pre-Calculus</li>
+          <li>Reading: Comprehension strategies and critical analysis</li>
+          <li>Writing: Grammar, essay structure, and argumentation</li>
+          <li>Science Reasoning (ACT only): Data interpretation</li>
+        </ul>
+      </div>
+
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-secondary, #1976D2); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.5rem; margin-bottom: 1rem;">Intensive Test Prep Packages</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Fast-track options for students on a tight timeline:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>10-hour intensive package</li>
+          <li>20-hour comprehensive package</li>
+          <li>40-hour complete mastery package</li>
+          <li>Custom packages available</li>
+        </ul>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">How Tutoring Works</h2>
+      <div style="display: grid; gap: 1rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">1. Initial Consultation</h3>
+          <p style="line-height: 1.6;">We discuss your goals, timeline, current scores, and areas where you need help.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">2. Custom Plan Development</h3>
+          <p style="line-height: 1.6;">We create a personalized lesson plan and study schedule tailored to your needs.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">3. One-on-One Sessions</h3>
+          <p style="line-height: 1.6;">Meet with your tutor at scheduled times (in-person or online) for focused instruction.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">4. Progress Monitoring</h3>
+          <p style="line-height: 1.6;">Regular assessments track your improvement and adjust the plan as needed.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-primary, #6A1B9A), var(--prepexcel-secondary, #1976D2)); color: white; border-radius: 12px; margin-bottom: 3rem; text-align: center;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">Flexible Scheduling</h2>
+      <p style="font-size: 1.1rem; line-height: 1.8; max-width: 700px; margin: 0 auto;">
+        Sessions available weekdays, evenings, and weekends. Choose in-person or online tutoring based on your preference.
+      </p>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem;">
+        Schedule a Consultation
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

@@ -1,0 +1,125 @@
+---
+import PrepExcellenceLayout from "../../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "How is ACT prep different from SAT prep?",
+  "What ACT courses do you offer?",
+  "Should I take the ACT or SAT?",
+  "What's covered in your ACT course?"
+];
+---
+
+<PrepExcellenceLayout title="ACT Preparation Courses - PrepExcellence">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-secondary, #1976D2); font-size: 2.5rem; margin-bottom: 1rem;">ACT Preparation</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #555;">
+      Specialized ACT prep focusing on the unique format and strategies for success
+    </p>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">ACT vs SAT: Which Test is Right for You?</h2>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        The ACT has a different structure and pacing compared to the SAT. While the SAT emphasizes reasoning and problem-solving, 
+        the ACT focuses more on curriculum-based knowledge and speed. Our ACT prep program addresses these unique characteristics:
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem;">Science Reasoning</h3>
+          <p style="line-height: 1.6;">Master the ACT Science section with strategies for interpreting data, graphs, and experimental results.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem;">Faster Pacing</h3>
+          <p style="line-height: 1.6;">Learn time management techniques for the ACT's more aggressive timing requirements.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem;">Content Coverage</h3>
+          <p style="line-height: 1.6;">Review all topics tested: English, Math, Reading, Science, and optional Writing.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">Our ACT Prep Programs</h2>
+      
+      <div style="margin-bottom: 2rem; padding: 2rem; background: white; border: 2px solid var(--prepexcel-secondary, #1976D2); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.5rem; margin-bottom: 1rem;">Comprehensive ACT Prep Course</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Complete preparation for all sections of the ACT, including:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>English: Grammar, punctuation, and rhetorical skills</li>
+          <li>Mathematics: Algebra, geometry, and trigonometry</li>
+          <li>Reading: Comprehension strategies and speed reading</li>
+          <li>Science: Data interpretation and experimental design</li>
+          <li>Writing (Optional): Essay structure and argumentation</li>
+          <li>Full-length practice tests with detailed scoring analysis</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.5rem; margin-bottom: 1rem;">ACT Science Mastery Workshop</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Intensive focus on the ACT Science section, which many students find challenging:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Reading and interpreting scientific data</li>
+          <li>Understanding graphs, charts, and tables</li>
+          <li>Experimental design and scientific method</li>
+          <li>Speed techniques for the 35-minute time limit</li>
+        </ul>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">ACT Test-Taking Strategies</h2>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        Success on the ACT requires specific strategies tailored to its format:
+      </p>
+      <div style="display: grid; gap: 1rem;">
+        <div style="padding: 1rem; background: white; border-left: 4px solid var(--prepexcel-secondary, #1976D2); border-radius: 4px;">
+          <strong>Time Management:</strong> Master pacing for each section to avoid leaving questions blank
+        </div>
+        <div style="padding: 1rem; background: white; border-left: 4px solid var(--prepexcel-secondary, #1976D2); border-radius: 4px;">
+          <strong>Question Order:</strong> Learn when to skip difficult questions and return later
+        </div>
+        <div style="padding: 1rem; background: white; border-left: 4px solid var(--prepexcel-secondary, #1976D2); border-radius: 4px;">
+          <strong>Answer Elimination:</strong> Effective guessing strategies when you're unsure
+        </div>
+        <div style="padding: 1rem; background: white; border-left: 4px solid var(--prepexcel-secondary, #1976D2); border-radius: 4px;">
+          <strong>Calculator Use:</strong> Know when and how to use your calculator efficiently
+        </div>
+      </div>
+    </section>
+
+    <section style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-secondary, #1976D2), var(--prepexcel-primary, #6A1B9A)); color: white; border-radius: 12px; margin-bottom: 3rem; text-align: center;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">Why Choose PrepExcellence for ACT Prep?</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin-top: 1.5rem; text-align: center;">
+        <div>
+          <div style="font-size: 2rem; font-weight: bold;">Expert</div>
+          <div style="opacity: 0.9;">Instruction</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: bold;">Proven</div>
+          <div style="opacity: 0.9;">Strategies</div>
+        </div>
+        <div>
+          <div style="font-size: 2rem; font-weight: bold;">Real</div>
+          <div style="opacity: 0.9;">Practice Tests</div>
+        </div>
+      </div>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-secondary, #1976D2); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; margin-right: 1rem;">
+        Get Started
+      </a>
+      <a href="/prepexcellence/courses" style="display: inline-block; padding: 1rem 2rem; background: transparent; color: var(--prepexcel-secondary, #1976D2); border: 2px solid var(--prepexcel-secondary, #1976D2); text-decoration: none; border-radius: 8px; font-weight: bold;">
+        View All Courses
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

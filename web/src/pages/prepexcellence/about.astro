@@ -1,0 +1,104 @@
+---
+import PrepExcellenceLayout from "../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "Who is Dr. Kaisar Alam?",
+  "What makes your teaching methodology unique?",
+  "What are your success rates and score improvements?",
+  "Tell me about your teaching experience"
+];
+---
+
+<PrepExcellenceLayout title="About PrepExcellence - Dr. Kaisar Alam">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 2.5rem; margin-bottom: 1rem;">About PrepExcellence</h1>
+    
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Dr. Kaisar Alam - Founder & Lead Instructor</h2>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        Dr. Kaisar Alam is a dedicated educator with years of experience in standardized test preparation and college admissions consulting. 
+        With a deep understanding of the SAT, ACT, and PSAT exams, Dr. Alam has helped hundreds of students achieve their academic goals 
+        and gain admission to their dream colleges.
+      </p>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        Dr. Alam's passion for education stems from his belief that every student has the potential to excel when given the right guidance, 
+        strategies, and support. His personalized approach ensures that each student receives instruction tailored to their unique learning 
+        style and needs.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Our Teaching Methodology</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Proven Strategies</h3>
+          <p style="line-height: 1.6;">Time-tested techniques and shortcuts that help students work smarter, not harder, on test day.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Personalized Learning</h3>
+          <p style="line-height: 1.6;">Custom lesson plans designed around each student's strengths, weaknesses, and learning pace.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Reasoning Improvement</h3>
+          <p style="line-height: 1.6;">Focus on developing critical thinking skills that translate to better test performance and academic success.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Success Statistics</h2>
+      <div style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-primary, #6A1B9A), var(--prepexcel-secondary, #1976D2)); color: white; border-radius: 12px; margin-bottom: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; text-align: center;">
+          <div>
+            <div style="font-size: 2.5rem; font-weight: bold;">150+</div>
+            <div style="opacity: 0.9;">Points Average Improvement</div>
+          </div>
+          <div>
+            <div style="font-size: 2.5rem; font-weight: bold;">95%</div>
+            <div style="opacity: 0.9;">Student Satisfaction Rate</div>
+          </div>
+          <div>
+            <div style="font-size: 2.5rem; font-weight: bold;">500+</div>
+            <div style="opacity: 0.9;">Students Taught</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Student Testimonials</h2>
+      <div style="display: grid; gap: 1.5rem; margin-bottom: 2rem;">
+        <blockquote style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 8px; margin: 0;">
+          <p style="margin-bottom: 0.5rem; line-height: 1.6; font-style: italic;">"Dr. Alam's teaching methods are exceptional. My SAT score improved by 180 points!"</p>
+          <footer style="font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">— Rick S.</footer>
+        </blockquote>
+        <blockquote style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 8px; margin: 0;">
+          <p style="margin-bottom: 0.5rem; line-height: 1.6; font-style: italic;">"The personalized attention and strategies I learned helped me achieve my target score. Highly recommend!"</p>
+          <footer style="font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">— Areeq H.</footer>
+        </blockquote>
+        <blockquote style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 8px; margin: 0;">
+          <p style="margin-bottom: 0.5rem; line-height: 1.6; font-style: italic;">"PrepExcellence made test prep actually enjoyable. Dr. Alam really cares about his students' success."</p>
+          <footer style="font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">— Malia A.</footer>
+        </blockquote>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Our Guarantee</h2>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        We stand behind our teaching methods with a <strong>150-point score improvement guarantee</strong> for our comprehensive SAT prep courses. 
+        If you attend all classes, complete all assignments, and don't see at least a 150-point improvement, we'll work with you until you do.
+      </p>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; transition: transform 0.2s;">
+        Get Started Today
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+
