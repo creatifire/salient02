@@ -1,0 +1,26 @@
+/* PrepExcellence - Purple/Blue Academic Theme */
+
+:root {
+  --prepexcel-primary: #6A1B9A;      /* Deep Purple */
+  --prepexcel-secondary: #1976D2;    /* Blue */
+  --prepexcel-accent: #9C27B0;       /* Medium Purple */
+  --prepexcel-light: #E1BEE7;        /* Light Purple */
+  --prepexcel-bg: #F3E5F5;           /* Very Light Purple */
+  --prepexcel-text: #4A148C;         /* Dark Purple */
+}
+
+.navbar-bg {
+  background: linear-gradient(135deg, var(--prepexcel-primary), var(--prepexcel-secondary));
+  color: white;
+}
+
+.footer-bg {
+  background: linear-gradient(135deg, var(--prepexcel-primary), var(--prepexcel-secondary));
+  color: white;
+}
+
+/* Override color variables for PrepExcellence */
+body {
+  --color-secondary-foreground: white;
+}
+

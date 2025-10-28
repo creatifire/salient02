@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "google/gemini-2.5-flash"  # Fast, efficient model with excellent tool support
+  model: "openai/gpt-4o-mini"  # Fast, reliable OpenAI model with excellent tool support
   temperature: 0.3
   max_tokens: 2000
 
