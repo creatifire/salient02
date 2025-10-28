@@ -121,6 +121,31 @@ All timing features are optional and configurable per event:
 
 ## Implementation Decisions
 
+### Ticket Code Format
+- **Format**: `DH3K-FK32-NPDR-S8K9` (4 groups of 4 alphanumeric characters)
+- **Character Set**: A-Z, 2-9 (excluding I, 1, O, 0 to prevent confusion)
+- **Storage**: Store with hyphens in database (19 characters including hyphens)
+- **Display**: Use stored format as-is for consistency
+- **Generation**: Random unique codes validated against existing tickets
+
+### Account Quotas Management
+- **Storage**: Dedicated `account_quotas` table
+- **Schema**: 
+  - `id` (UUID primary key)
+  - `account_id` (UUID foreign key)
+  - `max_events` (integer)
+  - `max_event_capacity` (integer, max tickets per event)
+  - `max_tiers_per_event` (integer)
+  - `created_at`, `updated_at` (timestamps)
+- **Benefits**: Allows quota versioning, history tracking, easy updates without schema changes
+
+### Real-Time Ticket Availability Updates
+- **Primary**: Server-Sent Events (SSE) for real-time push updates
+- **Fallback**: Client-side polling if SSE implementation adds complexity
+- **Update Frequency**: Configurable, default 30 seconds for polling
+- **Endpoint**: `/api/events/{slug}/availability-stream` (SSE) or `/api/events/{slug}/availability` (polling)
+- **Data**: Current available count per tier, sold_out status
+
 ### Payment Integration
 - **Provider**: Stripe Checkout Sessions (hosted checkout page)
 - **Benefits**: PCI-compliant, automatic webhook handling, simpler integration
@@ -160,20 +185,50 @@ All timing features are optional and configurable per event:
   - `events` (id, account_id, event_slug, title, description, start_time, end_time, timezone, status, config, created_at, updated_at)
   - `ticket_tiers` (id, event_id, tier_name, price, capacity, available_count, sort_order, created_at, updated_at)
   - `tickets` (id, tier_id, ticket_code, status, created_at, updated_at)
-  - `ticket_purchases` (id, ticket_id, purchaser_profile_id, stripe_session_id, amount_paid, purchased_at)
+  - `ticket_purchases` (id, ticket_id, purchaser_user_id, stripe_session_id, amount_paid, purchased_at)
   - `event_attendees` (id, ticket_id, attendee_name, attendee_email, attendee_phone, checked_in_at)
-  - `account_checkin_users` (id, account_id, email, name, is_active, created_at, updated_at)
-  - `checkin_sessions` (id, checkin_user_id, session_token, last_activity_at, expires_at, created_at)
+  - `account_quotas` (id, account_id, max_events, max_event_capacity, max_tiers_per_event, created_at, updated_at)
+
+**Note**: User management tables (`users`, `sessions`, etc.) are part of a unified user architecture documented separately (see User Management Architecture section below).
 
 ### Email Service
 - **Provider**: Mailgun (configurable for future providers)
 - **Templates**: Purchase confirmation, event updates, cancellations, reminders
 - **Configuration**: Email provider settings in account config or global config
 
+### Profile Builder Integration
+- **Purpose**: Collect and verify purchaser information before ticket checkout
+- **Trigger**: Chatbot checks if user profile has essential info (name, email)
+- **Flow**:
+  1. User expresses intent to purchase tickets
+  2. Agent checks `sessions.user_id` and linked `profiles` data
+  3. If missing essential info, agent uses Profile Builder tool to collect
+  4. Collected info creates/updates `users` and `profiles` records
+  5. Session linked to user: `sessions.user_id = user.id`
+  6. Proceed with ticket selection and attendee information collection
+- **Essential Fields**: name, email (phone if configured)
+- **Conversational**: Agent asks naturally within chat flow, not form-based
+
+### Attendee Information Collection
+- **Configuration**: Per-event settings in event config YAML
+  - `require_attendee_names: true/false`
+  - `require_attendee_emails: true/false`
+  - `require_attendee_phones: true/false`
+- **Collection Strategy**: All information collected upfront before payment
+- **Multi-Ticket Example**: Purchasing 3 tickets
+  - Agent confirms: "I'll need information for all 3 attendees"
+  - Collects sequentially:
+    * "Name for ticket 1?" → "Email for ticket 1?" → "Phone for ticket 1?"
+    * "Name for ticket 2?" → "Email for ticket 2?" → "Phone for ticket 2?"
+    * "Name for ticket 3?" → "Email for ticket 3?" → "Phone for ticket 3?"
+  - Stores in temporary session data or Stripe metadata
+- **Validation**: Ensures all required fields collected before generating checkout URL
+- **Purchaser vs Attendees**: Purchaser (user) can be one of the attendees or separate
+
 ### Frontend Pages (Astro + Preact)
 - **Event Listing**: `/events` (public events only, respects privacy settings)
 - **Event Detail**: `/events/{event-slug}` (static shell + dynamic availability API)
-- **Event Check-in**: `/events/{event-slug}/checkin` (password-protected)
+- **Event Check-in**: `/events/{event-slug}/checkin` (staff authentication required)
 - **Component Strategy**: 
   - Static Astro pages for event information
   - Preact islands for interactive elements (ticket selection, availability updates, check-in form)
@@ -469,4 +524,194 @@ const { redirect, error } = Astro.url.searchParams;
 - ✅ Absolute session expiration (8 hours max)
 - ✅ Account-scoped access (user can only access their account's events)
 - ✅ Activity tracking (last_activity_at updated on each action)
+
+## User Management Architecture
+
+### Overview
+
+Ticketing requires a unified user management system that distinguishes between:
+- **Public Users**: Customers purchasing tickets, chatting with agents (no account affiliation)
+- **Account Staff**: Check-in personnel, admins, managers (affiliated with specific account)
+
+### Proposed User Table Schema
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    user_type VARCHAR(50) NOT NULL,  -- 'public', 'account_staff', 'system_admin'
+    account_id UUID REFERENCES accounts(id),  -- NULL for public users, required for account_staff
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX ix_users_email ON users(email);
+CREATE INDEX ix_users_account_id ON users(account_id);
+CREATE INDEX ix_users_type_account ON users(user_type, account_id);
+```
+
+### User Types
+
+1. **`public`** (account_id = NULL):
+   - Customers purchasing tickets
+   - Users chatting with agents
+   - Profile data stored in `profiles` table
+   - Can have multiple sessions across different accounts/agents
+
+2. **`account_staff`** (account_id required):
+   - Check-in personnel
+   - Event coordinators
+   - Account administrators
+   - Access limited to their account's resources
+
+3. **`system_admin`** (account_id = NULL):
+   - Platform administrators
+   - Access to all accounts (future enhancement)
+
+### Integration with Existing Tables
+
+**sessions table** (already has user_id field):
+```sql
+-- Current structure (user_id already exists but unused)
+sessions.user_id → users.id
+
+-- Migration: Populate user_id from email
+-- 1. Create user records for existing session emails
+-- 2. Update sessions.user_id to link to new user records
+-- 3. Keep email column for backward compatibility during transition
+```
+
+**profiles table** (currently links to session_id):
+```sql
+-- Current: profiles.session_id → sessions.id
+-- Proposed: profiles.user_id → users.id
+
+-- Migration steps:
+-- 1. Add user_id column to profiles
+-- 2. Populate profiles.user_id from sessions.user_id via session_id join
+-- 3. Make user_id NOT NULL after data migration
+-- 4. Eventually deprecate session_id (or keep for historical reference)
+```
+
+**ticket_purchases table**:
+```sql
+ticket_purchases.purchaser_user_id → users.id
+```
+
+**Check-in sessions** (simplified):
+```sql
+-- Remove account_checkin_users table
+-- Remove checkin_sessions table
+-- Instead, use existing architecture:
+
+-- Account staff in users table with user_type='account_staff'
+-- Check-in authentication reuses existing session management
+-- Add role/permission checking in middleware
+```
+
+### Purchase & Attendee Information Flow
+
+**Scenario**: User purchasing 3 tickets with `require_attendee_names: true`
+
+1. **Purchaser Identification**:
+   - Check if `sessions.user_id` is populated
+   - If NULL, chatbot prompts for essential info (name, email, phone if needed)
+   - Create or retrieve `users` record (user_type='public', account_id=NULL)
+   - Link session to user: `UPDATE sessions SET user_id = ? WHERE session_key = ?`
+   - Create/update `profiles` record linked to user_id
+
+2. **Ticket Selection**:
+   - User selects tier and quantity (e.g., "3 Standard tickets")
+   - Check availability in real-time
+
+3. **Attendee Information Collection** (all upfront):
+   - Collect 3 sets of attendee information:
+     * Attendee 1 name (required), email (if configured), phone (if configured)
+     * Attendee 2 name (required), email (if configured), phone (if configured)
+     * Attendee 3 name (required), email (if configured), phone (if configured)
+   - Store temporarily in session or pass to Stripe metadata
+
+4. **Stripe Checkout**:
+   - Create Stripe Checkout Session
+   - Pass user_id and attendee info in metadata
+   - Redirect to Stripe hosted checkout
+
+5. **Webhook Processing** (`checkout.session.completed`):
+   - Extract user_id from metadata
+   - Mark tickets as 'purchased'
+   - Create `ticket_purchases` records (purchaser_user_id)
+   - Create `event_attendees` records (one per ticket)
+   - Send confirmation email via Mailgun
+
+### Check-in Authorization Model (Simplified)
+
+**Using Existing Infrastructure**:
+- Account staff are `users` with `user_type='account_staff'` and `account_id` set
+- Check-in pages use existing session management
+- Middleware checks:
+  1. Valid session exists
+  2. `sessions.user_id` is populated
+  3. `users.user_type = 'account_staff'`
+  4. `users.account_id` matches event's account_id
+  5. 30-minute inactivity check (reuse existing last_activity_at logic)
+
+**Benefits**:
+- No new tables needed (account_checkin_users, checkin_sessions)
+- Reuses proven session management
+- Unified user model across all features
+- Single authentication flow for all user types
+
+### Migration Strategy
+
+**Phase 1**: Create users table and populate from existing data
+```sql
+-- Create users table
+-- Insert public users from unique session emails
+INSERT INTO users (email, name, user_type, account_id)
+SELECT DISTINCT email, NULL, 'public', NULL
+FROM sessions
+WHERE email IS NOT NULL AND email != '';
+
+-- Update sessions to link to users
+UPDATE sessions s
+SET user_id = u.id
+FROM users u
+WHERE s.email = u.email AND s.user_id IS NULL;
+```
+
+**Phase 2**: Migrate profiles to user_id
+```sql
+-- Add user_id column to profiles
+ALTER TABLE profiles ADD COLUMN user_id UUID REFERENCES users(id);
+
+-- Populate from sessions
+UPDATE profiles p
+SET user_id = s.user_id
+FROM sessions s
+WHERE p.session_id = s.id AND s.user_id IS NOT NULL;
+
+-- Make user_id NOT NULL (after data validation)
+ALTER TABLE profiles ALTER COLUMN user_id SET NOT NULL;
+```
+
+**Phase 3**: Add account staff users (manual or script)
+```sql
+-- Example: Add check-in staff for PrepExcellence
+INSERT INTO users (email, name, user_type, account_id, is_active)
+VALUES 
+  ('staff@prepexcellence.com', 'Check-in Staff', 'account_staff', 
+   (SELECT id FROM accounts WHERE slug = 'prepexcellence'), true);
+```
+
+### Benefits of Unified User Model
+
+- ✅ Single source of truth for user identity
+- ✅ Clean separation between public and account-affiliated users
+- ✅ Reuses existing session management infrastructure
+- ✅ Profiles persist across sessions (user-centric vs session-centric)
+- ✅ Ticket purchase history tied to user (cross-session tracking)
+- ✅ Simpler authorization model (one table, one foreign key)
+- ✅ Easier future enhancements (user dashboards, purchase history, saved preferences)
 
