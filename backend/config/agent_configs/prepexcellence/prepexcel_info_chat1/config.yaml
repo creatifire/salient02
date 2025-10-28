@@ -1,0 +1,68 @@
+# PrepExcellence Info Chat - Test Preparation Assistant
+# Demo agent for PrepExcellence test prep services
+# Focus: SAT, ACT, PSAT preparation, college admissions, Dr. Kaisar Alam's methodology
+
+agent_type: "simple_chat"
+account: "prepexcellence"
+instance_name: "prepexcel_info_chat1"
+name: "PrepExcellence Assistant"
+description: "Test preparation and college admissions assistant for PrepExcellence"
+
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"
+
+model_settings:
+  model: "anthropic/claude-3.5-sonnet"  # Excellent for educational content and tutoring
+  temperature: 0.3
+  max_tokens: 2000
+
+tools:
+  vector_search:
+    enabled: true  # ENABLED - PrepExcellence website content in Pinecone
+    max_results: 5
+    similarity_threshold: 0.5  # Balanced threshold for educational content
+    pinecone:
+      index_name: "prepexcellence-poc-01"  # PrepExcellence website content
+      # index_host will be auto-discovered via Pinecone API if not specified
+      # index_host: "https://prepexcellence-poc-01-xyz.svc.region.pinecone.io"  # Optional: explicit host
+      namespace: "__default__"  # Pinecone default namespace
+      api_key_env: "PINECONE_API_KEY_OPENTHOUGHT"  # openthought-dev project API key
+    embedding:
+      model: "text-embedding-3-small"  # OpenAI embedding model
+      dimensions: 1536
+  
+  directory:
+    enabled: false  # No directory data for test prep
+    accessible_lists: []
+    max_results: 5
+  
+  web_search:
+    enabled: false  # Disabled - use direct LLM knowledge and vector search only
+    provider: "exa"
+    engines:
+      exa:
+        api_key_env: "EXA_API_KEY"
+        max_results: 10
+      tavily:
+        api_key_env: "TAVILY_API_KEY"
+        max_results: 10
+  
+  conversation_management:
+    enabled: true
+    auto_summarize_threshold: 10
+    summary_model: "moonshotai/kimi-k2-0905"
+
+context_management:
+  history_limit: 50
+  context_window_tokens: 8000
+  summarization:
+    enabled: true
+    trigger_threshold: 10
+    summary_length: 200
+
+dependencies:
+  vector_db_required: true  # Vector search enabled for PrepExcellence content
+  session_required: true
+  account_context: true  # Multi-tenant architecture enabled
+
