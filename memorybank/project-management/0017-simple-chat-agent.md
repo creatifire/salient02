@@ -2142,49 +2142,6 @@ Create PrepExcellence test prep demo site following established multi-client pat
 - Document PrepExcellence system prompt guidelines (including vector search tool usage)
 - Create `backend/scripts/verify_prepexcel_index.py` (Pinecone connectivity verification script)
 
-**ADDITIONAL CHUNK - Vector Search Testing**:
-
-- [ ] 0017-005-004-006 - CHUNK - Vector search end-to-end testing
-  - **PURPOSE**: Verify vector search works correctly with prepexcellence-poc-01 index
-  
-  - **VERIFICATION SCRIPT** (`backend/scripts/verify_prepexcel_index.py`):
-    - Verify Pinecone connectivity with PINECONE_API_KEY_OPENTHOUGHT
-    - Check index prepexcellence-poc-01 exists and is accessible
-    - Verify __default__ namespace contains vectors
-    - Test sample queries: "SAT courses", "Dr. Alam methodology", "test prep pricing"
-    - Verify similarity threshold 0.5 returns relevant results
-    - Display vector count and sample results
-  
-  - SUB-TASKS:
-    - Create verification script based on `verify_wyckoff_index.py` pattern
-    - Test connectivity to prepexcellence-poc-01 index
-    - Verify namespace __default__ is populated
-    - Run test queries and validate responses
-    - Create integration tests in `test_prepexcel_vector.py`
-    - Test vector search with various PrepExcellence-specific queries
-    - Verify similarity_threshold: 0.5 returns quality results
-    - Test agent uses vector search tool automatically for relevant questions
-  
-  - AUTOMATED-TESTS: `backend/tests/integration/test_prepexcel_vector.py`
-    - `test_prepexcel_vector_tool_registered()` - Vector search tool is registered for agent
-    - `test_vector_query_sat_courses()` - Query "SAT courses" returns relevant results
-    - `test_vector_query_methodology()` - Query about teaching methods returns content
-    - `test_vector_query_no_match()` - Irrelevant query (e.g., "weather") handled gracefully
-    - `test_vector_similarity_threshold()` - Threshold 0.5 filters results appropriately
-  
-  - MANUAL-TESTS:
-    - Run: `python backend/scripts/verify_prepexcel_index.py`
-    - Verify output shows index stats (vector count, dimensions)
-    - Test queries return PrepExcellence-specific content
-    - Open Pinecone console, verify prepexcellence-poc-01 index exists
-    - Check namespace __default__ has vectors
-    - Test agent with knowledge-base queries via chat widget
-    - Verify responses contain specific PrepExcellence information
-    - Check Logfire for vector_search events
-  
-  - STATUS: Planned — Vector search validation and testing
-  - PRIORITY: High — Required for functional demo
-
 ## Priority 2B+: Multi-Agent Data Integrity Testing
 
 ### 0017-005-003 - FEATURE - Data Integrity Verification Infrastructure
