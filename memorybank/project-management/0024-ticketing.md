@@ -182,12 +182,14 @@ All timing features are optional and configurable per event:
 - **Foreign Keys**: UUID references to maintain consistency
 - **Ticket Statuses**: `available`, `purchased`, `cancelled`, `refunded`, `checked_in`
 - **Core Tables**:
-  - `events` (id, account_id, event_slug, title, description, start_time, end_time, timezone, status, config, created_at, updated_at)
-  - `ticket_tiers` (id, event_id, tier_name, price, capacity, available_count, sort_order, created_at, updated_at)
-  - `tickets` (id, tier_id, ticket_code, status, created_at, updated_at)
-  - `ticket_purchases` (id, ticket_id, purchaser_user_id, stripe_session_id, amount_paid, purchased_at)
-  - `event_attendees` (id, ticket_id, attendee_name, attendee_email, attendee_phone, checked_in_at)
-  - `account_quotas` (id, account_id, max_events, max_event_capacity, max_tiers_per_event, created_at, updated_at)
+  - `events` (id GUID, account_id FK, event_slug, title, description, start_time, end_time, timezone, status, config JSONB, created_at, updated_at)
+  - `ticket_tiers` (id GUID, event_id FK, tier_name, price DECIMAL, capacity INT, available_count INT, sort_order INT, created_at, updated_at)
+  - `tickets` (id GUID, tier_id FK, ticket_code VARCHAR(19) unique, status VARCHAR, created_at, updated_at)
+  - `ticket_purchases` (id GUID, ticket_id FK unique, purchaser_user_id FK, stripe_session_id VARCHAR unique, amount_paid DECIMAL, purchased_at TIMESTAMP)
+  - `event_attendees` (id GUID, ticket_id FK unique, attendee_name VARCHAR, attendee_email VARCHAR, attendee_phone VARCHAR, checked_in_at TIMESTAMP nullable)
+  - `account_quotas` (id GUID, account_id FK unique, max_events INT, max_event_capacity INT, max_tiers_per_event INT, created_at, updated_at)
+  - `event_access_whitelist` (id GUID, event_id FK, email VARCHAR, created_at) - unique constraint on (event_id, email)
+  - `staff_magic_links` (id GUID, user_id FK, token VARCHAR(64) unique, expires_at TIMESTAMP, created_at, used_at TIMESTAMP nullable)
 
 **Note**: User management tables (`users`, `sessions`, etc.) are part of a unified user architecture documented separately (see User Management Architecture section below).
 
@@ -294,6 +296,21 @@ event:
   require_attendee_names: true
   require_attendee_emails: false
   require_attendee_phones: false
+  
+  # Purchase Restrictions
+  max_tickets_per_purchase: 5           # Maximum tickets one person can buy
+  
+  # Access Control (optional)
+  access_control:
+    enabled: true
+    whitelist_type: "both"              # "email", "domain", or "both"
+    allowed_domains:                    # Exact domain matches
+      - "students.prepexcellence.edu"
+      - "alumni.prepexcellence.edu"
+    whitelist_source: "database"        # Email whitelist stored in event_access_whitelist table
+  
+  # Staff Check-in Settings
+  checkin_session_duration: 30          # Minutes before check-in session expires
 
 # Ticket Tiers (created by script based on capacity input)
 ticket_tiers:
@@ -357,6 +374,10 @@ event:
   require_attendee_names: true
   require_attendee_emails: true
   require_attendee_phones: false
+  max_tickets_per_purchase: 4               # Max 4 tickets per person
+  access_control:
+    enabled: false                          # Open event, no restrictions
+  checkin_session_duration: 60              # 60 minutes for check-in session
 
 ticket_tiers:
   - name: "General Admission"
@@ -714,4 +735,665 @@ VALUES
 - ✅ Ticket purchase history tied to user (cross-session tracking)
 - ✅ Simpler authorization model (one table, one foreign key)
 - ✅ Easier future enhancements (user dashboards, purchase history, saved preferences)
+
+---
+
+## Feature Breakdown
+
+### 0024-001 - FEATURE - User Management Foundation
+**Priority**: Critical (prerequisite for all ticketing features)
+
+Foundation for unified user management system supporting public customers and account staff.
+
+#### 0024-001-001 - TASK - Create Users Table and Migration Scripts
+**Status**: 📋 Planned
+
+Create users table with user_type distinction and migration from existing session data.
+
+##### 0024-001-001-001 - CHUNK - Database schema and migration SQL
+**SUB-TASKS**:
+- Create `users` table schema with GUID id, email (unique), name, user_type, account_id (nullable FK), is_active, timestamps
+- Create indexes: email, account_id, (user_type, account_id)
+- Create migration script to populate users from sessions.email
+- Add constraint: account_id required when user_type='account_staff'
+- Update sessions.user_id with new user records
+
+**MANUAL-TESTS**:
+- Run migration script on dev database
+- Verify user records created for all unique session emails
+- Verify sessions.user_id populated correctly
+- Test user_type constraints (public vs account_staff)
+- Verify indexes created
+
+**AUTOMATED-TESTS**:
+- Test users table schema (columns, types, constraints)
+- Test migration idempotency (safe to run multiple times)
+- Test user_type constraint validation
+- Test account_id FK integrity
+
+##### 0024-001-001-002 - CHUNK - Profiles migration to user-based
+**SUB-TASKS**:
+- Add user_id column to profiles table (UUID FK to users.id)
+- Create migration to populate profiles.user_id from sessions.user_id
+- Update Profile SQLAlchemy model to include user_id
+- Add index on profiles.user_id
+- Keep session_id for backward compatibility (mark for future deprecation)
+
+**MANUAL-TESTS**:
+- Verify profiles.user_id populated from sessions
+- Test profile queries via user_id work correctly
+- Verify existing profile data intact after migration
+
+**AUTOMATED-TESTS**:
+- Test profiles.user_id FK integrity
+- Test profile retrieval by user_id
+- Test profile updates maintain user_id link
+
+##### 0024-001-001-003 - CHUNK - User service layer and API
+**SUB-TASKS**:
+- Create User SQLAlchemy model in `backend/app/models/user.py`
+- Create UserService in `backend/app/services/user_service.py`
+  - `get_or_create_user(email, name, user_type='public')` 
+  - `get_user_by_id(user_id)` 
+  - `get_user_by_email(email)`
+  - `update_user(user_id, **kwargs)`
+  - `link_session_to_user(session_id, user_id)`
+- Update SessionDependencies to include user_id resolution
+- Create unit tests for UserService
+
+**MANUAL-TESTS**:
+- Create test user via service
+- Retrieve user by email and id
+- Update user attributes
+- Link session to user
+
+**AUTOMATED-TESTS**:
+- Test get_or_create_user idempotency
+- Test user retrieval methods
+- Test session linking
+- Test user_type validation
+
+---
+
+### 0024-002 - FEATURE - Event Management Core
+**Priority**: Critical (core data structures)
+
+Event configuration, database schema, and initialization tooling.
+
+#### 0024-002-001 - TASK - Event Database Schema
+**Status**: 📋 Planned
+
+##### 0024-002-001-001 - CHUNK - Events and tiers tables
+**SUB-TASKS**:
+- Create `events` table (id GUID, account_id FK, event_slug, title, description, start_time, end_time, timezone, status, config JSONB, timestamps)
+- Create `ticket_tiers` table (id GUID, event_id FK, tier_name, price DECIMAL, capacity INT, available_count INT, sort_order INT, timestamps)
+- Create `account_quotas` table (id GUID, account_id FK unique, max_events INT, max_event_capacity INT, max_tiers_per_event INT, timestamps)
+- Add indexes: event_slug, account_id, status, (account_id, event_slug) unique
+- Create SQLAlchemy models for Event, TicketTier, AccountQuota
+
+**MANUAL-TESTS**:
+- Create test event with multiple tiers
+- Verify constraints (unique event_slug per account)
+- Test account quota enforcement
+- Verify JSONB config storage
+
+**AUTOMATED-TESTS**:
+- Test event creation and retrieval
+- Test tier relationship to events
+- Test account quota constraints
+- Test event status transitions
+
+##### 0024-002-001-002 - CHUNK - Tickets and purchases tables
+**SUB-TASKS**:
+- Create `tickets` table (id GUID, tier_id FK, ticket_code VARCHAR(19) unique, status VARCHAR, timestamps)
+- Create `ticket_purchases` table (id GUID, ticket_id FK unique, purchaser_user_id FK, stripe_session_id VARCHAR unique, amount_paid DECIMAL, purchased_at TIMESTAMP)
+- Create `event_attendees` table (id GUID, ticket_id FK unique, attendee_name VARCHAR, attendee_email VARCHAR, attendee_phone VARCHAR, checked_in_at TIMESTAMP nullable)
+- Add indexes: ticket_code unique, ticket status, purchaser_user_id, stripe_session_id
+- Create SQLAlchemy models for Ticket, TicketPurchase, EventAttendee
+
+**MANUAL-TESTS**:
+- Generate test tickets with codes
+- Create test purchase
+- Link attendee to ticket
+- Verify FK relationships
+
+**AUTOMATED-TESTS**:
+- Test ticket creation with valid codes
+- Test ticket status transitions
+- Test purchase creation
+- Test attendee linkage
+
+#### 0024-002-002 - TASK - Event Configuration System
+**Status**: 📋 Planned
+
+##### 0024-002-002-001 - CHUNK - Event config YAML loader
+**SUB-TASKS**:
+- Create event config schema validator using Pydantic
+- Create `get_event_config(account_slug, event_slug)` function
+- Load from `backend/config/agent_configs/{account}/events/{event-slug}.yaml`
+- Validate required fields, tier structure, date formats
+- Return EventConfig Pydantic model
+
+**MANUAL-TESTS**:
+- Create test event config YAML
+- Load and validate config
+- Test validation errors for invalid configs
+- Verify timezone and datetime parsing
+
+**AUTOMATED-TESTS**:
+- Test config loader for valid YAML
+- Test validation for missing required fields
+- Test tier validation
+- Test datetime parsing
+
+##### 0024-002-002-002 - CHUNK - Account quota enforcement
+**SUB-TASKS**:
+- Create quota validation service
+- Check max_events before event creation
+- Check max_event_capacity before ticket generation
+- Check max_tiers_per_event in config validation
+- Seed initial quotas for existing accounts
+
+**MANUAL-TESTS**:
+- Test quota enforcement on event creation
+- Test capacity limit enforcement
+- Test tier limit enforcement
+- Update quota and verify new limits apply
+
+**AUTOMATED-TESTS**:
+- Test quota validation logic
+- Test quota exceeded errors
+- Test quota updates
+
+##### 0024-002-002-003 - CHUNK - Event access control system
+**SUB-TASKS**:
+- Create `event_access_whitelist` table (id GUID, event_id FK, email VARCHAR unique per event, created_at)
+- Add access_control section to event config YAML schema
+  - `enabled: true/false`
+  - `whitelist_type: "email" | "domain" | "both"`
+  - `allowed_domains: ["domain1.edu", "domain2.org"]` (exact match list)
+  - `whitelist_source: "database"` (emails in db table)
+- Create access control validation service
+  - Check domain match (exact, from list)
+  - Check email whitelist (query database)
+- Return clear error messages for unauthorized users
+
+**MANUAL-TESTS**:
+- Create event with domain restrictions
+- Test authorized domain access
+- Test unauthorized domain rejection
+- Add emails to whitelist via script
+- Test email whitelist authorization
+- Test combined domain + email whitelist
+
+**AUTOMATED-TESTS**:
+- Test domain matching logic (exact match, multiple domains)
+- Test email whitelist queries
+- Test error message generation
+- Test access control disabled (open events)
+
+#### 0024-002-003 - TASK - Event Initialization Scripts
+**Status**: 📋 Planned
+
+##### 0024-002-003-001 - CHUNK - create_event_config.py interactive script
+**SUB-TASKS**:
+- Create `backend/scripts/create_event_config.py`
+- Interactive prompts for event details (title, description, dates, performers)
+- Interactive tier collection (name, price, capacity for each tier)
+- Attendee info requirements (names, emails, phones)
+- Generate YAML file in correct account/events folder
+- Validate quota limits before creation
+
+**MANUAL-TESTS**:
+- Run script interactively
+- Generate event config for PrepExcellence SAT course
+- Verify YAML format matches schema
+- Test quota validation
+
+**AUTOMATED-TESTS**:
+- Test YAML generation from event data
+- Test file path creation
+- Test quota validation in script
+
+##### 0024-002-003-002 - CHUNK - generate_tickets.py script
+**SUB-TASKS**:
+- Create `backend/scripts/generate_tickets.py --config path/to/event.yaml`
+- Load event config YAML
+- Create event record in database
+- Generate unique 19-char ticket codes (A-Z,2-9, format DH3K-FK32-NPDR-S8K9)
+- Create ticket_tier records with capacity tracking
+- Pre-generate all tickets with status='available'
+- Update config metadata: tickets_generated=true
+- Validate tickets don't already exist for event
+
+**MANUAL-TESTS**:
+- Generate tickets for test event
+- Verify all ticket codes unique and valid format
+- Verify tier capacities match config
+- Test idempotency (can't regenerate for same event)
+
+**AUTOMATED-TESTS**:
+- Test ticket code generation algorithm
+- Test code uniqueness validation
+- Test tier capacity calculations
+- Test idempotency checks
+
+##### 0024-002-003-003 - CHUNK - add_tickets_to_tier.py script
+**SUB-TASKS**:
+- Create `backend/scripts/add_tickets_to_tier.py --account-slug X --event-slug Y --tier-name Z --count N`
+- Load existing event and tier
+- Generate additional unique ticket codes
+- Create new ticket records with status='available'
+- Update tier capacity and available_count
+- Validate account quotas not exceeded
+
+**MANUAL-TESTS**:
+- Add 10 tickets to existing tier
+- Verify new tickets created
+- Verify capacity updated
+- Test quota enforcement
+
+**AUTOMATED-TESTS**:
+- Test ticket addition logic
+- Test capacity updates
+- Test quota validation
+
+##### 0024-002-003-004 - CHUNK - manage_event_whitelist.py script
+**SUB-TASKS**:
+- Create `backend/scripts/manage_event_whitelist.py`
+- Commands:
+  - `--account-slug X --event-slug Y --add-emails email1,email2,email3`
+  - `--account-slug X --event-slug Y --remove-emails email1,email2`
+  - `--account-slug X --event-slug Y --import-csv path/to/emails.csv`
+  - `--account-slug X --event-slug Y --list` (show current whitelist)
+  - `--account-slug X --event-slug Y --clear` (remove all)
+- Validate event exists before modifying whitelist
+- Handle duplicates gracefully
+- Bulk operations for large lists
+
+**MANUAL-TESTS**:
+- Add individual emails to whitelist
+- Import CSV with 100 emails
+- List whitelist for event
+- Remove specific emails
+- Clear entire whitelist
+
+**AUTOMATED-TESTS**:
+- Test email addition
+- Test CSV import
+- Test duplicate handling
+- Test removal operations
+
+---
+
+### 0024-003 - FEATURE - Purchase Flow and Stripe Integration
+**Priority**: High (core functionality)
+
+Complete ticket purchase workflow from profile to payment confirmation.
+
+#### 0024-003-001 - TASK - Profile Integration for Purchaser Info
+**Status**: 📋 Planned
+
+##### 0024-003-001-001 - CHUNK - Purchaser info validation in agent
+**SUB-TASKS**:
+- Update simple_chat agent to check user_id and profile before purchase
+- If user_id NULL, invoke profile builder tool to collect name, email
+- Create/update user record (user_type='public')
+- Link session to user
+- Validate essential fields present (name, email)
+
+**MANUAL-TESTS**:
+- Start ticket purchase conversation without profile
+- Verify agent prompts for info conversationally
+- Verify user and profile created
+- Verify session linked to user
+
+**AUTOMATED-TESTS**:
+- Test profile validation logic
+- Test user creation flow
+- Test session linking
+
+##### 0024-003-001-002 - CHUNK - Purchase authorization check
+**SUB-TASKS**:
+- After profile collected, check event access control
+- Validate user email against:
+  - Domain whitelist (if configured): exact match from allowed_domains list
+  - Email whitelist (if configured): query event_access_whitelist table
+- If authorized, proceed with ticket selection
+- If unauthorized, return clear error message:
+  - Domain restriction: "This event is only available to users with @domain.edu email addresses"
+  - Email whitelist: "This event is restricted to invited attendees"
+- Block purchase flow early to avoid wasted time
+
+**MANUAL-TESTS**:
+- Purchase ticket with authorized domain
+- Purchase ticket with unauthorized domain
+- Purchase ticket with whitelisted email
+- Purchase ticket with non-whitelisted email
+- Test access control disabled (open event)
+
+**AUTOMATED-TESTS**:
+- Test domain authorization logic
+- Test email whitelist queries
+- Test error message generation
+- Test bypass when access control disabled
+
+#### 0024-003-002 - TASK - Ticketing Agent Tool (Pydantic AI)
+**Status**: 📋 Planned
+
+##### 0024-003-002-001 - CHUNK - Core ticketing tool structure
+**SUB-TASKS**:
+- Create `backend/app/agents/tools/ticketing_tool.py`
+- Register `@agent.tool` for ticket search, availability, purchase initiation
+- Tool functions:
+  - `search_events(account_slug, query)` - find events
+  - `get_event_details(event_slug)` - event info
+  - `check_availability(event_slug, tier_name)` - real-time availability
+  - `initiate_purchase(event_slug, tier_name, quantity, attendees)` - start purchase
+- Return structured data for agent to present conversationally
+
+**MANUAL-TESTS**:
+- Search for events via agent
+- Check ticket availability
+- Get event details
+- Initiate purchase flow
+
+**AUTOMATED-TESTS**:
+- Test event search logic
+- Test availability checking
+- Test purchase initiation
+
+##### 0024-003-002-002 - CHUNK - Attendee information collection
+**SUB-TASKS**:
+- Agent prompts for attendee info based on event config
+- Collect sequentially: "Name for ticket 1?", "Email for ticket 1?", etc.
+- Store in session metadata temporarily
+- Validate all required fields collected before proceeding
+- Return structured attendee data to purchase flow
+
+**MANUAL-TESTS**:
+- Purchase 3 tickets with require_attendee_names=true
+- Verify agent collects all 3 names
+- Test with require_attendee_emails=true
+- Verify validation of missing info
+
+**AUTOMATED-TESTS**:
+- Test attendee collection logic
+- Test validation for missing fields
+- Test session storage
+
+##### 0024-003-002-003 - CHUNK - Stripe checkout session creation
+**SUB-TASKS**:
+- Create `backend/app/services/stripe_service.py`
+- `create_checkout_session(event, tier, quantity, user_id, attendees)`
+- Mark tickets as 'reserved' temporarily (or skip reservation)
+- Pass user_id and attendee data in Stripe metadata
+- Return Stripe Checkout URL
+- Agent presents URL to user: "Click here to complete payment: [URL]"
+
+**MANUAL-TESTS**:
+- Create checkout session
+- Verify Stripe session created in test mode
+- Verify metadata includes user_id and attendees
+- Test checkout URL redirect
+
+**AUTOMATED-TESTS**:
+- Test checkout session creation
+- Test metadata population
+- Test URL generation
+
+#### 0024-003-003 - TASK - Webhook Processing
+**Status**: 📋 Planned
+
+##### 0024-003-003-001 - CHUNK - Stripe webhook endpoint
+**SUB-TASKS**:
+- Create `POST /api/webhooks/stripe` endpoint
+- Verify webhook signature
+- Handle `checkout.session.completed` event
+- Handle `charge.refunded` event
+- Log webhook events for debugging
+- Track processed webhook IDs for idempotency
+
+**MANUAL-TESTS**:
+- Send test webhook from Stripe CLI
+- Verify signature validation
+- Test idempotency (duplicate webhooks ignored)
+
+**AUTOMATED-TESTS**:
+- Test webhook signature validation
+- Test idempotency logic
+- Test event routing
+
+##### 0024-003-003-002 - CHUNK - Purchase completion logic
+**SUB-TASKS**:
+- Extract user_id and attendee data from webhook metadata
+- Mark tickets as 'purchased'
+- Create ticket_purchase records (purchaser_user_id FK)
+- Create event_attendee records (one per ticket)
+- Update tier available_count
+- Trigger confirmation email
+- Handle errors gracefully (log and alert)
+
+**MANUAL-TESTS**:
+- Complete test purchase via Stripe
+- Verify webhook processes successfully
+- Verify tickets marked as purchased
+- Verify attendees created
+- Verify email sent
+
+**AUTOMATED-TESTS**:
+- Test purchase completion logic
+- Test ticket status updates
+- Test attendee creation
+- Test available_count updates
+
+---
+
+### 0024-004 - FEATURE - Email Integration (Mailgun)
+**Priority**: Medium
+
+Email confirmations for ticket purchases.
+
+#### 0024-004-001 - TASK - Mailgun Service Setup
+**Status**: 📋 Planned
+
+##### 0024-004-001-001 - CHUNK - Mailgun client and configuration
+**SUB-TASKS**:
+- Create `backend/app/services/mailgun_service.py`
+- Load Mailgun API key from environment
+- Create `send_email(to, subject, text, html)` function
+- Configure sender domain and from address
+- Handle Mailgun API errors
+
+**MANUAL-TESTS**:
+- Send test email via service
+- Verify email delivered
+- Test error handling
+
+**AUTOMATED-TESTS**:
+- Test email sending (mocked)
+- Test error handling
+
+##### 0024-004-001-002 - CHUNK - Purchase confirmation email template
+**SUB-TASKS**:
+- Create plain text email template for purchase confirmation
+- Include: event details, ticket codes, attendee names, check-in info
+- Dynamic template rendering with event/ticket data
+- Send via mailgun_service
+
+**MANUAL-TESTS**:
+- Complete test purchase
+- Verify confirmation email received
+- Verify all ticket codes included
+- Verify formatting
+
+**AUTOMATED-TESTS**:
+- Test template rendering
+- Test email data population
+
+---
+
+### 0024-005 - FEATURE - Frontend Event Pages (Astro + Preact)
+**Priority**: Medium
+
+Event listing, detail pages, and real-time availability updates.
+
+#### 0024-005-001 - TASK - Event Pages Structure
+**Status**: 📋 Planned
+
+##### 0024-005-001-001 - CHUNK - Event detail page
+**SUB-TASKS**:
+- Create `web/src/pages/[account]/events/[slug].astro`
+- Load event data from backend API
+- Display event info, schedule, performers, tiers
+- Embed chat widget for ticket purchase
+- Static page with dynamic data loading
+
+**MANUAL-TESTS**:
+- Access event page
+- Verify event details displayed
+- Test chat widget integration
+- Test responsive layout
+
+##### 0024-005-001-002 - CHUNK - Ticket availability API and display
+**SUB-TASKS**:
+- Create `GET /api/events/{slug}/availability` endpoint
+- Return available_count per tier
+- Create Preact component for availability display
+- Client-side polling every 30 seconds (configurable)
+- Update tier availability in real-time
+
+**MANUAL-TESTS**:
+- View event page
+- Verify availability updates every 30 seconds
+- Simulate ticket purchase, verify count updates
+- Test sold out display
+
+**AUTOMATED-TESTS**:
+- Test availability endpoint
+- Test polling logic
+- Test sold out detection
+
+---
+
+### 0024-006 - FEATURE - Check-in System
+**Priority**: Medium
+
+Staff authentication and ticket check-in functionality.
+
+#### 0024-006-001 - TASK - Check-in Authentication
+**Status**: 📋 Planned
+
+##### 0024-006-001-001 - CHUNK - Staff user management
+**SUB-TASKS**:
+- Create script to add account staff users
+- `backend/scripts/add_checkin_staff.py --account X --email Y --name Z`
+- Insert user with user_type='account_staff'
+- Create API endpoint to list staff for account (admin)
+
+**MANUAL-TESTS**:
+- Add staff user via script
+- Verify user created with correct type
+- Test account_id linkage
+
+**AUTOMATED-TESTS**:
+- Test staff user creation
+- Test user_type validation
+
+##### 0024-006-001-002 - CHUNK - Magic link authentication for check-in
+**SUB-TASKS**:
+- Create `web/src/pages/[account]/checkin-login.astro` page (email input form)
+- Create `POST /api/checkin/request-magic-link` endpoint
+  - Verify email is account staff for account
+  - Generate unique magic link token (64-char random string)
+  - Store in `staff_magic_links` table with expiry (configurable, default 15 min)
+  - Send magic link via Mailgun: `/api/checkin/verify/{token}`
+- Create `GET /api/checkin/verify/{token}` endpoint
+  - Verify token exists and not expired
+  - Verify not already used (used_at IS NULL)
+  - Mark token as used (set used_at timestamp)
+  - Create session, set cookie
+  - Set session expiry based on event checkin_session_duration config
+  - Redirect to check-in page or event selector
+
+**MANUAL-TESTS**:
+- Request magic link for staff email
+- Verify email received with link
+- Click link, verify auto-login
+- Test expired token rejection
+- Test already-used token rejection
+- Test unauthorized email rejection
+- Test session timeout based on event config
+
+**AUTOMATED-TESTS**:
+- Test magic link token generation
+- Test token uniqueness
+- Test expiry validation
+- Test one-time use enforcement
+- Test staff authorization
+- Test session creation with configurable duration
+
+#### 0024-006-002 - TASK - Check-in Page Functionality
+**Status**: 📋 Planned
+
+##### 0024-006-002-001 - CHUNK - Check-in page and ticket validation
+**SUB-TASKS**:
+- Create `web/src/pages/[account]/events/[slug]/checkin.astro`
+- Middleware to verify staff authentication
+- Preact component for ticket code entry
+- `POST /api/events/{slug}/checkin` endpoint
+  - Verify ticket exists for event
+  - Check ticket status (must be 'purchased')
+  - Update status to 'checked_in'
+  - Set checked_in_at timestamp
+  - Return attendee info
+- Display success/error feedback
+
+**MANUAL-TESTS**:
+- Login as staff
+- Access check-in page
+- Enter valid ticket code
+- Verify check-in recorded
+- Test invalid code handling
+- Test already checked-in ticket
+
+**AUTOMATED-TESTS**:
+- Test check-in logic
+- Test ticket validation
+- Test status updates
+- Test duplicate check-in prevention
+
+---
+
+## Implementation Decisions - Finalized
+
+### Core Decisions
+1. ✅ **Polling** - Client-side polling for availability updates (30s default, configurable)
+2. ✅ **Direct links only** - Skip public event listing, focus on direct event page links
+3. ✅ **Simple chat integration** - Add ticketing tool to existing simple_chat agent
+4. ✅ **Free events Phase 1** - Implement free events first, paid events Phase 2
+5. ✅ **First-come-first-served** - No ticket reservation, payment completion claims tickets
+6. ✅ **Plain text emails** - HTML templates deferred to later phase
+7. ✅ **Basic CRUD APIs** - Build APIs now, admin UI later; scripts interact with APIs
+8. ✅ **Stripe test mode** - Use test mode throughout development
+9. ✅ **User management first** - Complete foundational user tables before other features
+10. ✅ **Magic link authentication** - Email-based magic link for staff check-in login (simpler than OTP)
+
+### Access Control Requirements
+- **Whitelist by email**: Database table (`event_access_whitelist`) for large lists (hundreds of emails)
+- **Whitelist by domain**: Event config YAML for domain restrictions (exact match, multiple domains supported)
+- **Validation timing**: Check after profile collected, before purchase flow starts
+- **Error messaging**: Clear rejection messages, no "request access" option in MVP
+- **Whitelist management**: Database + script to add/remove emails
+- **Domain matching**: Exact match only (e.g., `["profs.university.edu", "students.university.edu"]`)
+- **Scope**: Optional per-event configuration
+- **Multi-ticket purchases**: Authorized purchaser can buy tickets for non-authorized attendees
+- **Purchase limits**: Add `max_tickets_per_purchase` to event config
+- **Phasing**: Implement in Phase 1 if needed for PrepExcellence, otherwise Phase 2
+
+### Staff Authentication (Magic Link)
+- **Method**: Email-based magic link (click link → auto-login)
+- **Session duration**: Configurable per event in event config YAML
+- **Expiry storage**: Store session expiry timestamp in database
+- **No passwords**: Passwordless authentication for MVP
 
