@@ -201,7 +201,20 @@ Unauthorized copying of this file is strictly prohibited.
   - [x] 0023-008-001 - SessionDependencies (account_id + db_session) ✅
 
 **Phase 2 - Advanced Configurability (Planned)**:
-- [ ] 0023-004 - Advanced Configurability 📋 **NEXT PRIORITY**
+- [ ] 0017-005-004 - PrepExcellence Demo Site Implementation 📋 🎯 **NEXT**
+  - [ ] 0017-005-004-001 - Database and backend agent configuration
+  - [ ] 0017-005-004-002 - Frontend folder structure and layouts
+  - [ ] 0017-005-004-003 - Create PrepExcellence demo pages
+  - [ ] 0017-005-004-004 - Demo selector integration and testing
+  - [ ] 0017-005-004-005 - Vector search end-to-end testing
+  - **Purpose**: SAT/ACT/PSAT test prep demo site with Dr. Kaisar Alam
+  - **Vector Search**: Enabled (prepexcellence-poc-01 index, __default__ namespace, PINECONE_API_KEY_OPENTHOUGHT)
+  - **Model**: anthropic/claude-3.5-sonnet (educational content)
+  - **Theme**: Purple/blue academic palette (#6A1B9A, #1976D2)
+  - **Pages**: Homepage, About, Courses (SAT/ACT/PSAT/Summer), Tutoring, Admissions, Contact
+  - **See**: [Epic 0017-005-004](0017-simple-chat-agent.md#0017-005-004) for detailed implementation plan
+
+- [ ] 0023-004 - Advanced Configurability 📋
   - [ ] 0023-004-001 - Schema-Driven Generic Filters (Priority 1) 🎯
     - Replace explicit params with generic `filters` dict
     - Add `searchable_fields` to schema YAML files
