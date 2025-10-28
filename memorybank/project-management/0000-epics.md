@@ -24,6 +24,7 @@ Unauthorized copying of this file is strictly prohibited.
 10. [Profile Builder (Customer Intelligence & Tracking)](./0018-profile-builder.md) - 📋 Planned
 11. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 🚧 In Progress (Priority 2B - Foundational Infrastructure)
 12. [Profile Search Tool](./0023-profile-search-tool.md) - 📋 Planned (Priority 7 - Demo Feature)
+13. [Ticketing Tool](./0024-ticketing.md) - 📋 Planned
 
 ## Epic Backlog
 
