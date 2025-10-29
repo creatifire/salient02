@@ -14,8 +14,9 @@
     agent: 'prepexcel_info_chat1',
     backend: 'http://localhost:8000',
     allowCross: true,
+    sse: false,  // Disable SSE - use POST only (Pydantic AI doesn't stream tool calls)
     debug: isDev  // Auto-enable debug in development
   };
 </script>
-<script is:inline src="/widget/chat-widget.js?v=11"></script>
+<script is:inline src="/widget/chat-widget.js?v=14"></script>
 
