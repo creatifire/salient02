@@ -320,13 +320,46 @@ Unauthorized copying of this file is strictly prohibited.
 
 **See**: [Epic 0017-007](0017-simple-chat-agent.md#0017-007) for detailed 5-chunk implementation plan
 
+### **Priority 11: Logging Infrastructure Consolidation** 📋 **PLANNED**
+**Epic 0017-013 - Migrate from Loguru to Logfire Logging**
+
+**Why Priority 11**: Consolidate all logging to use Logfire for consistent observability, structured logging, and distributed tracing across the entire application. Currently using mixed approaches (standard `logging`, `loguru`, `logfire`) which creates inconsistency and prevents full utilization of Logfire's observability features.
+
+**Status**: Comprehensive migration plan complete with 4 chunks, 12 automated tests, and dual output configuration (console + cloud) documented.
+
+**Dependencies**: None - can be implemented alongside other priorities.
+
+- [ ] 0017-013-001 - Migrate Simple Chat Agent to Logfire 📋
+  - [ ] 0017-013-001-01 - Replace loguru imports with logfire in simple_chat.py
+  - [ ] 0017-013-001-02 - Migrate services to Logfire
+  - [ ] 0017-013-001-03 - Add Logfire spans for performance tracking
+  - [ ] 0017-013-001-04 - Remove all loguru dependencies
+
+**Key Features**:
+- Dual output: Console logs (screen) + Logfire cloud dashboard
+- Structured logging: `logfire.info('event.name', key=value)` format
+- Event naming convention: Dot notation (`module.action`)
+- No visibility loss: Console output always enabled for development
+- Distributed tracing: Full request flow visibility with spans
+
+**Benefits**:
+- ✅ Consistent observability across entire codebase
+- ✅ Structured, queryable logs in Logfire dashboard
+- ✅ Automatic Pydantic model instrumentation
+- ✅ Better debugging (trace tool loops, LLM behavior, performance)
+- ✅ Reduced complexity (one logging library instead of three)
+
+**Testing**: 12 automated tests (unit + integration)
+
+**See**: [Epic 0017-013](0017-simple-chat-agent.md#0017-013) for detailed 4-chunk implementation plan
+
 ---
 
 ## PHASE 2: Enhanced Functionality
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-### **Priority 11: Email Capture & Consent** ⚠️ **DEPRECATED**
+### **Priority 12: Email Capture & Consent** ⚠️ **DEPRECATED**
 - [ ] 0017-009-001 - Email Collection System
 - [ ] 0017-009-002 - Consent and preferences management
   - **Status**: DEPRECATED - Superseded by Priority 7 (Profile Capture Tool)
@@ -334,13 +367,13 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
   - Decision: Profile Capture Tool (Priority 7) will handle email/phone collection conversationally
   - Action: Revisit only if Profile Capture Tool doesn't cover this use case
 
-### **Priority 12: Periodic Summarization** 📋
+### **Priority 13: Periodic Summarization** 📋
 - [ ] 0017-010-001 - Context Window Management System
   - Token counting and threshold monitoring
   - Conversation summarization engine
   - Automatic summarization triggers
 
-### **Priority 13: OTP Authentication** 📋
+### **Priority 14: OTP Authentication** 📋
 - [ ] 0017-011-001 - OTP Authentication System
   - Twilio Verify integration
   - Session upgrade and account creation
@@ -350,7 +383,7 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 ## PHASE 3: Multi-Agent Platform
 
-### **Priority 14: Multi-Client Widget Foundation** ✅ **DONE**
+### **Priority 15: Multi-Client Widget Foundation** ✅ **DONE**
 - [x] 0003-001-001 - Shadow DOM Widget ✅
   - Implementation: `web/public/widget/chat-widget.js`
   - Demo: `web/src/pages/demo/widget.astro`
@@ -371,7 +404,7 @@ Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
 All migrated to multi-tenant architecture with explicit `/accounts/{account}/agents/{instance}/*` endpoints.
 
-### **Priority 15: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
+### **Priority 16: Agent Type Plumbing** ✅ **3/4 SUPERSEDED by Epic 0022**
 **Note**: Epic 0022 replaces old multi-account/multi-instance epics with unified architecture
 
 - [x] 0005-002-001 - Agent type registration and discovery system ✅ **SUPERSEDED**
@@ -393,19 +426,19 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
   - Not yet implemented
   - Future enhancement for production monitoring
 
-### **Priority 16: Sales Agent Addition** 📋
+### **Priority 17: Sales Agent Addition** 📋
 - [ ] 0008-001-001 - Sales agent foundation with business tools
 - [ ] 0008-001-002 - RAG integration with business knowledge
 - [ ] 0008-001-003 - Email integration (Mailgun)
 - [ ] 0008-001-004 - Scheduling integration (Nylas/Calendly)
 - [ ] 0008-001-005 - Profile data collection and lead qualification
 
-### **Priority 17: React and Vue Chat Widgets** 📋
+### **Priority 18: React and Vue Chat Widgets** 📋
 - [ ] 0003-002-001 - React Widget Component with TypeScript
 - [ ] 0003-002-002 - Vue 3 Widget Component with Composition API
 - [ ] 0003-002-003 - NPM Package Distribution (@salient/widget-react, @salient/widget-vue)
 
-### **Priority 18: Advanced Widget Features** 📋
+### **Priority 19: Advanced Widget Features** 📋
 - [ ] 0003-003-001 - Iframe Adapter for security isolation
 - [ ] 0003-003-002 - API-Only Mode for mobile integration
 - [ ] 0003-003-003 - Advanced Theming with CSS variables
@@ -465,3 +498,4 @@ All migrated to multi-tenant architecture with explicit `/accounts/{account}/age
 6. 📋 Priority 8: 0017-008 (Email Summary with Mailgun)
 7. 📋 Priority 9: Multi-Provider Infrastructure - Together.ai integration for LLM consistency
 8. 📋 Priority 10: 0017-007 (Per-Agent Cookie Configuration) - Session isolation per agent instance
+9. 📋 Priority 11: 0017-013 (Logfire Migration) - Consolidate all logging to Logfire for consistent observability

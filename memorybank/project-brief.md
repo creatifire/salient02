@@ -72,6 +72,13 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 - All imports must use `from backend.app...` not `from app...`
 - Virtual environment: `backend/venv/` activated from project root
 
+**Logging Standards:**
+- **Logfire is the standard** - All logging MUST use Logfire (phasing out loguru over time)
+- **Dual output** - Console logs (screen) + Logfire cloud dashboard (when token present)
+- **Structured logging** - Use `logfire.info('event.name', key=value)` format
+- **Event naming** - Dot notation: `module.action` (e.g., `agent.created`, `session.loaded`)
+- **No visibility loss** - Console output always enabled for local development
+
 **Diagnostic Logging Principles:**
 - **NEVER disable diagnostic logging to hide problems** - Fix root causes, not symptoms
 - `logfire.instrument_pydantic()` must remain enabled - verbose logs reveal issues

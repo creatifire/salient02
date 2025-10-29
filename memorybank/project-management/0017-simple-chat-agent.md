@@ -3288,6 +3288,260 @@ Implement OTP (One-Time Password) authentication system with email-based account
     - STATUS: Planned — Account management foundation
     - PRIORITY: Medium — User data persistence
 
+## Priority 2I: Logging Infrastructure Consolidation
+
+### 0017-013 - FEATURE - Migrate from Loguru to Logfire Logging
+**Status**: Planned
+
+Consolidate all logging to use Logfire for consistent observability, structured logging, and distributed tracing across the entire application.
+
+**RATIONALE**: Currently the codebase uses mixed logging approaches (standard `logging`, `loguru`, and `logfire`). This creates inconsistency, makes troubleshooting harder, and prevents full utilization of Logfire's observability features. Standardizing on Logfire enables:
+- Structured logging by default (queryable JSON)
+- Distributed tracing across services
+- Automatic Pydantic model instrumentation
+- Production observability dashboard
+- Consistent logging patterns across all modules
+
+**CURRENT STATE**:
+- ✅ `logfire` used in: `vector_service.py`, `directory_tools.py`, `prompt_generator.py`
+- ⚠️ `loguru` used extensively in: `simple_chat.py`, most services
+- ❌ Standard `logging` used in: some legacy modules
+
+**TARGET STATE**: All modules use `logfire` exclusively with structured event naming.
+
+**OUTPUT CONFIGURATION**: Logfire provides dual output for development and production:
+- ✅ **Console output** (stdout/stderr) - Always enabled for local development visibility
+- ✅ **Logfire cloud dashboard** - Enabled when `LOGFIRE_TOKEN` environment variable present
+- ✅ **File output** (optional) - Can be added via standard Python logging handlers if needed
+
+**DEFAULT BEHAVIOR**:
+```python
+import logfire
+
+# Logfire configuration (already in simple_chat.py)
+logfire.configure(
+    send_to_logfire='if-token-present',  # Cloud only if token exists
+    console=True  # ← Screen output always enabled (default)
+)
+
+logfire.info('agent.created', model='gpt-4')
+# Output appears on screen (formatted, readable)
+# AND in Logfire dashboard (structured, queryable)
+```
+
+This means **no loss of visibility** during development - you'll still see all logs on screen while gaining cloud observability.
+
+- [ ] 0017-013-001 - TASK - Migrate Simple Chat Agent to Logfire
+  - [ ] 0017-013-001-01 - CHUNK - Replace loguru imports with logfire in simple_chat.py
+    - **PURPOSE**: Convert primary agent module to use Logfire for consistent observability
+    
+    - **MIGRATION PATTERN**:
+      ```python
+      # BEFORE (loguru)
+      from loguru import logger
+      
+      logger.info({
+          "event": "agent_creation_debug",
+          "model_name": model_name,
+          "has_api_key": bool(api_key)
+      })
+      
+      # AFTER (logfire)
+      import logfire
+      
+      logfire.info(
+          'agent.creation_debug',
+          model_name=model_name,
+          has_api_key=bool(api_key)
+      )
+      ```
+    
+    - **EVENT NAMING CONVENTION**:
+      - Use dot notation: `module.action` (e.g., `agent.creation_debug`, `session.load_history`)
+      - Past tense for completed actions: `agent.created`, `session.loaded`
+      - Present tense for ongoing: `agent.creating`, `session.loading`
+      - Error events: `agent.error`, `session.load_error`
+    
+    - SUB-TASKS:
+      - Replace `from loguru import logger` with `import logfire` in `simple_chat.py`
+      - Convert all `logger.info()` calls to `logfire.info()` with structured event names
+      - Convert all `logger.warning()` calls to `logfire.warn()`
+      - Convert all `logger.error()` calls to `logfire.error()`
+      - Convert all `logger.debug()` calls to `logfire.debug()`
+      - Update log message format: dict syntax → keyword arguments
+      - Add event name as first parameter to each log call
+      - Verify `logfire.instrument_pydantic()` remains enabled (line 44)
+      - Test all logging paths trigger correctly
+    
+    - AUTOMATED-TESTS: `backend/tests/unit/test_simple_chat_logging.py`
+      - `test_no_loguru_imports()` - Verify no loguru imports remain
+      - `test_all_logs_use_logfire()` - Verify all logging uses logfire
+      - `test_event_naming_convention()` - Verify event names follow dot notation
+      - `test_pydantic_instrumentation_enabled()` - Verify logfire.instrument_pydantic() present
+    
+    - MANUAL-TESTS:
+      - Run backend, send chat message
+      - **Verify console output**: Confirm logs appear on screen (terminal) with structured format
+      - **Check Logfire dashboard**: Verify events appear with structured names and are queryable
+      - **Verify dual output**: Confirm same events visible in BOTH console and Logfire dashboard
+      - Check for any missed loguru calls: `grep -rn "logger\." backend/app/agents/simple_chat.py`
+      - Compare console readability: loguru vs logfire output (both should be readable)
+    
+    - STATUS: Planned — Core agent logging migration
+    - PRIORITY: High — Primary module for observability
+
+  - [ ] 0017-013-001-02 - CHUNK - Migrate services to Logfire
+    - **PURPOSE**: Convert all service modules to use Logfire for consistent observability
+    
+    - **MODULES TO MIGRATE**:
+      ```
+      backend/app/services/
+      ├── message_service.py           # MIGRATE - Uses loguru
+      ├── session_service.py           # MIGRATE - Uses loguru
+      ├── llm_request_tracker.py       # MIGRATE - Uses loguru
+      ├── agent_session.py             # MIGRATE - Uses loguru
+      ├── embedding_service.py         # MIGRATE - Uses loguru (if applicable)
+      ├── vector_service.py            # ✅ ALREADY USES LOGFIRE
+      └── pinecone_client.py           # VERIFY - Check current logging
+      ```
+    
+    - SUB-TASKS:
+      - Audit all files in `backend/app/services/` for logging approach
+      - Migrate each service module using same pattern as simple_chat.py
+      - Create service-specific event naming (e.g., `message.saved`, `session.created`)
+      - Update all log calls to structured format with keyword arguments
+      - Add logfire spans for long-running operations (database queries, API calls)
+      - Document service logging patterns in `backend/README.md`
+    
+    - AUTOMATED-TESTS: `backend/tests/unit/test_services_logging.py`
+      - `test_no_loguru_in_services()` - Verify no loguru imports in services/
+      - `test_all_services_use_logfire()` - Verify all services use logfire
+      - `test_service_event_naming()` - Verify consistent event naming across services
+    
+    - MANUAL-TESTS:
+      - Run backend, perform operations that trigger each service
+      - Check Logfire dashboard: verify all service events appear
+      - Verify service-specific events are properly structured
+      - Test error logging: trigger errors, verify error events in Logfire
+    
+    - STATUS: Planned — Service layer logging consolidation
+    - PRIORITY: High — Core infrastructure
+
+  - [ ] 0017-013-001-03 - CHUNK - Add Logfire spans for performance tracking
+    - **PURPOSE**: Enhance observability with distributed tracing spans for key operations
+    
+    - **SPAN TARGETS**:
+      ```python
+      # Agent execution
+      with logfire.span('agent.run', message_length=len(message), session_id=session_id):
+          result = await agent.run(message, deps=session_deps, message_history=message_history)
+      
+      # Database queries
+      with logfire.span('database.query', table='messages', operation='load_history'):
+          messages = await message_service.get_session_messages(session_id, limit=max_messages)
+      
+      # LLM requests
+      with logfire.span('llm.request', model=model_name, provider='openrouter'):
+          response = await client.chat.completions.create(...)
+      
+      # Vector search
+      with logfire.span('vector.search', query_length=len(query), index=index_name):
+          results = await vector_service.query_similar(...)
+      ```
+    
+    - SUB-TASKS:
+      - Add spans around agent.run() calls in simple_chat.py
+      - Add spans around database operations in service modules
+      - Add spans around LLM API calls (already present in vector_service.py)
+      - Add spans around vector search operations
+      - Nest spans appropriately (agent → llm → tool → database)
+      - Include timing metrics in span attributes
+      - Test span visibility in Logfire dashboard
+    
+    - AUTOMATED-TESTS: `backend/tests/integration/test_logfire_spans.py`
+      - `test_agent_execution_span()` - Verify agent.run spans created
+      - `test_database_query_spans()` - Verify database operation spans
+      - `test_nested_span_hierarchy()` - Verify span nesting structure
+      - `test_span_timing_metrics()` - Verify timing data captured
+    
+    - MANUAL-TESTS:
+      - Run backend, send chat message
+      - Open Logfire dashboard → Traces view
+      - Verify complete trace: agent → database → llm → vector_search
+      - Check span timing: identify slow operations
+      - Test error spans: trigger errors, verify error spans appear
+    
+    - STATUS: Planned — Performance observability enhancement
+    - PRIORITY: Medium — Advanced observability features
+
+  - [ ] 0017-013-001-04 - CHUNK - Remove all loguru dependencies
+    - **PURPOSE**: Complete migration by removing loguru from codebase and dependencies
+    
+    - **CLEANUP CHECKLIST**:
+      - Remove `loguru` from `requirements.txt`
+      - Remove `loguru` from `requirements-dev.txt` (if present)
+      - Search codebase for any remaining loguru imports: `grep -r "from loguru import" backend/`
+      - Search for logger pattern: `grep -r "logger\." backend/ | grep -v logfire`
+      - Update CI/CD pipelines if loguru-specific configuration exists
+      - Remove any loguru configuration files
+      - Update documentation to reference Logfire only
+    
+    - SUB-TASKS:
+      - Remove loguru from requirements.txt
+      - Verify no remaining loguru imports in codebase
+      - Update backend/README.md to remove loguru references
+      - Update logging documentation to show Logfire examples only
+      - Test application starts without loguru installed
+      - Verify all tests pass without loguru
+      - Update project-brief.md logging standards section
+    
+    - AUTOMATED-TESTS: `backend/tests/unit/test_no_loguru.py`
+      - `test_loguru_not_in_requirements()` - Verify loguru removed from requirements.txt
+      - `test_no_loguru_imports_in_codebase()` - Scan all Python files for loguru imports
+      - `test_application_starts_without_loguru()` - Verify app runs without loguru installed
+    
+    - MANUAL-TESTS:
+      - Uninstall loguru: `pip uninstall loguru`
+      - Start backend: `uvicorn backend.app.main:app`
+      - Verify application starts successfully
+      - Send test requests, verify no import errors
+      - Check logs: confirm all logging works via Logfire
+      - Reinstall dependencies: `pip install -r requirements.txt`
+      - Verify loguru NOT installed: `pip list | grep loguru`
+    
+    - STATUS: Planned — Complete migration cleanup
+    - PRIORITY: Medium — Final cleanup step
+
+**TESTING SUMMARY**:
+
+**AUTOMATED-TESTS** (12 tests total):
+- **Unit Tests**: `test_simple_chat_logging.py` (4 tests - agent logging migration)
+- **Unit Tests**: `test_services_logging.py` (3 tests - service logging migration)
+- **Integration Tests**: `test_logfire_spans.py` (4 tests - span tracking)
+- **Unit Tests**: `test_no_loguru.py` (3 tests - cleanup verification)
+
+**MANUAL-TESTS**:
+- Simple chat agent logging verification (Logfire dashboard, file logs)
+- Service module logging verification (all services tested)
+- Span visibility and nesting in Logfire dashboard
+- Application functionality without loguru installed
+
+**DOCUMENTATION UPDATES**:
+- `backend/README.md` - Update logging examples to use Logfire
+- `memorybank/project-brief.md` - Already updated with Logfire standards
+- `.cursor/rules/persona.mdc` - Already updated with diagnostic logging principles
+- Remove any loguru-specific configuration documentation
+
+**BENEFITS**:
+- ✅ **Consistent observability** - Single logging approach across entire codebase
+- ✅ **Structured logging** - All logs queryable in Logfire dashboard
+- ✅ **Dual output** - Console logs for development + cloud dashboard for production (no loss of visibility)
+- ✅ **Distributed tracing** - Full request flow visibility with spans
+- ✅ **Production-ready** - Professional observability platform
+- ✅ **Automatic instrumentation** - Pydantic models auto-logged
+- ✅ **Better debugging** - Trace tool loops, LLM behavior, performance issues
+- ✅ **Reduced complexity** - One logging library instead of three
+
 ## Definition of Done
 - Agent implements Pydantic AI patterns with SessionDependencies integration
 - `/agents/simple-chat/chat` endpoint functional with cost tracking
