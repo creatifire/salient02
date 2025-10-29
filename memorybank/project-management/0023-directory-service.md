@@ -193,8 +193,8 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 - [x] 0023-008 - Multi-Tenant Dependencies (infrastructure) ✅
 
 **Phase 2 (Revised Priority Order)** 🎯:
-- [ ] 0023-007-002 - **Full-Text Search (FTS)** - Priority 1 🎯 **NEXT**
-- [ ] 0023-004-001 - Schema-Driven Generic Filters - Priority 2
+- [x] 0023-007-002 - **Full-Text Search (FTS)** - Priority 1 ✅ **COMPLETE**
+- [ ] 0023-004-001 - Schema-Driven Generic Filters - Priority 2 🎯 **NEXT**
 - [ ] 0023-004-003 - Centralized Tool Registry - Priority 3 (optional)
 - [ ] 0023-005-001 - Incremental CSV Updates - Priority 4 (if needed)
 
@@ -245,8 +245,8 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 **REVISED Implementation Order** (Based on user goal: "improve the search"):
 
-#### **1. Full-Text Search (0023-007-002) - Priority 1** 🎯 **MOVED TO TOP**
-**Status**: Planned 📋
+#### **1. Full-Text Search (0023-007-002) - Priority 1** ✅ **COMPLETE**
+**Status**: ✅ **COMPLETE**
 **Value**: HIGH - Immediate search quality improvement
 
 **Why First?**
@@ -261,7 +261,7 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ### 0023-007-002 - TASK - Full-Text Search Implementation
 
-- [ ] **0023-007-002-01 - CHUNK - Database migration (tsvector column + GIN index)**
+- [x] **0023-007-002-01 - CHUNK - Database migration (tsvector column + GIN index)** ✅ **COMPLETE**
 
 **SUB-TASKS**:
 - Create Alembic migration file: `add_fts_to_directory_entries.py`
@@ -299,7 +299,7 @@ COMMENT ON COLUMN directory_entries.search_vector IS 'Full-text search vector (n
 
 ---
 
-- [ ] **0023-007-002-02 - CHUNK - DirectoryService FTS query support**
+- [x] **0023-007-002-02 - CHUNK - DirectoryService FTS query support** ✅ **COMPLETE**
 
 **SUB-TASKS**:
 - Update `DirectoryService.search()` signature to accept `search_mode` parameter
@@ -357,7 +357,7 @@ async def search(
 
 ---
 
-- [ ] **0023-007-002-03 - CHUNK - Schema YAML and agent config updates**
+- [x] **0023-007-002-03 - CHUNK - Schema YAML and agent config updates** ✅ **COMPLETE**
 
 **SUB-TASKS**:
 - Add `search_mode` field to `medical_professional.yaml` schema:
