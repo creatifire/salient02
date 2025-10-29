@@ -1748,7 +1748,7 @@ if directory_config.get("enabled", False):
 
 ### 0023-004-001 - TASK - Schema-Driven Generic Filters - Implementation
 
-- [ ] **0023-004-001-01 - CHUNK - Update tool signature with generic filters dict**
+- [x] **0023-004-001-01 - CHUNK - Update tool signature with generic filters dict** ✅ **COMPLETE**
 
 **SUB-TASKS**:
 - Update `search_directory()` signature in `directory_tools.py`
@@ -1800,11 +1800,13 @@ async def search_directory(
 ```
 
 **ACCEPTANCE**:
-- ✅ Tool signature updated with `filters: Optional[Dict[str, str]]`
-- ✅ All explicit params removed (specialty, gender, department, drug_class, category, brand)
-- ✅ Docstring includes examples for medical, pharmaceutical, product entry types
-- ✅ `filters` dict passed to `DirectoryService.search()` as `jsonb_filters`
-- ✅ No linter errors
+- ✅ Tool signature updated with `filters: Optional[Dict[str, str]]` ✅ **DONE**
+- ✅ All explicit params removed (specialty, gender, department, drug_class, category, brand) ✅ **DONE**
+- ✅ Docstring includes examples for medical, pharmaceutical, product entry types ✅ **DONE** (7 examples added)
+- ✅ `filters` dict passed to `DirectoryService.search()` as `jsonb_filters` ✅ **DONE**
+- ✅ No linter errors ✅ **VERIFIED**
+
+**RESULT**: Code simplified from 198 lines to 180 lines (-18 lines). Tool now accepts generic filters dict, enabling zero-code addition of new directory types.
 
 ---
 
