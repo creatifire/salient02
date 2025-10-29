@@ -193,10 +193,10 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 - [x] 0023-008 - Multi-Tenant Dependencies (infrastructure) ✅
 
 **Phase 2 (Revised Priority Order)** 🎯:
-- [ ] 0023-007-002 - **Full-Text Search (FTS)** - Priority 1 (4-6 hours) 🎯 **NEXT**
-- [ ] 0023-004-001 - Schema-Driven Generic Filters - Priority 2 (2-3 days)
-- [ ] 0023-004-003 - Centralized Tool Registry - Priority 3 (1 day, optional)
-- [ ] 0023-005-001 - Incremental CSV Updates - Priority 4 (1 week, if needed)
+- [ ] 0023-007-002 - **Full-Text Search (FTS)** - Priority 1 🎯 **NEXT**
+- [ ] 0023-004-001 - Schema-Driven Generic Filters - Priority 2
+- [ ] 0023-004-003 - Centralized Tool Registry - Priority 3 (optional)
+- [ ] 0023-005-001 - Incremental CSV Updates - Priority 4 (if needed)
 
 **Deferred** ⏸️:
 - [ ] 0023-003 - Semantic Search (Pinecone) - Re-evaluate after FTS
@@ -237,24 +237,23 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 **Goal**: Improve search quality first, then enable zero-code addition of new directory types.
 
 **🔄 KEY CHANGES FROM ORIGINAL PLAN:**
-- ✅ **FTS moved from "Optional" to Priority 1** - Immediate 6-hour search improvement
+- ✅ **FTS moved from "Optional" to Priority 1** - Immediate search improvement
 - ⬇️ **Schema-Driven Filters moved to Priority 2** - Important but not urgent
 - ❌ **6 features deprecated** - Removes premature optimizations
 - ⏸️ **Semantic Search kept deferred** - Re-evaluate after FTS
-- 📊 **Result**: Faster delivery (6h vs 2-3 days), higher user value, less code
+- 📊 **Result**: Faster delivery, higher user value, less code
 
 **REVISED Implementation Order** (Based on user goal: "improve the search"):
 
 #### **1. Full-Text Search (0023-007-002) - Priority 1** 🎯 **MOVED TO TOP**
 **Status**: Planned 📋
-**Effort**: 4-6 hours total
 **Value**: HIGH - Immediate search quality improvement
 
 **Why First?**
 - **Delivers immediate user value** - Better search matching TODAY
 - Handles word variations: "cardio" → "cardiologist", "cardiology", "cardiovascular"
 - Native PostgreSQL feature (low risk, no external dependencies)
-- 10x faster than schema-driven filters (6 hours vs 2-3 days)
+- Faster delivery than schema-driven filters
 - Works with current tool signature (no breaking changes)
 - Solves 80% of search quality issues without embeddings
 
@@ -262,7 +261,7 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ### 0023-007-002 - TASK - Full-Text Search Implementation
 
-- [ ] **0023-007-002-01 - CHUNK - Database migration (tsvector column + GIN index)** (1 hour)
+- [ ] **0023-007-002-01 - CHUNK - Database migration (tsvector column + GIN index)**
 
 **SUB-TASKS**:
 - Create Alembic migration file: `add_fts_to_directory_entries.py`
@@ -300,7 +299,7 @@ COMMENT ON COLUMN directory_entries.search_vector IS 'Full-text search vector (n
 
 ---
 
-- [ ] **0023-007-002-02 - CHUNK - DirectoryService FTS query support** (2 hours)
+- [ ] **0023-007-002-02 - CHUNK - DirectoryService FTS query support**
 
 **SUB-TASKS**:
 - Update `DirectoryService.search()` signature to accept `search_mode` parameter
@@ -358,7 +357,7 @@ async def search(
 
 ---
 
-- [ ] **0023-007-002-03 - CHUNK - Schema YAML and agent config updates** (1 hour)
+- [ ] **0023-007-002-03 - CHUNK - Schema YAML and agent config updates**
 
 **SUB-TASKS**:
 - Add `search_mode` field to `medical_professional.yaml` schema:
@@ -412,7 +411,7 @@ tools:
 
 ---
 
-- [ ] **0023-007-002-04 - CHUNK - End-to-end testing and validation** (1-2 hours)
+- [ ] **0023-007-002-04 - CHUNK - End-to-end testing and validation**
 
 **SUB-TASKS**:
 - **Word Variation Testing**:
@@ -475,7 +474,6 @@ psql -c "EXPLAIN ANALYZE SELECT * FROM directory_entries WHERE search_vector @@ 
 
 #### **2. Schema-Driven Generic Filters (0023-004-001) - Priority 2** ⬇️ **MOVED DOWN**
 **Status**: Planned 📋
-**Effort**: 2-3 days
 **Value**: HIGH - Enables scalability (when needed)
 
 **Why Second?**
@@ -485,29 +483,29 @@ psql -c "EXPLAIN ANALYZE SELECT * FROM directory_entries WHERE search_vector @@ 
 - Low risk (doesn't change search algorithm, just tool interface)
 
 **Implementation Steps**:
-1. **Enhance Schema Files** (4 hours)
+1. **Enhance Schema Files**
    - Add `searchable_fields` section to YAML schemas
    - Define field types, search modes, descriptions, examples
    - Update `medical_professional.yaml` as reference implementation
 
-2. **Create Prompt Generator** (6 hours)
+2. **Create Prompt Generator**
    - New module: `backend/app/agents/tools/prompt_generator.py`
    - Read agent's `accessible_lists` from config
    - Load schemas for each list
    - Generate markdown documentation with examples
    - Unit tests for prompt generation
 
-3. **Update Tool Signature** (2 hours)
+3. **Update Tool Signature**
    - Change from explicit params to generic `filters: Optional[Dict[str, str]]`
    - Keep universal params: `list_name`, `query`, `tag`
    - Update DirectoryService queries to use filters dict
 
-4. **Integrate with simple_chat** (4 hours)
+4. **Integrate with simple_chat**
    - Auto-generate directory tool docs on agent initialization
    - Append to system prompt dynamically
    - Test with existing Wyckoff data
 
-5. **Regression Testing** (4 hours)
+5. **Regression Testing**
    - Verify existing queries still work
    - Test "female Spanish-speaking endocrinologist"
    - Ensure no performance degradation
@@ -522,7 +520,6 @@ psql -c "EXPLAIN ANALYZE SELECT * FROM directory_entries WHERE search_vector @@ 
 
 #### **3. Centralized Tool Registry (0023-004-003) - Priority 3** (Optional)
 **Status**: Planned 📋
-**Effort**: 1 day (~8 hours)
 **Value**: MEDIUM - Clean architecture
 
 **Why Third?**
@@ -537,7 +534,6 @@ psql -c "EXPLAIN ANALYZE SELECT * FROM directory_entries WHERE search_vector @@ 
 
 #### **4. Semantic Search (0023-003) - KEEP DEFERRED** ⏸️
 **Status**: Deferred (Re-evaluate after FTS) 📋
-**Effort**: 3-4 weeks
 **Value**: MEDIUM (FTS solves most needs)
 
 **Why Keep Deferred?**
@@ -612,21 +608,21 @@ The following features are being deprecated as premature optimizations or unnece
 
 ### **Decision Matrix** (REVISED)
 
-| Enhancement | Effort | Risk | Value | Priority | Rationale |
-|-------------|--------|------|-------|----------|-----------|
-| **Full-Text Search** 🎯 | 4-6 hours | Low | **HIGH** | **P1 - NOW** | **Immediate search quality improvement** |
-| **Schema-Driven Filters** | 2-3 days | Low | HIGH | **P2 - NEXT** | Enables scalability when needed |
-| **Tool Registry** | 1 day | Low | Medium | **P3 - Optional** | Clean architecture, not urgent |
-| **Incremental CSV Updates** | 1 week | Medium | Low | **P4 - If Needed** | Only if data changes frequently |
-| **Semantic Search** | 3-4 weeks | Medium | Medium | **⏸️ DEFERRED** | Re-evaluate after FTS |
-| ~~Config-Driven CSV~~ | 1 week | Low | Low | **❌ DEPRECATED** | Python mappers work fine |
-| ~~Two-Tool Discovery~~ | 3 days | Low | Low | **❌ DEPRECATED** | Prompts provide context |
-| ~~Status Field~~ | 2 days | Low | Low | **❌ DEPRECATED** | No current need |
-| ~~Pagination~~ | 1 day | Low | Low | **❌ DEPRECATED** | Anti-pattern for chat |
-| ~~Materialized Views~~ | 3 days | Low | Low | **❌ DEPRECATED** | Premature optimization |
+| Enhancement | Risk | Value | Priority | Rationale |
+|-------------|------|-------|----------|-----------|
+| **Full-Text Search** 🎯 | Low | **HIGH** | **P1 - NOW** | **Immediate search quality improvement** |
+| **Schema-Driven Filters** | Low | HIGH | **P2 - NEXT** | Enables scalability when needed |
+| **Tool Registry** | Low | Medium | **P3 - Optional** | Clean architecture, not urgent |
+| **Incremental CSV Updates** | Medium | Low | **P4 - If Needed** | Only if data changes frequently |
+| **Semantic Search** | Medium | Medium | **⏸️ DEFERRED** | Re-evaluate after FTS |
+| ~~Config-Driven CSV~~ | Low | Low | **❌ DEPRECATED** | Python mappers work fine |
+| ~~Two-Tool Discovery~~ | Low | Low | **❌ DEPRECATED** | Prompts provide context |
+| ~~Status Field~~ | Low | Low | **❌ DEPRECATED** | No current need |
+| ~~Pagination~~ | Low | Low | **❌ DEPRECATED** | Anti-pattern for chat |
+| ~~Materialized Views~~ | Low | Low | **❌ DEPRECATED** | Premature optimization |
 
 **Key Changes:**
-- **FTS moved to P1** - Delivers immediate value in 6 hours vs 2-3 days
+- **FTS moved to P1** - Delivers immediate value
 - **Schema-Driven to P2** - Important but doesn't improve current search
 - **6 features deprecated** - Eliminates premature optimizations
 
@@ -636,18 +632,18 @@ The following features are being deprecated as premature optimizations or unnece
 
 **Optimized for: "Improve the search" (user's stated goal)**
 
-1. **Implement Full-Text Search (0023-007-002) FIRST** - 4-6 hours 🎯
-   - **Ship TODAY** - Immediate search quality improvement
+1. **Implement Full-Text Search (0023-007-002) FIRST** 🎯
+   - **Ship ASAP** - Immediate search quality improvement
    - Handles word variations: "cardio" → "cardiologist", stemming, plural forms
    - Low risk, native PostgreSQL, no breaking changes
    - **Test and measure** - Validate search quality improvement
 
-2. **Implement Schema-Driven Filters (0023-004-001) SECOND** - 2-3 days
+2. **Implement Schema-Driven Filters (0023-004-001) SECOND**
    - **Only if/when** you need to add new directory types (pharma, products, etc.)
    - Enables scalability without code changes
    - No dependency on FTS results
 
-3. **Tool Registry (0023-004-003) OPTIONAL** - 1 day
+3. **Tool Registry (0023-004-003) OPTIONAL**
    - Clean architecture benefit
    - Implement only if adding many more tools
 
@@ -656,15 +652,10 @@ The following features are being deprecated as premature optimizations or unnece
    - If FTS proves insufficient (unlikely), consider Pinecone
    - Until then: **Keep deferred**
 
-**Timeline:**
-- **Week 1**: Ship FTS (1 day), test and validate
-- **Week 2+**: Schema-driven filters IF new directory types needed
-- **Never**: All deprecated features
-
 **Success Metrics:**
 - Search quality improved (subjective testing)
 - Code complexity reduced (6 features removed)
-- Time to value: 6 hours instead of 2-3 days
+- Faster delivery of user value
 
 ---
 
