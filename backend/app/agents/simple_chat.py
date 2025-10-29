@@ -216,6 +216,8 @@ async def create_simple_chat_agent(
                     "directory_docs_length": len(directory_docs),
                     "final_length": len(system_prompt)
                 })
+                # Log the actual enhanced prompt for debugging
+                logger.info(f"FINAL SYSTEM PROMPT ({len(system_prompt)} chars):\n{system_prompt}")
             else:
                 logger.warning("Directory documentation generation returned empty string")
     elif directory_config.get("enabled", False) and account_id is None:
@@ -698,17 +700,31 @@ async def simple_chat_stream(
     
     try:
         # Execute agent with streaming
+        logger.info({
+            "event": "streaming_agent_start",
+            "session_id": session_id,
+            "model": requested_model,
+            "message_length": len(message)
+        })
+        
         async with agent.run_stream(message, deps=session_deps, message_history=message_history) as result:
+            logger.info({
+                "event": "streaming_context_entered",
+                "session_id": session_id,
+                "result_type": type(result).__name__
+            })
+            
             # Stream with delta=True for incremental chunks only
             chunk_count = 0
             async for chunk in result.stream_text(delta=True):
                 chunk_count += 1
-                logger.debug({
+                logger.info({  # Changed from debug to info
                     "event": "streaming_chunk_received",
                     "session_id": session_id,
                     "chunk_number": chunk_count,
                     "chunk_length": len(chunk) if chunk else 0,
-                    "chunk_preview": chunk[:50] if chunk else None
+                    "chunk_preview": chunk[:50] if chunk else None,
+                    "chunk_is_empty": not bool(chunk)
                 })
                 if chunk:  # Only append and yield non-empty chunks
                     chunks.append(chunk)

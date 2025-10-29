@@ -29,8 +29,9 @@
   
   // Debug mode - enable verbose console logging
   const debugMode = globalConfig.debug !== undefined ? globalConfig.debug : false;
+  console.log('🔍 WIDGET LOADED - debugMode:', debugMode, 'globalConfig:', globalConfig);
   function debugLog(...args) {
-    if (debugMode) console.debug('[SalientWidget]', ...args);
+    console.log('[SalientWidget]', ...args); // FORCE ALWAYS ON for troubleshooting
   }
   
   let backend;
