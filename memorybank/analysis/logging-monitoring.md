@@ -3,109 +3,156 @@ Copyright (c) 2025 Ape4, Inc. All rights reserved.
 Unauthorized copying of this file is strictly prohibited.
 -->
 
-# Production Logging & Monitoring Analysis
+# Production Logging & Monitoring: Logfire
 
-> Analysis of cost-effective logging and monitoring solutions for early production stage
+> **Status**: Adopted  
+> **Implementation Plan**: `project-management/0017-simple-chat-agent.md` (Priority 2I: 0017-013)
 
-## Business Context
-- **Revenue**: $2000 MRR (~$200/customer/month)
-- **Scale**: 10 paying customers on shared infrastructure
-- **Stage**: Early production with growth potential
-- **Constraint**: Cost must be justified by revenue protection
+## Decision
 
-## Scenarios Examined
+Using **Logfire** as the standard observability platform for all logging, tracing, and monitoring.
 
-### 1. Do Nothing / Basic Log Files
-- **Cost**: $0/month
-- **Pros**: Zero cost, simple, reliable
-- **Cons**: Manual incident response, no proactive detection, customer churn risk
-- **Use Case**: Tight budgets, technical teams comfortable with SSH debugging
+## Why Logfire
 
-### 2. Lightweight Self-Hosted (Grafana + Loki + Prometheus)
-- **Cost**: $50-100/month + team time
-- **Pros**: Complete control, scalable, good learning investment
-- **Cons**: Maintenance overhead, setup complexity, no external monitoring
-- **Use Case**: Technical teams willing to invest in operational maturity
+**Technical Fit**:
+- Built by Pydantic creators with excellent Python support
+- OpenTelemetry-based (open standard, no vendor lock-in)
+- Automatic instrumentation for our stack (SQLAlchemy, Pydantic, PydanticAI, FastAPI)
+- Structured logging by default (JSON, queryable)
+- Distributed tracing across services
+- Dual output: console (development) + cloud dashboard (production)
 
-### 3. Budget Cloud Solutions (Papertrail + Uptime Robot)
-- **Cost**: $50-150/month
-- **Pros**: Zero maintenance, external monitoring, quick setup
-- **Cons**: Limited features, basic alerting, multiple tools needed
-- **Use Case**: Teams wanting managed solution without enterprise pricing
+**Cost-Effective**:
+- Free tier suitable for early production
+- Scales with usage (no upfront enterprise pricing)
+- Eliminates need for multiple tools (logging + APM + tracing)
+- Reduces maintenance overhead vs self-hosted solutions
 
-### 4. Enterprise Cloud (DataDog, New Relic)
-- **Cost**: $300-800+/month (15-40% of MRR)
-- **Pros**: Comprehensive features, excellent segmentation, scales seamlessly
-- **Cons**: Expensive, feature overkill, unsustainable at current scale
-- **Use Case**: $10K+ MRR companies with complex applications
+**Developer Experience**:
+- Simple setup: `logfire.configure()` and `logfire.info()`
+- Type-safe structured logging with keyword arguments
+- Real-time console output preserved (no loss of visibility)
+- Automatic Pydantic model validation tracking
+- SQL query tracing without code changes
 
-### 5. Hybrid Approach
-- **Cost**: $20-50/month (1-2.5% of MRR)
-- **Pros**: Covers 80% of needs at 20% of cost, external monitoring, customer debugging
-- **Cons**: Some manual setup, less sophisticated than enterprise
-- **Use Case**: Bootstrap companies wanting operational visibility without breaking budget
+## Architecture
 
-## Recommendation: Hybrid Approach
+### Logging Pattern
 
-### Implementation Phases
+```python
+import logfire
 
-**Phase 1 (Month 1)**: Enhanced Logging
-- Structured JSON logging with customer segmentation
-- Log aggregation to central server
-- Basic alerting (email/Slack on ERROR level)
-- **Cost**: $0-20/month
+logfire.configure(
+    send_to_logfire='if-token-present',  # Cloud only if LOGFIRE_TOKEN set
+    console=True  # Always show logs in terminal
+)
 
-**Phase 2 (Month 2-3)**: Basic Monitoring
-- Uptime Robot free tier for external checks
-- Health check endpoints
-- Customer-specific log filtering
-- **Cost**: $0-30/month additional
+# Structured logging with dot notation event names
+logfire.info('agent.created', model='gpt-4', session_id=session_id)
+logfire.error('database.query_failed', table='messages', error=str(e))
 
-**Phase 3 (Month 4-6)**: Operational Dashboard
-- Simple FastAPI dashboard showing:
-  - Customer activity levels and error rates
-  - Performance trends and vector DB usage
-  - System health indicators
-- **Cost**: Minimal (internal development)
+# Spans for performance tracking
+with logfire.span('database.load_history', session_id=session_id):
+    messages = await message_service.get_session_messages(session_id)
+```
 
-## Decision Matrix
+### Automatic Instrumentation
 
-| Solution | Monthly Cost | % of MRR | Risk Mitigation | ROI Assessment |
-|----------|--------------|----------|-----------------|----------------|
-| Do Nothing | $0 | 0% | Low | Risk of customer loss |
-| Hybrid | $20-50 | 1-2.5% | Medium | High - prevents churn |
-| Budget SaaS | $50-150 | 2.5-7.5% | High | Medium - cost vs benefit |
-| Enterprise | $300-800 | 15-40% | Very High | Negative at current scale |
+```python
+# Enable automatic tracking for core libraries
+logfire.instrument_pydantic()      # Pydantic model validation
+logfire.instrument_pydantic_ai()   # LLM agent operations
+logfire.instrument_sqlalchemy(engine=engine)  # Database queries
+logfire.instrument_starlette(app)  # FastAPI/Starlette requests
+```
 
-## Key Decision Factors
+### Multi-Tenant Observability
 
-**Choose "Do Nothing" if:**
-- Team very technical, comfortable with SSH debugging
-- High customer tolerance for issues
-- Every dollar critical for growth
+Each log and span includes:
+- `account_id` - Multi-tenant segmentation
+- `agent_instance_id` - Agent-specific filtering
+- `session_id` - Trace user conversations
+- `llm_request_id` - Link logs to cost tracking
 
-**Choose "Hybrid" if:**
-- Want operational maturity without breaking budget
-- Team has basic DevOps capability
-- Planning growth beyond 10 customers
+Enables queries like:
+- "Show all errors for account acme-corp"
+- "Find slow database queries for wyckoff agent"
+- "Track cost per customer using session_id"
 
-**Choose "Budget SaaS" if:**
-- Want hands-off managed solution
-- Team lacks DevOps time/skills
-- Customer SLAs are important
+## Current State
 
-**Avoid "Enterprise" until:**
-- $10K+ MRR sustained
-- Complex multi-service architecture
-- Enterprise sales requiring observability demos
+**Using Logfire**:
+- `vector_service.py` - Vector search operations
+- `directory_tools.py` - Directory search operations
+- `prompt_generator.py` - Prompt generation
 
-## Final Assessment
+**Needs Migration**:
+- `simple_chat.py` - Uses loguru (high priority)
+- Most services in `app/services/` - Uses loguru
+- Some legacy modules - Uses standard `logging`
 
-**At $2000 MRR with 10 customers, the Hybrid Approach provides optimal cost-effectiveness and operational capability.**
+**Target**: All modules use `logfire` exclusively by end of Milestone 1.
 
-- Enhanced structured logging delivers 80% of debugging capability at near-zero cost
-- Basic uptime monitoring catches customer-impacting issues
-- Incremental approach allows evolution as revenue grows
-- Total cost under 2.5% of MRR maintains healthy unit economics
+## Implementation Phases
 
-**Critical Success Factor**: Implementation must not compromise development velocity or customer feature delivery.
+**Phase 1** (Current Sprint):
+- Migrate `simple_chat.py` to Logfire
+- Migrate core services (`message_service.py`, `session_service.py`, `llm_request_tracker.py`)
+- Add spans for performance tracking (agent execution, database queries, LLM calls)
+
+**Phase 2** (Next Sprint):
+- Migrate remaining services and utilities
+- Add custom dashboards in Logfire UI (customer health, error rates, performance)
+- Document logging patterns and event naming conventions
+
+**Phase 3** (Future):
+- Set up alerting rules (error spikes, performance degradation)
+- Configure log retention policies
+- Add uptime monitoring for external checks
+
+## Configuration
+
+**Development** (Local):
+- Console output enabled (formatted, readable)
+- Cloud dashboard optional (set `LOGFIRE_TOKEN` to enable)
+- All log levels visible (min_level='trace')
+
+**Production**:
+- Console output to stdout (captured by container/systemd logs)
+- Cloud dashboard enabled (requires `LOGFIRE_TOKEN`)
+- Log level configurable (default 'info', adjustable per environment)
+- Structured JSON format for parsing/analytics
+
+## Key Features Utilized
+
+1. **Structured Logging**: Queryable JSON attributes vs unstructured strings
+2. **Distributed Tracing**: Follow requests across services and tool calls
+3. **SQL Query Tracing**: Automatic capture of database operations
+4. **Pydantic Model Tracking**: Validation success/failure metrics
+5. **LLM Call Tracing**: Agent execution, tool calls, token usage
+6. **Real-Time Dashboard**: Live tail, filtering, search in Logfire UI
+7. **Cost Attribution**: Link logs to `llm_requests` table via `llm_request_id`
+
+## Migration Pattern
+
+```python
+# BEFORE (loguru)
+from loguru import logger
+logger.info({"event": "agent_created", "model": model_name})
+
+# AFTER (logfire)
+import logfire
+logfire.info('agent.created', model=model_name)
+```
+
+**Event Naming Convention**:
+- Dot notation: `category.action`
+- Past tense for completed: `agent.created`, `session.loaded`
+- Present tense for ongoing: `agent.creating`, `session.loading`
+- Errors: `agent.error`, `session.load_error`
+
+## References
+
+- **Logfire Docs**: https://logfire.pydantic.dev/
+- **Implementation Plan**: `project-management/0017-simple-chat-agent.md` (0017-013)
+- **Current Workspace Rule**: `.cursorrules/persona.mdc` (diagnostic logging principles)
