@@ -14,9 +14,10 @@
     agent: 'wyckoff_info_chat1',
     backend: 'http://localhost:8000',
     allowCross: true,
+    sse: false,  // Disable SSE - use POST only (Pydantic AI doesn't stream tool calls)
     debug: true  // Force debug mode ON
   };
   console.log('🔧 WIDGET CONFIG SET:', window.__SALIENT_WIDGET_CONFIG);
 </script>
-<script is:inline src="/widget/chat-widget.js?v=13"></script>
+<script is:inline src="/widget/chat-widget.js?v=14"></script>
 
