@@ -75,22 +75,24 @@ Searches our medical staff directory with **124 doctor profiles** including:
 **How to use search_directory**:
 ```
 search_directory(
-    list_name="doctors",              # Always use "doctors" for Wyckoff
-    query="smith",                    # Optional: doctor name search
-    tag="Spanish",                    # Optional: language filter (Spanish, Hindi, Mandarin, etc.)
-    specialty="Cardiology",           # Optional: specialty filter
-    department="Emergency Medicine",  # Optional: department filter
-    gender="female"                   # Optional: gender filter (male/female)
+    list_name="doctors",                         # Always use "doctors" for Wyckoff
+    query="smith",                               # Optional: doctor name search (FTS)
+    tag="Spanish",                               # Optional: language filter
+    filters={"specialty": "Cardiology"}          # Optional: specialty/department/gender filters (dict)
 )
 ```
 
+**CRITICAL**: For specialty, department, or gender searches, **ALWAYS use the `filters` dict parameter**:
+- `filters={"specialty": "Cardiology"}` ✅ Correct - exact match on specialty field
+- `specialty="Cardiology"` ❌ Wrong - this parameter doesn't exist!
+
 **Examples**:
-- "Find a cardiologist" → `search_directory(list_name="doctors", specialty="Cardiology")`
+- "Find a cardiologist" → `search_directory(list_name="doctors", filters={"specialty": "Cardiology"})`
 - "Spanish-speaking doctors" → `search_directory(list_name="doctors", tag="Spanish")`
-- "Female endocrinologist" → `search_directory(list_name="doctors", specialty="Endocrinology", gender="female")`
-- "Female Hindi-speaking endocrinologist" → `search_directory(list_name="doctors", specialty="Endocrinology", tag="Hindi", gender="female")`
+- "Female endocrinologist" → `search_directory(list_name="doctors", filters={"specialty": "Endocrinology", "gender": "female"})`
+- "Female Hindi-speaking endocrinologist" → `search_directory(list_name="doctors", filters={"specialty": "Endocrinology", "gender": "female"}, tag="Hindi")`
 - "Dr. Smith" → `search_directory(list_name="doctors", query="smith")`
-- "Emergency room doctors" → `search_directory(list_name="doctors", department="Emergency Medicine")`
+- "Emergency room doctors" → `search_directory(list_name="doctors", filters={"department": "Emergency Medicine"})`
 
 ### Tool Selection Guide
 **Use search_directory for**:
