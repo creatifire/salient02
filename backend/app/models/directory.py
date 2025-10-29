@@ -11,7 +11,7 @@ Models:
 from __future__ import annotations
 
 from sqlalchemy import Column, String, ARRAY, Text, TIMESTAMP, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, TSVECTOR
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from . import Base
@@ -99,6 +99,7 @@ class DirectoryEntry(Base):
     tags: Mapped[List[str]] = mapped_column(ARRAY(String), default=list)
     contact_info: Mapped[dict] = mapped_column(JSONB, default=dict)
     entry_data: Mapped[dict] = mapped_column(JSONB, default=dict)
+    search_vector: Mapped[Optional[str]] = mapped_column(TSVECTOR, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), 
         default=func.now()
