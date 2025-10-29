@@ -215,15 +215,98 @@ search_config:
 
 # Search strategy for LLM guidance
 # Used by prompt_generator.py to teach LLM how to handle general/ambiguous terms
+# CRITICAL: Medical terminology has many synonyms - always expand lay terms to medical specialties
 search_strategy:
-  guidance: "For general terms, try 3-5 related specialties or synonyms. Combine results before responding."
+  guidance: |
+    **BEFORE searching, think step-by-step:**
+    1. What medical specialty does this term refer to?
+    2. What are the formal medical names for this?
+    3. Make 2-4 tool calls with different related specialties
+    4. Combine all results before responding to user
+    
+    **Common Medical Synonyms - Use These Mappings:**
+  
+  synonym_mappings:
+    # Primary Care
+    - lay_terms: ["primary care", "general practice", "family practice", "family doctor", "general doctor", "PCP"]
+      medical_specialties: ["Family Medicine", "General Internal Medicine", "Internal Medicine"]
+      search_approach: "Try EACH specialty separately - they're stored differently in the database"
+    
+    # Kidney/Renal
+    - lay_terms: ["kidney doctor", "kidney specialist", "renal specialist", "kidney disease"]
+      medical_specialties: ["Nephrology"]
+      search_approach: "Search for 'Nephrology' - this is the formal specialty name"
+    
+    # Heart/Cardiac
+    - lay_terms: ["heart doctor", "heart specialist", "cardiac specialist"]
+      medical_specialties: ["Cardiology", "Interventional Cardiology", "Cardiac Surgery"]
+      search_approach: "Search 'Cardiology' first, then 'Cardiac Surgery' if surgical intervention mentioned"
+    
+    # Digestive/GI
+    - lay_terms: ["stomach doctor", "digestive specialist", "GI doctor", "intestine doctor"]
+      medical_specialties: ["Gastroenterology", "Gastroenterology and Hepatology"]
+      search_approach: "Search for 'Gastroenterology' - covers all digestive system"
+    
+    # Children
+    - lay_terms: ["children's doctor", "kids doctor", "baby doctor"]
+      medical_specialties: ["Pediatrics", "Neonatology", "Pediatric Surgery"]
+      search_approach: "Search 'Pediatrics' for general, 'Neonatology' for newborns"
+    
+    # Women's Health
+    - lay_terms: ["women's doctor", "pregnancy doctor", "OBGYN", "gynecologist"]
+      medical_specialties: ["Obstetrics and Gynecology", "Gynecology", "Maternal Fetal Medicine"]
+      search_approach: "Search for 'Obstetrics' or 'Gynecology'"
+    
+    # Brain/Nervous System
+    - lay_terms: ["brain doctor", "nerve doctor", "neurologist"]
+      medical_specialties: ["Neurology", "Neurosurgery"]
+      search_approach: "Search 'Neurology' first, then 'Neurosurgery' for surgical cases"
+    
+    # Bones/Joints
+    - lay_terms: ["bone doctor", "joint doctor", "sports medicine", "orthopedic"]
+      medical_specialties: ["Orthopedic Surgery", "Sports Medicine", "Orthopedics"]
+      search_approach: "Search for 'Orthopedic' - covers bones, joints, sports injuries"
+    
+    # Skin
+    - lay_terms: ["skin doctor", "dermatologist", "acne doctor"]
+      medical_specialties: ["Dermatology"]
+      search_approach: "Search for 'Dermatology'"
+    
+    # Eyes
+    - lay_terms: ["eye doctor", "vision doctor", "ophthalmologist"]
+      medical_specialties: ["Ophthalmology"]
+      search_approach: "Search for 'Ophthalmology'"
+    
+    # Ears/Nose/Throat
+    - lay_terms: ["ENT", "ear doctor", "throat doctor", "sinus doctor"]
+      medical_specialties: ["Otorhinolaryngology", "Otolaryngology"]
+      search_approach: "Search for 'Otolaryngology' or 'Otorhinolaryngology'"
+  
   examples:
-    - term: "primary care"
-      note: "Try multiple general practice specialties"
-    - term: "heart doctor"
-      note: "Try cardiology and cardiac surgery"
-    - term: "eye doctor"
-      note: "Try ophthalmology variants"
+    - user_query: "Do you have kidney specialists?"
+      thought_process: |
+        1. User said "kidney specialists" - this is a lay term
+        2. The formal medical specialty is "Nephrology"
+        3. I'll search for specialty="Nephrology"
+      tool_calls:
+        - 'search_directory(list_name="doctors", filters={"specialty": "Nephrology"})'
+    
+    - user_query: "I need a family practice doctor"
+      thought_process: |
+        1. User said "family practice" - this has 2 medical specialty names
+        2. Could be "Family Medicine" OR "General Internal Medicine"
+        3. I'll search BOTH and combine results
+      tool_calls:
+        - 'search_directory(list_name="doctors", filters={"specialty": "Family Medicine"})'
+        - 'search_directory(list_name="doctors", filters={"specialty": "General Internal Medicine"})'
+    
+    - user_query: "Who are your heart doctors?"
+      thought_process: |
+        1. "Heart doctors" could mean Cardiology or Cardiac Surgery
+        2. I'll search both specialties
+      tool_calls:
+        - 'search_directory(list_name="doctors", filters={"specialty": "Cardiology"})'
+        - 'search_directory(list_name="doctors", department="Cardiology")'
 
 # Searchable fields for system prompt generation
 # These fields can be used in the filters parameter: filters={"field_name": "value"}

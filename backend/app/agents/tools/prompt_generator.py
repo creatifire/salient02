@@ -120,16 +120,41 @@ async def generate_directory_tool_docs(
                     }
             
             # Extract search strategy from schema
-            search_strategy_guidance = None
-            search_strategy_examples = []
+            search_strategy_text = None
             if schema.get('search_strategy'):
                 strategy = schema['search_strategy']
-                search_strategy_guidance = strategy.get('guidance')
-                strategy_examples = strategy.get('examples', [])
-                # Format: "term1, term2, term3"
-                search_strategy_examples = [ex.get('term', '') for ex in strategy_examples if ex.get('term')]
+                strategy_parts = []
+                
+                # Add guidance
+                if strategy.get('guidance'):
+                    strategy_parts.append(strategy['guidance'])
+                
+                # Add synonym mappings (most important for medical terms)
+                if strategy.get('synonym_mappings'):
+                    mappings = strategy['synonym_mappings']
+                    strategy_parts.append("\n**Medical Term Mappings (Lay → Formal):**")
+                    for mapping in mappings[:10]:  # Limit to first 10 to keep prompt manageable
+                        lay_terms = ', '.join(f'"{term}"' for term in mapping.get('lay_terms', [])[:3])
+                        medical = ', '.join(f'"{spec}"' for spec in mapping.get('medical_specialties', []))
+                        if lay_terms and medical:
+                            strategy_parts.append(f"  • {lay_terms} → {medical}")
+                
+                # Add concrete examples with thought process
+                if strategy.get('examples'):
+                    examples = strategy['examples'][:2]  # Limit to 2 examples
+                    for i, ex in enumerate(examples, 1):
+                        if ex.get('user_query') and ex.get('tool_calls'):
+                            strategy_parts.append(f"\n**Example {i}:** \"{ex['user_query']}\"")
+                            if ex.get('thought_process'):
+                                strategy_parts.append(f"  → Think: {ex['thought_process'].strip()}")
+                            tool_calls = ex.get('tool_calls', [])
+                            for tool_call in tool_calls[:2]:  # Max 2 tool calls per example
+                                strategy_parts.append(f"  → Call: {tool_call}")
+                
+                if strategy_parts:
+                    search_strategy_text = '\n'.join(strategy_parts)
             
-            # Create Pydantic model for structured logging
+            # Create Pydantic model for structured logging (using empty list for query_examples since we're using full text now)
             list_docs = DirectoryListDocs(
                 list_name=list_meta.list_name,
                 entry_type=list_meta.entry_type,
@@ -137,20 +162,16 @@ async def generate_directory_tool_docs(
                 tags_description=tags_desc,
                 tags_examples=tags_ex,
                 searchable_fields=searchable_fields_dict,
-                query_examples=search_strategy_examples  # Use examples from schema
+                query_examples=[]  # Not using simple examples anymore - using full strategy text
             )
             documented_lists.append(list_docs)
             
             # Build concise summary for prompt
             list_summaries.append(f"`{list_meta.list_name}` ({entry_count} {list_meta.entry_type}s)")
             
-            # Store first found search strategy (usually only one schema per agent)
-            if search_strategy_guidance and not docs_lines[-1].startswith("**Search Strategy**"):
-                strategy_text = search_strategy_guidance
-                if search_strategy_examples:
-                    examples_text = ", ".join(f"'{ex}'" for ex in search_strategy_examples)
-                    strategy_text = f"{search_strategy_guidance} Examples: {examples_text}"
-                docs_lines.append(f"\n**Search Strategy**: {strategy_text}")
+            # Add search strategy to prompt (once per schema, usually only one)
+            if search_strategy_text and not any(line.startswith("**Search Strategy") for line in docs_lines):
+                docs_lines.append(f"\n{search_strategy_text}")
             
         except Exception as e:
             logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
