@@ -215,28 +215,36 @@ Unauthorized copying of this file is strictly prohibited.
   - **Status**: Backend ✅, Frontend Structure ✅, All Pages ✅, Demo Selector ✅, Vector Search ✅
   - **See**: [Epic 0017-005-004](0017-simple-chat-agent.md#0017-005-004) for detailed implementation plan
 
-- [ ] 0023-004 - Advanced Configurability 📋
-  - [ ] 0023-004-001 - Schema-Driven Generic Filters (Priority 1) 🎯
-    - Replace explicit params with generic `filters` dict
-    - Add `searchable_fields` to schema YAML files
-    - Auto-generate system prompt from schemas
-    - Enable zero-code addition of new directory types
-    - **Effort**: 2-3 days | **Value**: HIGH (unblocks scalability)
-  - [ ] 0023-004-002 - Config-Driven CSV Mappers
-  - [ ] 0023-004-003 - Centralized Tool Registry
+**Phase 2 - Search Quality & Scalability (Revised Priority Order)**:
+- [x] 0023-007-002 - PostgreSQL Full-Text Search ✅ **COMPLETE**
+  - Word-level matching, stemming, relevance ranking
+  - **Result**: 0.68ms query time (143x faster than target)
+  - **Status**: Complete - immediate search quality improvement delivered
 
-**Phase 2 - Performance & Search (Optional)**:
-- [ ] 0023-007 - Performance Optimizations ⏸️ **PARTIAL**
-  - [x] 0023-007-002 - PostgreSQL Full-Text Search (word-level matching + stemming) ✅ **COMPLETE**
-    - **Effort**: 4-6 hours | **Value**: MEDIUM | **Result**: 0.68ms query time (143x faster than target)
-  - [ ] 0023-007-001 - Pagination
-  - [ ] 0023-007-003 - Materialized views
-- [ ] 0023-003 - Semantic Search (Pinecone) 📋 **DEFERRED**
+- [ ] 0023-004-001 - Schema-Driven Generic Filters 🎯 **NEXT**
+  - Replace explicit params with generic `filters` dict
+  - Add `searchable_fields` to schema YAML files
+  - Auto-generate system prompt from schemas
+  - Enable zero-code addition of new directory types
+  - **Value**: HIGH (unblocks scalability)
+
+- [ ] 0023-004-003 - Centralized Tool Registry (Optional)
+  - Single source of truth for tool metadata
+  - Automatic dependency validation
+  - **Value**: MEDIUM (clean architecture)
+
+- [ ] 0023-005-001 - Incremental CSV Updates (If Needed)
+  - Support partial updates instead of delete-and-replace
+  - Merge/replace/update modes
+  - **Value**: LOW (only if data changes frequently)
+
+**Deferred**:
+- [ ] 0023-003 - Semantic Search (Pinecone) ⏸️ **DEFERRED**
   - [ ] 0023-003-001 - directory_embeddings table
   - [ ] 0023-003-002 - Embedding generation pipeline
   - [ ] 0023-003-003 - Hybrid search (exact + semantic)
-  - **Effort**: 3-4 weeks | **Value**: HIGH (for complex NL queries)
-  - **Status**: DEFERRED - current substring matching sufficient for MVP
+  - **Value**: MEDIUM (FTS solves most needs)
+  - **Status**: Re-evaluate after FTS - likely not needed
 
 **Architecture Highlights**:
 - Multi-list support per account (doctors, drugs, products, consultants, services)
