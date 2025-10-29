@@ -1742,13 +1742,455 @@ if directory_config.get("enabled", False):
 
 **Complexity**: ~150 lines (prompt generator) + schema YAML updates
 
-**Sub-Tasks:**
-- [ ] **0023-004-001-01 - CHUNK - Update tool signature with filters dict**
-- [ ] **0023-004-001-02 - CHUNK - Add searchable_fields to schema YAML**
-- [ ] **0023-004-001-03 - CHUNK - Create prompt generator module**
-- [ ] **0023-004-001-04 - CHUNK - Integrate with simple_chat**
-
 **STATUS**: Planned
+
+---
+
+### 0023-004-001 - TASK - Schema-Driven Generic Filters - Implementation
+
+- [ ] **0023-004-001-01 - CHUNK - Update tool signature with generic filters dict**
+
+**SUB-TASKS**:
+- Update `search_directory()` signature in `directory_tools.py`
+- Replace explicit params (`specialty`, `gender`, `department`, `drug_class`, `category`, `brand`) with `filters: Optional[Dict[str, str]]`
+- Keep universal params: `list_name`, `query`, `tag`
+- Update docstring with examples for all 3 entry types (medical, pharmaceutical, product)
+- Update tool implementation to pass `filters` dict to `DirectoryService.search()` as `jsonb_filters`
+- Add type hints: `from typing import Dict, Optional`
+
+**Code Changes**:
+```python
+# backend/app/agents/tools/directory_tools.py
+
+async def search_directory(
+    ctx: RunContext[SessionDependencies],
+    list_name: str,
+    query: Optional[str] = None,
+    tag: Optional[str] = None,
+    filters: Optional[Dict[str, str]] = None  # NEW: Generic filters
+) -> str:
+    """
+    Search directory for entries (doctors, drugs, products, consultants, etc.).
+    
+    Args:
+        list_name: Which list to search (e.g., "doctors", "prescription_drugs")
+        query: Name to search (partial match, case-insensitive)
+        tag: Tag filter (language for medical, drug class for pharma, category for products)
+        filters: Type-specific JSONB filters (e.g., {"specialty": "Cardiology", "gender": "female"})
+    
+    Examples:
+        search_directory(list_name="doctors", filters={"specialty": "Cardiology", "gender": "female"}, tag="Spanish")
+        search_directory(list_name="prescription_drugs", filters={"drug_class": "NSAID"})
+        search_directory(list_name="electronics", filters={"category": "Laptops", "brand": "Dell"})
+    """
+    # ... existing code ...
+    
+    tags = [tag] if tag else None
+    
+    # Pass filters dict directly as jsonb_filters
+    entries = await service.search(
+        session=session,
+        accessible_list_ids=list_ids,
+        name_query=query,
+        tags=tags,
+        jsonb_filters=filters,  # NEW: Use filters dict directly
+        search_mode=search_mode,
+        limit=directory_config.get("max_results", 5)
+    )
+```
+
+**ACCEPTANCE**:
+- ✅ Tool signature updated with `filters: Optional[Dict[str, str]]`
+- ✅ All explicit params removed (specialty, gender, department, drug_class, category, brand)
+- ✅ Docstring includes examples for medical, pharmaceutical, product entry types
+- ✅ `filters` dict passed to `DirectoryService.search()` as `jsonb_filters`
+- ✅ No linter errors
+
+---
+
+- [ ] **0023-004-001-02 - CHUNK - Add searchable_fields to schema YAML**
+
+**SUB-TASKS**:
+- Add `searchable_fields` section to `medical_professional.yaml`
+- Document all JSONB fields that can be used as filters
+- Include type, description, and examples for each field
+- Follow existing schema structure (consistent with `required_fields`, `optional_fields`)
+- Add inline comments explaining purpose for future schema authors
+
+**YAML Schema Enhancement**:
+```yaml
+# backend/config/directory_schemas/medical_professional.yaml
+
+# NEW: Searchable fields for system prompt generation
+# These fields can be used in filters parameter: filters={"field_name": "value"}
+searchable_fields:
+  department:
+    type: string
+    description: "Medical department (Cardiology, Emergency Medicine, Surgery, etc.)"
+    examples: ["Cardiology", "Emergency Medicine", "Pediatrics", "Surgery"]
+  
+  specialty:
+    type: string
+    description: "Medical specialty or sub-specialty"
+    examples: ["Interventional Cardiology", "Pediatric Surgery", "Plastic Surgery"]
+  
+  gender:
+    type: string
+    description: "Gender (male/female)"
+    examples: ["male", "female"]
+  
+  education:
+    type: string
+    description: "Medical school and degree"
+    examples: ["Harvard Medical School, MD", "Johns Hopkins University, MD"]
+  
+  board_certifications:
+    type: text
+    description: "Board certifications (searchable via text)"
+    examples: ["Cardiology", "Surgery", "Internal Medicine"]
+```
+
+**ACCEPTANCE**:
+- ✅ `searchable_fields` section added to `medical_professional.yaml`
+- ✅ All current JSONB filter fields documented (department, specialty, gender, education)
+- ✅ Each field has: type, description, examples (minimum 2 examples)
+- ✅ YAML syntax valid (load with `yaml.safe_load()`)
+- ✅ Inline comments explain purpose
+
+---
+
+- [ ] **0023-004-001-03 - CHUNK - Create prompt generator module**
+
+**SUB-TASKS**:
+- Create new module: `backend/app/agents/tools/prompt_generator.py`
+- Implement `generate_directory_tool_docs()` function
+- Load agent's `accessible_lists` from config
+- Query database for list metadata (entry counts)
+- Load schema file for each list's `entry_type`
+- Generate markdown documentation with:
+  - List name and entry type
+  - Entry count from database
+  - Tags usage (description + examples)
+  - Searchable fields (from schema)
+  - Usage examples (per entry type)
+- Return formatted markdown string
+- Add error handling for missing schemas, database errors
+- Add logging for debugging
+
+**Code Implementation**:
+```python
+# backend/app/agents/tools/prompt_generator.py
+"""
+System prompt generation for directory tools.
+
+Auto-generates directory tool documentation from:
+1. Agent config (accessible_lists)
+2. Database (list metadata, entry counts)
+3. Schema files (searchable fields, tags usage)
+"""
+
+from typing import Dict, List, Optional
+from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.directory import DirectoryList
+from app.services.directory_importer import DirectoryImporter
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+async def generate_directory_tool_docs(
+    agent_config: Dict,
+    account_id: UUID,
+    db_session: AsyncSession
+) -> str:
+    """
+    Auto-generate system prompt documentation for directory tool.
+    
+    Args:
+        agent_config: Agent configuration dict from config.yaml
+        account_id: Account UUID for multi-tenant filtering
+        db_session: Async database session
+    
+    Returns:
+        Formatted markdown documentation string
+    """
+    directory_config = agent_config.get("tools", {}).get("directory", {})
+    accessible_lists = directory_config.get("accessible_lists", [])
+    
+    if not accessible_lists:
+        logger.info("No accessible lists configured")
+        return ""
+    
+    logger.info(f"Generating directory docs for lists: {accessible_lists}")
+    
+    # Get list metadata from database
+    result = await db_session.execute(
+        select(DirectoryList).where(
+            DirectoryList.account_id == account_id,
+            DirectoryList.list_name.in_(accessible_lists)
+        )
+    )
+    lists_metadata = result.scalars().all()
+    
+    if not lists_metadata:
+        logger.warning(f"No directory lists found for account {account_id}")
+        return ""
+    
+    # Build documentation
+    docs = ["## Directory Search Tool\n"]
+    docs.append("Search structured directory entries with natural language queries.\n")
+    
+    for list_meta in lists_metadata:
+        try:
+            # Load schema
+            schema = DirectoryImporter.load_schema(list_meta.schema_file)
+            
+            docs.append(f"\n### {list_meta.list_name} ({list_meta.entry_type})")
+            
+            # Entry count from relationship
+            entry_count = len(list_meta.entries) if list_meta.entries else 0
+            docs.append(f"**Entries**: {entry_count}\n")
+            
+            # Tags documentation
+            if schema.get('tags_usage'):
+                tags_usage = schema['tags_usage']
+                docs.append(f"**Tags**: {tags_usage.get('description', 'N/A')}")
+                if tags_usage.get('examples'):
+                    docs.append(f"  Examples: {', '.join(tags_usage['examples'])}\n")
+            
+            # Searchable fields
+            if schema.get('searchable_fields'):
+                docs.append("**Searchable Filters**:")
+                for field_name, field_def in schema['searchable_fields'].items():
+                    docs.append(f"- `{field_name}`: {field_def.get('description', 'N/A')}")
+                    if field_def.get('examples'):
+                        examples_str = ', '.join(f'"{ex}"' for ex in field_def['examples'][:3])
+                        docs.append(f"  Examples: {examples_str}")
+                docs.append("")
+            
+            # Usage examples (type-specific)
+            docs.append("**Query Examples**:")
+            if list_meta.entry_type == 'medical_professional':
+                docs.append(f'- Find cardiologist: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Cardiology"}})`')
+                docs.append(f'- Female surgeon: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Surgery", "gender": "female"}})`')
+                docs.append(f'- Spanish-speaking ER doctor: `search_directory(list_name="{list_meta.list_name}", filters={{"department": "Emergency Medicine"}}, tag="Spanish")`')
+            elif list_meta.entry_type == 'pharmaceutical':
+                docs.append(f'- Pain medications: `search_directory(list_name="{list_meta.list_name}", filters={{"indications": "pain"}})`')
+                docs.append(f'- NSAIDs: `search_directory(list_name="{list_meta.list_name}", tag="NSAID")`')
+            elif list_meta.entry_type == 'product':
+                docs.append(f'- Laptops by brand: `search_directory(list_name="{list_meta.list_name}", filters={{"category": "Laptops", "brand": "Dell"}})`')
+                docs.append(f'- In-stock items: `search_directory(list_name="{list_meta.list_name}", filters={{"in_stock": "true"}})`')
+            
+            docs.append("")
+            
+        except Exception as e:
+            logger.error(f"Error loading schema for {list_meta.list_name}: {e}")
+            continue
+    
+    generated_docs = '\n'.join(docs)
+    logger.info(f"Generated {len(generated_docs)} chars of directory documentation")
+    
+    return generated_docs
+```
+
+**ACCEPTANCE**:
+- ✅ Module created: `backend/app/agents/tools/prompt_generator.py`
+- ✅ Function `generate_directory_tool_docs()` implemented
+- ✅ Loads accessible_lists from agent config
+- ✅ Queries database for list metadata and entry counts
+- ✅ Loads schema files for each list
+- ✅ Generates formatted markdown documentation
+- ✅ Includes tags, searchable fields, and usage examples
+- ✅ Error handling for missing schemas and database errors
+- ✅ Logging for debugging
+- ✅ Returns empty string if no lists configured
+
+---
+
+- [ ] **0023-004-001-04 - CHUNK - Integrate with simple_chat agent**
+
+**SUB-TASKS**:
+- Update `simple_chat.py` to import `generate_directory_tool_docs()`
+- Call prompt generator when directory tool is enabled
+- Append generated documentation to system prompt
+- Pass enhanced system prompt to agent initialization
+- Test with Wyckoff agent (existing doctors list)
+- Verify system prompt includes auto-generated documentation
+
+**Code Integration**:
+```python
+# backend/app/agents/simple_chat.py
+
+from app.agents.tools.prompt_generator import generate_directory_tool_docs
+
+async def simple_chat(...):
+    # ... existing code ...
+    
+    # Load system prompt from file
+    system_prompt = load_system_prompt(instance_config)
+    
+    # Auto-generate directory tool documentation
+    directory_config = instance_config.get("tools", {}).get("directory", {})
+    if directory_config.get("enabled", False):
+        logger.info("Generating directory tool documentation")
+        directory_docs = await generate_directory_tool_docs(
+            agent_config=instance_config,
+            account_id=instance.account_id,
+            db_session=db_session
+        )
+        
+        if directory_docs:
+            system_prompt = system_prompt + "\n\n" + directory_docs
+            logger.info(f"Appended {len(directory_docs)} chars of directory docs to system prompt")
+    
+    # Create agent with enhanced system prompt
+    agent = Agent(
+        model=model_name,
+        deps_type=SessionDependencies,
+        system_prompt=system_prompt  # Enhanced with directory docs
+    )
+    
+    # Register directory tool
+    if directory_config.get("enabled", False):
+        from app.agents.tools.directory_tools import search_directory
+        agent.tool(search_directory)
+```
+
+**ACCEPTANCE**:
+- ✅ `generate_directory_tool_docs()` imported in `simple_chat.py`
+- ✅ Prompt generator called when directory tool enabled
+- ✅ Generated docs appended to system prompt
+- ✅ Enhanced system prompt passed to agent
+- ✅ No errors during agent initialization
+- ✅ Logging confirms documentation generation
+
+---
+
+- [ ] **0023-004-001-05 - CHUNK - End-to-end testing and regression validation**
+
+**SUB-TASKS**:
+- Create manual test script: `backend/tests/manual/test_schema_driven_filters.py`
+- Test with Wyckoff agent (existing doctors list)
+- Test queries using new `filters` dict syntax
+- Verify backward compatibility (existing queries still work)
+- Test system prompt includes generated documentation
+- Verify LLM understands new filter syntax
+- Performance testing (no degradation)
+- Regression testing with existing test cases
+
+**Test Script**:
+```python
+# backend/tests/manual/test_schema_driven_filters.py
+"""
+Test schema-driven generic filters implementation.
+
+Tests:
+1. Tool accepts filters dict parameter
+2. System prompt includes auto-generated documentation
+3. LLM uses filters dict correctly
+4. Backward compatibility (existing queries work)
+5. New query patterns work (generic filters)
+"""
+
+import asyncio
+from app.database import get_database_service
+from uuid import UUID
+
+WYCKOFF_ACCOUNT_ID = UUID('481d3e72-c0f5-47dd-8d6e-291c5a44a5c7')
+
+async def test_filters_dict():
+    """Test that tool accepts filters dict and queries work."""
+    db = get_database_service()
+    await db.initialize()
+    
+    async with db.get_session() as session:
+        from app.services.directory_service import DirectoryService
+        from app.models.directory import DirectoryList
+        from sqlalchemy import select
+        
+        # Get doctors list ID
+        result = await session.execute(
+            select(DirectoryList.id).where(
+                DirectoryList.account_id == WYCKOFF_ACCOUNT_ID,
+                DirectoryList.list_name == 'doctors'
+            )
+        )
+        doctors_list_id = result.scalar_one()
+        
+        print("Test 1: Filters dict with specialty + gender")
+        entries = await DirectoryService.search(
+            session=session,
+            accessible_list_ids=[doctors_list_id],
+            jsonb_filters={"specialty": "Surgery", "gender": "female"},
+            search_mode="fts",
+            limit=5
+        )
+        print(f"  Found: {len(entries)} female surgeons")
+        for entry in entries:
+            print(f"  - {entry.name}: {entry.entry_data.get('specialty')}, {entry.entry_data.get('gender')}")
+        
+        print("\nTest 2: Filters dict with department only")
+        entries = await DirectoryService.search(
+            session=session,
+            accessible_list_ids=[doctors_list_id],
+            jsonb_filters={"department": "Emergency Medicine"},
+            search_mode="fts",
+            limit=5
+        )
+        print(f"  Found: {len(entries)} emergency medicine doctors")
+        
+        print("\nTest 3: Backward compatibility - name query + tags")
+        entries = await DirectoryService.search(
+            session=session,
+            accessible_list_ids=[doctors_list_id],
+            name_query="surgery",
+            tags=["Spanish"],
+            search_mode="fts",
+            limit=5
+        )
+        print(f"  Found: {len(entries)} Spanish-speaking doctors with 'surgery'")
+
+if __name__ == "__main__":
+    asyncio.run(test_filters_dict())
+```
+
+**Manual Testing**:
+```bash
+# 1. Test via chat widget
+# Navigate to: http://localhost:4321/wyckoff
+# Query: "Find me a female surgeon"
+# Expected: LLM calls tool with filters={"specialty": "Surgery", "gender": "female"}
+
+# 2. Test via curl
+curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Find me a female cardiologist who speaks Spanish"}'
+
+# Expected response includes tool call with:
+# - list_name="doctors"
+# - filters={"specialty": "Cardiology", "gender": "female"}
+# - tag="Spanish"
+```
+
+**Regression Tests**:
+- [ ] Existing queries still work: "Find a Spanish-speaking endocrinologist"
+- [ ] FTS mode still works: "Find surgeons" matches surgical specialties
+- [ ] Performance: Query time < 100ms (no degradation)
+- [ ] System prompt: Verify auto-generated docs appear in logs
+- [ ] LLM behavior: Verify tool is called correctly with filters dict
+
+**ACCEPTANCE**:
+- ✅ Manual test script passes all 3 test cases
+- ✅ Chat widget queries work with new filter syntax
+- ✅ Curl endpoint returns correct results
+- ✅ System prompt includes auto-generated documentation (check logs)
+- ✅ LLM constructs filters dict correctly
+- ✅ Backward compatibility: Existing queries still work
+- ✅ Performance: No degradation (< 100ms)
+- ✅ Regression tests pass
+- ✅ No errors in logs
 
 ---
 
