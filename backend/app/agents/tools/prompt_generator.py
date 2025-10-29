@@ -15,7 +15,7 @@ Auto-generates directory tool documentation from:
 from typing import Dict, List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from app.models.directory import DirectoryList
 from app.services.directory_importer import DirectoryImporter
@@ -97,8 +97,14 @@ async def generate_directory_tool_docs(
             # Load schema
             schema = DirectoryImporter.load_schema(list_meta.schema_file)
             
-            # Entry count from relationship
-            entry_count = len(list_meta.entries) if list_meta.entries else 0
+            # Entry count - use separate query to avoid lazy loading issue
+            from app.models.directory import DirectoryEntry
+            count_result = await db_session.execute(
+                select(func.count(DirectoryEntry.id)).where(
+                    DirectoryEntry.directory_list_id == list_meta.id
+                )
+            )
+            entry_count = count_result.scalar_one()
             
             # Extract tags usage
             tags_desc = None

@@ -64,6 +64,14 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 - Product/service interests
 - Conversation history and summaries
 
+## Development Environment
+
+**Backend Execution Convention:**
+- Backend is **always run from project root** (where venv is located)
+- Command: `uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000`
+- All imports must use `from backend.app...` not `from app...`
+- Virtual environment: `backend/venv/` activated from project root
+
 ## Configuration
 **Agent-Level** (`agent_configs/{account}/{agent}/config.yaml`):
 - LLM model selection
