@@ -187,17 +187,26 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ## Features
 
-**Phase 1 (Complete)**:
+**Phase 1 (Complete)** ✅:
 - [x] 0023-001 - Core Infrastructure (schema, data, service) ✅
 - [x] 0023-002 - Search Tool (Pydantic AI tool + integration) ✅
-- [ ] 0023-003 - Semantic Search (Pinecone - deferred)
-
-**Phase 2 (Planned)**:
-- [ ] 0023-004 - Advanced Configurability (schema-driven filters, CSV mappers, tool registry)
-- [ ] 0023-005 - Data Management (incremental updates, status field)
-- [ ] 0023-006 - Advanced Search Patterns (two-tool discovery)
-- [ ] 0023-007 - Performance Optimizations (pagination, FTS, materialized views)
 - [x] 0023-008 - Multi-Tenant Dependencies (infrastructure) ✅
+
+**Phase 2 (Revised Priority Order)** 🎯:
+- [ ] 0023-007-002 - **Full-Text Search (FTS)** - Priority 1 (4-6 hours) 🎯 **NEXT**
+- [ ] 0023-004-001 - Schema-Driven Generic Filters - Priority 2 (2-3 days)
+- [ ] 0023-004-003 - Centralized Tool Registry - Priority 3 (1 day, optional)
+- [ ] 0023-005-001 - Incremental CSV Updates - Priority 4 (1 week, if needed)
+
+**Deferred** ⏸️:
+- [ ] 0023-003 - Semantic Search (Pinecone) - Re-evaluate after FTS
+
+**Deprecated** ❌:
+- [x] ~~0023-004-002 - Config-Driven CSV Mappers~~ - Python mappers sufficient
+- [x] ~~0023-005-002 - Status Field Revival~~ - No current need
+- [x] ~~0023-006-001 - Two-Tool Discovery Pattern~~ - Prompts provide context
+- [x] ~~0023-007-001 - Pagination~~ - Anti-pattern for conversational search
+- [x] ~~0023-007-003 - Materialized Views~~ - Premature optimization
 
 ---
 
@@ -223,21 +232,93 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ---
 
-### **Phase 2: Schema-Driven Configurability (Next Priority 🎯)**
+### **Phase 2: Search Quality & Scalability (Revised Priority Order 🎯)**
 
-**Goal**: Zero-code addition of new directory types (pharmaceuticals, products, consultants, services).
+**Goal**: Improve search quality first, then enable zero-code addition of new directory types.
 
-**Recommended Implementation Order**:
+**🔄 KEY CHANGES FROM ORIGINAL PLAN:**
+- ✅ **FTS moved from "Optional" to Priority 1** - Immediate 6-hour search improvement
+- ⬇️ **Schema-Driven Filters moved to Priority 2** - Important but not urgent
+- ❌ **6 features deprecated** - Removes premature optimizations
+- ⏸️ **Semantic Search kept deferred** - Re-evaluate after FTS
+- 📊 **Result**: Faster delivery (6h vs 2-3 days), higher user value, less code
 
-#### **1. Schema-Driven Generic Filters (0023-004-001) - Priority 1**
+**REVISED Implementation Order** (Based on user goal: "improve the search"):
+
+#### **1. Full-Text Search (0023-007-002) - Priority 1** 🎯 **MOVED TO TOP**
 **Status**: Planned 📋
-**Effort**: 2-3 days
-**Value**: HIGH - Unblocks scalability
+**Effort**: 4-6 hours
+**Value**: HIGH - Immediate search quality improvement
 
 **Why First?**
-- Most critical blocker for adding new directory types
-- Low risk (doesn't change search algorithm, just tool interface)
+- **Delivers immediate user value** - Better search matching TODAY
+- Handles word variations: "cardio" → "cardiologist", "cardiology", "cardiovascular"
+- Native PostgreSQL feature (low risk, no external dependencies)
+- 10x faster than schema-driven filters (6 hours vs 2-3 days)
+- Works with current tool signature (no breaking changes)
+- Solves 80% of search quality issues without embeddings
+
+**Implementation Steps**:
+
+1. **Add tsvector Column** (1 hour)
+   ```sql
+   -- Alembic migration
+   ALTER TABLE directory_entries 
+   ADD COLUMN search_vector tsvector 
+   GENERATED ALWAYS AS (
+     setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
+     setweight(to_tsvector('english', coalesce(array_to_string(tags, ' '), '')), 'B') ||
+     setweight(to_tsvector('english', coalesce(entry_data::text, '')), 'C')
+   ) STORED;
+   
+   CREATE INDEX idx_directory_entries_fts 
+   ON directory_entries USING GIN(search_vector);
+   ```
+
+2. **Update DirectoryService.search()** (2 hours)
+   - Add FTS query mode parameter
+   - Support 3 search modes: `exact`, `substring`, `fts`
+   - Use `ts_rank()` for relevance scoring
+   ```python
+   # Example FTS query
+   if search_mode == 'fts':
+       query = query.where(
+           DirectoryEntry.search_vector.match(
+               to_tsquery('english', search_term)
+           )
+       ).order_by(
+           func.ts_rank(DirectoryEntry.search_vector, to_tsquery('english', search_term)).desc()
+       )
+   ```
+
+3. **Update Schema YAML Files** (1 hour)
+   - Add `search_mode: "fts"` to name and specialty fields in `medical_professional.yaml`
+   - Keep exact match for gender, status fields
+   - Document FTS behavior and examples
+
+4. **Testing & Validation** (1-2 hours)
+   - Test word variations: "cardio", "cardiologist", "cardiology"
+   - Test stemming: "cardiologists" → "cardiologist"
+   - Test ranking: ensure relevant results appear first
+   - Verify existing queries still work
+   - Performance testing: < 100ms for 1000+ entries
+
+**Result**: 
+- Queries like "find cardio doctor" now match "cardiologist", "cardiology"
+- Plural forms handled automatically
+- Word stemming improves matching
+- Relevance ranking shows best matches first
+
+#### **2. Schema-Driven Generic Filters (0023-004-001) - Priority 2** ⬇️ **MOVED DOWN**
+**Status**: Planned 📋
+**Effort**: 2-3 days
+**Value**: HIGH - Enables scalability (when needed)
+
+**Why Second?**
+- Important for future scalability, but doesn't improve current search quality
+- Implement AFTER FTS proves value
 - Enables pharmaceuticals, products, consultants without code changes
+- Low risk (doesn't change search algorithm, just tool interface)
 
 **Implementation Steps**:
 1. **Enhance Schema Files** (4 hours)
@@ -275,109 +356,151 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 ---
 
-#### **2. Full-Text Search (0023-007-002) - Optional Enhancement**
+#### **3. Centralized Tool Registry (0023-004-003) - Priority 3** (Optional)
 **Status**: Planned 📋
-**Effort**: 4-6 hours
-**Value**: MEDIUM - Improves word-level matching
+**Effort**: 1 day (~8 hours)
+**Value**: MEDIUM - Clean architecture
 
-**Why Second?**
-- Quick win (native PostgreSQL)
-- Handles "cardio" → "cardiology", "cardiologist", "cardiovascular"
-- Solves 80% of similarity needs without embeddings
+**Why Third?**
+- Nice architectural cleanup
+- Makes adding future tools easier
+- Not urgent - current inline registration works fine
+- Implement only if adding many more tools
 
-**Implementation Steps**:
-1. **Add tsvector Column** (1 hour)
-   - Alembic migration: `ALTER TABLE directory_entries ADD COLUMN search_vector tsvector GENERATED`
-   - GIN index for fast FTS queries
-
-2. **Update DirectoryService** (2 hours)
-   - Add FTS query mode based on schema `search_mode` config
-   - Support 3 modes: `exact`, `substring`, `fts`
-
-3. **Update Schemas** (1 hour)
-   - Add `search_mode: "fts"` to specialty field in `medical_professional.yaml`
-   - Keep exact match for gender, status fields
-
-**Result**: Better matching for medical terms, drug names, product categories.
+**Result**: Single source of truth for tool metadata, automatic dependency validation.
 
 ---
 
-#### **3. Semantic Search (0023-003) - Major Enhancement**
-**Status**: Deferred 📋
+#### **4. Semantic Search (0023-003) - KEEP DEFERRED** ⏸️
+**Status**: Deferred (Re-evaluate after FTS) 📋
 **Effort**: 3-4 weeks
-**Value**: HIGH (for complex NL queries)
+**Value**: MEDIUM (FTS solves most needs)
 
-**Why Last?**
-- High complexity (embeddings + Pinecone sync)
-- High operational overhead (cost, latency, monitoring)
-- Only needed for complex queries ("heart doctor" → "cardiologist")
-- Phase 1+2 solve 90% of needs
+**Why Keep Deferred?**
+- **FTS will solve 90% of search quality issues** (word variations, stemming)
+- High complexity (embeddings + Pinecone sync + background jobs)
+- High operational overhead (cost, latency, monitoring, sync state)
+- Only needed for truly semantic queries ("heart doctor" → "cardiologist")
+- **Re-evaluate AFTER FTS** - you likely won't need it
 
-**Implementation Steps**:
-1. **Database Schema** (1 day)
-   - New table: `directory_embeddings` (tracks sync state with Pinecone)
-   - No changes to directory_entries or directory_lists
+**When to Reconsider:**
+- If FTS proves insufficient for word variations
+- If users frequently use conceptual queries that FTS misses
+- If you need cross-lingual search
+- Until then: **DEFER INDEFINITELY**
 
-2. **Embedding Service** (1 week)
-   - Generate embeddings for directory entries
-   - Upload to Pinecone with metadata
-   - Sync state tracking (pending, synced, failed, stale)
-
-3. **Background Job** (1 week)
-   - Queue-based embedding generation
-   - Handle updates, deletes
-   - Monitor sync health
-
-4. **Hybrid Search** (1 week)
-   - Try exact/substring filters first (fast path)
-   - Semantic fallback if 0 results
-   - Combine semantic similarity + exact filters (gender, tags)
-
-**Result**: True semantic understanding - "heart doctor" finds "cardiologist", "pain medication" finds "NSAID".
+**Result IF Implemented**: True semantic understanding - "heart doctor" finds "cardiologist", "pain medication" finds "NSAID".
 
 ---
 
-### **Phase 3: Additional Enhancements (Future)**
+## ❌ **DEPRECATED Features**
 
-**Other Phase 2 Features** (lower priority):
-- Config-Driven CSV Mappers (0023-004-002)
-- Centralized Tool Registry (0023-004-003)
-- Incremental CSV Updates (0023-005-001)
-- Status Field Revival (0023-005-002)
-- Two-Tool Discovery Pattern (0023-006-001)
-- Pagination (0023-007-001)
-- Materialized Views (0023-007-003)
+The following features are being deprecated as premature optimizations or unnecessary complexity:
+
+### **❌ Two-Tool Discovery Pattern (0023-006-001) - DEPRECATED**
+**Reason**: System prompt auto-generation eliminates need for discovery tool
+- Epic already notes this: "system prompt auto-generated from config eliminates need for discovery tool in most cases"
+- Cost: 2x LLM calls per query, higher latency, higher cost
+- **Verdict**: Remove entirely. Schema-driven prompts provide all needed context upfront.
+
+### **❌ Status Field Revival (0023-005-002) - DEPRECATED**
+**Reason**: Premature complexity, no current requirement
+- Delete-and-replace strategy works fine for MVP
+- Use cases ("on_leave", "discontinued") not needed
+- Adds complexity for edge cases
+- **Verdict**: Remove. Add only if there's an actual business requirement (there isn't one).
+
+### **❌ Materialized Views (0023-007-003) - DEPRECATED**
+**Reason**: Premature optimization
+- Current data size (124 doctors) trivially handled by PostgreSQL + GIN indexes
+- No performance problem exists
+- **Verdict**: Remove. YAGNI principle applies. Add only when performance data shows a need.
+
+### **❌ Pagination (0023-007-001) - DEPRECATED**
+**Reason**: Conversational agents don't need pagination
+- Current `max_results: 5` works perfectly for LLM responses
+- Pagination breaks conversational flow
+- If more results needed, just increase limit to 10
+- **Verdict**: Remove. Pagination is anti-pattern for conversational search.
+
+### **❌ Config-Driven CSV Mappers (0023-004-002) - DEPRECATED**
+**Reason**: Current Python mappers are more flexible
+- Python functions handle complex transformations better
+- YAML mapping adds abstraction without real value
+- No actual problem with current approach
+- **Verdict**: Defer indefinitely or remove. Nice-to-have, not critical.
+
+### **⏸️ Incremental CSV Updates (0023-005-001) - LOW PRIORITY**
+**Reason**: Only needed if data changes frequently
+- Current delete-and-replace works fine
+- Add only if operational need emerges
+- **Verdict**: Keep planned but very low priority (Priority 4).
 
 ---
 
-### **Decision Matrix**
+### **Phase 3: Only If Actually Needed (Future)**
 
-| Enhancement | Effort | Risk | Value | When to Implement |
-|-------------|--------|------|-------|-------------------|
-| **Schema-Driven Filters** | 2-3 days | Low | HIGH | **NOW** - Unblocks new types |
-| **Full-Text Search** | 6 hours | Low | Medium | **Optional** - If substring insufficient |
-| **Semantic Search** | 3-4 weeks | Medium | High | **Later** - For complex NL queries |
-| Config-Driven CSV | 1 week | Low | Medium | After schema-driven filters |
-| Tool Registry | 3 days | Low | Medium | After multiple tools exist |
-| Incremental Updates | 1 week | Medium | Low | When data changes frequently |
-| Status Field | 2 days | Low | Low | When workflow states needed |
+**Remaining Features** (implement only with proven business need):
+- ⏸️ Incremental CSV Updates (0023-005-001) - Priority 4 if data changes frequently
+- ❌ All deprecated features removed from roadmap
 
 ---
 
-### **Recommended Next Steps**
+### **Decision Matrix** (REVISED)
 
-1. **Implement 0023-004-001 (Schema-Driven Generic Filters)** - 2-3 days
-   - Highest value, lowest risk
-   - Enables adding pharmaceuticals, products, consultants
-   - No dependency on external services
+| Enhancement | Effort | Risk | Value | Priority | Rationale |
+|-------------|--------|------|-------|----------|-----------|
+| **Full-Text Search** 🎯 | 4-6 hours | Low | **HIGH** | **P1 - NOW** | **Immediate search quality improvement** |
+| **Schema-Driven Filters** | 2-3 days | Low | HIGH | **P2 - NEXT** | Enables scalability when needed |
+| **Tool Registry** | 1 day | Low | Medium | **P3 - Optional** | Clean architecture, not urgent |
+| **Incremental CSV Updates** | 1 week | Medium | Low | **P4 - If Needed** | Only if data changes frequently |
+| **Semantic Search** | 3-4 weeks | Medium | Medium | **⏸️ DEFERRED** | Re-evaluate after FTS |
+| ~~Config-Driven CSV~~ | 1 week | Low | Low | **❌ DEPRECATED** | Python mappers work fine |
+| ~~Two-Tool Discovery~~ | 3 days | Low | Low | **❌ DEPRECATED** | Prompts provide context |
+| ~~Status Field~~ | 2 days | Low | Low | **❌ DEPRECATED** | No current need |
+| ~~Pagination~~ | 1 day | Low | Low | **❌ DEPRECATED** | Anti-pattern for chat |
+| ~~Materialized Views~~ | 3 days | Low | Low | **❌ DEPRECATED** | Premature optimization |
 
-2. **Evaluate FTS Need** - After schema-driven filters
-   - Test with substring matching
-   - If users struggle with word variations, add FTS (6 hours)
+**Key Changes:**
+- **FTS moved to P1** - Delivers immediate value in 6 hours vs 2-3 days
+- **Schema-Driven to P2** - Important but doesn't improve current search
+- **6 features deprecated** - Eliminates premature optimizations
 
-3. **Defer Semantic Search** - Until proven necessary
-   - Current substring + FTS should handle 90% of cases
-   - Re-evaluate if complex queries become common
+---
+
+### **Recommended Next Steps** (REVISED)
+
+**Optimized for: "Improve the search" (user's stated goal)**
+
+1. **Implement Full-Text Search (0023-007-002) FIRST** - 4-6 hours 🎯
+   - **Ship TODAY** - Immediate search quality improvement
+   - Handles word variations: "cardio" → "cardiologist", stemming, plural forms
+   - Low risk, native PostgreSQL, no breaking changes
+   - **Test and measure** - Validate search quality improvement
+
+2. **Implement Schema-Driven Filters (0023-004-001) SECOND** - 2-3 days
+   - **Only if/when** you need to add new directory types (pharma, products, etc.)
+   - Enables scalability without code changes
+   - No dependency on FTS results
+
+3. **Tool Registry (0023-004-003) OPTIONAL** - 1 day
+   - Clean architecture benefit
+   - Implement only if adding many more tools
+
+4. **Re-evaluate Semantic Search (0023-003)** - After FTS
+   - Test FTS results first
+   - If FTS proves insufficient (unlikely), consider Pinecone
+   - Until then: **Keep deferred**
+
+**Timeline:**
+- **Week 1**: Ship FTS (1 day), test and validate
+- **Week 2+**: Schema-driven filters IF new directory types needed
+- **Never**: All deprecated features
+
+**Success Metrics:**
+- Search quality improved (subjective testing)
+- Code complexity reduced (6 features removed)
+- Time to value: 6 hours instead of 2-3 days
 
 ---
 
