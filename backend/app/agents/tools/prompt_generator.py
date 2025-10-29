@@ -19,9 +19,7 @@ from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from app.models.directory import DirectoryList
 from app.services.directory_importer import DirectoryImporter
-import logging
-
-logger = logging.getLogger(__name__)
+import logfire
 
 
 class DirectoryListDocs(BaseModel):
@@ -68,10 +66,10 @@ async def generate_directory_tool_docs(
     accessible_lists = directory_config.get("accessible_lists", [])
     
     if not accessible_lists:
-        logger.info("No accessible lists configured")
+        logfire.info('directory.no_accessible_lists_configured')
         return ""
     
-    logger.info(f"Generating directory docs for lists: {accessible_lists}")
+    logfire.info('directory.generating_docs', accessible_lists=accessible_lists)
     
     # Get list metadata from database
     result = await db_session.execute(
@@ -83,7 +81,7 @@ async def generate_directory_tool_docs(
     lists_metadata = result.scalars().all()
     
     if not lists_metadata:
-        logger.warning(f"No directory lists found for account {account_id}")
+        logfire.warn('directory.no_lists_found', account_id=str(account_id))
         return ""
     
     # Build CONCISE documentation - avoid tool loops
@@ -155,7 +153,7 @@ async def generate_directory_tool_docs(
                 docs_lines.append(f"\n**Search Strategy**: {strategy_text}")
             
         except Exception as e:
-            logger.error(f"Error loading schema for {list_meta.list_name}: {e}")
+            logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
             continue
     
     # Build minimal prompt text
@@ -172,13 +170,13 @@ async def generate_directory_tool_docs(
     )
     
     # Log structured Pydantic model (Logfire will automatically capture all fields)
-    logger.info(
-        'Directory documentation generated: {docs!r}',
+    logfire.info(
+        'directory.documentation_generated',
         docs=generated_docs
     )
     
     # ALSO log the actual prompt text for debugging
-    logger.info(f"Generated prompt text ({len(markdown_content)} chars):\n{markdown_content}")
+    logfire.info('directory.generated_prompt_text', prompt_length=len(markdown_content), prompt_text=markdown_content)
     
     return generated_docs.markdown_content
 
