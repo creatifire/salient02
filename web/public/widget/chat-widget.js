@@ -159,12 +159,11 @@
       @keyframes spin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
       
       /* Typing indicator for bot messages */
-      .typing-indicator{ display:flex; align-items:center; gap:4px; padding:8px 0; }
+      .typing-indicator{ display:flex; align-items:center; justify-content:center; gap:4px; padding:8px 0; min-height:32px; }
       .typing-indicator span{ width:8px; height:8px; border-radius:50%; background:#999; animation:typing-bounce 1.4s infinite ease-in-out; }
       .typing-indicator span:nth-child(1){ animation-delay:0s; }
       .typing-indicator span:nth-child(2){ animation-delay:0.2s; }
       .typing-indicator span:nth-child(3){ animation-delay:0.4s; }
-      .typing-indicator.hidden{ display:none; }
       @keyframes typing-bounce{ 0%, 60%, 100%{ transform:translateY(0); opacity:0.7; } 30%{ transform:translateY(-8px); opacity:1; } }
       
       @media (max-width: 480px){ #pane{ bottom: 82px; width: 92vw; } }
@@ -276,12 +275,8 @@
       const content = document.createElement('div'); content.className = 'content'; content.textContent = text || '';
       container.appendChild(content);
       
-      // Add typing indicator for bot messages (hidden by default)
+      // Add copy button for bot messages
       if (role === 'bot') {
-        const typingIndicator = document.createElement('div');
-        typingIndicator.className = 'typing-indicator hidden';
-        typingIndicator.innerHTML = '<span></span><span></span><span></span>';
-        container.appendChild(typingIndicator);
         addCopyButton(container);
       }
       
@@ -293,18 +288,20 @@
     // Typing indicator helper functions
     function showTypingIndicator(container) {
       if (!container) return;
-      const indicator = container.querySelector('.typing-indicator');
-      if (indicator) {
-        indicator.classList.remove('hidden');
+      const content = container.querySelector('.content');
+      if (content) {
+        // Insert typing indicator HTML directly into content
+        content.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
         chat.scrollTop = chat.scrollHeight;
       }
     }
     
     function hideTypingIndicator(container) {
       if (!container) return;
-      const indicator = container.querySelector('.typing-indicator');
-      if (indicator) {
-        indicator.classList.add('hidden');
+      const content = container.querySelector('.content');
+      // Check if content contains typing indicator
+      if (content && content.querySelector('.typing-indicator')) {
+        content.innerHTML = ''; // Clear typing indicator
       }
     }
 
@@ -434,13 +431,13 @@
           activeSSE = es;
           // Accumulate chunks without rendering during streaming (render once when done)
           es.onmessage = (ev)=>{ 
-            // Hide typing indicator on first chunk
-            if (accumulated === '') {
+            accumulated += ev.data;
+            
+            if(activeBotDiv && accumulated.length > 0){ 
+              // Clear timeout and hide indicator when we start showing text
               if (typingTimeout) clearTimeout(typingTimeout);
               hideTypingIndicator(activeBotDiv);
-            }
-            accumulated += ev.data; 
-            if(activeBotDiv){ 
+              
               activeBotDiv.dataset.raw = accumulated;
               // Show accumulated text with basic line breaks (no markdown yet)
               const content = activeBotDiv.querySelector('.content') || activeBotDiv;
