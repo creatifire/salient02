@@ -1810,7 +1810,7 @@ async def search_directory(
 
 ---
 
-- [ ] **0023-004-001-02 - CHUNK - Add searchable_fields to schema YAML**
+- [x] **0023-004-001-02 - CHUNK - Add searchable_fields to schema YAML** ✅ **COMPLETE**
 
 **SUB-TASKS**:
 - Add `searchable_fields` section to `medical_professional.yaml`
@@ -1853,11 +1853,13 @@ searchable_fields:
 ```
 
 **ACCEPTANCE**:
-- ✅ `searchable_fields` section added to `medical_professional.yaml`
-- ✅ All current JSONB filter fields documented (department, specialty, gender, education)
-- ✅ Each field has: type, description, examples (minimum 2 examples)
-- ✅ YAML syntax valid (load with `yaml.safe_load()`)
-- ✅ Inline comments explain purpose
+- ✅ `searchable_fields` section added to `medical_professional.yaml` ✅ **DONE**
+- ✅ All current JSONB filter fields documented (5 fields) ✅ **DONE** (department, specialty, gender, education, board_certifications)
+- ✅ Each field has: type, description, examples (minimum 2 examples) ✅ **DONE** (2-5 examples per field, 20 total)
+- ✅ YAML syntax valid (load with `yaml.safe_load()`) ✅ **VERIFIED**
+- ✅ Inline comments explain purpose ✅ **DONE**
+
+**RESULT**: Schema enhanced with 5 searchable fields. Ready for prompt generator to auto-generate tool documentation.
 
 ---
 
