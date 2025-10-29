@@ -162,33 +162,33 @@ search_config:
   query_examples:
     - query: "cardio"
       matches:
-        - "cardiologist" (in name)
-        - "cardiology" (in department)
-        - "cardiovascular" (in specialty)
+        - "cardiologist (in name)"
+        - "cardiology (in department)"
+        - "cardiovascular (in specialty)"
       note: "Word variations handled via stemming"
     
     - query: "heart doctor"
       matches:
-        - Doctors with "heart" OR "cardiology" in their data
-        - Combined with doctors with "doctor" in name
+        - "Doctors with heart OR cardiology in their data"
+        - "Combined with doctors with doctor in name"
       note: "Multi-word queries use AND logic"
     
     - query: "spanish speaking"
       matches:
-        - Doctors with "Spanish" in tags array
-        - Doctors with "spanish" in any entry_data field
+        - "Doctors with Spanish in tags array"
+        - "Doctors with spanish in any entry_data field"
       note: "Tags have higher weight (B) than entry_data (C)"
     
     - query: "plastic surgery"
       matches:
-        - Department: "Surgery" + Specialty: "Plastic Surgery"
-        - Specialty: "Plastic Surgery" ranks highest
+        - "Department: Surgery + Specialty: Plastic Surgery"
+        - "Specialty: Plastic Surgery ranks highest"
       note: "Relevance ranking ensures best matches first"
     
     - query: "emergency"
       matches:
-        - "Emergency Medicine" (department)
-        - "Emergency" (in specialty)
+        - "Emergency Medicine (department)"
+        - "Emergency (in specialty)"
       note: "Partial word matching via stemming"
 
   search_modes:
@@ -212,6 +212,56 @@ search_config:
         - "Searches across all fields (name, tags, entry_data)"
         - "Results ranked by relevance"
         - "Faster for large datasets (GIN index)"
+
+# Searchable fields for system prompt generation
+# These fields can be used in the filters parameter: filters={"field_name": "value"}
+# This section is used by prompt_generator.py to auto-generate tool documentation
+searchable_fields:
+  department:
+    type: string
+    description: "Medical department (Cardiology, Emergency Medicine, Surgery, etc.)"
+    examples:
+      - "Cardiology"
+      - "Emergency Medicine"
+      - "Pediatrics"
+      - "Surgery"
+      - "Internal Medicine"
+  
+  specialty:
+    type: string
+    description: "Medical specialty or sub-specialty"
+    examples:
+      - "Interventional Cardiology"
+      - "Pediatric Surgery"
+      - "Plastic Surgery"
+      - "Orthopedic Surgery"
+      - "Endocrinology"
+  
+  gender:
+    type: string
+    description: "Gender (male/female/non-binary)"
+    examples:
+      - "male"
+      - "female"
+      - "non-binary"
+  
+  education:
+    type: string
+    description: "Medical school and degree"
+    examples:
+      - "Harvard Medical School, MD"
+      - "Johns Hopkins University, MD"
+      - "Stanford University School of Medicine, MD"
+  
+  board_certifications:
+    type: text
+    description: "Board certifications (searchable via text matching)"
+    examples:
+      - "Cardiology"
+      - "Surgery"
+      - "Internal Medicine"
+      - "Pediatrics"
+    note: "Use partial matching for multi-line certification text"
 
 # Search and filter capabilities
 searchable_by:
