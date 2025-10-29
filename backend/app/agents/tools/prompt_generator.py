@@ -16,11 +16,36 @@ from typing import Dict, List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel, Field
 from app.models.directory import DirectoryList
 from app.services.directory_importer import DirectoryImporter
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class DirectoryListDocs(BaseModel):
+    """Documentation for a single directory list."""
+    list_name: str = Field(description="Name of the directory list")
+    entry_type: str = Field(description="Type of entries in the list")
+    entry_count: int = Field(description="Number of entries in the list")
+    tags_description: Optional[str] = Field(None, description="Description of tags usage")
+    tags_examples: List[str] = Field(default_factory=list, description="Example tags")
+    searchable_fields: Dict[str, Dict[str, str]] = Field(default_factory=dict, description="Fields that can be filtered")
+    query_examples: List[str] = Field(default_factory=list, description="Example queries for this list")
+
+
+class GeneratedDirectoryDocs(BaseModel):
+    """Complete generated documentation for directory tool."""
+    account_id: UUID = Field(description="Account these docs were generated for")
+    accessible_lists: List[str] = Field(description="Lists that were documented")
+    lists_documented: List[DirectoryListDocs] = Field(description="Documentation for each list")
+    markdown_content: str = Field(description="Full markdown documentation")
+    
+    class Config:
+        """Pydantic config for Logfire integration."""
+        # This makes the model log nicely in Logfire
+        str_strip_whitespace = True
 
 
 async def generate_directory_tool_docs(
@@ -61,59 +86,109 @@ async def generate_directory_tool_docs(
         logger.warning(f"No directory lists found for account {account_id}")
         return ""
     
-    # Build documentation
-    docs = ["## Directory Search Tool\n"]
-    docs.append("Search structured directory entries with natural language queries.\n")
+    # Build documentation using Pydantic models for structured logging
+    docs_lines = ["## Directory Search Tool\n"]
+    docs_lines.append("Search structured directory entries with natural language queries.\n")
+    
+    documented_lists: List[DirectoryListDocs] = []
     
     for list_meta in lists_metadata:
         try:
             # Load schema
             schema = DirectoryImporter.load_schema(list_meta.schema_file)
             
-            docs.append(f"\n### {list_meta.list_name} ({list_meta.entry_type})")
-            
             # Entry count from relationship
             entry_count = len(list_meta.entries) if list_meta.entries else 0
-            docs.append(f"**Entries**: {entry_count}\n")
             
-            # Tags documentation
+            # Extract tags usage
+            tags_desc = None
+            tags_ex = []
             if schema.get('tags_usage'):
                 tags_usage = schema['tags_usage']
-                docs.append(f"**Tags**: {tags_usage.get('description', 'N/A')}")
-                if tags_usage.get('examples'):
-                    docs.append(f"  Examples: {', '.join(tags_usage['examples'])}\n")
+                tags_desc = tags_usage.get('description')
+                tags_ex = tags_usage.get('examples', [])
             
-            # Searchable fields
+            # Extract searchable fields
+            searchable_fields_dict = {}
             if schema.get('searchable_fields'):
-                docs.append("**Searchable Filters**:")
                 for field_name, field_def in schema['searchable_fields'].items():
-                    docs.append(f"- `{field_name}`: {field_def.get('description', 'N/A')}")
-                    if field_def.get('examples'):
-                        examples_str = ', '.join(f'"{ex}"' for ex in field_def['examples'][:3])
-                        docs.append(f"  Examples: {examples_str}")
-                docs.append("")
+                    searchable_fields_dict[field_name] = {
+                        'description': field_def.get('description', 'N/A'),
+                        'examples': ', '.join(f'"{ex}"' for ex in field_def.get('examples', [])[:3])
+                    }
             
-            # Usage examples (type-specific)
-            docs.append("**Query Examples**:")
+            # Build query examples
+            query_examples = []
             if list_meta.entry_type == 'medical_professional':
-                docs.append(f'- Find cardiologist: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Cardiology"}})`')
-                docs.append(f'- Female surgeon: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Surgery", "gender": "female"}})`')
-                docs.append(f'- Spanish-speaking ER doctor: `search_directory(list_name="{list_meta.list_name}", filters={{"department": "Emergency Medicine"}}, tag="Spanish")`')
+                query_examples = [
+                    f'Find cardiologist: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Cardiology"}})`',
+                    f'Female surgeon: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Surgery", "gender": "female"}})`',
+                    f'Spanish-speaking ER doctor: `search_directory(list_name="{list_meta.list_name}", filters={{"department": "Emergency Medicine"}}, tag="Spanish")`'
+                ]
             elif list_meta.entry_type == 'pharmaceutical':
-                docs.append(f'- Pain medications: `search_directory(list_name="{list_meta.list_name}", filters={{"indications": "pain"}})`')
-                docs.append(f'- NSAIDs: `search_directory(list_name="{list_meta.list_name}", tag="NSAID")`')
+                query_examples = [
+                    f'Pain medications: `search_directory(list_name="{list_meta.list_name}", filters={{"indications": "pain"}})`',
+                    f'NSAIDs: `search_directory(list_name="{list_meta.list_name}", tag="NSAID")`'
+                ]
             elif list_meta.entry_type == 'product':
-                docs.append(f'- Laptops by brand: `search_directory(list_name="{list_meta.list_name}", filters={{"category": "Laptops", "brand": "Dell"}})`')
-                docs.append(f'- In-stock items: `search_directory(list_name="{list_meta.list_name}", filters={{"in_stock": "true"}})`')
+                query_examples = [
+                    f'Laptops by brand: `search_directory(list_name="{list_meta.list_name}", filters={{"category": "Laptops", "brand": "Dell"}})`',
+                    f'In-stock items: `search_directory(list_name="{list_meta.list_name}", filters={{"in_stock": "true"}})`'
+                ]
             
-            docs.append("")
+            # Create Pydantic model for this list
+            list_docs = DirectoryListDocs(
+                list_name=list_meta.list_name,
+                entry_type=list_meta.entry_type,
+                entry_count=entry_count,
+                tags_description=tags_desc,
+                tags_examples=tags_ex,
+                searchable_fields=searchable_fields_dict,
+                query_examples=query_examples
+            )
+            documented_lists.append(list_docs)
+            
+            # Build markdown for this list
+            docs_lines.append(f"\n### {list_meta.list_name} ({list_meta.entry_type})")
+            docs_lines.append(f"**Entries**: {entry_count}\n")
+            
+            if tags_desc:
+                docs_lines.append(f"**Tags**: {tags_desc}")
+                if tags_ex:
+                    docs_lines.append(f"  Examples: {', '.join(tags_ex)}\n")
+            
+            if searchable_fields_dict:
+                docs_lines.append("**Searchable Filters**:")
+                for field_name, field_info in searchable_fields_dict.items():
+                    docs_lines.append(f"- `{field_name}`: {field_info['description']}")
+                    docs_lines.append(f"  Examples: {field_info['examples']}")
+                docs_lines.append("")
+            
+            if query_examples:
+                docs_lines.append("**Query Examples**:")
+                for example in query_examples:
+                    docs_lines.append(f"- {example}")
+                docs_lines.append("")
             
         except Exception as e:
             logger.error(f"Error loading schema for {list_meta.list_name}: {e}")
             continue
     
-    generated_docs = '\n'.join(docs)
-    logger.info(f"Generated {len(generated_docs)} chars of directory documentation")
+    markdown_content = '\n'.join(docs_lines)
     
-    return generated_docs
+    # Create Pydantic model for complete documentation
+    generated_docs = GeneratedDirectoryDocs(
+        account_id=account_id,
+        accessible_lists=accessible_lists,
+        lists_documented=documented_lists,
+        markdown_content=markdown_content
+    )
+    
+    # Log structured Pydantic model (Logfire will automatically capture all fields)
+    logger.info(
+        'Directory documentation generated: {docs!r}',
+        docs=generated_docs
+    )
+    
+    return generated_docs.markdown_content
 
