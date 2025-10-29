@@ -158,6 +158,15 @@
       .loading-indicator::before{ content:''; width:16px; height:16px; border:2px solid #ddd; border-top:2px solid #666; border-radius:50%; animation:spin 1s linear infinite; }
       @keyframes spin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }
       
+      /* Typing indicator for bot messages */
+      .typing-indicator{ display:flex; align-items:center; gap:4px; padding:8px 0; }
+      .typing-indicator span{ width:8px; height:8px; border-radius:50%; background:#999; animation:typing-bounce 1.4s infinite ease-in-out; }
+      .typing-indicator span:nth-child(1){ animation-delay:0s; }
+      .typing-indicator span:nth-child(2){ animation-delay:0.2s; }
+      .typing-indicator span:nth-child(3){ animation-delay:0.4s; }
+      .typing-indicator.hidden{ display:none; }
+      @keyframes typing-bounce{ 0%, 60%, 100%{ transform:translateY(0); opacity:0.7; } 30%{ transform:translateY(-8px); opacity:1; } }
+      
       @media (max-width: 480px){ #pane{ bottom: 82px; width: 92vw; } }
     `;
 
@@ -266,13 +275,41 @@
       const container = document.createElement('div'); container.className = 'msg '+role;
       const content = document.createElement('div'); content.className = 'content'; content.textContent = text || '';
       container.appendChild(content);
-      if (role === 'bot') addCopyButton(container);
+      
+      // Add typing indicator for bot messages (hidden by default)
+      if (role === 'bot') {
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator hidden';
+        typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+        container.appendChild(typingIndicator);
+        addCopyButton(container);
+      }
+      
       chat.appendChild(container); chat.scrollTop = chat.scrollHeight;
       return container;
     }
     function setMessage(container, raw){ const content = container.querySelector('.content') || container; content.textContent = raw; container.dataset.raw = raw; chat.scrollTop = chat.scrollHeight; }
+    
+    // Typing indicator helper functions
+    function showTypingIndicator(container) {
+      if (!container) return;
+      const indicator = container.querySelector('.typing-indicator');
+      if (indicator) {
+        indicator.classList.remove('hidden');
+        chat.scrollTop = chat.scrollHeight;
+      }
+    }
+    
+    function hideTypingIndicator(container) {
+      if (!container) return;
+      const indicator = container.querySelector('.typing-indicator');
+      if (indicator) {
+        indicator.classList.add('hidden');
+      }
+    }
 
     let busy=false; let activeSSE=null; let activeBotDiv=null; let accumulated='';
+    let typingTimeout=null; // Track typing indicator timeout
     let configCache = null;
     let historyLoaded = false;
     
@@ -369,6 +406,14 @@
       activeBotDiv = createMessage('bot', '');
       accumulated = '';
       
+      // Clear any existing typing timeout
+      if (typingTimeout) clearTimeout(typingTimeout);
+      
+      // Show typing indicator after 500ms if no response yet
+      typingTimeout = setTimeout(() => {
+        showTypingIndicator(activeBotDiv);
+      }, 500);
+      
       // Get backend configuration to respect sse_enabled setting
       const config = await getBackendConfig();
       const backendSseEnabled = config.ui.sse_enabled;
@@ -389,6 +434,11 @@
           activeSSE = es;
           // Accumulate chunks without rendering during streaming (render once when done)
           es.onmessage = (ev)=>{ 
+            // Hide typing indicator on first chunk
+            if (accumulated === '') {
+              if (typingTimeout) clearTimeout(typingTimeout);
+              hideTypingIndicator(activeBotDiv);
+            }
             accumulated += ev.data; 
             if(activeBotDiv){ 
               activeBotDiv.dataset.raw = accumulated;
@@ -400,6 +450,8 @@
           };
     es.addEventListener('done', async()=>{
       debugLog('SSE done event received, rendering markdown');
+      if (typingTimeout) clearTimeout(typingTimeout);
+      hideTypingIndicator(activeBotDiv);
       try{ es.close(); }catch{}
       activeSSE=null;
       const content = activeBotDiv && (activeBotDiv.querySelector('.content') || activeBotDiv);
@@ -410,7 +462,10 @@
       }
       setBusy(false);
     });
-          es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; // fallback to POST
+          es.onerror = ()=>{ 
+            if (typingTimeout) clearTimeout(typingTimeout);
+            hideTypingIndicator(activeBotDiv);
+            try{ es.close(); }catch{}; activeSSE=null; // fallback to POST
             debugLog('SSE error, falling back to POST');
             doPost(postUrl.toString(), value);
           };
@@ -418,7 +473,12 @@
         }
         // POST fallback
         await doPost(postUrl.toString(), value);
-      }catch(e){ setMessage(activeBotDiv, '[network error]'); setBusy(false); }
+      }catch(e){ 
+        if (typingTimeout) clearTimeout(typingTimeout);
+        hideTypingIndicator(activeBotDiv);
+        setMessage(activeBotDiv, '[network error]'); 
+        setBusy(false); 
+      }
     }
 
     async function doPost(url, value){
@@ -430,6 +490,11 @@
           body: JSON.stringify({ message: value }),
           credentials: 'include'  // Send session cookie
         });
+        
+        // Clear typing indicator on response
+        if (typingTimeout) clearTimeout(typingTimeout);
+        hideTypingIndicator(activeBotDiv);
+        
         if (!r.ok){ 
           setMessage(activeBotDiv, `[http ${r.status} ${r.statusText}]`); 
         } else { 
@@ -445,6 +510,8 @@
         }
       }catch(e){ 
         debugLog('POST error:', e);
+        if (typingTimeout) clearTimeout(typingTimeout);
+        hideTypingIndicator(activeBotDiv);
         setMessage(activeBotDiv, '[network error]'); 
       }
       finally { setBusy(false); }
