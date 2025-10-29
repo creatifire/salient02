@@ -138,6 +138,81 @@ validation:
   type_checking: false  # Phase 2 enhancement
   format_validation: false  # Phase 2 enhancement
 
+# Search configuration
+search_config:
+  search_mode: "fts"  # exact | substring | fts
+  description: |
+    Full-text search (FTS) enables intelligent matching with:
+    - Word variations: "cardio" matches "cardiologist", "cardiology"
+    - Stemming: "cardiologists" matches "cardiologist" (singular)
+    - Relevance ranking: Most relevant results first (name > tags > entry_data)
+    - Multi-word queries: "heart doctor" matches doctors in cardiology
+  
+  how_it_works: |
+    FTS indexes all searchable content with weighted priorities:
+    - Weight A (highest): Name field - e.g., "Dr. Smith"
+    - Weight B (medium): Tags (languages) - e.g., "Spanish", "English"
+    - Weight C (lowest): All entry_data fields - department, specialty, education, etc.
+    
+    Search queries are processed with PostgreSQL's to_tsquery():
+    - Single words: "cardio" → searches for "cardio*" forms
+    - Multiple words: "heart doctor" → searches for "heart" AND "doctor"
+    - Results ranked by ts_rank() - higher relevance scores first
+  
+  query_examples:
+    - query: "cardio"
+      matches:
+        - "cardiologist" (in name)
+        - "cardiology" (in department)
+        - "cardiovascular" (in specialty)
+      note: "Word variations handled via stemming"
+    
+    - query: "heart doctor"
+      matches:
+        - Doctors with "heart" OR "cardiology" in their data
+        - Combined with doctors with "doctor" in name
+      note: "Multi-word queries use AND logic"
+    
+    - query: "spanish speaking"
+      matches:
+        - Doctors with "Spanish" in tags array
+        - Doctors with "spanish" in any entry_data field
+      note: "Tags have higher weight (B) than entry_data (C)"
+    
+    - query: "plastic surgery"
+      matches:
+        - Department: "Surgery" + Specialty: "Plastic Surgery"
+        - Specialty: "Plastic Surgery" ranks highest
+      note: "Relevance ranking ensures best matches first"
+    
+    - query: "emergency"
+      matches:
+        - "Emergency Medicine" (department)
+        - "Emergency" (in specialty)
+      note: "Partial word matching via stemming"
+
+  search_modes:
+    exact:
+      description: "Exact name match (case-sensitive)"
+      use_case: "When you have the exact doctor name"
+      example: 'search(name_query="Dr. John Smith", search_mode="exact")'
+    
+    substring:
+      description: "Case-insensitive partial match (default)"
+      use_case: "Simple name contains queries"
+      example: 'search(name_query="smith", search_mode="substring")'
+      note: "Backward compatible - existing code works without changes"
+    
+    fts:
+      description: "Full-text search with ranking (recommended)"
+      use_case: "Natural language queries, word variations, relevance"
+      example: 'search(name_query="cardio", search_mode="fts")'
+      benefits:
+        - "Handles plurals and word variations"
+        - "Searches across all fields (name, tags, entry_data)"
+        - "Results ranked by relevance"
+        - "Faster for large datasets (GIN index)"
+
 # Search and filter capabilities
 searchable_by:
   - name  # Indexed column, fast text search

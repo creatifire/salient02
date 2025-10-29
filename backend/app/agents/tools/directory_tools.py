@@ -116,12 +116,16 @@ async def search_directory(
     if brand:
         jsonb_filters['brand'] = brand
     
+    # Get search mode from config (default: substring for backward compatibility)
+    search_mode = directory_config.get("search_mode", "substring")
+    
     logger.info({
         "event": "directory_search_executing",
         "list_ids": [str(lid) for lid in list_ids],
         "name_query": query,
         "tags": tags,
         "jsonb_filters": jsonb_filters,
+        "search_mode": search_mode,
         "limit": directory_config.get("max_results", 5)
     })
     
@@ -131,6 +135,7 @@ async def search_directory(
         name_query=query,
         tags=tags,
         jsonb_filters=jsonb_filters if jsonb_filters else None,
+        search_mode=search_mode,
         limit=directory_config.get("max_results", 5)
     )
     

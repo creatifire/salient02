@@ -36,6 +36,7 @@ tools:
     enabled: true  # ENABLED - Wyckoff doctor profiles from directory_lists
     accessible_lists: ["doctors"]  # Lists this agent can search
     max_results: 5  # Maximum entries to return per search
+    search_mode: "fts"  # Search mode: exact | substring | fts (full-text search with ranking)
   
   web_search:
     enabled: false  # Disabled - use direct LLM knowledge and vector search only
