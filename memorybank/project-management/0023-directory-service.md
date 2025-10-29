@@ -247,7 +247,7 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 
 #### **1. Full-Text Search (0023-007-002) - Priority 1** 🎯 **MOVED TO TOP**
 **Status**: Planned 📋
-**Effort**: 4-6 hours
+**Effort**: 4-6 hours total
 **Value**: HIGH - Immediate search quality improvement
 
 **Why First?**
@@ -258,56 +258,220 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 - Works with current tool signature (no breaking changes)
 - Solves 80% of search quality issues without embeddings
 
-**Implementation Steps**:
+---
 
-1. **Add tsvector Column** (1 hour)
-   ```sql
-   -- Alembic migration
-   ALTER TABLE directory_entries 
-   ADD COLUMN search_vector tsvector 
-   GENERATED ALWAYS AS (
-     setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
-     setweight(to_tsvector('english', coalesce(array_to_string(tags, ' '), '')), 'B') ||
-     setweight(to_tsvector('english', coalesce(entry_data::text, '')), 'C')
-   ) STORED;
-   
-   CREATE INDEX idx_directory_entries_fts 
-   ON directory_entries USING GIN(search_vector);
-   ```
+### 0023-007-002 - TASK - Full-Text Search Implementation
 
-2. **Update DirectoryService.search()** (2 hours)
-   - Add FTS query mode parameter
-   - Support 3 search modes: `exact`, `substring`, `fts`
-   - Use `ts_rank()` for relevance scoring
-   ```python
-   # Example FTS query
-   if search_mode == 'fts':
-       query = query.where(
-           DirectoryEntry.search_vector.match(
-               to_tsquery('english', search_term)
-           )
-       ).order_by(
-           func.ts_rank(DirectoryEntry.search_vector, to_tsquery('english', search_term)).desc()
-       )
-   ```
+- [ ] **0023-007-002-01 - CHUNK - Database migration (tsvector column + GIN index)** (1 hour)
 
-3. **Update Schema YAML Files** (1 hour)
-   - Add `search_mode: "fts"` to name and specialty fields in `medical_professional.yaml`
-   - Keep exact match for gender, status fields
-   - Document FTS behavior and examples
+**SUB-TASKS**:
+- Create Alembic migration file: `add_fts_to_directory_entries.py`
+- Add `search_vector` tsvector GENERATED column with weighted fields:
+  - Weight A (highest): `name` field
+  - Weight B (medium): `tags` array
+  - Weight C (lowest): `entry_data` JSONB content
+- Create GIN index on `search_vector` for fast FTS queries
+- Test migration: `alembic upgrade head` and `alembic downgrade -1`
+- Verify index created: Check `pg_indexes` table
 
-4. **Testing & Validation** (1-2 hours)
-   - Test word variations: "cardio", "cardiologist", "cardiology"
-   - Test stemming: "cardiologists" → "cardiologist"
-   - Test ranking: ensure relevant results appear first
-   - Verify existing queries still work
-   - Performance testing: < 100ms for 1000+ entries
+**SQL**:
+```sql
+-- Alembic migration
+ALTER TABLE directory_entries 
+ADD COLUMN search_vector tsvector 
+GENERATED ALWAYS AS (
+  setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
+  setweight(to_tsvector('english', coalesce(array_to_string(tags, ' '), '')), 'B') ||
+  setweight(to_tsvector('english', coalesce(entry_data::text, '')), 'C')
+) STORED;
 
-**Result**: 
-- Queries like "find cardio doctor" now match "cardiologist", "cardiology"
-- Plural forms handled automatically
-- Word stemming improves matching
-- Relevance ranking shows best matches first
+CREATE INDEX idx_directory_entries_fts 
+ON directory_entries USING GIN(search_vector);
+
+COMMENT ON COLUMN directory_entries.search_vector IS 'Full-text search vector (name=A, tags=B, entry_data=C)';
+```
+
+**ACCEPTANCE**:
+- ✅ Migration applies cleanly without errors
+- ✅ `search_vector` column exists with GENERATED constraint
+- ✅ GIN index created and visible in database
+- ✅ Rollback works: `alembic downgrade -1` removes column and index
+- ✅ Existing 124 Wyckoff doctor records populate `search_vector` automatically
+
+---
+
+- [ ] **0023-007-002-02 - CHUNK - DirectoryService FTS query support** (2 hours)
+
+**SUB-TASKS**:
+- Update `DirectoryService.search()` signature to accept `search_mode` parameter
+- Add `search_mode` to agent config YAML schema (default: `"substring"`)
+- Implement 3 search modes:
+  - `exact`: Current exact match behavior
+  - `substring`: Current ILIKE behavior (default for backward compatibility)
+  - `fts`: New full-text search with `to_tsquery()` and `ts_rank()`
+- Add query parsing for FTS: convert user query to tsquery format
+- Add relevance ranking: Order by `ts_rank()` DESC when using FTS
+- Handle edge cases: empty query, invalid tsquery syntax
+- Add logging for search mode and query execution
+
+**Python Example**:
+```python
+# backend/app/services/directory_service.py
+
+@staticmethod
+async def search(
+    session: AsyncSession,
+    accessible_list_ids: List[UUID],
+    name_query: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    jsonb_filters: Optional[dict] = None,
+    search_mode: str = "substring",  # NEW: exact|substring|fts
+    limit: int = 10
+) -> List[DirectoryEntry]:
+    # ... existing code ...
+    
+    if name_query:
+        if search_mode == "fts":
+            # Full-text search with ranking
+            from sqlalchemy import func
+            ts_query = func.to_tsquery('english', name_query)
+            query = query.where(
+                DirectoryEntry.search_vector.match(ts_query)
+            ).order_by(
+                func.ts_rank(DirectoryEntry.search_vector, ts_query).desc()
+            )
+        elif search_mode == "exact":
+            query = query.where(DirectoryEntry.name == name_query)
+        else:  # substring (default)
+            query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
+    
+    # ... rest of implementation ...
+```
+
+**ACCEPTANCE**:
+- ✅ All 3 search modes work correctly
+- ✅ FTS queries return relevant results ranked by `ts_rank()`
+- ✅ Backward compatible: Existing queries work with default `substring` mode
+- ✅ Invalid tsquery syntax handled gracefully (log error, fallback to substring)
+- ✅ Empty query handled (returns no results or all results per spec)
+- ✅ Unit tests pass for all 3 modes
+
+---
+
+- [ ] **0023-007-002-03 - CHUNK - Schema YAML and agent config updates** (1 hour)
+
+**SUB-TASKS**:
+- Add `search_mode` field to `medical_professional.yaml` schema:
+  - Document FTS behavior and examples
+  - Show query transformation examples: "cardio" → "cardiologist"
+  - Note stemming behavior: "cardiologists" → "cardiologist"
+- Update `wyckoff/wyckoff_info_chat1/config.yaml`:
+  - Add `search_mode: "fts"` to directory tool config
+  - Document mode options in comments
+- Update system prompt or tool documentation (if needed)
+- Create example queries document for testing
+
+**YAML Example**:
+```yaml
+# backend/config/directory_schemas/medical_professional.yaml
+entry_type: medical_professional
+schema_version: "1.0"
+
+search_config:
+  search_mode: "fts"  # exact|substring|fts
+  description: |
+    Full-text search enables:
+    - Word variations: "cardio" matches "cardiologist", "cardiology"
+    - Stemming: "cardiologists" matches "cardiologist"
+    - Relevance ranking: Most relevant results first
+  examples:
+    - query: "cardio" → matches: "cardiologist", "cardiology department"
+    - query: "heart doctor" → matches: "cardiologist", "cardiovascular"
+    - query: "spanish speaking" → matches doctors with "Spanish" in tags
+
+# ... rest of schema ...
+```
+
+**Agent Config**:
+```yaml
+# backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml
+tools:
+  directory:
+    enabled: true
+    accessible_lists: ["doctors"]
+    max_results: 5
+    search_mode: "fts"  # NEW: exact|substring|fts (default: substring)
+```
+
+**ACCEPTANCE**:
+- ✅ Schema YAML valid and loads without errors
+- ✅ `search_mode` documented with clear examples
+- ✅ Agent config updated with FTS mode
+- ✅ System prompt updated (if applicable)
+- ✅ Example queries document created
+
+---
+
+- [ ] **0023-007-002-04 - CHUNK - End-to-end testing and validation** (1-2 hours)
+
+**SUB-TASKS**:
+- **Word Variation Testing**:
+  - Query: "cardio" → Should match "cardiologist", "cardiology"
+  - Query: "heart" → Should match "cardiology", "cardiovascular"
+  - Query: "emergency" → Should match "Emergency Medicine", "ER"
+- **Stemming Testing**:
+  - Query: "cardiologists" → Should match "cardiologist"
+  - Query: "surgeons" → Should match "surgeon", "surgery"
+- **Relevance Ranking Testing**:
+  - Query: "cardiology" → Doctor with "cardiology" in department ranks higher than just in specialty
+  - Verify `ts_rank()` ordering makes sense
+- **Tag Search Testing**:
+  - Query: "spanish speaking" with FTS → Should match doctors with "Spanish" tag
+- **Regression Testing**:
+  - Existing query: "Find me a female Spanish-speaking endocrinologist" → Still works
+  - Verify substring mode still works (backward compatibility)
+  - Verify exact mode works for precise matching
+- **Performance Testing**:
+  - Measure query execution time with EXPLAIN ANALYZE
+  - Target: < 100ms for 124 doctors, < 500ms for 10,000 entries
+  - Verify GIN index is being used (check query plan)
+- **Manual curl Testing**:
+  - Test via chat widget: "find me a cardio doctor"
+  - Test via curl: POST to `/accounts/wyckoff/agents/wyckoff_info_chat1/chat`
+  - Verify LLM receives improved results
+
+**Test Checklist**:
+```bash
+# 1. Word variations
+psql -c "SELECT name, entry_data->>'department' FROM directory_entries WHERE search_vector @@ to_tsquery('english', 'cardio');"
+
+# 2. Ranking
+psql -c "SELECT name, ts_rank(search_vector, to_tsquery('english', 'cardiology')) as rank FROM directory_entries WHERE search_vector @@ to_tsquery('english', 'cardiology') ORDER BY rank DESC LIMIT 5;"
+
+# 3. Performance
+psql -c "EXPLAIN ANALYZE SELECT * FROM directory_entries WHERE search_vector @@ to_tsquery('english', 'cardiology') ORDER BY ts_rank(search_vector, to_tsquery('english', 'cardiology')) DESC LIMIT 5;"
+```
+
+**ACCEPTANCE**:
+- ✅ All word variation tests pass (10+ test cases)
+- ✅ Stemming works correctly (plural → singular)
+- ✅ Relevance ranking produces sensible results
+- ✅ Tag search works with FTS
+- ✅ Regression tests pass (existing queries work)
+- ✅ Performance < 100ms for current data size
+- ✅ GIN index used (verified in EXPLAIN ANALYZE)
+- ✅ Manual testing: Chat widget returns improved results
+- ✅ No errors in logs during testing
+
+---
+
+**Overall Result**: 
+- ✅ Queries like "find cardio doctor" now match "cardiologist", "cardiology"
+- ✅ Plural forms handled automatically via stemming
+- ✅ Word variations improve matching quality
+- ✅ Relevance ranking shows best matches first
+- ✅ Performance acceptable (< 100ms)
+- ✅ Backward compatible with existing queries
 
 #### **2. Schema-Driven Generic Filters (0023-004-001) - Priority 2** ⬇️ **MOVED DOWN**
 **Status**: Planned 📋
