@@ -38,6 +38,10 @@ from uuid import UUID
 from datetime import datetime, UTC
 import time
 import os
+import logfire
+
+# Enable Pydantic instrumentation for automatic logging in Logfire
+logfire.instrument_pydantic()
 
 # Global agent instance (lazy loaded)
 # Global caching disabled for production reliability
@@ -108,12 +112,16 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
     
     return pydantic_messages
 
-async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fixed: async function
+async def create_simple_chat_agent(
+    instance_config: Optional[dict] = None,
+    account_id: Optional[UUID] = None
+) -> Agent:  # Fixed: async function
     """
     Create a simple chat agent with OpenRouter provider for cost tracking.
     
     Args:
         instance_config: Optional instance-specific configuration. If provided, uses this
+        account_id: Optional account ID for multi-tenant directory documentation generation
                         instead of loading the global config. This enables multi-tenant
                         support where each instance can have different model settings.
     """
@@ -183,6 +191,36 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
         system_prompt = agent_config.system_prompt
         logger.info(f"Using system_prompt from agent config (length: {len(system_prompt)})")
     
+    # Auto-generate directory tool documentation if enabled
+    directory_config = (instance_config or {}).get("tools", {}).get("directory", {})
+    if directory_config.get("enabled", False) and account_id is not None:
+        logger.info("Directory tool enabled - generating documentation")
+        
+        from ..database import get_database_service
+        from .tools.prompt_generator import generate_directory_tool_docs
+        
+        db_service = get_database_service()
+        async with db_service.get_session() as db_session:
+            directory_docs = await generate_directory_tool_docs(
+                agent_config=instance_config or {},
+                account_id=account_id,
+                db_session=db_session
+            )
+            
+            if directory_docs:
+                system_prompt = system_prompt + "\n\n" + directory_docs
+                logger.info({
+                    "event": "system_prompt_enhanced",
+                    "account_id": str(account_id),
+                    "original_length": len(system_prompt) - len(directory_docs) - 2,
+                    "directory_docs_length": len(directory_docs),
+                    "final_length": len(system_prompt)
+                })
+            else:
+                logger.warning("Directory documentation generation returned empty string")
+    elif directory_config.get("enabled", False) and account_id is None:
+        logger.warning("Directory tool enabled but no account_id provided - skipping documentation generation")
+    
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
     if instance_config is not None:
@@ -244,7 +282,10 @@ async def create_simple_chat_agent(instance_config: Optional[dict] = None) -> Ag
     
     return agent
 
-async def get_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fixed: async function
+async def get_chat_agent(
+    instance_config: Optional[dict] = None,
+    account_id: Optional[UUID] = None
+) -> Agent:  # Fixed: async function
     """
     Create a fresh chat agent instance.
     
@@ -254,10 +295,14 @@ async def get_chat_agent(instance_config: Optional[dict] = None) -> Agent:  # Fi
     
     Args:
         instance_config: Optional instance-specific configuration for multi-tenant support
+        account_id: Optional account ID for multi-tenant directory documentation generation
     """
     # Always create fresh agent to pick up latest configuration
     # This ensures config changes work reliably in production
-    return await create_simple_chat_agent(instance_config=instance_config)
+    return await create_simple_chat_agent(
+        instance_config=instance_config,
+        account_id=account_id
+    )
 
 async def simple_chat(
     message: str, 
@@ -313,8 +358,8 @@ async def simple_chat(
         )
     
     # Get the agent (Fixed: await async function)
-    # Pass instance_config for multi-tenant support
-    agent = await get_chat_agent(instance_config=instance_config)
+    # Pass instance_config and account_id for multi-tenant support and directory docs generation
+    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for debugging
     config_to_use = instance_config if instance_config is not None else load_config()
@@ -641,8 +686,8 @@ async def simple_chat_stream(
             max_messages=None
         )
     
-    # Get the agent (pass instance_config for multi-tenant support)
-    agent = await get_chat_agent(instance_config=instance_config)
+    # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
+    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for logging
     config_to_use = instance_config if instance_config is not None else load_config()
