@@ -86,17 +86,15 @@ async def generate_directory_tool_docs(
         logger.warning(f"No directory lists found for account {account_id}")
         return ""
     
-    # Build documentation using Pydantic models for structured logging
-    docs_lines = ["## Directory Search Tool\n"]
-    docs_lines.append("Search structured directory entries with natural language queries.\n")
+    # Build CONCISE documentation - avoid tool loops
+    docs_lines = ["## Directory Tool\n"]
     
+    # Build list of available directories with counts
     documented_lists: List[DirectoryListDocs] = []
+    list_summaries = []
     
     for list_meta in lists_metadata:
         try:
-            # Load schema
-            schema = DirectoryImporter.load_schema(list_meta.schema_file)
-            
             # Entry count - use separate query to avoid lazy loading issue
             from app.models.directory import DirectoryEntry
             count_result = await db_session.execute(
@@ -106,7 +104,8 @@ async def generate_directory_tool_docs(
             )
             entry_count = count_result.scalar_one()
             
-            # Extract tags usage
+            # Load schema for Pydantic model (for logging only) and search strategy
+            schema = DirectoryImporter.load_schema(list_meta.schema_file)
             tags_desc = None
             tags_ex = []
             if schema.get('tags_usage'):
@@ -114,7 +113,6 @@ async def generate_directory_tool_docs(
                 tags_desc = tags_usage.get('description')
                 tags_ex = tags_usage.get('examples', [])
             
-            # Extract searchable fields
             searchable_fields_dict = {}
             if schema.get('searchable_fields'):
                 for field_name, field_def in schema['searchable_fields'].items():
@@ -123,26 +121,17 @@ async def generate_directory_tool_docs(
                         'examples': ', '.join(f'"{ex}"' for ex in field_def.get('examples', [])[:3])
                     }
             
-            # Build query examples
-            query_examples = []
-            if list_meta.entry_type == 'medical_professional':
-                query_examples = [
-                    f'Find cardiologist: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Cardiology"}})`',
-                    f'Female surgeon: `search_directory(list_name="{list_meta.list_name}", filters={{"specialty": "Surgery", "gender": "female"}})`',
-                    f'Spanish-speaking ER doctor: `search_directory(list_name="{list_meta.list_name}", filters={{"department": "Emergency Medicine"}}, tag="Spanish")`'
-                ]
-            elif list_meta.entry_type == 'pharmaceutical':
-                query_examples = [
-                    f'Pain medications: `search_directory(list_name="{list_meta.list_name}", filters={{"indications": "pain"}})`',
-                    f'NSAIDs: `search_directory(list_name="{list_meta.list_name}", tag="NSAID")`'
-                ]
-            elif list_meta.entry_type == 'product':
-                query_examples = [
-                    f'Laptops by brand: `search_directory(list_name="{list_meta.list_name}", filters={{"category": "Laptops", "brand": "Dell"}})`',
-                    f'In-stock items: `search_directory(list_name="{list_meta.list_name}", filters={{"in_stock": "true"}})`'
-                ]
+            # Extract search strategy from schema
+            search_strategy_guidance = None
+            search_strategy_examples = []
+            if schema.get('search_strategy'):
+                strategy = schema['search_strategy']
+                search_strategy_guidance = strategy.get('guidance')
+                strategy_examples = strategy.get('examples', [])
+                # Format: "term1, term2, term3"
+                search_strategy_examples = [ex.get('term', '') for ex in strategy_examples if ex.get('term')]
             
-            # Create Pydantic model for this list
+            # Create Pydantic model for structured logging
             list_docs = DirectoryListDocs(
                 list_name=list_meta.list_name,
                 entry_type=list_meta.entry_type,
@@ -150,35 +139,27 @@ async def generate_directory_tool_docs(
                 tags_description=tags_desc,
                 tags_examples=tags_ex,
                 searchable_fields=searchable_fields_dict,
-                query_examples=query_examples
+                query_examples=search_strategy_examples  # Use examples from schema
             )
             documented_lists.append(list_docs)
             
-            # Build markdown for this list
-            docs_lines.append(f"\n### {list_meta.list_name} ({list_meta.entry_type})")
-            docs_lines.append(f"**Entries**: {entry_count}\n")
+            # Build concise summary for prompt
+            list_summaries.append(f"`{list_meta.list_name}` ({entry_count} {list_meta.entry_type}s)")
             
-            if tags_desc:
-                docs_lines.append(f"**Tags**: {tags_desc}")
-                if tags_ex:
-                    docs_lines.append(f"  Examples: {', '.join(tags_ex)}\n")
-            
-            if searchable_fields_dict:
-                docs_lines.append("**Searchable Filters**:")
-                for field_name, field_info in searchable_fields_dict.items():
-                    docs_lines.append(f"- `{field_name}`: {field_info['description']}")
-                    docs_lines.append(f"  Examples: {field_info['examples']}")
-                docs_lines.append("")
-            
-            if query_examples:
-                docs_lines.append("**Query Examples**:")
-                for example in query_examples:
-                    docs_lines.append(f"- {example}")
-                docs_lines.append("")
+            # Store first found search strategy (usually only one schema per agent)
+            if search_strategy_guidance and not docs_lines[-1].startswith("**Search Strategy**"):
+                strategy_text = search_strategy_guidance
+                if search_strategy_examples:
+                    examples_text = ", ".join(f"'{ex}'" for ex in search_strategy_examples)
+                    strategy_text = f"{search_strategy_guidance} Examples: {examples_text}"
+                docs_lines.append(f"\n**Search Strategy**: {strategy_text}")
             
         except Exception as e:
             logger.error(f"Error loading schema for {list_meta.list_name}: {e}")
             continue
+    
+    # Build minimal prompt text
+    docs_lines.append("**Available**: " + ", ".join(list_summaries))
     
     markdown_content = '\n'.join(docs_lines)
     
@@ -195,6 +176,9 @@ async def generate_directory_tool_docs(
         'Directory documentation generated: {docs!r}',
         docs=generated_docs
     )
+    
+    # ALSO log the actual prompt text for debugging
+    logger.info(f"Generated prompt text ({len(markdown_content)} chars):\n{markdown_content}")
     
     return generated_docs.markdown_content
 

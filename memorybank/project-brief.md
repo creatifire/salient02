@@ -72,6 +72,13 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 - All imports must use `from backend.app...` not `from app...`
 - Virtual environment: `backend/venv/` activated from project root
 
+**Diagnostic Logging Principles:**
+- **NEVER disable diagnostic logging to hide problems** - Fix root causes, not symptoms
+- `logfire.instrument_pydantic()` must remain enabled - verbose logs reveal issues
+- Excessive log messages indicate underlying problems (tool loops, large histories)
+- When logs are noisy: identify and fix the root cause (prompt issues, validation frequency)
+- Diagnostic tools exist to help us see problems - removing them is counterproductive
+
 ## Configuration
 **Agent-Level** (`agent_configs/{account}/{agent}/config.yaml`):
 - LLM model selection

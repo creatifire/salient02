@@ -213,6 +213,18 @@ search_config:
         - "Results ranked by relevance"
         - "Faster for large datasets (GIN index)"
 
+# Search strategy for LLM guidance
+# Used by prompt_generator.py to teach LLM how to handle general/ambiguous terms
+search_strategy:
+  guidance: "For general terms, try 3-5 related specialties or synonyms. Combine results before responding."
+  examples:
+    - term: "primary care"
+      note: "Try multiple general practice specialties"
+    - term: "heart doctor"
+      note: "Try cardiology and cardiac surgery"
+    - term: "eye doctor"
+      note: "Try ophthalmology variants"
+
 # Searchable fields for system prompt generation
 # These fields can be used in the filters parameter: filters={"field_name": "value"}
 # This section is used by prompt_generator.py to auto-generate tool documentation
