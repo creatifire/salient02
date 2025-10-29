@@ -15,7 +15,7 @@ Provides natural language search across multi-tenant directory lists
 from pydantic_ai import RunContext
 from app.agents.base.dependencies import SessionDependencies
 from app.services.directory_service import DirectoryService
-from typing import Optional
+from typing import Optional, Dict
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,12 +26,7 @@ async def search_directory(
     list_name: str,
     query: Optional[str] = None,
     tag: Optional[str] = None,
-    specialty: Optional[str] = None,
-    department: Optional[str] = None,
-    gender: Optional[str] = None,
-    drug_class: Optional[str] = None,
-    category: Optional[str] = None,
-    brand: Optional[str] = None,
+    filters: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Search directory for entries (doctors, drugs, products, consultants, etc.).
@@ -39,32 +34,34 @@ async def search_directory(
     Use for: Name searches, tag/attribute filters, entry-specific fields
     
     Args:
-        list_name: Which list to search (e.g., "doctors", "nurse_practitioners")
-        query: Name to search (partial match)
-        tag: Tag filter (language spoken, drug class, product category, etc.)
-        specialty: Medical specialty filter (e.g., "Cardiology", "Endocrinology")
-        department: Department filter (e.g., "Emergency Medicine", "Surgery")
-        gender: Gender filter (e.g., "male", "female")
-        drug_class: Drug class filter (for pharmaceutical entries)
-        category: Product category filter (for product entries)
-        brand: Brand filter (for product entries)
+        list_name: Which list to search (e.g., "doctors", "prescription_drugs", "electronics")
+        query: Name to search (partial match, case-insensitive)
+        tag: Tag filter (language for medical, drug class for pharma, category for products)
+        filters: Type-specific JSONB filters as a dictionary
+                 Examples: {"specialty": "Cardiology", "gender": "female"}
+                          {"drug_class": "NSAID", "indications": "pain"}
+                          {"category": "Laptops", "brand": "Dell", "in_stock": "true"}
     
     Examples:
-        search_directory(list_name="doctors", specialty="Cardiology", tag="Spanish")
-        search_directory(list_name="doctors", query="smith", gender="female")
-        search_directory(list_name="doctors", specialty="Endocrinology", tag="Hindi", gender="female")
+        # Medical professionals
+        search_directory(list_name="doctors", filters={"specialty": "Cardiology", "gender": "female"}, tag="Spanish")
+        search_directory(list_name="doctors", query="smith", filters={"gender": "female"})
+        search_directory(list_name="doctors", filters={"department": "Emergency Medicine", "specialty": "Pediatrics"})
+        
+        # Pharmaceuticals
+        search_directory(list_name="prescription_drugs", filters={"drug_class": "NSAID"})
+        search_directory(list_name="prescription_drugs", filters={"indications": "pain"}, tag="Over-the-counter")
+        
+        # Products
+        search_directory(list_name="electronics", filters={"category": "Laptops", "brand": "Dell"})
+        search_directory(list_name="electronics", query="macbook", filters={"in_stock": "true"})
     """
     logger.info({
         "event": "directory_search_called",
         "list_name": list_name,
         "query": query,
         "tag": tag,
-        "specialty": specialty,
-        "department": department,
-        "gender": gender,
-        "drug_class": drug_class,
-        "category": category,
-        "brand": brand
+        "filters": filters
     })
     
     session = ctx.deps.db_session
@@ -101,21 +98,6 @@ async def search_directory(
     
     tags = [tag] if tag else None
     
-    # Build JSONB filters from explicit parameters
-    jsonb_filters = {}
-    if specialty:
-        jsonb_filters['specialty'] = specialty
-    if department:
-        jsonb_filters['department'] = department
-    if gender:
-        jsonb_filters['gender'] = gender
-    if drug_class:
-        jsonb_filters['drug_class'] = drug_class
-    if category:
-        jsonb_filters['category'] = category
-    if brand:
-        jsonb_filters['brand'] = brand
-    
     # Get search mode from config (default: substring for backward compatibility)
     search_mode = directory_config.get("search_mode", "substring")
     
@@ -124,7 +106,7 @@ async def search_directory(
         "list_ids": [str(lid) for lid in list_ids],
         "name_query": query,
         "tags": tags,
-        "jsonb_filters": jsonb_filters,
+        "jsonb_filters": filters,
         "search_mode": search_mode,
         "limit": directory_config.get("max_results", 5)
     })
@@ -134,7 +116,7 @@ async def search_directory(
         accessible_list_ids=list_ids,
         name_query=query,
         tags=tags,
-        jsonb_filters=jsonb_filters if jsonb_filters else None,
+        jsonb_filters=filters,
         search_mode=search_mode,
         limit=directory_config.get("max_results", 5)
     )
