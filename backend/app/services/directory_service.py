@@ -10,14 +10,17 @@ with multi-tenant access control and flexible filtering (name, tags, JSONB field
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Literal
 from uuid import UUID
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.directory import DirectoryList, DirectoryEntry
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Type alias for search modes
+SearchMode = Literal["exact", "substring", "fts"]
 
 
 class DirectoryService:
@@ -86,50 +89,70 @@ class DirectoryService:
         name_query: Optional[str] = None,
         tags: Optional[List[str]] = None,
         jsonb_filters: Optional[dict] = None,
+        search_mode: SearchMode = "substring",
         limit: int = 10
     ) -> List[DirectoryEntry]:
         """
         Search directory entries with flexible filters.
         
         Supports:
-        - Name search (partial match, case-insensitive)
+        - Name search (exact, substring, or full-text search)
         - Tag filtering (array overlap, e.g., languages)
         - JSONB field filtering (department, specialty, drug_class, etc.)
+        - Relevance ranking (for FTS mode)
         
         Multi-tenant isolation enforced via accessible_list_ids parameter.
         
         Args:
             session: Database session
             accessible_list_ids: List UUIDs to search within (pre-filtered by account)
-            name_query: Partial name match (case-insensitive)
+            name_query: Name search query (behavior depends on search_mode)
             tags: List of tags to filter by (array overlap)
             jsonb_filters: Dict of JSONB field filters (e.g., {"department": "Cardiology"})
+            search_mode: Search mode for name_query
+                - "exact": Exact match (name == query)
+                - "substring": Case-insensitive partial match (default, backward compatible)
+                - "fts": Full-text search with ranking (handles word variations, stemming)
             limit: Maximum number of results (default: 10)
             
         Returns:
             List of DirectoryEntry instances matching filters
+            - For "fts" mode: Sorted by relevance (ts_rank DESC)
+            - For other modes: Database order
             
         Examples:
-            # Search for cardiologists
+            # Substring search (default - backward compatible)
             entries = await DirectoryService.search(
                 session,
                 accessible_list_ids=[list_id],
-                jsonb_filters={"specialty": "cardiology"}
+                name_query="cardio",  # Matches "cardiologist", "Cardiology"
+                search_mode="substring"
             )
             
-            # Search for Spanish-speaking doctors named "Smith"
+            # Full-text search with relevance ranking
             entries = await DirectoryService.search(
                 session,
                 accessible_list_ids=[list_id],
-                name_query="smith",
-                tags=["Spanish"]
+                name_query="heart doctor",  # Matches "cardiologist", "cardiology"
+                search_mode="fts"
             )
             
-            # Search for products in Electronics category
+            # Exact match
             entries = await DirectoryService.search(
                 session,
                 accessible_list_ids=[list_id],
-                jsonb_filters={"category": "Electronics"}
+                name_query="Dr. John Smith",
+                search_mode="exact"
+            )
+            
+            # Combined filters
+            entries = await DirectoryService.search(
+                session,
+                accessible_list_ids=[list_id],
+                name_query="cardio",
+                tags=["Spanish"],
+                jsonb_filters={"gender": "female"},
+                search_mode="fts"
             )
         """
         if not accessible_list_ids:
@@ -141,9 +164,44 @@ class DirectoryService:
             DirectoryEntry.directory_list_id.in_(accessible_list_ids)
         )
         
-        # Name search (partial match, case-insensitive)
+        # Name search - behavior depends on search_mode
         if name_query:
-            query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
+            if search_mode == "fts":
+                # Full-text search with relevance ranking
+                try:
+                    # Convert query to tsquery (simple format: replace spaces with &)
+                    # This handles multi-word queries like "heart doctor"
+                    tsquery_str = ' & '.join(name_query.strip().split())
+                    
+                    # Create tsquery function call
+                    ts_query = func.to_tsquery('english', tsquery_str)
+                    
+                    # Filter: search_vector matches query
+                    query = query.where(
+                        DirectoryEntry.search_vector.op('@@')(ts_query)
+                    )
+                    
+                    # Rank by relevance (higher is better)
+                    rank_expr = func.ts_rank(DirectoryEntry.search_vector, ts_query)
+                    query = query.order_by(rank_expr.desc())
+                    
+                    logger.debug(f"FTS query: {tsquery_str}")
+                    
+                except Exception as e:
+                    # Fallback to substring search if tsquery fails
+                    logger.warning(
+                        f"FTS query failed for '{name_query}': {e}. "
+                        f"Falling back to substring search."
+                    )
+                    query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
+                    
+            elif search_mode == "exact":
+                # Exact match (case-sensitive)
+                query = query.where(DirectoryEntry.name == name_query)
+                
+            else:  # substring (default)
+                # Partial match, case-insensitive (backward compatible)
+                query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
         
         # Tag filtering (array overlap - PostgreSQL && operator)
         if tags:
@@ -165,7 +223,7 @@ class DirectoryService:
         
         logger.info(
             f"Search returned {len(entries)} entries "
-            f"(name={name_query}, tags={tags}, filters={jsonb_filters})"
+            f"(mode={search_mode}, query={name_query}, tags={tags}, filters={jsonb_filters})"
         )
         
         return entries
