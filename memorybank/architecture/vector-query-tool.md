@@ -653,7 +653,10 @@ tools:
 **Current:** No metadata filtering  
 **Future:** Rich metadata filtering for precision
 
+##### Configuration
+
 ```yaml
+# Agent config
 tools:
   vector_search:
     filters:
@@ -661,24 +664,177 @@ tools:
       default_filters:               # Applied to all queries
         source_type: ["page", "post"]
         published: true
+      allowed_filter_fields:         # Fields LLM can filter on
+        - source_type
+        - categories
+        - tags
+        - updated_at
+        - author
+        - language
 ```
 
-**Agent Tool Call:**
+##### Implementation Plan
+
+**Phase 1: Tool Parameter Support**
+
+Add `metadata_filter` parameter to `vector_search` tool:
+
 ```python
+# backend/app/agents/tools/vector_tools.py
+
+async def vector_search(
+    ctx: RunContext[SessionDependencies],
+    query: str,
+    max_results: Optional[int] = None,
+    metadata_filter: Optional[Dict[str, Any]] = None  # NEW
+) -> str:
+    """
+    Search with optional metadata filtering.
+    
+    Args:
+        metadata_filter: Pinecone-compatible filter dict
+            Examples:
+                {"source_type": "page"}
+                {"categories": {"$in": ["Healthcare", "Emergency"]}}
+                {"updated_at": {"$gte": "2024-01-01"}}
+                {"$and": [
+                    {"source_type": "page"},
+                    {"published": True},
+                    {"updated_at": {"$gte": "2024-01-01"}}
+                ]}
+    """
+    # Merge with default filters from config
+    vector_config = ctx.deps.agent_config.get("tools", {}).get("vector_search", {})
+    default_filters = vector_config.get("filters", {}).get("default_filters", {})
+    
+    # Combine: default AND user-provided
+    combined_filter = {}
+    if default_filters and metadata_filter:
+        combined_filter = {
+            "$and": [default_filters, metadata_filter]
+        }
+    else:
+        combined_filter = metadata_filter or default_filters or None
+    
+    # Pass to vector service
+    response = await vector_service.query_similar(
+        query_text=query,
+        top_k=top_k,
+        similarity_threshold=similarity_threshold,
+        namespace=pinecone_config.namespace,
+        metadata_filter=combined_filter  # NEW
+    )
+```
+
+**Phase 2: System Prompt Guidance**
+
+Update agent system prompts to teach LLMs when/how to use filters:
+
+```markdown
+## Metadata Filtering
+
+You can filter search results by metadata:
+
+**Available Filters:**
+- `source_type`: Content type (page, post, product, doc)
+- `categories`: Content categories (list)
+- `tags`: Content tags (list)
+- `updated_at`: Last update date (ISO8601)
+- `language`: Content language (en, es, fr)
+
+**Examples:**
+- Recent pages only: `metadata_filter={"source_type": "page", "updated_at": {"$gte": "2024-01-01"}}`
+- Emergency category: `metadata_filter={"categories": {"$in": ["Emergency", "Healthcare"]}}`
+- Spanish content: `metadata_filter={"language": "es"}`
+
+**When to use filters:**
+- User asks for recent content: filter by `updated_at`
+- User specifies category: filter by `categories`
+- User wants specific content type: filter by `source_type`
+```
+
+**Phase 3: Validation & Security**
+
+```python
+# Validate filter fields against allowed list
+allowed_fields = vector_config.get("filters", {}).get("allowed_filter_fields", [])
+
+if metadata_filter:
+    for field in extract_filter_fields(metadata_filter):
+        if field not in allowed_fields:
+            return f"Metadata filtering on '{field}' is not allowed. Available: {allowed_fields}"
+```
+
+##### Pinecone Filter Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `$eq` | Equals | `{"source_type": {"$eq": "page"}}` |
+| `$ne` | Not equals | `{"source_type": {"$ne": "draft"}}` |
+| `$in` | In list | `{"categories": {"$in": ["Emergency", "Healthcare"]}}` |
+| `$nin` | Not in list | `{"tags": {"$nin": ["archived", "deleted"]}}` |
+| `$gt` | Greater than | `{"updated_at": {"$gt": "2024-01-01"}}` |
+| `$gte` | Greater or equal | `{"priority": {"$gte": 5}}` |
+| `$lt` | Less than | `{"word_count": {"$lt": 1000}}` |
+| `$lte` | Less or equal | `{"read_time": {"$lte": 5}}` |
+| `$and` | Logical AND | `{"$and": [{"published": True}, {"source_type": "page"}]}` |
+| `$or` | Logical OR | `{"$or": [{"language": "en"}, {"language": "es"}]}` |
+
+##### Use Cases
+
+**1. Time-Based Filtering**
+```python
+# Only show content updated in last 6 months
 vector_search(
-    query="emergency services",
+    query="latest products",
     metadata_filter={
-        "source_type": "page",
-        "categories": {"$in": ["Healthcare", "Emergency"]},
-        "updated_at": {"$gte": "2024-01-01"}
+        "updated_at": {"$gte": "2024-04-30"}
     }
 )
 ```
 
-**Benefits:**
-- Filter by content type, date, category, author
-- Exclude outdated content
-- Target specific content sections
+**2. Content Type Filtering**
+```python
+# Search only published pages (exclude drafts, products)
+vector_search(
+    query="services overview",
+    metadata_filter={
+        "source_type": "page",
+        "published": True
+    }
+)
+```
+
+**3. Multi-Category Filtering**
+```python
+# Search emergency and pediatric healthcare content
+vector_search(
+    query="emergency pediatric care",
+    metadata_filter={
+        "categories": {"$in": ["Emergency", "Pediatrics"]},
+        "source_type": "page"
+    }
+)
+```
+
+**4. Language-Specific Search**
+```python
+# Search Spanish content only
+vector_search(
+    query="servicios de emergencia",
+    metadata_filter={
+        "language": "es"
+    }
+)
+```
+
+##### Benefits
+
+- **Precision:** Filter out irrelevant content types
+- **Freshness:** Exclude outdated content
+- **Personalization:** Filter by user language preference
+- **Performance:** Smaller candidate set = faster queries
+- **Compliance:** Exclude unpublished/draft content from search
 
 #### 3. **Hybrid Search** (Priority: Medium)
 
@@ -761,6 +917,785 @@ if cache_key in cache and not cache_expired:
 - Reduce OpenAI API costs
 - Lower Pinecone query costs
 - Faster response times
+
+#### 7. **Alternate Chunking Strategies** (Priority: Medium)
+
+**Current:** Fixed-size semantic chunking (500-1000 tokens, 100-200 overlap)  
+**Future:** Adaptive chunking based on content type and structure
+
+##### Chunking Strategy Comparison
+
+| Strategy | Description | Pros | Cons | Best For |
+|----------|-------------|------|------|----------|
+| **Fixed-Size** (Current) | Split at N tokens with M overlap | Simple, predictable, works for any content | Breaks semantic boundaries, may split mid-sentence | General-purpose, mixed content |
+| **Sentence-Based** | Split at sentence boundaries | Preserves complete thoughts, grammatically correct | Variable chunk sizes, may be too small/large | Narrative content, blog posts |
+| **Paragraph-Based** | Split at paragraph boundaries | Preserves topical coherence, natural breaks | Highly variable sizes, some paragraphs too long | Well-structured articles, documentation |
+| **Semantic Sectioning** | Split by headings/sections (H1, H2, H3) | Preserves document structure, topically coherent | Only works with structured content, variable sizes | Documentation, technical guides |
+| **Sliding Window** | Overlapping windows of N tokens | Better context continuity, handles queries spanning boundaries | More vectors (higher cost), redundancy | Reference lookup, code documentation |
+| **Recursive Hierarchical** | Chunk at multiple levels (doc → section → paragraph) | Preserves context at multiple scales, better retrieval | Complex implementation, requires hierarchy | Long documents, books, manuals |
+| **Content-Aware** | Split by content type (lists, tables, code blocks) | Preserves structure, better formatting | Requires content parsing, type detection | Technical docs, API references |
+
+##### Implementation Example: Adaptive Chunking
+
+```python
+# backend/app/services/chunking_service.py
+
+class AdaptiveChunker:
+    """Content-aware chunking based on document type and structure."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.strategies = {
+            "fixed": FixedSizeChunker(config),
+            "semantic": SemanticChunker(config),
+            "hierarchical": HierarchicalChunker(config),
+            "content_aware": ContentAwareChunker(config)
+        }
+    
+    def chunk(self, document: Document) -> List[Chunk]:
+        """Select and apply optimal chunking strategy."""
+        # Detect content type
+        content_type = self._detect_content_type(document)
+        
+        # Select strategy
+        if content_type == "api_doc":
+            strategy = self.strategies["content_aware"]
+        elif content_type == "manual":
+            strategy = self.strategies["hierarchical"]
+        elif content_type == "blog":
+            strategy = self.strategies["semantic"]
+        else:
+            strategy = self.strategies["fixed"]
+        
+        return strategy.chunk(document)
+```
+
+##### Configuration per Content Type
+
+```yaml
+# projects/wyckoff/config.yaml
+
+chunking:
+  strategies:
+    website_pages:
+      strategy: "semantic"        # Paragraph-based semantic chunking
+      chunk_size: 800
+      chunk_overlap: 150
+      min_chunk_size: 200
+    
+    blog_posts:
+      strategy: "semantic"
+      chunk_size: 1000
+      chunk_overlap: 200
+      min_chunk_size: 300
+    
+    documentation:
+      strategy: "hierarchical"    # Split by headings
+      max_section_size: 1500
+      min_section_size: 300
+      preserve_headings: true
+    
+    product_descriptions:
+      strategy: "content_aware"   # Preserve lists, tables
+      chunk_size: 600
+      preserve_structure: true
+```
+
+##### Pros & Cons Analysis
+
+**Fixed-Size Chunking (Current)**
+- ✅ **Pros:** 
+  - Simple to implement
+  - Predictable chunk count (cost estimation)
+  - Works for any content type
+  - Fast processing
+- ❌ **Cons:**
+  - Breaks semantic boundaries (sentence mid-split)
+  - May split critical information (lists, tables)
+  - Requires manual overlap tuning
+  - Doesn't leverage document structure
+
+**Semantic Sectioning**
+- ✅ **Pros:**
+  - Preserves topical coherence
+  - Natural boundaries (headings, paragraphs)
+  - Better retrieval relevance
+  - Respects document structure
+- ❌ **Cons:**
+  - Requires well-structured content
+  - Variable chunk sizes (token limit issues)
+  - Doesn't work for unstructured text
+  - May produce very large/small chunks
+
+**Hierarchical Chunking**
+- ✅ **Pros:**
+  - Multi-scale context (doc → section → chunk)
+  - Better for "navigating" long documents
+  - Preserves relationships between sections
+  - Enables hierarchical retrieval
+- ❌ **Cons:**
+  - Complex implementation
+  - Requires parsing document hierarchy
+  - Higher storage costs (redundant chunks)
+  - Query complexity (which level to search?)
+
+**Content-Aware Chunking**
+- ✅ **Pros:**
+  - Preserves special structures (code, tables, lists)
+  - Better formatting in results
+  - Type-specific optimization
+  - Higher quality retrieval
+- ❌ **Cons:**
+  - Requires content type detection
+  - More complex parsing logic
+  - Type-specific tuning needed
+  - Slower processing
+
+##### Recommendation
+
+**Phase 1:** Implement **Semantic Sectioning** for structured content (docs, manuals)
+- Split by H1/H2/H3 headings
+- Fallback to paragraph-based for unstructured sections
+- Validate chunk sizes (200-1500 tokens)
+
+**Phase 2:** Add **Content-Aware Chunking** for special content
+- Detect and preserve code blocks (markdown fenced code)
+- Preserve tables (HTML tables, markdown tables)
+- Keep lists intact (ordered/unordered)
+
+**Phase 3:** Implement **Hierarchical Chunking** for long documents
+- Store parent-child relationships in metadata
+- Enable "zoom in/out" retrieval
+- Better context for follow-up questions
+
+#### 8. **Cost Tracking for Vector Operations** (Priority: High)
+
+**Current:** No cost tracking for embeddings or Pinecone operations  
+**Future:** Comprehensive tracking like LLM cost tracking
+
+##### Architecture
+
+```python
+# backend/app/models/vector_request.py
+
+class VectorRequest(Base):
+    """Track vector database operations for billing and monitoring."""
+    __tablename__ = "vector_requests"
+    
+    id = Column(UUID, primary_key=True, default=uuid4)
+    session_id = Column(UUID, ForeignKey("sessions.id"), nullable=False)
+    account_id = Column(UUID, ForeignKey("accounts.id"), nullable=False)
+    
+    # Operation details
+    operation_type = Column(String, nullable=False)  # "query" | "upsert" | "delete"
+    index_name = Column(String, nullable=False)
+    namespace = Column(String, nullable=True)
+    
+    # Query operations
+    query_text = Column(Text, nullable=True)
+    top_k = Column(Integer, nullable=True)
+    similarity_threshold = Column(Float, nullable=True)
+    metadata_filter = Column(JSONB, nullable=True)
+    results_count = Column(Integer, nullable=True)
+    
+    # Upsert operations
+    vectors_upserted = Column(Integer, nullable=True)
+    
+    # Embedding operations
+    embedding_model = Column(String, nullable=False)
+    embedding_provider = Column(String, nullable=False)  # "openai" | "cohere" | "azure"
+    embedding_tokens = Column(Integer, nullable=True)
+    embedding_cost_usd = Column(Float, nullable=True)
+    
+    # Pinecone operations
+    pinecone_read_units = Column(Integer, nullable=True)
+    pinecone_write_units = Column(Integer, nullable=True)
+    pinecone_storage_vectors = Column(Integer, nullable=True)
+    pinecone_cost_usd = Column(Float, nullable=True)
+    
+    # Performance
+    embedding_latency_ms = Column(Float, nullable=True)
+    pinecone_latency_ms = Column(Float, nullable=True)
+    total_latency_ms = Column(Float, nullable=True)
+    
+    # Status
+    success = Column(Boolean, default=True)
+    error_message = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+```
+
+##### Cost Calculation
+
+```python
+# backend/app/services/vector_cost_tracker.py
+
+class VectorCostTracker:
+    """Track and calculate costs for vector operations."""
+    
+    # Embedding costs (per 1M tokens)
+    EMBEDDING_COSTS = {
+        "openai/text-embedding-3-small": 0.02,
+        "openai/text-embedding-3-large": 0.13,
+        "openai/text-embedding-ada-002": 0.10,
+        "cohere/embed-english-v3.0": 0.10,
+        "cohere/embed-multilingual-v3.0": 0.10,
+    }
+    
+    # Pinecone costs (serverless)
+    PINECONE_READ_COST = 0.0018 / 1000   # per operation
+    PINECONE_WRITE_COST = 0.045 / 1000   # per operation
+    PINECONE_STORAGE_COST = 0.25 / 1_000_000  # per vector per month
+    
+    async def track_query(
+        self,
+        session_id: UUID,
+        account_id: UUID,
+        query_text: str,
+        embedding_tokens: int,
+        embedding_model: str,
+        embedding_latency_ms: float,
+        pinecone_latency_ms: float,
+        results_count: int,
+        index_name: str,
+        namespace: str,
+        success: bool = True,
+        error_message: Optional[str] = None
+    ):
+        """Track a vector query operation."""
+        
+        # Calculate costs
+        embedding_cost = self._calculate_embedding_cost(
+            embedding_model, embedding_tokens
+        )
+        pinecone_cost = self.PINECONE_READ_COST  # 1 read operation
+        total_cost = embedding_cost + pinecone_cost
+        
+        # Create tracking record
+        vector_request = VectorRequest(
+            session_id=session_id,
+            account_id=account_id,
+            operation_type="query",
+            query_text=query_text,
+            embedding_model=embedding_model,
+            embedding_provider=embedding_model.split("/")[0],
+            embedding_tokens=embedding_tokens,
+            embedding_cost_usd=embedding_cost,
+            pinecone_read_units=1,
+            pinecone_cost_usd=pinecone_cost,
+            embedding_latency_ms=embedding_latency_ms,
+            pinecone_latency_ms=pinecone_latency_ms,
+            total_latency_ms=embedding_latency_ms + pinecone_latency_ms,
+            results_count=results_count,
+            index_name=index_name,
+            namespace=namespace,
+            success=success,
+            error_message=error_message
+        )
+        
+        # Save to database
+        async with get_db_session() as session:
+            session.add(vector_request)
+            await session.commit()
+        
+        # Log to Logfire
+        logfire.info(
+            "vector_operation_tracked",
+            operation="query",
+            session_id=str(session_id),
+            account_id=str(account_id),
+            embedding_tokens=embedding_tokens,
+            embedding_cost_usd=embedding_cost,
+            pinecone_cost_usd=pinecone_cost,
+            total_cost_usd=total_cost,
+            latency_ms=embedding_latency_ms + pinecone_latency_ms,
+            results_count=results_count
+        )
+```
+
+##### Integration with Vector Service
+
+```python
+# backend/app/services/vector_service.py (modified)
+
+async def query_similar(
+    self,
+    query_text: str,
+    top_k: int = 5,
+    similarity_threshold: float = 0.7,
+    namespace: Optional[str] = None,
+    metadata_filter: Optional[Dict[str, Any]] = None,
+    session_id: Optional[UUID] = None,  # NEW
+    account_id: Optional[UUID] = None   # NEW
+) -> VectorQueryResponse:
+    """Query with cost tracking."""
+    
+    start_time = asyncio.get_event_loop().time()
+    
+    try:
+        # Generate embedding (track time and tokens)
+        embed_start = asyncio.get_event_loop().time()
+        query_embedding = await self.embedding_service.embed_text(query_text)
+        embedding_latency_ms = (asyncio.get_event_loop().time() - embed_start) * 1000
+        
+        # Estimate tokens
+        import tiktoken
+        encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        embedding_tokens = len(encoding.encode(query_text))
+        
+        # Query Pinecone (track time)
+        pinecone_start = asyncio.get_event_loop().time()
+        async with self.pinecone_client.connection_context():
+            response = self.pinecone_client.index.query(
+                vector=query_embedding,
+                top_k=top_k,
+                include_metadata=True,
+                namespace=namespace,
+                filter=metadata_filter
+            )
+        pinecone_latency_ms = (asyncio.get_event_loop().time() - pinecone_start) * 1000
+        
+        # Process results...
+        results = [...]
+        
+        # Track costs (non-blocking)
+        if session_id and account_id:
+            asyncio.create_task(
+                vector_cost_tracker.track_query(
+                    session_id=session_id,
+                    account_id=account_id,
+                    query_text=query_text,
+                    embedding_tokens=embedding_tokens,
+                    embedding_model=self.pinecone_client.config.embedding_model,
+                    embedding_latency_ms=embedding_latency_ms,
+                    pinecone_latency_ms=pinecone_latency_ms,
+                    results_count=len(results),
+                    index_name=self.pinecone_client.config.index_name,
+                    namespace=namespace or "__default__",
+                    success=True
+                )
+            )
+        
+        return VectorQueryResponse(...)
+        
+    except Exception as e:
+        # Track failed query
+        if session_id and account_id:
+            asyncio.create_task(
+                vector_cost_tracker.track_query(
+                    session_id=session_id,
+                    account_id=account_id,
+                    query_text=query_text,
+                    embedding_tokens=0,
+                    embedding_model=self.pinecone_client.config.embedding_model,
+                    embedding_latency_ms=0,
+                    pinecone_latency_ms=0,
+                    results_count=0,
+                    index_name=self.pinecone_client.config.index_name,
+                    namespace=namespace or "__default__",
+                    success=False,
+                    error_message=str(e)
+                )
+            )
+        raise
+```
+
+##### Cost Analytics Dashboard
+
+**Example Queries:**
+
+```sql
+-- Total vector costs per account (last 30 days)
+SELECT 
+    a.name AS account_name,
+    COUNT(*) AS total_queries,
+    SUM(vr.embedding_cost_usd) AS embedding_costs,
+    SUM(vr.pinecone_cost_usd) AS pinecone_costs,
+    SUM(vr.embedding_cost_usd + vr.pinecone_cost_usd) AS total_costs,
+    AVG(vr.total_latency_ms) AS avg_latency_ms
+FROM vector_requests vr
+JOIN accounts a ON vr.account_id = a.id
+WHERE vr.created_at > NOW() - INTERVAL '30 days'
+GROUP BY a.id, a.name
+ORDER BY total_costs DESC;
+
+-- Most expensive queries (by embedding tokens)
+SELECT 
+    query_text,
+    embedding_tokens,
+    embedding_cost_usd,
+    results_count,
+    total_latency_ms,
+    created_at
+FROM vector_requests
+WHERE operation_type = 'query'
+ORDER BY embedding_cost_usd DESC
+LIMIT 20;
+
+-- Failed query analysis
+SELECT 
+    error_message,
+    COUNT(*) AS failure_count,
+    AVG(total_latency_ms) AS avg_latency_ms
+FROM vector_requests
+WHERE success = FALSE
+GROUP BY error_message
+ORDER BY failure_count DESC;
+```
+
+##### Benefits
+
+- **Billing Transparency:** Track exact costs per account/session
+- **Cost Attribution:** Link vector costs to specific users/conversations
+- **Performance Monitoring:** Identify slow queries, optimize indexes
+- **Usage Analytics:** Understand query patterns, popular content
+- **Budget Alerts:** Notify when costs exceed thresholds
+- **ROI Analysis:** Compare vector search costs vs. value delivered
+
+#### 9. **Disaster Recovery & Backup** (Priority: Medium)
+
+**Current:** No automated backup or disaster recovery plan  
+**Future:** Automated backups, point-in-time recovery, cross-region replication
+
+##### Backup Strategy
+
+**1. Index Snapshots (Export to S3)**
+
+```python
+# backend/scripts/backup_pinecone_index.py
+
+import boto3
+from pinecone import Pinecone
+import asyncio
+from datetime import datetime
+
+async def backup_index_to_s3(
+    index_name: str,
+    namespace: str,
+    s3_bucket: str,
+    s3_prefix: str
+):
+    """Export Pinecone index to S3 for disaster recovery."""
+    
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    index = pc.Index(index_name)
+    s3 = boto3.client('s3')
+    
+    # Fetch all vectors in namespace
+    vectors = []
+    async for ids in index.list(namespace=namespace):
+        # Fetch vectors in batches
+        batch = index.fetch(ids=ids, namespace=namespace)
+        vectors.extend(batch.vectors.values())
+    
+    # Create backup file
+    backup_data = {
+        "index_name": index_name,
+        "namespace": namespace,
+        "backup_timestamp": datetime.utcnow().isoformat(),
+        "vector_count": len(vectors),
+        "vectors": [
+            {
+                "id": v.id,
+                "values": v.values,
+                "metadata": v.metadata
+            }
+            for v in vectors
+        ]
+    }
+    
+    # Upload to S3
+    backup_key = f"{s3_prefix}/{index_name}/{namespace}/{datetime.utcnow().strftime('%Y-%m-%d-%H%M%S')}.json"
+    s3.put_object(
+        Bucket=s3_bucket,
+        Key=backup_key,
+        Body=json.dumps(backup_data),
+        ServerSideEncryption='AES256'
+    )
+    
+    print(f"Backup completed: s3://{s3_bucket}/{backup_key}")
+    print(f"Vectors backed up: {len(vectors)}")
+```
+
+**2. Automated Daily Backups (Cron Job)**
+
+```bash
+# Crontab entry
+0 2 * * * cd /app && python backend/scripts/backup_pinecone_index.py --index wyckoff-poc-01 --namespace __default__ >> /var/log/pinecone-backup.log 2>&1
+```
+
+**3. Point-in-Time Recovery**
+
+```python
+# Restore from S3 backup
+async def restore_index_from_s3(
+    s3_bucket: str,
+    backup_key: str,
+    target_index: str,
+    target_namespace: str
+):
+    """Restore Pinecone index from S3 backup."""
+    
+    s3 = boto3.client('s3')
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    index = pc.Index(target_index)
+    
+    # Download backup
+    backup_obj = s3.get_object(Bucket=s3_bucket, Key=backup_key)
+    backup_data = json.loads(backup_obj['Body'].read())
+    
+    # Upsert vectors in batches
+    vectors = backup_data['vectors']
+    batch_size = 100
+    
+    for i in range(0, len(vectors), batch_size):
+        batch = vectors[i:i+batch_size]
+        index.upsert(vectors=batch, namespace=target_namespace)
+    
+    print(f"Restore completed: {len(vectors)} vectors")
+```
+
+##### Cross-Region Replication
+
+**Setup Secondary Index for Disaster Recovery**
+
+```python
+# Create replica index in different region
+pc.create_index(
+    name="wyckoff-poc-01-replica",
+    dimension=1536,
+    metric="cosine",
+    spec=ServerlessSpec(
+        cloud="aws",
+        region="us-west-2"  # Different region from primary (us-east-1)
+    )
+)
+
+# Sync primary → replica (run periodically)
+async def sync_indexes(primary_index: str, replica_index: str):
+    """Sync primary index to replica for disaster recovery."""
+    primary = pc.Index(primary_index)
+    replica = pc.Index(replica_index)
+    
+    # Fetch all IDs from primary
+    for ids in primary.list():
+        # Fetch vectors
+        vectors = primary.fetch(ids=ids)
+        
+        # Upsert to replica
+        replica.upsert(vectors=[
+            {
+                "id": v.id,
+                "values": v.values,
+                "metadata": v.metadata
+            }
+            for v in vectors.vectors.values()
+        ])
+```
+
+##### Failover Procedure
+
+**1. Detect Primary Index Failure**
+
+```python
+# Health check
+async def check_index_health(index_name: str) -> bool:
+    """Check if index is healthy and responsive."""
+    try:
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        index = pc.Index(index_name)
+        stats = index.describe_index_stats()
+        return True
+    except Exception as e:
+        logger.error(f"Index {index_name} health check failed: {e}")
+        return False
+```
+
+**2. Automatic Failover to Replica**
+
+```python
+# Agent config with failover
+pinecone:
+  index_name: "wyckoff-poc-01"
+  failover_index: "wyckoff-poc-01-replica"  # NEW
+  health_check_interval: 60  # seconds
+
+# Service layer
+async def get_index_with_failover(config):
+    """Get index with automatic failover."""
+    primary_healthy = await check_index_health(config.index_name)
+    
+    if primary_healthy:
+        return pc.Index(config.index_name)
+    else:
+        logger.warn(f"Primary index {config.index_name} unhealthy, failing over to replica")
+        return pc.Index(config.failover_index)
+```
+
+##### Recovery Time Objectives (RTO/RPO)
+
+| Scenario | Recovery Time (RTO) | Data Loss (RPO) | Method |
+|----------|---------------------|-----------------|--------|
+| Index corruption | < 1 hour | < 24 hours | Restore from S3 backup |
+| Region failure | < 5 minutes | < 1 hour | Failover to replica index |
+| Accidental deletion | < 2 hours | 0 (soft delete) | Restore from backup + replay |
+| Complete account loss | < 4 hours | < 24 hours | Restore all indexes from S3 |
+
+#### 10. **Serverless to Pod-Based Migration** (Priority: Low)
+
+**Current:** Serverless indexes (auto-scaling, pay-per-use)  
+**Future:** Pod-based indexes for high-volume, predictable workloads
+
+##### When to Migrate
+
+**Stay on Serverless if:**
+- < 100k queries per month
+- Variable/unpredictable load
+- Cost-sensitive (pay only for what you use)
+- Rapid scaling needed
+- Multiple small indexes
+
+**Migrate to Pods if:**
+- > 500k queries per month
+- Predictable, high-volume traffic
+- Latency-critical (< 50ms p99)
+- Large indexes (> 1M vectors)
+- Cost optimization at scale (fixed cost vs. per-query)
+
+##### Cost Comparison
+
+**Serverless:** $0.0018 per 1k reads + $0.25 per 1M vectors/month
+
+| Monthly Queries | Storage (1M vectors) | Serverless Cost | Pod Cost (p1.x1) | Savings |
+|-----------------|----------------------|-----------------|------------------|---------|
+| 100k | $0.25 | $0.43 | $70 | -$69.57 (serverless cheaper) |
+| 500k | $0.25 | $1.15 | $70 | -$68.85 (serverless cheaper) |
+| 1M | $0.25 | $2.05 | $70 | -$67.95 (serverless cheaper) |
+| 10M | $0.25 | $18.25 | $70 | **+$51.75 (pods cheaper)** |
+| 50M | $0.25 | $90.25 | $70 | **+$20.25 (pods cheaper)** |
+
+**Break-Even Point:** ~4-5M queries per month
+
+##### Migration Process
+
+**Phase 1: Create Pod-Based Index**
+
+```python
+from pinecone import Pinecone, PodSpec
+
+pc = Pinecone(api_key="...")
+pc.create_index(
+    name="wyckoff-pod-01",
+    dimension=1536,
+    metric="cosine",
+    spec=PodSpec(
+        environment="us-east-1-aws",  # Must match region
+        pod_type="p1.x1",             # 1 pod, 100k vectors, 20 QPS
+        pods=2,                        # Scale to 2 pods = 40 QPS
+        replicas=1,                    # 1 replica for HA
+        shards=1                       # 1 shard
+    )
+)
+```
+
+**Phase 2: Migrate Data (Zero-Downtime)**
+
+```python
+async def migrate_serverless_to_pod(
+    source_index: str,
+    target_index: str,
+    namespace: str
+):
+    """Migrate data from serverless to pod-based index."""
+    
+    source = pc.Index(source_index)
+    target = pc.Index(target_index)
+    
+    # Fetch all vectors from source
+    total_migrated = 0
+    batch_size = 100
+    
+    for ids in source.list(namespace=namespace):
+        # Fetch vectors
+        vectors = source.fetch(ids=ids, namespace=namespace)
+        
+        # Upsert to target in batches
+        batch = []
+        for vector_id, vector in vectors.vectors.items():
+            batch.append({
+                "id": vector_id,
+                "values": vector.values,
+                "metadata": vector.metadata
+            })
+            
+            if len(batch) >= batch_size:
+                target.upsert(vectors=batch, namespace=namespace)
+                total_migrated += len(batch)
+                batch = []
+        
+        # Upsert remaining
+        if batch:
+            target.upsert(vectors=batch, namespace=namespace)
+            total_migrated += len(batch)
+    
+    print(f"Migration complete: {total_migrated} vectors migrated")
+```
+
+**Phase 3: Parallel Running (Validation)**
+
+```python
+# Run both indexes in parallel for validation
+async def dual_query(query_text: str):
+    """Query both serverless and pod indexes, compare results."""
+    
+    serverless_result = await query_index("wyckoff-poc-01", query_text)
+    pod_result = await query_index("wyckoff-pod-01", query_text)
+    
+    # Compare results
+    if serverless_result.results != pod_result.results:
+        logger.warn("Result mismatch between serverless and pod!")
+    
+    # Log latency comparison
+    logger.info(
+        "latency_comparison",
+        serverless_ms=serverless_result.query_time_ms,
+        pod_ms=pod_result.query_time_ms
+    )
+    
+    return serverless_result  # Still serve from serverless during validation
+```
+
+**Phase 4: Cutover**
+
+```yaml
+# Update agent config to use pod-based index
+tools:
+  vector_search:
+    pinecone:
+      index_name: "wyckoff-pod-01"  # Switch from wyckoff-poc-01
+```
+
+**Phase 5: Decommission Serverless**
+
+```python
+# After 7 days of stable pod operation, delete serverless index
+pc.delete_index("wyckoff-poc-01")
+```
+
+##### Pod Sizing Guide
+
+| Pod Type | Capacity | QPS | Latency (p99) | Cost/Month | Use Case |
+|----------|----------|-----|---------------|------------|----------|
+| p1.x1 | 100k vectors | 20 | < 100ms | $70 | Small production |
+| p1.x2 | 200k vectors | 40 | < 75ms | $140 | Medium production |
+| p1.x4 | 400k vectors | 80 | < 50ms | $280 | High-volume production |
+| p1.x8 | 800k vectors | 160 | < 30ms | $560 | Enterprise, low-latency |
+
+**Scaling:**
+- Horizontal: Add more pods (2x pods = 2x QPS)
+- Replicas: Add replicas for HA and read scaling
+- Shards: Add shards for > 1M vectors per pod
 
 ### Research Ideas: Long-Term
 
