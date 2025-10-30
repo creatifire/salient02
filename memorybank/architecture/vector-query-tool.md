@@ -424,6 +424,26 @@ PINECONE_API_KEY_OPENTHOUGHT="pc-..."
 OPENAI_API_KEY="sk-..."
 ```
 
+### Pricing Configuration
+
+**File:** `backend/config/embedding_pricing.yaml`
+
+Embedding model costs are managed in a dedicated configuration file (similar to `fallback_pricing.yaml` for LLM models). This allows easy updates when pricing changes without modifying code.
+
+```yaml
+# Example entry
+openai/text-embedding-3-small:
+  input_per_1m: 0.02          # Cost per 1M tokens
+  dimensions: 1536            # Vector dimensions
+  source: "https://..."       # Pricing source URL
+  updated: "2025-10-30"       # Last price verification date
+  notes: "Description"        # Additional notes
+```
+
+**Usage:** The `VectorCostTracker` service loads this file at initialization to calculate embedding costs for cost tracking. If a model is not found in the config, it falls back to $0.02/1M tokens (text-embedding-3-small rate).
+
+**See:** [Cost Tracking for Vector Operations](#8-cost-tracking-for-vector-operations-priority-high) for full implementation details.
+
 ### Current Implementations
 
 | Account | Agent Instance | Index Name | Namespace | Content Type |
@@ -1126,27 +1146,95 @@ class VectorRequest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 ```
 
+##### Embedding Pricing Configuration
+
+**File:** `backend/config/embedding_pricing.yaml`
+
+```yaml
+# Embedding model pricing for cost tracking
+# Costs are per 1M tokens unless otherwise specified
+
+openai/text-embedding-3-small:
+  input_per_1m: 0.02
+  dimensions: 1536
+  source: "https://openai.com/api/pricing/"
+  updated: "2025-10-30"
+  notes: "OpenAI's latest small embedding model"
+
+openai/text-embedding-3-large:
+  input_per_1m: 0.13
+  dimensions: 3072
+  source: "https://openai.com/api/pricing/"
+  updated: "2025-10-30"
+  notes: "Higher quality, more expensive"
+
+openai/text-embedding-ada-002:
+  input_per_1m: 0.10
+  dimensions: 1536
+  source: "https://openai.com/api/pricing/"
+  updated: "2025-10-30"
+  notes: "Legacy model, still widely used"
+
+cohere/embed-english-v3.0:
+  input_per_1m: 0.10
+  dimensions: 1024
+  source: "https://cohere.com/pricing"
+  updated: "2025-10-30"
+  notes: "English-only, optimized for search"
+
+cohere/embed-multilingual-v3.0:
+  input_per_1m: 0.10
+  dimensions: 1024
+  source: "https://cohere.com/pricing"
+  updated: "2025-10-30"
+  notes: "100+ languages supported"
+
+azure/text-embedding-ada-002:
+  input_per_1m: 0.10
+  dimensions: 1536
+  source: "https://azure.microsoft.com/en-us/pricing/"
+  updated: "2025-10-30"
+  notes: "Azure OpenAI Service"
+```
+
 ##### Cost Calculation
 
 ```python
 # backend/app/services/vector_cost_tracker.py
 
+import yaml
+from pathlib import Path
+import logfire
+
 class VectorCostTracker:
     """Track and calculate costs for vector operations."""
     
-    # Embedding costs (per 1M tokens)
-    EMBEDDING_COSTS = {
-        "openai/text-embedding-3-small": 0.02,
-        "openai/text-embedding-3-large": 0.13,
-        "openai/text-embedding-ada-002": 0.10,
-        "cohere/embed-english-v3.0": 0.10,
-        "cohere/embed-multilingual-v3.0": 0.10,
-    }
+    def __init__(self):
+        """Initialize with pricing config from YAML file."""
+        # Load embedding costs from config file
+        config_path = Path(__file__).parent.parent / "config" / "embedding_pricing.yaml"
+        with open(config_path, 'r') as f:
+            self.embedding_costs = yaml.safe_load(f)
+        
+        # Pinecone costs (serverless) - could also move to config file
+        self.PINECONE_READ_COST = 0.0018 / 1000   # per operation
+        self.PINECONE_WRITE_COST = 0.045 / 1000   # per operation
+        self.PINECONE_STORAGE_COST = 0.25 / 1_000_000  # per vector per month
     
-    # Pinecone costs (serverless)
-    PINECONE_READ_COST = 0.0018 / 1000   # per operation
-    PINECONE_WRITE_COST = 0.045 / 1000   # per operation
-    PINECONE_STORAGE_COST = 0.25 / 1_000_000  # per vector per month
+    def _calculate_embedding_cost(self, model: str, tokens: int) -> float:
+        """Calculate embedding cost from config file."""
+        if model not in self.embedding_costs:
+            logfire.warn(
+                "embedding_model_not_in_pricing",
+                model=model,
+                fallback_cost=0.02
+            )
+            # Fallback to text-embedding-3-small cost as default
+            cost_per_1m = 0.02
+        else:
+            cost_per_1m = self.embedding_costs[model]['input_per_1m']
+        
+        return (tokens / 1_000_000) * cost_per_1m
     
     async def track_query(
         self,
@@ -1956,6 +2044,13 @@ print(f"Query time: {(time.time() - start) * 1000:.2f}ms")
 - **Embedding Service:** `backend/app/services/embedding_service.py`
 - **Pinecone Client:** `backend/app/services/pinecone_client.py`
 - **Agent Pinecone Config:** `backend/app/services/agent_pinecone_config.py`
+- **Vector Cost Tracker:** `backend/app/services/vector_cost_tracker.py` (future implementation)
+
+### Configuration Files
+
+- **Embedding Pricing:** `backend/config/embedding_pricing.yaml` - Embedding model costs for cost tracking
+- **Fallback Pricing:** `backend/config/fallback_pricing.yaml` - LLM model fallback pricing
+- **Global Config:** `backend/config/app.yaml` - Application-wide settings
 
 ---
 

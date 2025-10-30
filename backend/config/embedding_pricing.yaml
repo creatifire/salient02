@@ -1,0 +1,57 @@
+# Embedding Model Pricing Configuration
+# Used by VectorCostTracker for cost tracking of vector operations
+# Costs are per 1M tokens unless otherwise specified
+#
+# Update this file when embedding model pricing changes
+# Similar to fallback_pricing.yaml for LLM models
+
+openai/text-embedding-3-small:
+  input_per_1m: 0.02
+  dimensions: 1536
+  source: "https://openai.com/api/pricing/"
+  updated: "2025-10-30"
+  notes: "OpenAI's latest small embedding model, recommended for most use cases"
+
+openai/text-embedding-3-large:
+  input_per_1m: 0.13
+  dimensions: 3072
+  source: "https://openai.com/api/pricing/"
+  updated: "2025-10-30"
+  notes: "Higher quality embeddings with larger dimensions, more expensive"
+
+openai/text-embedding-ada-002:
+  input_per_1m: 0.10
+  dimensions: 1536
+  source: "https://openai.com/api/pricing/"
+  updated: "2025-10-30"
+  notes: "Legacy model, still widely used but being replaced by text-embedding-3-small"
+
+cohere/embed-english-v3.0:
+  input_per_1m: 0.10
+  dimensions: 1024
+  source: "https://cohere.com/pricing"
+  updated: "2025-10-30"
+  notes: "English-only, optimized for semantic search"
+
+cohere/embed-multilingual-v3.0:
+  input_per_1m: 0.10
+  dimensions: 1024
+  source: "https://cohere.com/pricing"
+  updated: "2025-10-30"
+  notes: "Supports 100+ languages for multilingual search"
+
+azure/text-embedding-ada-002:
+  input_per_1m: 0.10
+  dimensions: 1536
+  source: "https://azure.microsoft.com/en-us/pricing/"
+  updated: "2025-10-30"
+  notes: "Azure OpenAI Service deployment of ada-002"
+
+# Pinecone Storage Costs (optional - could be moved here from code)
+# pinecone_serverless:
+#   read_per_1k: 0.0018
+#   write_per_1k: 0.045
+#   storage_per_1m_monthly: 0.25
+#   source: "https://www.pinecone.io/pricing/"
+#   updated: "2025-10-30"
+
