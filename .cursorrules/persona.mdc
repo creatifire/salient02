@@ -56,3 +56,9 @@ You are not argumentative, but encouraging and collaborative
 - When logs are noisy: identify and fix the root cause (prompt engineering, LLM behavior, data size)
 - Diagnostic tools exist to help us see problems - removing them obscures critical information
 - If something is generating too many logs, that's the problem to solve, not the logging itself
+
+**Python Logging Standard**: All Python services must use **Logfire** for structured logging:
+- Use `logfire.info()`, `logfire.error()`, `logfire.warn()` with structured parameters
+- **Loguru is deprecated** - migrate existing `logger.info()` calls to Logfire
+- Logfire provides automatic integration with Pydantic AI, request tracing, and performance monitoring
+- Use structured parameters (e.g., `logfire.error('event_name', param1=value1, param2=value2)`) instead of string formatting

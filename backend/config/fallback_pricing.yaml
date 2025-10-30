@@ -41,9 +41,9 @@ models:
   openai/gpt-oss-120b:
     input_per_1m: 0.04     # $0.04 per 1M input tokens
     output_per_1m: 0.40    # $0.40 per 1M output tokens
-    source: "https://openrouter.ai/models?q=gpt-oss-120b"
-    updated: "2025-10-14"
-    notes: "Used by default_account/simple_chat2"
+    source: "https://openrouter.ai/openai/gpt-oss-120b"
+    updated: "2025-10-30"
+    notes: "117B MoE model (5.1B active params) optimized for single H100. Supports reasoning depth, CoT, tool use. Used by agrofresh/agro_info_chat1."
   
   qwen/qwen3-235b-a22b-thinking-2507:
     input_per_1m: 0.11     # $0.11 per 1M input tokens
@@ -86,6 +86,13 @@ models:
     source: "https://openrouter.ai/anthropic/claude-haiku-4.5"
     updated: "2025-10-18"
     notes: "Fastest Anthropic model with near-frontier intelligence. Extended thinking, full tool support (coding, bash, web search, computer-use). >73% SWE-bench Verified. 200k context. Created Oct 15, 2025. NOTE: Inconsistent tool-calling in streaming mode (sometimes announces 'I'll search...' without completing)."
+  
+  minimax/minimax-m2:
+    input_per_1m: 0.15     # $0.15 per 1M input tokens
+    output_per_1m: 0.45    # $0.45 per 1M output tokens
+    source: "https://openrouter.ai/minimax/minimax-m2"
+    updated: "2025-10-30"
+    notes: "10B activated (230B MoE) optimized for agentic workflows, tool use, fast inference. 196k context. Used by agrofresh/agro_info_chat1. Requires reasoning_details preservation for best performance (not yet implemented)."
   
   # NOTE: google/gemini-2.5-flash is available in genai-prices (as "gemini-2.5-flash")
   # No fallback entry needed - code strips provider prefix before calling calc_price()

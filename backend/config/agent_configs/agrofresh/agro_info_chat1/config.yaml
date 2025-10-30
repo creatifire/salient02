@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "openai/gpt-oss-120b"  # Compact GPT-5 for lighter reasoning with tool support
+  model: "minimax/minimax-m2"  # 10B MoE optimized for agentic workflows, tool use, fast inference. 77% cheaper output than gpt-5-mini.
   temperature: 0.3
   max_tokens: 2000
 

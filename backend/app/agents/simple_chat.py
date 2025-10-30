@@ -386,7 +386,19 @@ async def simple_chat(
             latency_ms = int((end_time - start_time).total_seconds() * 1000)
             
             # Extract response and usage data
-            response_text = result.output
+            try:
+                response_text = result.output
+            except Exception as output_error:
+                logfire.error(
+                    'failed_to_extract_output',
+                    error_type=type(output_error).__name__,
+                    error_message=str(output_error),
+                    result_type=type(result).__name__,
+                    has_output=hasattr(result, 'output'),
+                    model=requested_model
+                )
+                raise  # Re-raise to be caught by outer exception handler
+            
             usage_data = result.usage() if hasattr(result, 'usage') else None
             
             if usage_data:
@@ -404,12 +416,12 @@ async def simple_chat(
                 if new_messages:
                     latest_message = new_messages[-1]  # Last message (assistant response)
                     if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                        # DEBUG: Log full provider_details to see what OpenRouter returned
-                        logger.warning({
-                            "event": "openrouter_provider_details_debug",
-                            "provider_details": latest_message.provider_details,
-                            "requested_model": requested_model
-                        })
+                        # DEBUG: Log provider_details for cost tracking verification (info level)
+                        logfire.info(
+                            'openrouter_provider_details_debug',
+                            provider_details=latest_message.provider_details,
+                            requested_model=requested_model
+                        )
                     
                         # Extract total cost
                         vendor_cost = latest_message.provider_details.get('cost')
@@ -421,7 +433,13 @@ async def simple_chat(
                         if cost_details:
                             prompt_cost = float(cost_details.get('upstream_inference_prompt_cost', 0.0))
                             completion_cost = float(cost_details.get('upstream_inference_completions_cost', 0.0))
-                            logger.info(f"✅ OpenRouter cost extraction: total=${real_cost}, prompt=${prompt_cost}, completion=${completion_cost}")
+                            logfire.info(
+                                'openrouter_cost_extracted',
+                                total_cost=real_cost,
+                                prompt_cost=prompt_cost,
+                                completion_cost=completion_cost,
+                                model=requested_model
+                            )
             else:
                 prompt_tokens = 0
                 completion_tokens = 0
@@ -593,9 +611,18 @@ async def simple_chat(
                 
         except Exception as e:
             # Log tracking errors but don't break the response
-            logger.error(f"Cost tracking failed (non-critical): {e}")
             import traceback
-            logger.debug(f"Cost tracking error traceback: {traceback.format_exc()}")
+            logfire.error(
+                'cost_tracking_failed',
+                error_type=type(e).__name__,
+                error_message=str(e),
+                traceback_details=traceback.format_exc(),
+                requested_model=requested_model,
+                result_type=type(result).__name__ if 'result' in locals() else 'not_available',
+                has_usage=hasattr(result, 'usage') if 'result' in locals() else False,
+                session_id=session_id,
+                agent_instance_id=str(agent_instance_id) if agent_instance_id else None
+            )
             llm_request_id = None
             prompt_cost = 0.0
             completion_cost = 0.0
