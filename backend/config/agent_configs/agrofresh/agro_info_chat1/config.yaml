@@ -13,7 +13,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "qwen/qwen3-235b-a22b-thinking-2507"  # Compact GPT-5 for lighter reasoning with tool support
+  model: "openai/gpt-oss-120b"  # Compact GPT-5 for lighter reasoning with tool support
   temperature: 0.3
   max_tokens: 2000
 

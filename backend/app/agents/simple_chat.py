@@ -372,8 +372,9 @@ async def simple_chat(
     db_service = get_database_service()
     
     async with db_service.get_session() as db_session:
-        # Assign session to dependencies for tools to use
-        session_deps.db_session = db_session
+        # BUG-0023-001: db_session no longer assigned to dependencies
+        # Tools create their own sessions via get_db_session() to eliminate concurrent operation errors
+        # This db_session is still used for non-tool operations (session loading, directory docs generation)
         
         # Pure Pydantic AI agent execution
         start_time = datetime.now(UTC)

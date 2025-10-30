@@ -13,8 +13,9 @@ Provides natural language search across multi-tenant directory lists
 """
 
 from pydantic_ai import RunContext
-from app.agents.base.dependencies import SessionDependencies
-from app.services.directory_service import DirectoryService
+from ..base.dependencies import SessionDependencies
+from ...services.directory_service import DirectoryService
+from ...database import get_database_service
 from typing import Optional, Dict
 import logfire
 
@@ -62,7 +63,7 @@ async def search_directory(
         filters=filters
     )
     
-    session = ctx.deps.db_session
+    # Get context from dependencies
     agent_config = ctx.deps.agent_config
     account_id = ctx.deps.account_id
     
@@ -80,99 +81,102 @@ async def search_directory(
     if list_name not in accessible_lists:
         return f"List '{list_name}' not accessible. Available: {', '.join(accessible_lists)}"
     
-    service = DirectoryService()
-    list_ids = await service.get_accessible_lists(session, account_id, [list_name])
+    # Create independent database session for this tool call (BUG-0023-001)
+    db_service = get_database_service()
+    async with db_service.get_session() as session:
+        service = DirectoryService()
+        list_ids = await service.get_accessible_lists(session, account_id, [list_name])
     
-    logfire.info(
-        'directory.lists_resolved',
-        list_name=list_name,
-        list_ids=[str(lid) for lid in list_ids],
-        account_id=str(account_id)
-    )
-    
-    if not list_ids:
-        logfire.warn('directory.list_not_found', list_name=list_name)
-        return f"List '{list_name}' not found"
-    
-    tags = [tag] if tag else None
-    
-    # Get search mode from config (default: substring for backward compatibility)
-    search_mode = directory_config.get("search_mode", "substring")
-    max_results = directory_config.get("max_results", 5)
-    
-    logfire.info(
-        'directory.search_executing',
-        list_ids=[str(lid) for lid in list_ids],
-        name_query=query,
-        tags=tags,
-        jsonb_filters=filters,
-        search_mode=search_mode,
-        limit=max_results
-    )
-    
-    entries = await service.search(
-        session=session,
-        accessible_list_ids=list_ids,
-        name_query=query,
-        tags=tags,
-        jsonb_filters=filters,
-        search_mode=search_mode,
-        limit=max_results
-    )
-    
-    logfire.info(
-        'directory.search_complete',
-        entries_found=len(entries),
-        list_name=list_name
-    )
-    
-    if not entries:
-        return "No entries found"
-    
-    # Format results (adaptive by entry type)
-    result_lines = [f"Found {len(entries)} entry(ies):\n"]
-    
-    for i, entry in enumerate(entries, 1):
-        lines = [f"{i}. **{entry.name}**"]
+        logfire.info(
+            'directory.lists_resolved',
+            list_name=list_name,
+            list_ids=[str(lid) for lid in list_ids],
+            account_id=str(account_id)
+        )
         
-        # Medical professionals
-        if 'department' in entry.entry_data or 'specialty' in entry.entry_data:
-            dept = entry.entry_data.get('department', '')
-            spec = entry.entry_data.get('specialty', '')
-            if dept or spec:
-                lines.append(f"   {dept}" + (f" - {spec}" if spec else ""))
+        if not list_ids:
+            logfire.warn('directory.list_not_found', list_name=list_name)
+            return f"List '{list_name}' not found"
         
-        # Pharmaceuticals
-        if 'drug_class' in entry.entry_data:
-            lines.append(f"   Class: {entry.entry_data['drug_class']}")
-            if entry.entry_data.get('dosage_forms'):
-                lines.append(f"   Forms: {', '.join(entry.entry_data['dosage_forms'])}")
+        tags = [tag] if tag else None
         
-        # Products
-        if 'category' in entry.entry_data:
-            lines.append(f"   Category: {entry.entry_data['category']}")
-            if entry.entry_data.get('price'):
-                lines.append(f"   Price: ${entry.entry_data['price']}")
+        # Get search mode from config (default: substring for backward compatibility)
+        search_mode = directory_config.get("search_mode", "substring")
+        max_results = directory_config.get("max_results", 5)
         
-        # Tags
-        if entry.tags:
-            lines.append(f"   Tags: {', '.join(entry.tags)}")
+        logfire.info(
+            'directory.search_executing',
+            list_ids=[str(lid) for lid in list_ids],
+            name_query=query,
+            tags=tags,
+            jsonb_filters=filters,
+            search_mode=search_mode,
+            limit=max_results
+        )
         
-        # Contact info
-        if entry.contact_info.get('location'):
-            lines.append(f"   Location: {entry.contact_info['location']}")
-        if entry.contact_info.get('product_url'):
-            lines.append(f"   URL: {entry.contact_info['product_url']}")
+        entries = await service.search(
+            session=session,
+            accessible_list_ids=list_ids,
+            name_query=query,
+            tags=tags,
+            jsonb_filters=filters,
+            search_mode=search_mode,
+            limit=max_results
+        )
         
-        # Additional details
-        if entry.entry_data.get('education'):
-            lines.append(f"   Education: {entry.entry_data['education']}")
-        if entry.entry_data.get('indications'):
-            lines.append(f"   Uses: {entry.entry_data['indications'][:100]}...")
-        if entry.entry_data.get('in_stock') is not None:
-            lines.append(f"   {'In Stock' if entry.entry_data['in_stock'] else 'Out of Stock'}")
+        logfire.info(
+            'directory.search_complete',
+            entries_found=len(entries),
+            list_name=list_name
+        )
         
-        result_lines.append('\n'.join(lines))
-    
-    return '\n\n'.join(result_lines)
+        if not entries:
+            return "No entries found"
+        
+        # Format results (adaptive by entry type)
+        result_lines = [f"Found {len(entries)} entry(ies):\n"]
+        
+        for i, entry in enumerate(entries, 1):
+            lines = [f"{i}. **{entry.name}**"]
+            
+            # Medical professionals
+            if 'department' in entry.entry_data or 'specialty' in entry.entry_data:
+                dept = entry.entry_data.get('department', '')
+                spec = entry.entry_data.get('specialty', '')
+                if dept or spec:
+                    lines.append(f"   {dept}" + (f" - {spec}" if spec else ""))
+            
+            # Pharmaceuticals
+            if 'drug_class' in entry.entry_data:
+                lines.append(f"   Class: {entry.entry_data['drug_class']}")
+                if entry.entry_data.get('dosage_forms'):
+                    lines.append(f"   Forms: {', '.join(entry.entry_data['dosage_forms'])}")
+            
+            # Products
+            if 'category' in entry.entry_data:
+                lines.append(f"   Category: {entry.entry_data['category']}")
+                if entry.entry_data.get('price'):
+                    lines.append(f"   Price: ${entry.entry_data['price']}")
+            
+            # Tags
+            if entry.tags:
+                lines.append(f"   Tags: {', '.join(entry.tags)}")
+            
+            # Contact info
+            if entry.contact_info.get('location'):
+                lines.append(f"   Location: {entry.contact_info['location']}")
+            if entry.contact_info.get('product_url'):
+                lines.append(f"   URL: {entry.contact_info['product_url']}")
+            
+            # Additional details
+            if entry.entry_data.get('education'):
+                lines.append(f"   Education: {entry.entry_data['education']}")
+            if entry.entry_data.get('indications'):
+                lines.append(f"   Uses: {entry.entry_data['indications'][:100]}...")
+            if entry.entry_data.get('in_stock') is not None:
+                lines.append(f"   {'In Stock' if entry.entry_data['in_stock'] else 'Out of Stock'}")
+            
+            result_lines.append('\n'.join(lines))
+        
+        return '\n\n'.join(result_lines)
 

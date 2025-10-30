@@ -17,8 +17,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, Field
-from app.models.directory import DirectoryList
-from app.services.directory_importer import DirectoryImporter
+from ...models.directory import DirectoryList
+from ...services.directory_importer import DirectoryImporter
 import logfire
 
 

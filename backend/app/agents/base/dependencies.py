@@ -112,8 +112,8 @@ class SessionDependencies(BaseDependencies):
     # Agent configuration (for tool access)
     agent_config: Optional[Dict[str, Any]] = None
     
-    # Database session (for tool data access)
-    db_session: Optional[Any] = None
+    # db_session removed - tools create own sessions via get_db_session() (BUG-0023-001)
+    # This eliminates concurrent DB operation errors while preserving parallel tool execution
     
     # Multi-tenant support
     agent_instance_id: Optional[int] = None  # Agent instance ID (for attribution)
