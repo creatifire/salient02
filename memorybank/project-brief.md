@@ -127,7 +127,7 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 - [🎯 OpenRouter Cost Tracking Research](../backend/explore/openrouter-cost-tracking/README.md) - **COMPREHENSIVE ANALYSIS** of OpenRouter integration with Python agent frameworks, including breakthrough discovery of perfect hybrid solution
 - [Advanced Logging](./analysis/advanced-logging.md)
 - [Epic 0022 Library Review](./analysis/epic-0022-library-review.md)
-- [Logging & Monitoring](./analysis/logging-monitoring.md)
+- [Logging Implementation](./architecture/logging-implementation.md)
 - [Test Suite Analysis](./analysis/test_suite_analysis.md)
 
 ## Planning
