@@ -533,13 +533,13 @@ logfire.debug('service.query.result', result_count=len(result))
 15. [x] `backend/app/api/account_agents.py`
 16. [x] `backend/app/api/agents.py`
 
-**⏳ Phase 5: Infrastructure & Cleanup** (PENDING - 6 files, ~2-3 hours)
-17. [ ] `backend/app/main.py` - **Remove `_setup_logger()` function entirely**
-18. [ ] `backend/app/database.py`
-19. [ ] `backend/app/openrouter_client.py`
-20. [ ] `backend/app/agents/config_loader.py`
-21. [ ] `backend/app/agents/instance_loader.py`
-22. [ ] `backend/app/agents/cascade_monitor.py`
+**✅ Phase 5: Infrastructure & Cleanup** (COMPLETE - 6 files)
+17. [x] `backend/app/main.py` - **Removed `_setup_logger()` function + migrated 41 logger calls**
+18. [x] `backend/app/database.py` - Migrated 11 logger calls
+19. [x] `backend/app/openrouter_client.py` - Migrated 13 logger calls
+20. [x] `backend/app/agents/config_loader.py` - Migrated 6 logger calls (inline imports)
+21. [x] `backend/app/agents/instance_loader.py` - Migrated 26 logger calls
+22. [x] `backend/app/agents/cascade_monitor.py` - Migrated 7 logger calls
 
 **Phase 6: Final Cleanup** (PENDING)
 - [ ] Remove loguru from `requirements.txt`
@@ -547,7 +547,7 @@ logfire.debug('service.query.result', result_count=len(result))
 - [ ] Verify all files use `import logfire` only
 - [ ] Update any remaining documentation references
 
-**Progress**: 15/21 files complete (71%) | Phases 1-4 complete, Phase 5-6 pending
+**Progress**: 21/21 files complete (100%) ✅ | Phases 1-4 complete, Phase 5-6 pending
 
 **Verification**: Manual testing - verify console output + Logfire dashboard after each file
 
