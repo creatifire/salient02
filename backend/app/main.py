@@ -817,15 +817,15 @@ async def sse_stream(request: Request):
                     pass
                 
                 # DEBUG: Log exact parameters passed to stream_chat_chunks
-                logger.info({
-                    "event": "stream_chat_chunks_call_debug",
-                    "message": seed,
-                    "model": model,
-                    "temperature": temperature, 
-                    "max_tokens": max_tokens,
-                    "extra_headers": headers or None,
-                    "function": "stream_chat_chunks"
-                })
+                logfire.info(
+                    'app.sse.stream_chat_chunks_call',
+                    message=seed,
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    extra_headers=headers or None,
+                    function="stream_chat_chunks"
+                )
                 
                 # Stream LLM response while accumulating chunks
                 async for tok in stream_chat_chunks(
@@ -836,10 +836,7 @@ async def sse_stream(request: Request):
                     extra_headers=headers or None,
                 ):
                     if await request.is_disconnected():
-                        logger.info({
-                            "event": "sse_disconnected",
-                            "path": "/events/stream",
-                        })
+                        logfire.info('app.sse.disconnected', path="/events/stream")
                         break
                     
                     # Accumulate chunk for persistence
@@ -866,13 +863,13 @@ async def sse_stream(request: Request):
                                 "streaming": True
                             }
                         )
-                        logger.info({
-                            "event": "assistant_message_saved",
-                            "session_id": str(session.id),
-                            "message_id": str(assistant_message_id),
-                            "content_length": len(complete_response),
-                            "chunks_count": len(assistant_chunks)
-                        })
+                        logfire.info(
+                            'app.sse.assistant_message_saved',
+                            session_id=str(session.id),
+                            message_id=str(assistant_message_id),
+                            content_length=len(complete_response),
+                            chunks_count=len(assistant_chunks)
+                        )
                         
                         # Track LLM request for billing (estimated token counts for streaming)
                         try:
@@ -911,30 +908,30 @@ async def sse_stream(request: Request):
                                 },
                                 latency_ms=int((time.perf_counter() - start) * 1000)
                             )
-                            logger.info({
-                                "event": "llm_request_tracked",
-                                "session_id": str(session.id),
-                                "llm_request_id": str(llm_request_id),
-                                "estimated_tokens": estimated_total,
-                                "note": "Token estimates from streaming (no exact counts available)"
-                            })
+                            logfire.info(
+                                'app.sse.llm_request_tracked',
+                                session_id=str(session.id),
+                                llm_request_id=str(llm_request_id),
+                                estimated_tokens=estimated_total,
+                                note="Token estimates from streaming (no exact counts available)"
+                            )
                         except Exception as track_error:
                             # Log tracking error but don't break streaming
-                            logger.warning({
-                                "event": "llm_request_tracking_failed",
-                                "session_id": str(session.id),
-                                "error": str(track_error),
-                                "error_type": type(track_error).__name__
-                            })
+                            logfire.warn(
+                                'app.sse.llm_request_tracking_failed',
+                                session_id=str(session.id),
+                                error=str(track_error),
+                                error_type=type(track_error).__name__
+                            )
                         
                     except Exception as e:
                         # Log error but don't interrupt streaming
-                        logger.error({
-                            "event": "assistant_message_save_failed",
-                            "session_id": str(session.id),
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                            "content_length": len(complete_response)
+                        logfire.error(
+                            'app.sse.assistant_message_save_failed',
+                            session_id=str(session.id),
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            content_length=len(complete_response)
                         })
                 
                 # Graceful end signal
@@ -948,10 +945,7 @@ async def sse_stream(request: Request):
                 count = 0
                 for tok in tokens:
                     if await request.is_disconnected():
-                        logger.info({
-                            "event": "sse_disconnected",
-                            "path": "/events/stream",
-                        })
+                        logfire.info('app.sse.disconnected', path="/events/stream")
                         break
                     if count >= max_tokens:
                         break
@@ -988,40 +982,33 @@ async def sse_stream(request: Request):
                                 "demo_mode": True
                             }
                         )
-                        logger.info({
-                            "event": "assistant_message_saved",
-                            "session_id": str(session.id),
-                            "message_id": str(assistant_message_id),
-                            "content_length": len(complete_response),
-                            "chunks_count": len(assistant_chunks),
-                            "demo_mode": True
-                        })
+                        logfire.info(
+                            'app.sse.assistant_message_saved',
+                            session_id=str(session.id),
+                            message_id=str(assistant_message_id),
+                            content_length=len(complete_response),
+                            chunks_count=len(assistant_chunks),
+                            demo_mode=True
+                        )
                     except Exception as e:
                         # Log error but don't interrupt streaming
-                        logger.error({
-                            "event": "assistant_message_save_failed",
-                            "session_id": str(session.id),
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                            "content_length": len(complete_response),
+                        logfire.error(
+                            'app.sse.assistant_message_save_failed',
+                            session_id=str(session.id),
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            content_length=len(complete_response),
                             "demo_mode": True
                         })
                     
                     # Graceful end signal
                     yield {"event": "end", "data": "end"}
         except Exception as exc:
-            logger.error({
-                "event": "sse_error",
-                "path": "/events/stream",
-                "error": type(exc).__name__,
-            })
+            logfire.error('app.sse.error', path="/events/stream", error=type(exc).__name__)
             if not await request.is_disconnected():
                 yield {"event": "error", "data": f"stream_error: {type(exc).__name__}"}
         finally:
-            logger.info({
-                "event": "sse_complete",
-                "path": "/events/stream",
-            })
+            logfire.info('app.sse.complete', path="/events/stream")
 
     return EventSourceResponse(event_generator())
 
@@ -1057,7 +1044,7 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     # Get session information for context and message persistence
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for chat request")
+        logfire.error('app.chat.no_session')
         return PlainTextResponse("Session error", status_code=500)
     
     cfg = load_config()
@@ -1073,25 +1060,25 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     temperature = float(model_settings["temperature"])
     max_tokens = int(model_settings["max_tokens"])
 
-    logger.info({
-        "event": "chat_fallback_request",
-        "path": "/chat",
-        "client": request.client.host if request.client else None,
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "message_preview": message[:100] + "..." if len(message) > 100 else message,
-    })
+    logfire.info(
+        'app.chat.request',
+        path="/chat",
+        client=request.client.host if request.client else None,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        session_id=str(session.id),
+        session_key=session.session_key[:8] + "..." if session.session_key else None,
+        message_preview=message[:100] + "..." if len(message) > 100 else message
+    )
     
     # DEBUG: Log chat_fallback config loading details (using agent-first cascade)
-    logger.info({
-        "event": "chat_fallback_config_debug",
-        "model_settings": model_settings,
-        "final_model": model,
-        "cascade_source": "agent-first configuration cascade"
-    })
+    logfire.info(
+        'app.chat.config',
+        model_settings=model_settings,
+        final_model=model,
+        cascade_source="agent-first configuration cascade"
+    )
 
     # Save user message to database before LLM call
     message_service = get_message_service()
@@ -1104,20 +1091,20 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
             content=message,
             metadata={"source": "chat_fallback", "model": model}
         )
-        logger.info({
-            "event": "user_message_saved",
-            "session_id": str(session.id),
-            "message_id": str(user_message_id),
-            "content_length": len(message)
-        })
+        logfire.info(
+            'app.chat.user_message_saved',
+            session_id=str(session.id),
+            message_id=str(user_message_id),
+            content_length=len(message)
+        )
     except Exception as e:
         # Log error but continue with chat functionality
-        logger.error({
-            "event": "user_message_save_failed",
-            "session_id": str(session.id),
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.error(
+            'app.chat.user_message_save_failed',
+            session_id=str(session.id),
+            error=str(e),
+            error_type=type(e).__name__
+        )
 
     # Build optional headers for OpenRouter (recommended)
     headers = {}
@@ -1138,15 +1125,15 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     start_time = time.perf_counter()
     try:
         # DEBUG: Log exact parameters passed to chat_completion_content
-        logger.info({
-            "event": "chat_completion_content_call_debug",
-            "message": message,
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "extra_headers": headers or None,
-            "function": "chat_completion_content"
-        })
+        logfire.info(
+            'app.chat.completion_call',
+            message=message,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            extra_headers=headers or None,
+            function="chat_completion_content"
+        )
         
         text = await chat_completion_content(
             message=message,
@@ -1172,14 +1159,14 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
                     "user_message_id": str(user_message_id) if user_message_id else None
                 }
             )
-            logger.info({
-                "event": "assistant_message_saved",
-                "session_id": str(session.id),
-                "message_id": str(assistant_message_id),
-                "user_message_id": str(user_message_id) if user_message_id else None,
-                "content_length": len(text),
-                "model": model
-            })
+            logfire.info(
+                'app.chat.assistant_message_saved',
+                session_id=str(session.id),
+                message_id=str(assistant_message_id),
+                user_message_id=str(user_message_id) if user_message_id else None,
+                content_length=len(text),
+                model=model
+            )
             
             # Track LLM request for billing (estimated token counts for non-streaming)
             try:
@@ -1217,43 +1204,43 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
                     },
                     latency_ms=latency_ms
                 )
-                logger.info({
-                    "event": "llm_request_tracked",
-                    "session_id": str(session.id),
-                    "llm_request_id": str(llm_request_id),
-                    "estimated_tokens": estimated_total,
-                    "note": "Token estimates from legacy endpoint (no exact counts available)"
-                })
+                logfire.info(
+                    'app.chat.llm_request_tracked',
+                    session_id=str(session.id),
+                    llm_request_id=str(llm_request_id),
+                    estimated_tokens=estimated_total,
+                    note="Token estimates from legacy endpoint (no exact counts available)"
+                )
             except Exception as track_error:
                 # Log tracking error but don't break response
-                logger.warning({
-                    "event": "llm_request_tracking_failed",
-                    "session_id": str(session.id),
-                    "error": str(track_error),
-                    "error_type": type(track_error).__name__
-                })
+                logfire.warn(
+                    'app.chat.llm_request_tracking_failed',
+                    session_id=str(session.id),
+                    error=str(track_error),
+                    error_type=type(track_error).__name__
+                )
             
         except Exception as e:
             # Log error but don't block response
-            logger.error({
-                "event": "assistant_message_save_failed",
-                "session_id": str(session.id),
-                "user_message_id": str(user_message_id) if user_message_id else None,
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.error(
+                'app.chat.assistant_message_save_failed',
+                session_id=str(session.id),
+                user_message_id=str(user_message_id) if user_message_id else None,
+                error=str(e),
+                error_type=type(e).__name__
+            )
         
         # Return plain text; client will render Markdown + sanitize when allowed
         return PlainTextResponse(text)
         
     except Exception as e:
-        logger.error({
-            "event": "llm_request_failed",
-            "session_id": str(session.id),
-            "user_message_id": str(user_message_id) if user_message_id else None,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.error(
+            'app.chat.llm_request_failed',
+            session_id=str(session.id),
+            user_message_id=str(user_message_id) if user_message_id else None,
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return PlainTextResponse("Sorry, I'm having trouble responding right now.", status_code=500)
 
 
@@ -1351,7 +1338,7 @@ async def get_chat_history(request: Request) -> JSONResponse:
     """
     session = get_current_session(request)
     if not session:
-        logger.warning("Chat history requested but no session found")
+        logfire.warn('app.chat_history.no_session')
         return JSONResponse({"error": "Unauthorized", "messages": []}, status_code=401)
     
     try:
@@ -1361,7 +1348,7 @@ async def get_chat_history(request: Request) -> JSONResponse:
             "messages": chat_history
         })
     except Exception as e:
-        logger.error(f"Failed to load chat history for session {session.id}: {e}")
+        logfire.error('app.chat_history.load_failed', session_id=str(session.id), error=str(e))
         return JSONResponse({"error": "Failed to load chat history", "messages": []}, status_code=500)
 
 
