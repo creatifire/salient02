@@ -12,7 +12,7 @@ prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "openai/gpt-oss-120b"  # Reliable model with great Pydantic AI support
+  model: "x-ai/grok-4-fast"  # Fast multimodal model with 2M context, optional reasoning mode
   temperature: 0.3
   max_tokens: 2000
 
