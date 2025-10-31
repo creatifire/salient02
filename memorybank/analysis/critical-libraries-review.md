@@ -513,7 +513,7 @@ usage = result.usage()  # RunUsage(input_tokens=..., output_tokens=...)
 
 ### High Priority ⚠️
 
-- [ ] **FastAPI Lifespan**: Migrate from `@app.on_event()` to `lifespan()` context manager
+- [x] **FastAPI Lifespan**: Migrate from `@app.on_event()` to `lifespan()` context manager ✅ **COMPLETE**
 - [ ] **SQLAlchemy Queries**: Add `selectinload()` for all relationship accesses
 - [ ] **Alembic Async**: Ensure migrations use async engine patterns
 - [ ] **Pydantic AI**: Verify all tools use `RunContext[DepsType]` pattern
