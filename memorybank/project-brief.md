@@ -75,7 +75,7 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 - Virtual environment: `backend/venv/` activated from project root
 
 **Logging Standards:**
-- **Logfire is the standard** - All logging MUST use Logfire (phasing out loguru over time)
+- **Logfire is the standard** - All logging uses Logfire (migration complete)
 - **Dual output** - Console logs (screen) + Logfire cloud dashboard (when token present)
 - **Structured logging** - Use `logfire.info('event.name', key=value)` format
 - **Event naming** - Dot notation: `module.action` (e.g., `agent.created`, `session.loaded`)

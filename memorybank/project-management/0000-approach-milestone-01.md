@@ -589,9 +589,14 @@ logfire.debug('service.query.result', result_count=len(result))
   - All files use `import logfire` only
   - **Impact**: Clean codebase with single logging solution (Logfire)
   
-- [ ] 6.7 - Documentation audit
-  - Update any remaining documentation references to old logging patterns
-  - Verify all examples use Logfire patterns
+- [x] 6.7 - Documentation audit ✅
+  - Updated `project-brief.md` - Changed "phasing out loguru" to "migration complete"
+  - Updated `code-organization.md` - Updated logs/ comment and Loguru references
+  - Updated `endpoints.md` - Changed "Loguru" to "Logfire"
+  - Updated `coding-standards-py.md` - Changed example from `loguru` to `logfire`
+  - Updated `bugs-0017.md` - Marked Loguru migration as complete
+  - Verified `logging-implementation.md` already uses Logfire patterns (complete)
+  - **Impact**: All active documentation now reflects Logfire as the standard
 
 **Progress**: 21/21 files complete (100%) ✅ | Phases 1-5 complete ✅, Phase 6 pending
 

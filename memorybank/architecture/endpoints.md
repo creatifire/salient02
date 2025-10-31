@@ -331,7 +331,7 @@ multi_account:
 - ✅ **Session Management**: `SimpleSessionMiddleware` with secure cookies
 - ✅ **Message Persistence**: PostgreSQL with async SQLAlchemy
 - ✅ **Configuration Loading**: Dynamic `app.yaml` with environment overrides
-- ✅ **Logging**: Structured JSON logging with Loguru
+- ✅ **Logging**: Structured logging with Logfire (observability platform)
 - ✅ **Error Handling**: Graceful degradation and comprehensive error logging
 
 **Excluded Paths (No Session Processing):**

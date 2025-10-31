@@ -110,7 +110,7 @@ salient02/
         digital_expert.yaml   # Digital expert agent configuration
         simple_research.yaml  # Simple research agent configuration (future)
         deep_research.yaml    # Deep research agent configuration (future)
-    logs/                      # Loguru JSONL output path (from YAML)
+    logs/                      # (Deprecated) Previously Loguru JSONL output - now using Logfire cloud
     tests/                     # Backend tests (pytest)
       agents/                  # Agent-specific tests
         test_simple_chat_agent.py
@@ -185,7 +185,7 @@ Notes:
   - Future: `POST /accounts/{account-slug}/agents/{agent-type}/chat` (Phase 3+)
 - YAML config under `backend/config/app.yaml` with keys already defined in the design docs.
 - **Phase 1-2**: Agent configurations under `backend/config/agent_configs/` for config file-based setup.
-- Loguru configured from YAML to write JSONL to `backend/logs/` (path in YAML).
+- Logfire configured in `main.py` - console output + cloud dashboard (no local file logging).
 
 ### Agent Development Patterns
 

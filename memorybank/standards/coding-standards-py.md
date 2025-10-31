@@ -314,9 +314,9 @@ from typing import Dict, List, Optional
 
 # Third-party imports (alphabetical)
 import httpx
+import logfire
 import sqlalchemy
 from fastapi import FastAPI
-from loguru import logger
 from pydantic import BaseModel
 
 # Local application imports (relative imports)
