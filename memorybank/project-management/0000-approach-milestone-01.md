@@ -541,11 +541,11 @@ logfire.debug('service.query.result', result_count=len(result))
 21. [x] `backend/app/agents/instance_loader.py` - Migrated 26 logger calls
 22. [x] `backend/app/agents/cascade_monitor.py` - Migrated 7 logger calls
 
-**Phase 6: Library Integrations & Final Cleanup** (PENDING)
+**Phase 6: Library Integrations & Final Cleanup** (IN PROGRESS)
 
 **Logfire Library Integrations** (best practices):
-- [ ] 6.1 - Add HTTPX instrumentation (P1 - Critical)
-  - Add `logfire.instrument_httpx()` to `backend/app/main.py` with other instrumentation
+- [x] 6.1 - Add HTTPX instrumentation (P1 - Critical) ✅
+  - Added `logfire.instrument_httpx()` to `backend/app/main.py` (line 238)
   - Enables automatic tracing of all OpenRouter API calls via `openrouter_client.py`
   - **Impact**: Visibility into LLM API latency, errors, retries, request/response metadata
   - **Verification**: Check Logfire for HTTP request spans during chat interactions
