@@ -410,47 +410,56 @@ Unauthorized copying of this file is strictly prohibited.
 
 **See**: [Epic 0017-007](0017-simple-chat-agent.md#0017-007) for detailed 5-chunk implementation plan
 
-### **Priority 11: Logging Infrastructure Consolidation** 📋 **PLANNED**
+### **Priority 11: Logging Infrastructure Consolidation** 🎯 **IN PROGRESS**
 **Epic 0017-013 - Complete Migration from Loguru to Logfire**
 
 **Problem**: Mixed logging approaches (`loguru`, `logging`, `logfire`) create inconsistency and prevent full Logfire observability utilization.
 
 **Solution**: Complete removal of loguru and standard logging, migrate all to Logfire with hierarchical event naming (`module.submodule.action`) and console + cloud output only (no local file logging).
 
-**See**: [Critical Libraries Review - Logfire Patterns](../../analysis/critical-libraries-review.md#7-logfire-pydanticlogfire) | [Epic 0017-013](0017-simple-chat-agent.md#0017-013)
+**Status**: Phases 1-4 complete (15/21 files migrated), Phase 5 pending (6 files)
+
+**See**: 
+- [Logging Implementation Guide](../../architecture/logging-implementation.md) - Patterns, conventions, lessons learned
+- [Epic 0017-013](0017-simple-chat-agent.md#0017-013) - Detailed implementation tracking
 
 ---
 
 **Files Impacted** (21 total):
 
-**✅ Already Using Logfire** (remove loguru/logging, keep logfire only):
-- `backend/app/services/vector_service.py` (has both - remove logging, keep logfire)
-- `backend/app/agents/tools/directory_tools.py`
-- `backend/app/agents/tools/prompt_generator.py`
-- `backend/app/agents/simple_chat.py` (has loguru imports - remove)
+**✅ Migrated to Logfire** (Phases 1-4 complete):
 
-**⚠️ Using Loguru** (migrate - 17 files):
-- `backend/app/main.py` (remove `_setup_logger()` function entirely)
-- `backend/app/api/account_agents.py`
-- `backend/app/api/agents.py`
-- `backend/app/services/message_service.py`
-- `backend/app/services/session_service.py`
-- `backend/app/services/llm_request_tracker.py`
-- `backend/app/services/directory_importer.py`
-- `backend/app/services/agent_pinecone_config.py`
-- `backend/app/services/pinecone_client.py`
-- `backend/app/services/embedding_service.py`
-- `backend/app/middleware/simple_session_middleware.py`
-- `backend/app/middleware/session_middleware.py`
-- `backend/app/agents/config_loader.py`
-- `backend/app/agents/instance_loader.py`
-- `backend/app/agents/cascade_monitor.py`
-- `backend/app/openrouter_client.py`
-- `backend/app/database.py`
+**Phase 1: Core Agent & Tools** ✅
+- [x] `backend/app/agents/simple_chat.py`
+- [x] `backend/app/agents/tools/vector_tools.py`
+- [x] `backend/app/services/vector_service.py`
+- [x] `backend/app/agents/tools/directory_tools.py`
 
-**⚠️ Using Standard Logging** (migrate - 2 files):
-- `backend/app/services/directory_service.py`
-- `backend/app/agents/tools/vector_tools.py`
+**Phase 2: Services** ✅
+- [x] `backend/app/services/message_service.py`
+- [x] `backend/app/services/session_service.py`
+- [x] `backend/app/services/llm_request_tracker.py`
+- [x] `backend/app/services/directory_service.py`
+- [x] `backend/app/services/directory_importer.py`
+- [x] `backend/app/services/agent_pinecone_config.py`
+- [x] `backend/app/services/pinecone_client.py`
+- [x] `backend/app/services/embedding_service.py`
+
+**Phase 3: Middleware** ✅
+- [x] `backend/app/middleware/simple_session_middleware.py`
+- [x] `backend/app/middleware/session_middleware.py`
+
+**Phase 4: API Routes** ✅
+- [x] `backend/app/api/account_agents.py`
+- [x] `backend/app/api/agents.py`
+
+**⏳ Pending Migration** (Phase 5):
+- [ ] `backend/app/main.py` - Remove `_setup_logger()` function entirely
+- [ ] `backend/app/database.py`
+- [ ] `backend/app/openrouter_client.py`
+- [ ] `backend/app/agents/config_loader.py`
+- [ ] `backend/app/agents/instance_loader.py`
+- [ ] `backend/app/agents/cascade_monitor.py`
 
 ---
 
@@ -498,47 +507,47 @@ logfire.debug('service.query.result', result_count=len(result))
 
 ---
 
-**Implementation Plan** (File-by-file, ~7-12 hours total):
+**Implementation Plan**:
 
-**Phase 1: Core Agent & Tools** (3-4 files, ~2-3 hours)
-1. `backend/app/agents/simple_chat.py` - Remove loguru, convert all calls
-2. `backend/app/agents/tools/vector_tools.py` - Migrate from logging
-3. `backend/app/services/vector_service.py` - Remove logging, keep logfire
-4. `backend/app/agents/tools/directory_tools.py` - Verify/cleanup logfire usage
+**✅ Phase 1: Core Agent & Tools** (COMPLETE - 4 files)
+1. [x] `backend/app/agents/simple_chat.py`
+2. [x] `backend/app/agents/tools/vector_tools.py`
+3. [x] `backend/app/services/vector_service.py`
+4. [x] `backend/app/agents/tools/directory_tools.py`
 
-**Phase 2: Services** (8 files, ~3-4 hours)
-5. `backend/app/services/message_service.py`
-6. `backend/app/services/session_service.py`
-7. `backend/app/services/llm_request_tracker.py`
-8. `backend/app/services/directory_service.py` (from logging)
-9. `backend/app/services/directory_importer.py`
-10. `backend/app/services/agent_pinecone_config.py`
-11. `backend/app/services/pinecone_client.py`
-12. `backend/app/services/embedding_service.py`
+**✅ Phase 2: Services** (COMPLETE - 8 files)
+5. [x] `backend/app/services/message_service.py`
+6. [x] `backend/app/services/session_service.py`
+7. [x] `backend/app/services/llm_request_tracker.py`
+8. [x] `backend/app/services/directory_service.py`
+9. [x] `backend/app/services/directory_importer.py`
+10. [x] `backend/app/services/agent_pinecone_config.py`
+11. [x] `backend/app/services/pinecone_client.py`
+12. [x] `backend/app/services/embedding_service.py`
 
-**Phase 3: Middleware** (2 files, ~1 hour)
-14. `backend/app/middleware/simple_session_middleware.py`
-15. `backend/app/middleware/session_middleware.py`
+**✅ Phase 3: Middleware** (COMPLETE - 2 files)
+13. [x] `backend/app/middleware/simple_session_middleware.py`
+14. [x] `backend/app/middleware/session_middleware.py`
 
-**Phase 4: API Routes** (2 files, ~1-2 hours)
-16. `backend/app/api/account_agents.py`
-17. `backend/app/api/agents.py`
+**✅ Phase 4: API Routes** (COMPLETE - 2 files)
+15. [x] `backend/app/api/account_agents.py`
+16. [x] `backend/app/api/agents.py`
 
-**Phase 5: Infrastructure & Cleanup** (6 files, ~2-3 hours)
-18. `backend/app/main.py` - **Remove `_setup_logger()` function entirely**
-19. `backend/app/database.py`
-20. `backend/app/openrouter_client.py`
-21. `backend/app/agents/config_loader.py`
-22. `backend/app/agents/instance_loader.py`
-23. `backend/app/agents/cascade_monitor.py`
+**⏳ Phase 5: Infrastructure & Cleanup** (PENDING - 6 files, ~2-3 hours)
+17. [ ] `backend/app/main.py` - **Remove `_setup_logger()` function entirely**
+18. [ ] `backend/app/database.py`
+19. [ ] `backend/app/openrouter_client.py`
+20. [ ] `backend/app/agents/config_loader.py`
+21. [ ] `backend/app/agents/instance_loader.py`
+22. [ ] `backend/app/agents/cascade_monitor.py`
 
-**Phase 6: Final Cleanup**
+**Phase 6: Final Cleanup** (PENDING)
 - [ ] Remove loguru from `requirements.txt`
 - [ ] Remove any remaining `import logging` statements
 - [ ] Verify all files use `import logfire` only
-- [ ] Update documentation (project-brief.md, README if needed)
+- [ ] Update any remaining documentation references
 
-**Total Effort**: 7-12 hours
+**Progress**: 15/21 files complete (71%) | Phases 1-4 complete, Phase 5-6 pending
 
 **Verification**: Manual testing - verify console output + Logfire dashboard after each file
 

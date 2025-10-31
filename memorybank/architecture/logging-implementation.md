@@ -5,11 +5,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 # Logging Implementation Guide
 
-> **Status**: Production  
-> **Last Updated**: January 2025  
-> **Migration**: Completed (Priority 11)
-
-Complete guide to implementing Logfire-based logging across the application, including patterns, conventions, and critical lessons learned.
+Comprehensive guide to implementing Logfire-based logging across the application, including patterns, conventions, and critical lessons learned from production use.
 
 ---
 
@@ -461,43 +457,6 @@ logfire.info('processing.complete', processed=len(items))
 
 ---
 
-## Current State
-
-**✅ Completed Migration** (Priority 11):
-
-**Phase 1: Core Agent & Tools**
-- `simple_chat.py`
-- `vector_tools.py`
-- `vector_service.py`
-- `directory_tools.py`
-
-**Phase 2: Services**
-- `message_service.py`
-- `session_service.py`
-- `llm_request_tracker.py`
-- `directory_service.py`
-- `directory_importer.py`
-- `agent_pinecone_config.py`
-- `pinecone_client.py`
-- `embedding_service.py`
-
-**Phase 3: Middleware**
-- `simple_session_middleware.py`
-- `session_middleware.py`
-
-**Phase 4: API Routes**
-- `account_agents.py`
-- `agents.py`
-
-**⏳ Pending Migration** (Phase 5):
-- `main.py` - Remove `_setup_logger()` function
-- `database.py`
-- `config_loader.py`
-- `instance_loader.py`
-- `cascade_monitor.py`
-
----
-
 ## Related Documentation
 
 **Architecture**:
@@ -505,8 +464,9 @@ logfire.info('processing.complete', processed=len(items))
 - [Multi-Tenant Security](./multi-tenant-security.md) - Security logging
 - [Pydantic AI Cost Tracking](./pydantic-ai-cost-tracking.md) - Cost attribution
 
-**Implementation**:
-- [Priority 11: Logging Consolidation](../project-management/0000-approach-milestone-01.md) - Migration plan
+**Project Management**:
+- [Priority 11: Logging Consolidation](../project-management/0000-approach-milestone-01.md) - Migration plan & status
+- [Epic 0017-013](../project-management/0017-simple-chat-agent.md#0017-013) - Implementation tracking
 - [BUG-0023-005](../project-management/bugs-0023-005-sqlalchemy-expression-serialization.md) - SQLAlchemy issues
 
 **External**:
