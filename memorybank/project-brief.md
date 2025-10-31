@@ -5,7 +5,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 # Project Brief
 > **Last Updated**: January 31, 2025  
-> **Updates**: Updated architecture document links (consolidated files, new agent-and-tool-design.md)
+> **Updates**: Added multi-tenant-security.md design document, updated architecture document links
 
 ## Core Architectural Principles
 
@@ -110,6 +110,7 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 ### Core Architecture Documents
 - [Agent and Tool Design](./architecture/agent-and-tool-design.md) - **Architecture patterns and conventions**
 - [Simple Chat Agent Design](./architecture/simple-chat-agent-design.md) - **Template example** (follows agent-and-tool-design.md)
+- [Multi-Tenant Security](./architecture/multi-tenant-security.md) - **Account isolation and API security** 🔴 CRITICAL
 - [Code Organization](./architecture/code-organization.md) - File structure and technology stack
 - [Configuration Reference](./architecture/configuration-reference.md) - Complete config documentation
 - [API Endpoints](./architecture/endpoints.md) - All endpoints including Pydantic AI implementation status
