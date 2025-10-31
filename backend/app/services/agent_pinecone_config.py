@@ -10,13 +10,10 @@ Unauthorized copying of this file is strictly prohibited.
 
 
 import os
-import logging
+import logfire
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from pinecone import Pinecone
-
-
-logger = logging.getLogger(__name__)
 
 
 # Module-level cache for PineconeClient instances
@@ -54,15 +51,18 @@ def load_agent_pinecone_config(
     
     # Check if vector search is enabled
     if not vector_config.get("enabled", False):
-        logger.info(f"Vector search disabled for agent: {instance_config.get('instance_name', 'unknown')}")
+        logfire.debug(
+            'service.pinecone.config.vector_search_disabled',
+            agent_name=instance_config.get('instance_name', 'unknown')
+        )
         return None
     
     # Check if pinecone config exists
     pinecone_config = vector_config.get("pinecone", {})
     if not pinecone_config:
-        logger.warning(
-            f"Vector search enabled but no pinecone config found for agent: "
-            f"{instance_config.get('instance_name', 'unknown')}"
+        logfire.warn(
+            'service.pinecone.config.missing',
+            agent_name=instance_config.get('instance_name', 'unknown')
         )
         return None
     
@@ -88,12 +88,19 @@ def load_agent_pinecone_config(
     # Get or auto-discover index host
     index_host = pinecone_config.get("index_host")
     if not index_host:
-        logger.info(f"Auto-discovering index host for: {index_name}")
+        logfire.info(
+            'service.pinecone.config.auto_discovering_host',
+            index_name=index_name
+        )
         try:
             pc = Pinecone(api_key=api_key)
             index_info = pc.describe_index(index_name)
             index_host = index_info.host
-            logger.info(f"Auto-discovered host: {index_host}")
+            logfire.info(
+                'service.pinecone.config.host_discovered',
+                index_name=index_name,
+                index_host=index_host
+            )
         except Exception as e:
             raise ValueError(
                 f"Failed to auto-discover index host for {index_name}: {str(e)}"
@@ -104,13 +111,13 @@ def load_agent_pinecone_config(
     embedding_model = embedding_config.get("model", "text-embedding-3-small")
     dimensions = embedding_config.get("dimensions", 1536)
     
-    logger.info({
-        "event": "agent_pinecone_config_loaded",
-        "agent": instance_config.get("instance_name", "unknown"),
-        "index": index_name,
-        "namespace": namespace,
-        "embedding_model": embedding_model
-    })
+    logfire.info(
+        'service.pinecone.config.loaded',
+        agent=instance_config.get("instance_name", "unknown"),
+        index=index_name,
+        namespace=namespace,
+        embedding_model=embedding_model
+    )
     
     return AgentPineconeConfig(
         api_key=api_key,
@@ -145,11 +152,20 @@ def get_cached_pinecone_client(agent_config: AgentPineconeConfig):
     cache_key = f"{agent_config.api_key[:8]}_{agent_config.index_name}"
     
     if cache_key not in _pinecone_client_cache:
-        logger.info(f"Creating new PineconeClient for cache_key: {cache_key}")
+        logfire.info(
+            'service.pinecone.client.creating',
+            cache_key_preview=cache_key[:20] + "..." if len(cache_key) > 20 else cache_key
+        )
         _pinecone_client_cache[cache_key] = PineconeClient.create_from_agent_config(agent_config)
-        logger.info(f"PineconeClient cached. Cache size: {len(_pinecone_client_cache)}")
+        logfire.info(
+            'service.pinecone.client.cached',
+            cache_size=len(_pinecone_client_cache)
+        )
     else:
-        logger.debug(f"Reusing cached PineconeClient for: {cache_key}")
+        logfire.debug(
+            'service.pinecone.client.reusing',
+            cache_key_preview=cache_key[:20] + "..." if len(cache_key) > 20 else cache_key
+        )
     
     return _pinecone_client_cache[cache_key]
 

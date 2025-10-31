@@ -10,16 +10,13 @@ Unauthorized copying of this file is strictly prohibited.
 
 
 import asyncio
-import logging
 import os
+import logfire
 from typing import List, Optional
 from dataclasses import dataclass
 
 import openai
 from openai import AsyncOpenAI
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -73,7 +70,11 @@ class EmbeddingService:
             # Truncate text if too long
             if len(text) > self.config.max_tokens * 4:  # Rough character estimate
                 text = text[:self.config.max_tokens * 4]
-                logger.warning(f"Text truncated to {self.config.max_tokens * 4} characters for embedding")
+                logfire.warn(
+                    'service.embedding.text_truncated',
+                    original_length=len(text),
+                    truncated_length=self.config.max_tokens * 4
+                )
             
             response = await self.client.embeddings.create(
                 model=self.config.model,
@@ -83,11 +84,16 @@ class EmbeddingService:
             
             embedding = response.data[0].embedding
             
-            logger.debug(f"Generated embedding for text of length {len(text)} using model {self.config.model}")
+            logfire.debug(
+                'service.embedding.generated',
+                text_length=len(text),
+                model=self.config.model,
+                dimensions=self.config.dimensions
+            )
             return embedding
             
         except Exception as e:
-            logger.error(f"Failed to generate embedding: {str(e)}")
+            logfire.exception('service.embedding.generate_failed')
             raise
     
     async def embed_texts(self, texts: List[str]) -> List[List[float]]:
@@ -107,7 +113,11 @@ class EmbeddingService:
         batch_size = self.config.batch_size
         all_embeddings = []
         
-        logger.info(f"Generating embeddings for {total_texts} texts with batch size {batch_size}")
+        logfire.info(
+            'service.embedding.batch.starting',
+            total_texts=total_texts,
+            batch_size=batch_size
+        )
         
         # Process in batches
         for i in range(0, total_texts, batch_size):
@@ -115,16 +125,29 @@ class EmbeddingService:
             batch_number = (i // batch_size) + 1
             total_batches = (total_texts + batch_size - 1) // batch_size
             
-            logger.info(f"Processing embedding batch {batch_number}/{total_batches} ({len(batch)} texts)")
+            logfire.info(
+                'service.embedding.batch.processing',
+                batch_number=batch_number,
+                total_batches=total_batches,
+                batch_size=len(batch)
+            )
             
             try:
                 # Truncate texts if too long
                 processed_batch = []
+                truncated_count = 0
                 for text in batch:
                     if len(text) > self.config.max_tokens * 4:
                         text = text[:self.config.max_tokens * 4]
-                        logger.warning(f"Text truncated to {self.config.max_tokens * 4} characters for embedding")
+                        truncated_count += 1
                     processed_batch.append(text)
+                
+                if truncated_count > 0:
+                    logfire.warn(
+                        'service.embedding.batch.texts_truncated',
+                        batch_number=batch_number,
+                        truncated_count=truncated_count
+                    )
                 
                 response = await self.client.embeddings.create(
                     model=self.config.model,
@@ -135,18 +158,29 @@ class EmbeddingService:
                 batch_embeddings = [data.embedding for data in response.data]
                 all_embeddings.extend(batch_embeddings)
                 
-                logger.info(f"Successfully generated embeddings for batch {batch_number}")
+                logfire.info(
+                    'service.embedding.batch.complete',
+                    batch_number=batch_number,
+                    embeddings_generated=len(batch_embeddings)
+                )
                 
                 # Small delay to respect rate limits
                 if batch_number < total_batches:
                     await asyncio.sleep(0.1)
                     
             except Exception as e:
-                logger.error(f"Failed to generate embeddings for batch {batch_number}: {str(e)}")
+                logfire.exception(
+                    'service.embedding.batch.failed',
+                    batch_number=batch_number
+                )
                 # For now, raise the exception - could implement retry logic here
                 raise
         
-        logger.info(f"Successfully generated embeddings for all {total_texts} texts")
+        logfire.info(
+            'service.embedding.batch.all_complete',
+            total_texts=total_texts,
+            total_embeddings=len(all_embeddings)
+        )
         return all_embeddings
     
     def get_model_info(self) -> dict:

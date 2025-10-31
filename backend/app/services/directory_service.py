@@ -17,9 +17,7 @@ from sqlalchemy import select, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from ..models.directory import DirectoryList, DirectoryEntry
-import logging
-
-logger = logging.getLogger(__name__)
+import logfire
 
 # Type alias for search modes
 SearchMode = Literal["exact", "substring", "fts"]
@@ -79,9 +77,18 @@ class DirectoryService:
             found = {row[0] for row in found_names.fetchall()}
             missing = set(list_names) - found
             if missing:
-                logger.warning(f"Lists not found for account {account_id}: {missing}")
+                logfire.warn(
+                    'service.directory.lists_not_found',
+                    account_id=str(account_id),
+                    missing_lists=list(missing)
+                )
         
-        logger.info(f"Resolved {len(list_ids)} accessible list(s) for account {account_id}")
+        logfire.info(
+            'service.directory.lists_resolved',
+            account_id=str(account_id),
+            list_count=len(list_ids),
+            list_ids=[str(lid) for lid in list_ids]
+        )
         return list_ids
     
     @staticmethod
@@ -158,7 +165,7 @@ class DirectoryService:
             )
         """
         if not accessible_list_ids:
-            logger.warning("Search called with no accessible lists")
+            logfire.warn('service.directory.search_no_lists')
             return []
         
         # Base query: filter by accessible lists
@@ -198,13 +205,18 @@ class DirectoryService:
                     fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, fts_ts_query)
                     query = query.order_by(fts_rank_expr.desc())
                     
-                    logger.debug(f"FTS query: {tsquery_str}")
+                    logfire.debug(
+                        'service.directory.search.fts_query',
+                        tsquery_str=tsquery_str,
+                        name_query=name_query
+                    )
                     
                 except Exception as e:
                     # Fallback to substring search if tsquery fails
-                    logger.warning(
-                        f"FTS query failed for '{name_query}': {e}. "
-                        f"Falling back to substring search."
+                    logfire.warn(
+                        'service.directory.search.fts_query_failed',
+                        name_query=name_query,
+                        error=str(e)
                     )
                     query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
                     
@@ -273,7 +285,11 @@ class DirectoryService:
                     # But substring filter "%Urology%" fails because "Urology" is not a substring of "Urologic Surgery"
                     # This causes false negatives, so we rely on tsvector only
                     
-                    logger.debug(f"FTS filter query: {combined_tsquery_str}")
+                    logfire.debug(
+                        'service.directory.search.fts_filter_query',
+                        combined_tsquery_str=combined_tsquery_str,
+                        filter_count=len(jsonb_filters)
+                    )
             else:
                 # Non-FTS modes: Use regex word-boundary matching
                 # Uses regex word boundaries to prevent false matches:
@@ -297,9 +313,13 @@ class DirectoryService:
         result = await session.execute(query)
         entries = result.scalars().all()
         
-        logger.info(
-            f"Search returned {len(entries)} entries "
-            f"(mode={search_mode}, query={name_query}, tags={tags}, filters={jsonb_filters})"
+        logfire.info(
+            'service.directory.search.complete',
+            entries_count=len(entries),
+            search_mode=search_mode,
+            name_query=name_query,
+            tags=tags,
+            filter_keys=list(jsonb_filters.keys()) if jsonb_filters else None
         )
         
         return entries

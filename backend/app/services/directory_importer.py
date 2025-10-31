@@ -12,13 +12,11 @@ from __future__ import annotations
 
 import csv
 import yaml
-import logging
+import logfire
 from typing import List, Dict, Callable, Optional
 from uuid import UUID
 from pathlib import Path
 from ..models.directory import DirectoryEntry
-
-logger = logging.getLogger(__name__)
 
 
 class DirectoryImporter:
@@ -46,7 +44,11 @@ class DirectoryImporter:
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema = yaml.safe_load(f)
         
-        logger.info(f"✅ Loaded schema: {schema_file} (entry_type={schema.get('entry_type')})")
+        logfire.info(
+            'service.directory.importer.schema_loaded',
+            schema_file=schema_file,
+            entry_type=schema.get('entry_type')
+        )
         return schema
     
     @staticmethod
@@ -63,7 +65,10 @@ class DirectoryImporter:
         """
         # Check name (always required)
         if not entry_data.get('name', '').strip():
-            logger.warning(f"Row {row_num}: Missing required field 'name'")
+            logfire.warn(
+                'service.directory.importer.validation.missing_name',
+                row_num=row_num
+            )
             return False
         
         # Check required fields in entry_data JSONB
@@ -71,7 +76,11 @@ class DirectoryImporter:
         for field in required_fields:
             field_value = entry_data.get('entry_data', {}).get(field)
             if not field_value or (isinstance(field_value, str) and not field_value.strip()):
-                logger.warning(f"Row {row_num}: Missing required field '{field}' in entry_data")
+                logfire.warn(
+                    'service.directory.importer.validation.missing_field',
+                    row_num=row_num,
+                    field=field
+                )
                 return False
         
         return True
@@ -108,9 +117,15 @@ class DirectoryImporter:
         if schema_file:
             try:
                 schema = DirectoryImporter.load_schema(schema_file)
-                logger.info(f"Schema validation enabled: {schema_file}")
+                logfire.info(
+                    'service.directory.importer.schema_validation_enabled',
+                    schema_file=schema_file
+                )
             except Exception as e:
-                logger.error(f"Failed to load schema {schema_file}: {e}")
+                logfire.exception(
+                    'service.directory.importer.schema_load_failed',
+                    schema_file=schema_file
+                )
                 raise
         
         # Parse CSV
@@ -132,14 +147,22 @@ class DirectoryImporter:
                     entry = DirectoryEntry(directory_list_id=directory_list_id, **entry_data)
                     entries.append(entry)
                 except Exception as e:
-                    logger.warning(f"Row {total_rows}: Error parsing - {e}")
+                    logfire.warn(
+                        'service.directory.importer.parse_error',
+                        row_num=total_rows,
+                        error=str(e)
+                    )
                     skipped_rows += 1
                     continue
         
-        logger.info(f"✅ Parsed {len(entries)} entries from {csv_file.name}")
-        if skipped_rows > 0:
-            logger.warning(f"⚠️  Skipped {skipped_rows} invalid rows")
-        logger.info(f"📊 Success rate: {len(entries)}/{total_rows} ({len(entries)/total_rows*100:.1f}%)")
+        logfire.info(
+            'service.directory.importer.parse_complete',
+            csv_file=csv_file.name,
+            entries_parsed=len(entries),
+            total_rows=total_rows,
+            skipped_rows=skipped_rows,
+            success_rate=len(entries)/total_rows*100 if total_rows > 0 else 0
+        )
         
         return entries
     

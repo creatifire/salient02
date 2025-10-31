@@ -45,7 +45,7 @@ from uuid import UUID
 import uuid
 from datetime import datetime, UTC
 
-from loguru import logger
+import logfire
 
 from ..models.llm_request import LLMRequest
 from ..database import get_database_service
@@ -152,35 +152,32 @@ class LLMRequestTracker:
                 await session.commit()
                 await session.refresh(llm_request)
         except Exception as e:
-            logger.error({
-                "event": "llm_request_tracking_failed",
-                "session_id": str(session_id),
-                "provider": provider,
-                "model": model,
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.exception(
+                'service.llm_tracker.tracking_failed',
+                session_id=str(session_id),
+                provider=provider,
+                model=model
+            )
             # Don't re-raise - tracking failures shouldn't block agent responses
             # Return a placeholder UUID for consistency
             return uuid.uuid4()
         
         # Log successful tracking for monitoring
-        logger.info({
-            "event": "llm_request_tracked",
-            "session_id": str(session_id),
-            "agent_instance_id": str(agent_id),
-            "provider": provider,
-            "model": model,
-            "total_tokens": tokens.get("total", 0),
-            "computed_cost": cost_data.get("total_cost", 0.0),
-            "latency_ms": latency_ms,
-            "llm_request_id": str(llm_request.id),
-            # Denormalized attribution for debugging
-            "account_slug": account_slug,
-            "agent_instance_slug": agent_instance_slug,
-            "agent_type": agent_type,
-            "completion_status": completion_status
-        })
+        logfire.info(
+            'service.llm_tracker.tracked',
+            session_id=str(session_id),
+            agent_instance_id=str(agent_id),
+            provider=provider,
+            model=model,
+            total_tokens=tokens.get("total", 0),
+            computed_cost=cost_data.get("total_cost", 0.0),
+            latency_ms=latency_ms,
+            llm_request_id=str(llm_request.id),
+            account_slug=account_slug,
+            agent_instance_slug=agent_instance_slug,
+            agent_type=agent_type,
+            completion_status=completion_status
+        )
         
         return llm_request.id
     
@@ -274,16 +271,23 @@ async def track_llm_call(
     
     try:
         # Make the actual LLM call
-        from loguru import logger
-        logger.info("WRAPPER DEBUG: Starting agent function call")
+        logfire.debug('service.llm_tracker.wrapper.start', session_id=str(session_id))
         result = await agent_function(*args, **kwargs)
         end_time = datetime.utcnow()
         latency_ms = int((end_time - start_time).total_seconds() * 1000)
-        logger.info(f"WRAPPER DEBUG: Agent call completed in {latency_ms}ms")
+        logfire.debug(
+            'service.llm_tracker.wrapper.completed',
+            session_id=str(session_id),
+            latency_ms=latency_ms
+        )
         
         # Extract tracking data from result (Pydantic AI provides usage info)
         usage_data = result.usage() if hasattr(result, 'usage') else {}
-        logger.info(f"WRAPPER DEBUG: Usage data extracted: {usage_data}")
+        logfire.debug(
+            'service.llm_tracker.wrapper.usage_extracted',
+            session_id=str(session_id),
+            has_usage=bool(usage_data)
+        )
         
         # Build token usage dictionary
         tokens = {
@@ -291,7 +295,11 @@ async def track_llm_call(
             "completion": usage_data.get("output_tokens", 0),  # Pydantic AI uses output_tokens  
             "total": usage_data.get("total_tokens", 0)
         }
-        logger.info(f"WRAPPER DEBUG: Token data built: {tokens}")
+        logfire.debug(
+            'service.llm_tracker.wrapper.tokens_built',
+            session_id=str(session_id),
+            total_tokens=tokens.get("total", 0)
+        )
         
         # Extract cost data from usage (OpenRouter provides actual costs)
         cost_data = {
@@ -314,7 +322,10 @@ async def track_llm_call(
         }
         
         # Track the successful request
-        logger.info(f"WRAPPER DEBUG: Calling tracker.track_llm_request with session_id={session_id}")
+        logfire.debug(
+            'service.llm_tracker.wrapper.tracking',
+            session_id=str(session_id)
+        )
         llm_request_id = await tracker.track_llm_request(
             session_id=session_id,
             provider="openrouter",  # Will be configurable later
@@ -323,19 +334,28 @@ async def track_llm_call(
             response_body=response_data,
             tokens=tokens,
             cost_data=cost_data,
-            latency_ms=latency_ms
+            latency_ms=latency_ms,
+            account_id=UUID("00000000-0000-0000-0000-000000000001"),  # Default for wrapper
+            account_slug="default_account",
+            agent_instance_slug="default_agent",
+            agent_type="unknown"
         )
-        logger.info(f"WRAPPER DEBUG: LLM request tracked successfully: {llm_request_id}")
+        logfire.debug(
+            'service.llm_tracker.wrapper.tracked',
+            session_id=str(session_id),
+            llm_request_id=str(llm_request_id)
+        )
         
         return result, llm_request_id
         
     except Exception as e:
         # Calculate latency for failed requests
-        from loguru import logger
-        logger.error(f"WRAPPER DEBUG: Exception caught in track_llm_call: {e}")
-        logger.error(f"WRAPPER DEBUG: Exception type: {type(e)}")
         import traceback
-        logger.error(f"WRAPPER DEBUG: Full traceback: {traceback.format_exc()}")
+        logfire.exception(
+            'service.llm_tracker.wrapper.error',
+            session_id=str(session_id),
+            error_type=type(e).__name__
+        )
         
         end_time = datetime.utcnow()
         latency_ms = int((end_time - start_time).total_seconds() * 1000)

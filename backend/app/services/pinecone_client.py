@@ -11,7 +11,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 import asyncio
 import time
-import logging
+import logfire
 from typing import Dict, List, Optional, Any, Tuple
 from contextlib import asynccontextmanager
 
@@ -30,9 +30,6 @@ backend_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(backend_dir))
 
 from config.pinecone_config import pinecone_config_manager, PineconeConfig
-
-
-logger = logging.getLogger(__name__)
 
 
 class PineconeConnectionError(Exception):
@@ -109,26 +106,36 @@ class PineconeClient:
         """Create Pinecone client with retry logic"""
         for attempt in range(self._max_connection_attempts):
             try:
-                logger.info(f"Creating Pinecone client (attempt {attempt + 1}/{self._max_connection_attempts})")
+                logfire.info(
+                    'service.pinecone.client.creating',
+                    attempt=attempt + 1,
+                    max_attempts=self._max_connection_attempts
+                )
                 
                 client = Pinecone(
                     api_key=self.config.api_key,
                     # Additional configuration could be added here
                 )
                 
-                logger.info("Pinecone client created successfully")
+                logfire.info('service.pinecone.client.created')
                 self._connection_attempts = 0
                 return client
                 
             except Exception as e:
                 self._connection_attempts += 1
-                logger.warning(
-                    f"Failed to create Pinecone client (attempt {attempt + 1}): {str(e)}"
+                logfire.warn(
+                    'service.pinecone.client.create_failed',
+                    attempt=attempt + 1,
+                    error=str(e)
                 )
                 
                 if attempt < self._max_connection_attempts - 1:
                     sleep_time = self.config.retry_delay * (2 ** attempt)  # Exponential backoff
-                    logger.info(f"Retrying in {sleep_time} seconds...")
+                    logfire.info(
+                        'service.pinecone.client.retrying',
+                        sleep_time=sleep_time,
+                        next_attempt=attempt + 2
+                    )
                     time.sleep(sleep_time)
                 else:
                     raise PineconeConnectionError(
@@ -139,7 +146,11 @@ class PineconeClient:
         """Create Pinecone index connection with retry logic"""
         for attempt in range(self._max_connection_attempts):
             try:
-                logger.info(f"Creating index connection (attempt {attempt + 1}/{self._max_connection_attempts})")
+                logfire.info(
+                    'service.pinecone.index.creating',
+                    attempt=attempt + 1,
+                    max_attempts=self._max_connection_attempts
+                )
                 
                 # Remove https:// prefix if present - Pinecone client handles this
                 host = self.config.index_host
@@ -148,17 +159,26 @@ class PineconeClient:
                 
                 index = self.client.Index(host=host)
                 
-                logger.info(f"Index connection created successfully for host: {host}")
+                logfire.info(
+                    'service.pinecone.index.created',
+                    host=host
+                )
                 return index
                 
             except Exception as e:
-                logger.warning(
-                    f"Failed to create index connection (attempt {attempt + 1}): {str(e)}"
+                logfire.warn(
+                    'service.pinecone.index.create_failed',
+                    attempt=attempt + 1,
+                    error=str(e)
                 )
                 
                 if attempt < self._max_connection_attempts - 1:
                     sleep_time = self.config.retry_delay * (2 ** attempt)
-                    logger.info(f"Retrying in {sleep_time} seconds...")
+                    logfire.info(
+                        'service.pinecone.index.retrying',
+                        sleep_time=sleep_time,
+                        next_attempt=attempt + 2
+                    )
                     time.sleep(sleep_time)
                 else:
                     raise PineconeConnectionError(
@@ -182,7 +202,7 @@ class PineconeClient:
             return {"status": "cached", "message": "Using cached health check result"}
         
         try:
-            logger.info("Performing Pinecone health check...")
+            logfire.info('service.pinecone.health_check.starting')
             
             # Test basic index stats call
             stats = self.index.describe_index_stats()
@@ -203,12 +223,16 @@ class PineconeClient:
             }
             
             self._last_health_check = current_time
-            logger.info("Pinecone health check passed")
+            logfire.info(
+                'service.pinecone.health_check.passed',
+                index_name=self.config.index_name,
+                total_vector_count=stats.total_vector_count
+            )
             
             return health_info
             
         except Exception as e:
-            logger.error(f"Pinecone health check failed: {str(e)}")
+            logfire.exception('service.pinecone.health_check.failed')
             raise PineconeHealthCheckError(f"Health check failed: {str(e)}")
     
     async def test_connection(self) -> bool:
@@ -225,7 +249,7 @@ class PineconeClient:
     
     def reset_connection(self):
         """Reset client and index connections (useful for error recovery)"""
-        logger.info("Resetting Pinecone connections...")
+        logfire.info('service.pinecone.connection.reset')
         self._client = None
         self._index = None
         self._connection_attempts = 0
@@ -237,7 +261,7 @@ class PineconeClient:
         try:
             yield self
         except Exception as e:
-            logger.error(f"Error in Pinecone operation: {str(e)}")
+            logfire.exception('service.pinecone.operation.error')
             # Reset connection on certain error types
             if isinstance(e, (PineconeConnectionError, PineconeException)):
                 self.reset_connection()
