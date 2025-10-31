@@ -367,6 +367,8 @@ query_response = index.query(
 
 ## 7. Logfire (`/pydantic/logfire`)
 
+**Migration Status**: See [Priority 11 - Logging Infrastructure Consolidation](../project-management/0000-approach-milestone-01.md#priority-11-logging-infrastructure-consolidation--planned) for full migration plan from loguru to Logfire.
+
 ### Critical Patterns ✅
 
 **FastAPI Instrumentation:**
@@ -397,6 +399,7 @@ logfire.instrument_pydantic_ai()
 1. **Diagnostic Logging**: Keep `logfire.instrument_pydantic()` enabled - verbose logs reveal issues
 2. **Performance**: Instrumentation adds minimal overhead
 3. **Token Required**: Cloud dashboard requires LOGFIRE_TOKEN environment variable
+4. **Migration Path**: When migrating from loguru, follow Priority 11 patterns for consistency
 
 ---
 
@@ -520,7 +523,12 @@ usage = result.usage()  # RunUsage(input_tokens=..., output_tokens=...)
   - **Relationships Covered**: Session.account, Session.agent_instance, Message.session, Message.agent_instance, Message.llm_request, DirectoryList.entries, DirectoryList.account, DirectoryEntry.directory_list
   - **Commit**: `c78799a`
   - **Status**: All queries now prevent N+1 issues by eagerly loading relationships
-- [ ] **Alembic Async**: Ensure migrations use async engine patterns
+- [x] **Alembic Async**: Ensure migrations use async engine patterns ✅ **COMPLETE** (January 12, 2025)
+  - **Implementation**: Updated `run_async_migrations()` to use `async_engine_from_config()` pattern
+  - **Files Updated**: `backend/migrations/env.py`
+  - **Verification**: All 8 migration scripts verified to use sync upgrade/downgrade functions (correct pattern)
+  - **Status**: Async migrations properly configured with `connection.run_sync()` pattern
+  - **Commit**: Pending
 - [x] **Pydantic AI**: Verify all tools use `RunContext[DepsType]` pattern ✅ **COMPLETE** (January 12, 2025)
   - **Implementation**: Verified all tool functions use RunContext type annotations
   - **Files Updated**: agent_base.py (tool_wrapper), vector_tools.py (vector_search), directory_tools.py (search_directory)
