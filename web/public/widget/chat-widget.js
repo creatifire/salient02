@@ -27,6 +27,11 @@
   const accountSlug = globalConfig.account || (script && script.getAttribute('data-account')) || 'default_account';
   const agentInstanceSlug = globalConfig.agent || (script && script.getAttribute('data-agent')) || 'simple_chat1';
   
+  // Typography and styling configuration
+  const fontFamily = globalConfig.fontFamily || (script && script.getAttribute('data-font-family')) || 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  const fontSize = globalConfig.fontSize || (script && script.getAttribute('data-font-size')) || '14px';
+  const headerColor = globalConfig.headerColor || (script && script.getAttribute('data-header-color')) || '#169CB5';
+  
   // Debug mode - enable verbose console logging
   const debugMode = globalConfig.debug !== undefined ? globalConfig.debug : false;
   console.log('🔍 WIDGET LOADED - debugMode:', debugMode, 'globalConfig:', globalConfig);
@@ -83,14 +88,14 @@
     const style = document.createElement('style');
     style.textContent = `
       :host{ all: initial; }
-      *, *::before, *::after { box-sizing: border-box; }
+      *, *::before, *::after { box-sizing: border-box; font-family: ${fontFamily}; font-size: ${fontSize}; }
       #overlay{ position: fixed; inset: 0; background: rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 2147483630; }
       :host([data-open="1"]) #overlay{ opacity: 1; pointer-events: auto; }
-      #fab{ position: fixed; right: 16px; bottom: 16px; z-index: 2147483646; border: 0; border-radius: 9999px; padding: .65rem .9rem; background: #108D43; color: #fff; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,.2); font: 600 14px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      #fab{ position: fixed; right: 16px; bottom: 16px; z-index: 2147483646; border: 0; border-radius: 9999px; padding: .65rem .9rem; background: #108D43; color: #fff; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,.2); font: 600 ${fontSize}/1 ${fontFamily}; }
       #pane{ position: fixed; right: 16px; bottom: 72px; width: min(92vw, 380px); height: 480px; background: #fff; color: #111; border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,.25); transform: translateX(120%); transition: transform .25s ease, width .5s cubic-bezier(0.4, 0, 0.2, 1), height .5s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; z-index: 2147483645; display: flex; flex-direction: column; }
       :host([data-open="1"]) #pane{ transform: translateX(0); }
       #pane.maximized{ width: calc(100vw - 66px); height: calc(100vh - 97px); }
-      header{ padding: .6rem .85rem; background: #169CB5; color: #fff; font: 600 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+      header{ padding: .6rem .85rem; background: ${headerColor}; color: #fff; font: 600 ${fontSize}/1.2 ${fontFamily}; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
       .header-title{ flex:1; text-align:center; }
       .header-btn{ background:transparent; border:none; color:#fff; cursor:pointer; padding:4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; opacity:.9; transition:opacity .15s ease; }
       .header-btn:hover{ opacity:1; }

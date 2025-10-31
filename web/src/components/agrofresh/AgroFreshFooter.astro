@@ -15,7 +15,10 @@
     backend: 'http://localhost:8000',
     allowCross: true,
     sse: false,  // Disable SSE - use POST only (Pydantic AI doesn't stream tool calls)
-    debug: isDev  // Auto-enable debug in development
+    debug: isDev,  // Auto-enable debug in development
+    fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',  // Default font
+    fontSize: '14px',  // Default font size
+    headerColor: '#2E7D32'  // AgroFresh green matching navbar/footer
   };
 </script>
 <script is:inline src="/widget/chat-widget.js?v=14"></script>
