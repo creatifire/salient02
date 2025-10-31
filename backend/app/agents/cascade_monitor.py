@@ -18,7 +18,7 @@ from datetime import datetime, UTC
 from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 from pathlib import Path
-from loguru import logger
+import logfire
 
 
 @dataclass
@@ -99,11 +99,11 @@ class CascadeAuditTrail:
         
         # Log with appropriate level based on outcome
         if self.successful_source == "hardcoded_fallback":
-            logger.warning(audit_log)  # Warn if falling back to hardcoded values
+            logfire.warn('config.cascade.fallback', **audit_log)  # Warn if falling back to hardcoded values
         elif any(not attempt.success for attempt in self.attempts):
-            logger.info(audit_log)  # Info if some sources failed but cascade worked
+            logfire.info('config.cascade.partial_success', **audit_log)  # Info if some sources failed but cascade worked
         else:
-            logger.debug(audit_log)  # Debug for successful first-try cascades
+            logfire.debug('config.cascade.success', **audit_log)  # Debug for successful first-try cascades
     
     def _generate_troubleshooting_guide(self) -> Dict[str, str]:
         """Generate contextual troubleshooting guidance."""
@@ -189,38 +189,38 @@ class CascadeMetrics:
     @staticmethod
     def log_cascade_performance(agent_name: str, parameter: str, source: str, duration_ms: float):
         """Log cascade performance metrics."""
-        logger.debug({
-            "event": "cascade_performance_metric",
-            "agent_name": agent_name,
-            "parameter": parameter,
-            "source": source,
-            "duration_ms": duration_ms,
-            "timestamp": datetime.now(UTC).isoformat()
-        })
+        logfire.debug(
+            'config.cascade.performance',
+            agent_name=agent_name,
+            parameter=parameter,
+            source=source,
+            duration_ms=duration_ms,
+            timestamp=datetime.now(UTC).isoformat()
+        )
     
     @staticmethod
     def log_fallback_usage(agent_name: str, parameter: str, reason: str):
         """Log fallback usage for monitoring configuration health."""
-        logger.warning({
-            "event": "cascade_fallback_usage",
-            "agent_name": agent_name,
-            "parameter": parameter,
-            "reason": reason,
-            "alert": "Configuration may need attention",
-            "timestamp": datetime.now(UTC).isoformat(),
-            "recommended_action": f"Check agent config for {agent_name} parameter {parameter}"
-        })
+        logfire.warn(
+            'config.cascade.fallback_usage',
+            agent_name=agent_name,
+            parameter=parameter,
+            reason=reason,
+            alert="Configuration may need attention",
+            timestamp=datetime.now(UTC).isoformat(),
+            recommended_action=f"Check agent config for {agent_name} parameter {parameter}"
+        )
     
     @staticmethod
     def log_cascade_health_check(agent_name: str, parameters_checked: List[str], health_status: str):
         """Log overall cascade system health."""
-        logger.info({
-            "event": "cascade_health_check",
-            "agent_name": agent_name,
-            "parameters_checked": parameters_checked,
-            "health_status": health_status,
-            "timestamp": datetime.now(UTC).isoformat()
-        })
+        logfire.info(
+            'config.cascade.health_check',
+            agent_name=agent_name,
+            parameters_checked=parameters_checked,
+            health_status=health_status,
+            timestamp=datetime.now(UTC).isoformat()
+        )
 
 
 def enhanced_cascade_wrapper(parameter_name: str):

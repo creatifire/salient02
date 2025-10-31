@@ -121,7 +121,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
 from markdown_it import MarkdownIt
 from sse_starlette.sse import EventSourceResponse
 import logfire
@@ -202,30 +201,29 @@ async def lifespan(app: FastAPI):
             incomplete initialization, ensuring fail-fast behavior for reliability
     """
     # Startup sequence: Initialize all application services and dependencies
-    _setup_logger()
-    logger.info("Starting Salient Sales Bot application...")
+    logfire.info('app.startup.begin')
     
     try:
         # Initialize database service with connection pooling and health verification
         await initialize_database()
-        logger.info("Database service initialized successfully")
+        logfire.info('app.startup.database_initialized')
     except Exception as e:
         # Log startup failure and re-raise to prevent application start
-        logger.error(f"Failed to initialize database: {e}")
+        logfire.error('app.startup.database_init_failed', error=str(e))
         raise  # Fail-fast: don't start application with incomplete initialization
     
     # Yield control to FastAPI application - normal operation begins here
     yield  # Application runs here
     
     # Shutdown sequence: Clean up all resources and close connections gracefully
-    logger.info("Shutting down application...")
+    logfire.info('app.shutdown.begin')
     try:
         # Gracefully shutdown database connections and dispose of connection pools
         await shutdown_database()
-        logger.info("Database service shut down cleanly")
+        logfire.info('app.shutdown.database_closed')
     except Exception as e:
         # Log shutdown errors but don't prevent application exit
-        logger.error(f"Error during database shutdown: {e}")
+        logfire.error('app.shutdown.database_error', error=str(e))
 
 
 # FastAPI application instance with comprehensive configuration
@@ -293,57 +291,6 @@ def _register_legacy_endpoints() -> None:
             "message": "Legacy endpoints disabled via configuration",
             "enabled": False
         })
-
-
-def _setup_logger() -> None:
-    """
-    Configure structured logging with file rotation and console output.
-    
-    Sets up Loguru with:
-    - JSONL format for structured logging and parsing
-    - File rotation based on size or time intervals
-    - Configurable retention for log cleanup
-    - Console output for development visibility
-    - Timestamped log files for easy identification
-    
-    Configuration loaded from app.yaml logging section with sensible defaults.
-    Log files are created in the configured directory with timestamped names.
-    """
-    cfg = load_config()
-    logging_cfg = cfg.get("logging") or {}
-    level = str(logging_cfg.get("level", "INFO")).upper()
-    # Resolve log directory path relative to backend/ directory
-    configured_path = logging_cfg.get("path")
-    if configured_path:
-        # If path is specified in config, resolve it relative to backend/ directory
-        log_dir = str(BASE_DIR / configured_path.lstrip('./'))
-    else:
-        # Default fallback to backend/logs/
-        log_dir = str(BASE_DIR / "logs")
-    prefix = logging_cfg.get("prefix", "salient-log-")
-    rotation = str(logging_cfg.get("rotation", "1 day"))
-    retention = str(logging_cfg.get("retention", "14 days"))
-    compression = logging_cfg.get("compression")
-    enqueue = bool(logging_cfg.get("enqueue", False))
-
-    # Remove default logger and configure JSONL structured logging
-    logger.remove()
-    logger.add(sys.stdout, level=level, serialize=True, enqueue=enqueue)
-    
-    # Create daily log file with proper rotation (survives restarts)
-    ts = datetime.now().strftime("%Y%m%d")
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
-    file_target = str(Path(log_dir) / f"{prefix}{ts}.jsonl")
-
-    logger.add(
-        file_target,
-        level=level,
-        serialize=True,
-        rotation=rotation,
-        retention=retention,
-        compression=compression,
-        enqueue=enqueue,
-    )
 
 
 async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str, Any]]:

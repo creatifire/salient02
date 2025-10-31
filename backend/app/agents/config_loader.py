@@ -32,6 +32,7 @@ from typing import Dict, List, Optional, Any
 
 import yaml
 from pydantic import ValidationError
+import logfire
 
 from ..config import load_config
 from .base.types import AgentConfig
@@ -516,8 +517,13 @@ async def get_agent_model_settings(agent_name: str, account_slug: Optional[str] 
             model_settings[param_name] = value
         except Exception as e:
             # Log error but continue with fallback
-            from loguru import logger
-            logger.warning(f"Error getting {param_name} for {agent_name}: {e}, using fallback")
+            logfire.warn(
+                'config.agent.model_setting_error',
+                param_name=param_name,
+                agent_name=agent_name,
+                error=str(e),
+                fallback=config["fallback"]
+            )
             model_settings[param_name] = config["fallback"]
     
     return model_settings
@@ -610,8 +616,12 @@ async def get_agent_tool_config(agent_name: str, tool_name: str,
     
     # Get the parameter configuration for this tool
     if tool_name not in tool_configs:
-        from loguru import logger
-        logger.warning(f"Unknown tool '{tool_name}' for agent '{agent_name}', returning empty config")
+        logfire.warn(
+            'config.agent.unknown_tool',
+            tool_name=tool_name,
+            agent_name=agent_name,
+            action='returning_empty_config'
+        )
         return {"enabled": False}
     
     parameters = tool_configs[tool_name]
@@ -632,8 +642,14 @@ async def get_agent_tool_config(agent_name: str, tool_name: str,
             tool_config[param_name] = value
         except Exception as e:
             # Log error but continue with fallback
-            from loguru import logger
-            logger.warning(f"Error getting {param_name} for tool {tool_name} in {agent_name}: {e}, using fallback")
+            logfire.warn(
+                'config.agent.tool_setting_error',
+                param_name=param_name,
+                tool_name=tool_name,
+                agent_name=agent_name,
+                error=str(e),
+                fallback=config["fallback"]
+            )
             tool_config[param_name] = config["fallback"]
     
     return tool_config

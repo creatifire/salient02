@@ -31,7 +31,7 @@ import time
 from typing import AsyncIterator, Dict, Any
 
 import httpx
-from loguru import logger
+import logfire
 from .config import get_openrouter_api_key
 
 
@@ -94,16 +94,16 @@ async def stream_chat_chunks(
     }
     
     # DEBUG: Log exactly what we're sending to OpenRouter
-    logger.info({
-        "event": "openrouter_streaming_request_debug",
-        "payload_model": payload["model"],
-        "payload_messages": payload["messages"],
-        "payload_temperature": payload["temperature"],
-        "payload_max_tokens": payload["max_tokens"],
-        "payload_stream": payload["stream"],
-        "api_key_prefix": api_key[:10] + "..." if api_key else "none",
-        "full_payload": payload
-    })
+    logfire.info(
+        'openrouter.streaming_request',
+        model=payload["model"],
+        messages=payload["messages"],
+        temperature=payload["temperature"],
+        max_tokens=payload["max_tokens"],
+        stream=payload["stream"],
+        api_key_prefix=api_key[:10] + "..." if api_key else "none",
+        full_payload=payload
+    )
 
     accumulated_content = ""
     start = time.perf_counter()
@@ -152,42 +152,42 @@ async def stream_chat_chunks(
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code if exc.response else None
             latency_ms = int((time.perf_counter() - start) * 1000)
-            logger.error({
-                "event": "openrouter_streaming_error",
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "status": status,
-                "error": type(exc).__name__,
-                "latency_ms": latency_ms,
-            })
+            logfire.error(
+                'openrouter.streaming_error',
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                status=status,
+                error=type(exc).__name__,
+                latency_ms=latency_ms
+            )
             yield f"[OpenRouter streaming error: {status}]"
             return
             
         except httpx.HTTPError as exc:
             latency_ms = int((time.perf_counter() - start) * 1000)
-            logger.error({
-                "event": "openrouter_streaming_error", 
-                "model": model,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "error": type(exc).__name__,
-                "latency_ms": latency_ms,
-            })
+            logfire.error(
+                'openrouter.streaming_error',
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                error=type(exc).__name__,
+                latency_ms=latency_ms
+            )
             yield f"[OpenRouter streaming error: {type(exc).__name__}]"
             return
 
     # Log final usage statistics
     latency_ms = int((time.perf_counter() - start) * 1000)
-    logger.info({
-        "event": "openrouter_streaming_complete",
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "latency_ms": latency_ms,
-        "content_length": len(accumulated_content),
-        "streaming": True,
-    })
+    logfire.info(
+        'openrouter.streaming_complete',
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        latency_ms=latency_ms,
+        content_length=len(accumulated_content),
+        streaming=True
+    )
 
 
 async def chat_completion_content(
@@ -220,16 +220,16 @@ async def chat_completion_content(
     }
     
     # DEBUG: Log exactly what we're sending to OpenRouter (non-streaming)
-    logger.info({
-        "event": "openrouter_nonstreaming_request_debug",
-        "payload_model": payload["model"],
-        "payload_messages": payload["messages"],
-        "payload_temperature": payload["temperature"],
-        "payload_max_tokens": payload["max_tokens"],
-        "payload_stream": payload.get("stream", False),
-        "api_key_prefix": api_key[:10] + "..." if api_key else "none",
-        "full_payload": payload
-    })
+    logfire.info(
+        'openrouter.nonstreaming_request',
+        model=payload["model"],
+        messages=payload["messages"],
+        temperature=payload["temperature"],
+        max_tokens=payload["max_tokens"],
+        stream=payload.get("stream", False),
+        api_key_prefix=api_key[:10] + "..." if api_key else "none",
+        full_payload=payload
+    )
 
     async with httpx.AsyncClient(base_url=OPENROUTER_BASE_URL, timeout=60.0) as client:
         attempt = 0
@@ -247,16 +247,16 @@ async def chat_completion_content(
                 except Exception:
                     body = None
                 latency_ms = int((time.perf_counter() - start) * 1000)
-                logger.error({
-                    "event": "openrouter_error",
-                    "model": model,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "status": status,
-                    "error": type(exc).__name__,
-                    "latency_ms": latency_ms,
-                    "body": body,
-                })
+                logfire.error(
+                    'openrouter.error',
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    status=status,
+                    error=type(exc).__name__,
+                    latency_ms=latency_ms,
+                    body=body
+                )
                 if status == 429 and attempt < 2:
                     backoff = 0.8 * (2 ** attempt)
                     attempt += 1
@@ -265,14 +265,14 @@ async def chat_completion_content(
                 return f"[OpenRouter error: {status}]"
             except httpx.HTTPError as exc:
                 latency_ms = int((time.perf_counter() - start) * 1000)
-                logger.error({
-                    "event": "openrouter_error",
-                    "model": model,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "error": type(exc).__name__,
-                    "latency_ms": latency_ms,
-                })
+                logfire.error(
+                    'openrouter.error',
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    error=type(exc).__name__,
+                    latency_ms=latency_ms
+                )
                 return f"[OpenRouter error: {type(exc).__name__}]"
         latency_ms = int((time.perf_counter() - start) * 1000)
 
@@ -288,25 +288,25 @@ async def chat_completion_content(
         completion_tokens = usage.get("completion_tokens")
         total_tokens = usage.get("total_tokens")
         cost = usage.get("cost")
-        logger.info({
-            "event": "openrouter_usage",
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "latency_ms": latency_ms,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "total_tokens": total_tokens,
-            "cost": cost,
-        })
+        logfire.info(
+            'openrouter.usage',
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            latency_ms=latency_ms,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            cost=cost
+        )
     except Exception as _:
-        logger.info({
-            "event": "openrouter_usage",
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "latency_ms": latency_ms,
-        })
+        logfire.info(
+            'openrouter.usage',
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            latency_ms=latency_ms
+        )
 
     return content
 
@@ -362,16 +362,16 @@ async def chat_completion_with_usage(
                 except Exception:
                     body = None
                 latency_ms = int((time.perf_counter() - start) * 1000)
-                logger.error({
-                    "event": "openrouter_error",
-                    "model": model,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "status": status,
-                    "error": type(exc).__name__,
-                    "latency_ms": latency_ms,
-                    "body": body,
-                })
+                logfire.error(
+                    'openrouter.error',
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    status=status,
+                    error=type(exc).__name__,
+                    latency_ms=latency_ms,
+                    body=body
+                )
                 if status == 429 and attempt < 2:
                     backoff = 0.8 * (2 ** attempt)
                     attempt += 1
@@ -383,14 +383,14 @@ async def chat_completion_with_usage(
                 }
             except httpx.HTTPError as exc:
                 latency_ms = int((time.perf_counter() - start) * 1000)
-                logger.error({
-                    "event": "openrouter_error",
-                    "model": model,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                    "error": type(exc).__name__,
-                    "latency_ms": latency_ms,
-                })
+                logfire.error(
+                    'openrouter.error',
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    error=type(exc).__name__,
+                    latency_ms=latency_ms
+                )
                 return {
                     "content": f"[OpenRouter error: {type(exc).__name__}]",
                     "usage": {"cost": 0.0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "error": True}
@@ -417,17 +417,17 @@ async def chat_completion_with_usage(
     }
     
     # Log for monitoring (keep existing logging)
-    logger.info({
-        "event": "openrouter_usage_with_cost",
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "latency_ms": latency_ms,
-        "prompt_tokens": usage_data["prompt_tokens"],
-        "completion_tokens": usage_data["completion_tokens"], 
-        "total_tokens": usage_data["total_tokens"],
-        "cost": usage_data["cost"],  # Real cost for billing
-    })
+    logfire.info(
+        'openrouter.usage_with_cost',
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        latency_ms=latency_ms,
+        prompt_tokens=usage_data["prompt_tokens"],
+        completion_tokens=usage_data["completion_tokens"],
+        total_tokens=usage_data["total_tokens"],
+        cost=usage_data["cost"]  # Real cost for billing
+    )
 
     return {
         "content": content,

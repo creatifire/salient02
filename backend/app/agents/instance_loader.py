@@ -23,7 +23,7 @@ from typing import Optional
 from uuid import UUID
 
 import yaml
-from loguru import logger
+import logfire
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -81,21 +81,23 @@ async def load_agent_instance(
         print(f"Loaded: {instance.display_name}")
         print(f"Model: {instance.config['model_settings']['model']}")
     """
-    logger.info(
-        f"Loading agent instance: account={account_slug}, instance={instance_slug}"
+    logfire.info(
+        'agent.instance.load_start',
+        account_slug=account_slug,
+        instance_slug=instance_slug
     )
     
     # Use provided session or create our own with proper context manager
     if session is not None:
         # Caller manages session lifecycle
-        logger.debug(f"Using provided session for: {account_slug}/{instance_slug}")
+        logfire.debug('agent.instance.session_provided', account_slug=account_slug, instance_slug=instance_slug)
         return await _load_with_session(session, account_slug, instance_slug)
     else:
         # We manage session lifecycle with async context manager
-        logger.debug(f"Creating new session for: {account_slug}/{instance_slug}")
+        logfire.debug('agent.instance.session_create', account_slug=account_slug, instance_slug=instance_slug)
         db_service = get_database_service()
         async with db_service.get_session() as session:
-            logger.debug(f"Session created, loading instance: {account_slug}/{instance_slug}")
+            logfire.debug('agent.instance.session_created', account_slug=account_slug, instance_slug=instance_slug)
             return await _load_with_session(session, account_slug, instance_slug)
 
 
@@ -140,8 +142,10 @@ async def _load_with_session(
     row = result.first()
     
     if not row:
-        logger.error(
-            f"Agent instance not found: account={account_slug}, instance={instance_slug}"
+        logfire.error(
+            'agent.instance.not_found',
+            account_slug=account_slug,
+            instance_slug=instance_slug
         )
         raise ValueError(
             f"Agent instance not found: {account_slug}/{instance_slug}"
@@ -151,27 +155,30 @@ async def _load_with_session(
     
     # Step 2: Validate instance is active
     if instance_model.status != 'active':
-        logger.error(
-            f"Agent instance is not active: {account_slug}/{instance_slug} "
-            f"(status={instance_model.status})"
+        logfire.error(
+            'agent.instance.not_active',
+            account_slug=account_slug,
+            instance_slug=instance_slug,
+            status=instance_model.status
         )
         raise ValueError(
             f"Agent instance is not active: {account_slug}/{instance_slug} "
             f"(status={instance_model.status})"
         )
     
-    logger.debug(
-        f"Found active instance: id={instance_model.id}, "
-        f"type={instance_model.agent_type}, "
-        f"display_name={instance_model.display_name}"
+    logfire.debug(
+        'agent.instance.found_active',
+        instance_id=str(instance_model.id),
+        agent_type=instance_model.agent_type,
+        display_name=instance_model.display_name
     )
     
     # Step 3: Load config file
     config_path = _get_config_path(account_slug, instance_slug)
-    logger.debug(f"Loading config from: {config_path}")
+    logfire.debug('agent.instance.config_load', config_path=str(config_path))
     
     if not config_path.exists():
-        logger.error(f"Config file not found: {config_path}")
+        logfire.error('agent.instance.config_not_found', config_path=str(config_path))
         raise FileNotFoundError(
             f"Config file not found: {config_path}"
         )
@@ -180,16 +187,16 @@ async def _load_with_session(
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        logger.error(f"Invalid YAML in config file {config_path}: {e}")
+        logfire.error('agent.instance.config_invalid_yaml', config_path=str(config_path), error=str(e))
         raise
     
-    logger.debug(f"Config loaded successfully from {config_path}")
+    logfire.debug('agent.instance.config_loaded', config_path=str(config_path))
     
     # Step 4: Load system prompt if exists
     system_prompt = None
     system_prompt_path = config_path.parent / "system_prompt.md"
     if system_prompt_path.exists():
-        logger.debug(f"Loading system prompt from: {system_prompt_path}")
+        logfire.debug('agent.instance.system_prompt_load', system_prompt_path=str(system_prompt_path))
         with open(system_prompt_path, 'r') as f:
             system_prompt = f.read()
     
@@ -202,9 +209,12 @@ async def _load_with_session(
     await session.execute(update_stmt)
     await session.commit()
     
-    logger.info(
-        f"Successfully loaded instance: {account_slug}/{instance_slug} "
-        f"(type={instance_model.agent_type}, id={instance_model.id})"
+    logfire.info(
+        'agent.instance.load_success',
+        account_slug=account_slug,
+        instance_slug=instance_slug,
+        agent_type=instance_model.agent_type,
+        instance_id=str(instance_model.id)
     )
     
     # Step 6: Return AgentInstance dataclass
@@ -332,14 +342,14 @@ async def list_account_instances(
     # Use provided session or create our own with proper context manager
     if session is not None:
         # Caller manages session lifecycle
-        logger.debug(f"Using provided session for listing: {account_slug}")
+        logfire.debug('agent.instance.list_session_provided', account_slug=account_slug)
         return await _list_account_instances_with_session(session, account_slug)
     else:
         # We manage session lifecycle with async context manager
-        logger.debug(f"Creating new session for listing: {account_slug}")
+        logfire.debug('agent.instance.list_session_create', account_slug=account_slug)
         db_service = get_database_service()
         async with db_service.get_session() as session:
-            logger.debug(f"Session created, listing instances: {account_slug}")
+            logfire.debug('agent.instance.list_session_created', account_slug=account_slug)
             return await _list_account_instances_with_session(session, account_slug)
 
 
@@ -358,10 +368,10 @@ async def _list_account_instances_with_session(
     account = account_result.scalar_one_or_none()
     
     if not account:
-        logger.warning(f"Account not found for listing instances: {account_slug}")
+        logfire.warn('agent.instance.list_account_not_found', account_slug=account_slug)
         raise ValueError(f"Account '{account_slug}' not found")
     
-    logger.info(f"Listing instances for account: {account_slug} (id={account.id})")
+    logfire.info('agent.instance.list_start', account_slug=account_slug, account_id=str(account.id))
     
     # Query all active instances for this account
     stmt = (
@@ -389,9 +399,11 @@ async def _list_account_instances_with_session(
         for inst in instances
     ]
     
-    logger.info(
-        f"Found {len(instance_list)} active instances for account {account_slug}: "
-        f"{[i['instance_slug'] for i in instance_list]}"
+    logfire.info(
+        'agent.instance.list_complete',
+        account_slug=account_slug,
+        count=len(instance_list),
+        instance_slugs=[i['instance_slug'] for i in instance_list]
     )
     
     return instance_list
@@ -436,14 +448,14 @@ async def get_instance_metadata(
     # Use provided session or create our own with proper context manager
     if session is not None:
         # Caller manages session lifecycle
-        logger.debug(f"Using provided session for metadata: {account_slug}/{instance_slug}")
+        logfire.debug('agent.instance.metadata_session_provided', account_slug=account_slug, instance_slug=instance_slug)
         return await _get_instance_metadata_with_session(session, account_slug, instance_slug)
     else:
         # We manage session lifecycle with async context manager
-        logger.debug(f"Creating new session for metadata: {account_slug}/{instance_slug}")
+        logfire.debug('agent.instance.metadata_session_create', account_slug=account_slug, instance_slug=instance_slug)
         db_service = get_database_service()
         async with db_service.get_session() as session:
-            logger.debug(f"Session created, getting metadata: {account_slug}/{instance_slug}")
+            logfire.debug('agent.instance.metadata_session_created', account_slug=account_slug, instance_slug=instance_slug)
             return await _get_instance_metadata_with_session(session, account_slug, instance_slug)
 
 
@@ -470,8 +482,10 @@ async def _get_instance_metadata_with_session(
     row = result.one_or_none()
     
     if not row:
-        logger.warning(
-            f"Instance metadata not found: {account_slug}/{instance_slug}"
+        logfire.warn(
+            'agent.instance.metadata_not_found',
+            account_slug=account_slug,
+            instance_slug=instance_slug
         )
         raise ValueError(
             f"Agent instance '{instance_slug}' not found in account '{account_slug}'"
@@ -481,17 +495,22 @@ async def _get_instance_metadata_with_session(
     
     # Check if instance is active
     if instance.status != "active":
-        logger.warning(
-            f"Attempted to get metadata for inactive instance: "
-            f"{account_slug}/{instance_slug} (status={instance.status})"
+        logfire.warn(
+            'agent.instance.metadata_inactive',
+            account_slug=account_slug,
+            instance_slug=instance_slug,
+            status=instance.status
         )
         raise ValueError(
             f"Agent instance '{instance_slug}' is inactive (status={instance.status})"
         )
     
-    logger.debug(
-        f"Retrieved metadata for instance: {account_slug}/{instance_slug} "
-        f"(id={instance.id}, type={instance.agent_type})"
+    logfire.debug(
+        'agent.instance.metadata_retrieved',
+        account_slug=account_slug,
+        instance_slug=instance_slug,
+        instance_id=str(instance.id),
+        agent_type=instance.agent_type
     )
     
     # Return metadata dict

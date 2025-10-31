@@ -70,7 +70,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict
 
-from loguru import logger
+import logfire
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
@@ -176,7 +176,7 @@ class DatabaseService:
             will only log a warning for subsequent calls.
         """
         if self._is_initialized:
-            logger.warning("Database service already initialized")
+            logfire.warn('database.already_initialized')
             return
             
         try:
@@ -206,19 +206,18 @@ class DatabaseService:
             # Note: For async engines, we use the underlying sync engine for instrumentation
             # This enables automatic SQL query logging and tracing
             try:
-                import logfire
                 # For async engines, access the sync engine via .sync_engine attribute
                 # If sync_engine doesn't exist, try direct instrumentation (may not work for async)
                 sync_engine = getattr(self._engine, 'sync_engine', None)
                 if sync_engine:
                     logfire.instrument_sqlalchemy(engine=sync_engine)
-                    logger.info("Logfire SQLAlchemy instrumentation enabled (async engine)")
+                    logfire.info('database.sqlalchemy_instrumentation_enabled', engine_type='async')
                 else:
                     # Async engine doesn't expose sync engine - instrumentation via OpenTelemetry instead
-                    logger.debug("Logfire SQLAlchemy instrumentation skipped (async engine, using OpenTelemetry)")
+                    logfire.debug('database.sqlalchemy_instrumentation_skipped', reason='async_engine_uses_opentelemetry')
             except Exception as e:
                 # Non-critical - query tracing will still work via OpenTelemetry
-                logger.warning(f"Logfire SQLAlchemy instrumentation failed: {e}")
+                logfire.warn('database.sqlalchemy_instrumentation_failed', error=str(e))
             
             # Create session factory with async session configuration
             # expire_on_commit=False keeps objects usable after commit
@@ -233,18 +232,16 @@ class DatabaseService:
             )
             
             self._is_initialized = True
-            logger.info(
-                "Database service initialized successfully",
-                extra={
-                    "pool_size": pool_size,
-                    "max_overflow": max_overflow,
-                    "pool_timeout": pool_timeout,
-                    "engine_echo": False,
-                }
+            logfire.info(
+                'database.init_success',
+                pool_size=pool_size,
+                max_overflow=max_overflow,
+                pool_timeout=pool_timeout,
+                engine_echo=False
             )
             
         except Exception as e:
-            logger.error(f"Failed to initialize database service: {e}")
+            logfire.error('database.init_failed', error=str(e))
             # Re-raise to ensure application fails fast on database issues
             raise
 
@@ -277,7 +274,7 @@ class DatabaseService:
                 # Dispose of the engine and its connection pool
                 # This closes all active connections and releases resources
                 await self._engine.dispose()
-                logger.info("Database engine disposed successfully")
+                logfire.info('database.engine_disposed')
                 
             # Reset internal state to allow re-initialization
             self._engine = None
@@ -285,7 +282,7 @@ class DatabaseService:
             self._is_initialized = False
             
         except Exception as e:
-            logger.error(f"Error during database shutdown: {e}")
+            logfire.error('database.shutdown_error', error=str(e))
             # Re-raise to indicate shutdown failure to calling code
             raise
 
@@ -430,7 +427,7 @@ class DatabaseService:
                     
         except SQLAlchemyError as e:
             # Log SQLAlchemy-specific errors for debugging
-            logger.error(f"Database health check failed with SQLAlchemy error: {e}")
+            logfire.error('database.health_check_sqlalchemy_error', error=str(e))
             return {
                 "status": "unhealthy",
                 "message": f"Database error: {str(e)}",
@@ -438,7 +435,7 @@ class DatabaseService:
             }
         except Exception as e:
             # Log unexpected errors that might indicate broader issues
-            logger.error(f"Unexpected error during database health check: {e}")
+            logfire.error('database.health_check_unexpected_error', error=str(e))
             return {
                 "status": "unhealthy",
                 "message": f"Unexpected error: {str(e)}",
