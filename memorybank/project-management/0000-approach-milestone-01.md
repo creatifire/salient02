@@ -411,11 +411,11 @@ Unauthorized copying of this file is strictly prohibited.
 **See**: [Epic 0017-007](0017-simple-chat-agent.md#0017-007) for detailed 5-chunk implementation plan
 
 ### **Priority 11: Logging Infrastructure Consolidation** 📋 **PLANNED**
-**Epic 0017-013 - Migrate from Loguru to Logfire Logging**
+**Epic 0017-013 - Complete Migration from Loguru to Logfire**
 
 **Problem**: Mixed logging approaches (`loguru`, `logging`, `logfire`) create inconsistency and prevent full Logfire observability utilization.
 
-**Solution**: Migrate all logging to Logfire with structured event naming (`module.action`) and dual output (console + cloud).
+**Solution**: Complete removal of loguru and standard logging, migrate all to Logfire with hierarchical event naming (`module.submodule.action`) and console + cloud output only (no local file logging).
 
 **See**: [Critical Libraries Review - Logfire Patterns](../../analysis/critical-libraries-review.md#7-logfire-pydanticlogfire) | [Epic 0017-013](0017-simple-chat-agent.md#0017-013)
 
@@ -423,14 +423,14 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Files Impacted** (21 total):
 
-**✅ Already Using Logfire** (verify/keep):
-- `backend/app/services/vector_service.py` ✅ (has both - remove logging, keep logfire)
-- `backend/app/agents/tools/directory_tools.py` ✅
-- `backend/app/agents/tools/prompt_generator.py` ✅
-- `backend/app/agents/simple_chat.py` (partial - has loguru imports too, needs cleanup)
+**✅ Already Using Logfire** (remove loguru/logging, keep logfire only):
+- `backend/app/services/vector_service.py` (has both - remove logging, keep logfire)
+- `backend/app/agents/tools/directory_tools.py`
+- `backend/app/agents/tools/prompt_generator.py`
+- `backend/app/agents/simple_chat.py` (has loguru imports - remove)
 
 **⚠️ Using Loguru** (migrate - 17 files):
-- `backend/app/main.py` (also has logfire - remove loguru setup)
+- `backend/app/main.py` (remove `_setup_logger()` function entirely)
 - `backend/app/api/account_agents.py`
 - `backend/app/api/agents.py`
 - `backend/app/services/message_service.py`
@@ -454,44 +454,100 @@ Unauthorized copying of this file is strictly prohibited.
 
 ---
 
-**Implementation Plan**:
+**Migration Strategy**: File-by-file migration with testing between each file
 
-**Phase 1: Core Agent Migration** (2-4 hours)
-- [ ] Replace `from loguru import logger` → `import logfire` in `simple_chat.py`
-- [ ] Convert `logger.info()` → `logfire.info('agent.event_name', key=value)` format
-- [ ] Update service files: `message_service.py`, `session_service.py`, `llm_request_tracker.py`, `directory_importer.py`, `agent_pinecone_config.py`, `pinecone_client.py`, `embedding_service.py` (7 files)
-- [ ] Update middleware files: `simple_session_middleware.py`, `session_middleware.py` (2 files)
-
-**Phase 2: API & Infrastructure** (2-3 hours)
-- [ ] Migrate `main.py` (remove `_setup_logger()` loguru config, keep logfire only)
-- [ ] Update API routers (`account_agents.py`, `agents.py`)
-- [ ] Migrate database and config modules (`database.py`, `config_loader.py`, `instance_loader.py`)
-- [ ] Update client modules (`openrouter_client.py`, `pinecone_client.py`)
-
-**Phase 3: Standard Logging Cleanup** (1-2 hours)
-- [ ] Replace `import logging` → `import logfire` in remaining files
-- [ ] Remove `logger = logging.getLogger(__name__)` pattern
-
-**Phase 4: Enhancements & Cleanup** (2-3 hours)
-- [ ] Add Logfire spans for performance tracking (`with logfire.span()`)
-- [ ] Update event naming to dot notation (`module.action`)
-- [ ] Remove loguru from `requirements.txt`
-- [ ] Update documentation (README, project-brief.md)
-
-**Total Effort**: 7-12 hours
-
-**Pattern to Follow**:
+**Migration Pattern**:
 ```python
 # BEFORE (loguru)
 from loguru import logger
 logger.info(f"Processing request for {session_id}")
+logger.warning(f"Invalid account: {account_slug}")
+logger.error(f"Failed to load: {error}")
+logger.exception("Exception occurred")
+logger.debug(f"Query result: {result}")
+
+# BEFORE (logging)
+import logging
+logger = logging.getLogger(__name__)
+logger.info("Processing request")
 
 # AFTER (logfire)
 import logfire
-logfire.info('session.request', session_id=str(session_id))
+
+# Info/Warning/Error/Debug preserved with hierarchical event names
+logfire.info('api.account.request', session_id=str(session_id))
+logfire.warn('api.account.invalid', account_slug=account_slug)
+logfire.error('service.load.failed', error=str(error))
+logfire.exception('service.load.exception')  # Captures full traceback
+logfire.debug('service.query.result', result_count=len(result))
+
+# Dictionary logs converted to kwargs
+# BEFORE: logger.info({"event": "chat_request", "account": account_slug})
+# AFTER: logfire.info('api.chat.request', account=account_slug)
 ```
 
-**Testing**: 12 automated tests (unit + integration) | Manual: Verify console output + Logfire dashboard
+**Hierarchical Event Naming Convention**:
+- Format: `{module}.{submodule}.{action}`
+- Examples: `api.account.list`, `service.session.create`, `agent.tool.vector_search`, `middleware.session.retrieve`
+- Benefits: Easy filtering in Logfire UI, clear component identification
+
+**Exception Handling**:
+- Use `logfire.exception('module.error.message')` for exceptions
+- Within spans: `span.record_exception(e)` for handled exceptions
+- Always include context (IDs, keys) as kwargs for debugging
+
+---
+
+**Implementation Plan** (File-by-file, ~7-12 hours total):
+
+**Phase 1: Core Agent & Tools** (3-4 files, ~2-3 hours)
+1. `backend/app/agents/simple_chat.py` - Remove loguru, convert all calls
+2. `backend/app/agents/tools/vector_tools.py` - Migrate from logging
+3. `backend/app/services/vector_service.py` - Remove logging, keep logfire
+4. `backend/app/agents/tools/directory_tools.py` - Verify/cleanup logfire usage
+
+**Phase 2: Services** (8 files, ~3-4 hours)
+5. `backend/app/services/message_service.py`
+6. `backend/app/services/session_service.py`
+7. `backend/app/services/llm_request_tracker.py`
+8. `backend/app/services/directory_service.py` (from logging)
+9. `backend/app/services/directory_importer.py`
+10. `backend/app/services/agent_pinecone_config.py`
+11. `backend/app/services/pinecone_client.py`
+12. `backend/app/services/embedding_service.py`
+
+**Phase 3: Middleware** (2 files, ~1 hour)
+14. `backend/app/middleware/simple_session_middleware.py`
+15. `backend/app/middleware/session_middleware.py`
+
+**Phase 4: API Routes** (2 files, ~1-2 hours)
+16. `backend/app/api/account_agents.py`
+17. `backend/app/api/agents.py`
+
+**Phase 5: Infrastructure & Cleanup** (6 files, ~2-3 hours)
+18. `backend/app/main.py` - **Remove `_setup_logger()` function entirely**
+19. `backend/app/database.py`
+20. `backend/app/openrouter_client.py`
+21. `backend/app/agents/config_loader.py`
+22. `backend/app/agents/instance_loader.py`
+23. `backend/app/agents/cascade_monitor.py`
+
+**Phase 6: Final Cleanup**
+- [ ] Remove loguru from `requirements.txt`
+- [ ] Remove any remaining `import logging` statements
+- [ ] Verify all files use `import logfire` only
+- [ ] Update documentation (project-brief.md, README if needed)
+
+**Total Effort**: 7-12 hours
+
+**Verification**: Manual testing - verify console output + Logfire dashboard after each file
+
+**Logfire Configuration** (keep as-is):
+- Current `logfire.configure()` in `main.py` is sufficient
+- No service_name/version needed for single-service app
+- Console output handled automatically via fallback handler
+- Cloud logging enabled when `LOGFIRE_TOKEN` environment variable is set
+- Recommendation: Keep current configuration, it follows Logfire best practices
 
 ---
 

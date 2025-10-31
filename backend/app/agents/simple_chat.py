@@ -133,15 +133,14 @@ async def create_simple_chat_agent(
     api_key = llm_config.get("api_key") or os.getenv('OPENROUTER_API_KEY')
     
     # DEBUG: Log API key status
-    from loguru import logger
-    logger.info({
-        "event": "agent_creation_debug",
-        "model_name": model_name,
-        "has_api_key_in_config": bool(llm_config.get("api_key")),
-        "has_api_key_in_env": bool(os.getenv('OPENROUTER_API_KEY')),
-        "final_api_key_found": bool(api_key),
-        "api_key_source": "config" if llm_config.get("api_key") else ("env" if os.getenv('OPENROUTER_API_KEY') else "none")
-    })
+    logfire.info(
+        'agent.creation.debug',
+        model_name=model_name,
+        has_api_key_in_config=bool(llm_config.get("api_key")),
+        has_api_key_in_env=bool(os.getenv('OPENROUTER_API_KEY')),
+        final_api_key_found=bool(api_key),
+        api_key_source="config" if llm_config.get("api_key") else ("env" if os.getenv('OPENROUTER_API_KEY') else "none")
+    )
     
     if not api_key:
         # Fallback to simple model name for development without API key
@@ -154,12 +153,12 @@ async def create_simple_chat_agent(
             agent_config = await get_agent_config("simple_chat")
             system_prompt = agent_config.system_prompt
         
-        logger.warning({
-            "event": "agent_fallback_mode",
-            "reason": "no_api_key",
-            "model_used": model_name_simple,
-            "cost_tracking": "disabled"
-        })
+        logfire.warn(
+            'agent.fallback_mode',
+            reason="no_api_key",
+            model_used=model_name_simple,
+            cost_tracking="disabled"
+        )
         agent = Agent(
             model_name_simple,
             deps_type=SessionDependencies,
@@ -170,13 +169,19 @@ async def create_simple_chat_agent(
         if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
             from backend.app.agents.tools import vector_tools
             agent.tool(vector_tools.vector_search)
-            logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+            logfire.info(
+                'agent.tool.vector_registered',
+                agent_name=instance_config.get('instance_name', 'unknown')
+            )
         
         # Conditionally register directory search tool
         if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
             from backend.app.agents.tools.directory_tools import search_directory
             agent.tool(search_directory)
-            logger.info(f"Directory search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+            logfire.info(
+                'agent.tool.directory_registered',
+                agent_name=instance_config.get('instance_name', 'unknown')
+            )
         
         return agent
     
@@ -184,17 +189,25 @@ async def create_simple_chat_agent(
     if instance_config is not None and 'system_prompt' in instance_config:
         # Multi-tenant mode: use the instance-specific system prompt
         system_prompt = instance_config['system_prompt']
-        logger.info(f"Using system_prompt from instance_config (length: {len(system_prompt)})")
+        logfire.info(
+            'agent.system_prompt.loaded',
+            source='instance_config',
+            length=len(system_prompt)
+        )
     else:
         # Single-tenant mode: load from agent config file
         agent_config = await get_agent_config("simple_chat")
         system_prompt = agent_config.system_prompt
-        logger.info(f"Using system_prompt from agent config (length: {len(system_prompt)})")
+        logfire.info(
+            'agent.system_prompt.loaded',
+            source='agent_config',
+            length=len(system_prompt)
+        )
     
     # Auto-generate directory tool documentation if enabled
     directory_config = (instance_config or {}).get("tools", {}).get("directory", {})
     if directory_config.get("enabled", False) and account_id is not None:
-        logger.info("Directory tool enabled - generating documentation")
+        logfire.info('agent.directory.docs.generating')
         
         from ..database import get_database_service
         from .tools.prompt_generator import generate_directory_tool_docs
@@ -209,19 +222,26 @@ async def create_simple_chat_agent(
             
             if directory_docs:
                 system_prompt = system_prompt + "\n\n" + directory_docs
-                logger.info({
-                    "event": "system_prompt_enhanced",
-                    "account_id": str(account_id),
-                    "original_length": len(system_prompt) - len(directory_docs) - 2,
-                    "directory_docs_length": len(directory_docs),
-                    "final_length": len(system_prompt)
-                })
+                logfire.info(
+                    'agent.system_prompt.enhanced',
+                    account_id=str(account_id),
+                    original_length=len(system_prompt) - len(directory_docs) - 2,
+                    directory_docs_length=len(directory_docs),
+                    final_length=len(system_prompt)
+                )
                 # Log the actual enhanced prompt for debugging
-                logger.info(f"FINAL SYSTEM PROMPT ({len(system_prompt)} chars):\n{system_prompt}")
+                logfire.debug(
+                    'agent.system_prompt.final',
+                    prompt_preview=system_prompt[:200],
+                    total_length=len(system_prompt)
+                )
             else:
-                logger.warning("Directory documentation generation returned empty string")
+                logfire.warn('agent.directory.docs.empty')
     elif directory_config.get("enabled", False) and account_id is None:
-        logger.warning("Directory tool enabled but no account_id provided - skipping documentation generation")
+        logfire.warn(
+            'agent.directory.docs.skipped',
+            reason='no_account_id'
+        )
     
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
@@ -229,23 +249,21 @@ async def create_simple_chat_agent(
         # Multi-tenant mode: use the instance-specific config that was already extracted
         model_settings = llm_config
         model_name = llm_config.get("model", "anthropic/claude-3.5-sonnet")
-        logger.info({
-            "event": "instance_config_used",
-            "model_settings": model_settings,
-            "selected_model": model_name,
-            "source": "instance_config"
-        })
+        logfire.info(
+            'agent.model_config.loaded',
+            source='instance_config',
+            selected_model=model_name
+        )
     else:
         # Single-tenant mode: use the centralized cascade
         from .config_loader import get_agent_model_settings
         model_settings = await get_agent_model_settings("simple_chat")
         model_name = model_settings["model"]
-        logger.info({
-            "event": "centralized_model_cascade",
-            "model_settings": model_settings,
-            "selected_model": model_name,
-            "source": "global_config"
-        })
+        logfire.info(
+            'agent.model_config.loaded',
+            source='global_config',
+            selected_model=model_name
+        )
     
     # Use OpenRouterModel with cost-tracking provider
     provider = create_openrouter_provider_with_cost_tracking(api_key)
@@ -254,14 +272,14 @@ async def create_simple_chat_agent(
         provider=provider
     )
     
-    logger.info({
-        "event": "agent_openrouter_provider_with_cost_tracking",
-        "model_name": model_name,
-        "provider_type": "OpenRouterProvider_CustomClient", 
-        "api_key_masked": f"{api_key[:10]}..." if api_key else "none",
-        "cost_tracking": "enabled_via_custom_asyncopenai_client",
-        "usage_tracking": "always_included"
-    })
+    logfire.info(
+        'agent.openrouter.provider_created',
+        model_name=model_name,
+        provider_type="OpenRouterProvider_CustomClient", 
+        api_key_masked=f"{api_key[:10]}..." if api_key else "none",
+        cost_tracking="enabled_via_custom_asyncopenai_client",
+        usage_tracking="always_included"
+    )
     
     # Create agent with OpenRouterProvider (official pattern)
     agent = Agent(
@@ -274,13 +292,19 @@ async def create_simple_chat_agent(
     if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
         from backend.app.agents.tools import vector_tools
         agent.tool(vector_tools.vector_search)
-        logger.info(f"Vector search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+        logfire.info(
+            'agent.tool.vector_registered',
+            agent_name=instance_config.get('instance_name', 'unknown')
+        )
     
     # Conditionally register directory search tool
     if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
         from backend.app.agents.tools.directory_tools import search_directory
         agent.tool(search_directory)
-        logger.info(f"Directory search tool registered for agent: {instance_config.get('instance_name', 'unknown')}")
+        logfire.info(
+            'agent.tool.directory_registered',
+            agent_name=instance_config.get('instance_name', 'unknown')
+        )
     
     return agent
 
@@ -330,8 +354,6 @@ async def simple_chat(
     Returns:
         dict with response, messages, new_messages, and usage data
     """
-    from loguru import logger
-    
     # Get history_limit from agent-first configuration cascade
     from .config_loader import get_agent_history_limit
     default_history_limit = await get_agent_history_limit("simple_chat")
@@ -449,20 +471,18 @@ async def simple_chat(
                 real_cost = 0.0
             
             # Log OpenRouterModel results
-            logger.info({
-                "event": "openrouter_model_execution",
-                "session_id": session_id,
-                "tokens": {
-                    "prompt": prompt_tokens,
-                    "completion": completion_tokens,
-                    "total": total_tokens
-                },
-                "real_cost": real_cost,
-                "method": "openrouter_model_vendor_details",
-                "cost_tracking": "enabled",
-                "cost_found": real_cost > 0,
-                "latency_ms": latency_ms
-            })
+            logfire.info(
+                'agent.openrouter.execution',
+                session_id=session_id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                real_cost=real_cost,
+                method="openrouter_model_vendor_details",
+                cost_tracking="enabled",
+                cost_found=real_cost > 0,
+                latency_ms=latency_ms
+            )
         
             # Store cost data using LLMRequestTracker
             llm_request_id = None  # Initialize to None for cases where tracking is skipped
@@ -474,11 +494,19 @@ async def simple_chat(
                 if instance_config is not None:
                     # Multi-tenant mode: use the instance-specific config
                     tracking_model = instance_config.get("model_settings", {}).get("model", requested_model)
-                    logger.info(f"Using tracking_model from instance_config: {tracking_model}")
+                    logfire.debug(
+                        'agent.cost_tracking.model_selected',
+                        source='instance_config',
+                        tracking_model=tracking_model
+                    )
                 else:
                     # Single-tenant mode: use the centralized cascade
                     tracking_model = model_settings["model"]
-                    logger.info(f"Using tracking_model from cascade: {tracking_model}")
+                    logfire.debug(
+                        'agent.cost_tracking.model_selected',
+                        source='cascade',
+                        tracking_model=tracking_model
+                    )
             
                 # Build full request body with actual messages sent to LLM
                 request_messages = []
@@ -530,10 +558,10 @@ async def simple_chat(
                 async with db_service.get_session() as db_session:
                     session_record = await db_session.get(Session, UUID(session_id))
                     if not session_record:
-                        logger.error({
-                            "event": "non_streaming_session_not_found",
-                            "session_id": session_id
-                        })
+                        logfire.error(
+                            'agent.session.not_found',
+                            session_id=session_id
+                        )
                         raise ValueError(f"Session not found: {session_id}")
                 
                     # Extract denormalized fields for fast billing queries
@@ -593,20 +621,19 @@ async def simple_chat(
                         content=response_text
                     )
                 
-                    logger.info({
-                        "event": "messages_saved",
-                        "session_id": session_id,
-                        "agent_instance_id": agent_instance_id,
-                        "user_message_length": len(message),
-                        "assistant_message_length": len(response_text)
-                    })
+                    logfire.info(
+                        'agent.messages.saved',
+                        session_id=session_id,
+                        agent_instance_id=agent_instance_id,
+                        user_message_length=len(message),
+                        assistant_message_length=len(response_text)
+                    )
                 except Exception as msg_error:
-                    logger.error({
-                        "event": "message_save_failed",
-                        "error": str(msg_error),
-                        "session_id": session_id,
-                        "agent_instance_id": agent_instance_id
-                    })
+                    logfire.exception(
+                        'agent.messages.save_failed',
+                        session_id=session_id,
+                        agent_instance_id=agent_instance_id
+                    )
                     # Don't fail the request if message saving fails
                 
         except Exception as e:
@@ -691,7 +718,6 @@ async def simple_chat_stream(
             - {"event": "done", "data": ""} - Completion
             - {"event": "error", "data": json.dumps({"message": "..."})} - Errors
     """
-    from loguru import logger
     import json
     
     # Get history_limit from agent-first configuration cascade
@@ -728,32 +754,32 @@ async def simple_chat_stream(
     
     try:
         # Execute agent with streaming
-        logger.info({
-            "event": "streaming_agent_start",
-            "session_id": session_id,
-            "model": requested_model,
-            "message_length": len(message)
-        })
+        logfire.info(
+            'agent.streaming.start',
+            session_id=session_id,
+            model=requested_model,
+            message_length=len(message)
+        )
         
         async with agent.run_stream(message, deps=session_deps, message_history=message_history) as result:
-            logger.info({
-                "event": "streaming_context_entered",
-                "session_id": session_id,
-                "result_type": type(result).__name__
-            })
+            logfire.info(
+                'agent.streaming.context_entered',
+                session_id=session_id,
+                result_type=type(result).__name__
+            )
             
             # Stream with delta=True for incremental chunks only
             chunk_count = 0
             async for chunk in result.stream_text(delta=True):
                 chunk_count += 1
-                logger.info({  # Changed from debug to info
-                    "event": "streaming_chunk_received",
-                    "session_id": session_id,
-                    "chunk_number": chunk_count,
-                    "chunk_length": len(chunk) if chunk else 0,
-                    "chunk_preview": chunk[:50] if chunk else None,
-                    "chunk_is_empty": not bool(chunk)
-                })
+                logfire.debug(
+                    'agent.streaming.chunk_received',
+                    session_id=session_id,
+                    chunk_number=chunk_count,
+                    chunk_length=len(chunk) if chunk else 0,
+                    chunk_preview=chunk[:50] if chunk else None,
+                    chunk_is_empty=not bool(chunk)
+                )
                 if chunk:  # Only append and yield non-empty chunks
                     chunks.append(chunk)
                     yield {"event": "message", "data": chunk}
@@ -761,27 +787,27 @@ async def simple_chat_stream(
             end_time = datetime.now(UTC)
             latency_ms = int((end_time - start_time).total_seconds() * 1000)
             
-            logger.info({
-                "event": "streaming_loop_complete",
-                "session_id": session_id,
-                "total_chunks": chunk_count,
-                "chunks_sent": len(chunks),
-                "model": requested_model
-            })
+            logfire.info(
+                'agent.streaming.loop_complete',
+                session_id=session_id,
+                total_chunks=chunk_count,
+                chunks_sent=len(chunks),
+                model=requested_model
+            )
             
             # Get full response text
             response_text = "".join(chunks).strip()
             
             # Handle empty response - LLM returned tokens but no actual text content
             if not response_text:
-                logger.error({
-                    "event": "streaming_empty_response",
-                    "session_id": session_id,
-                    "model": requested_model,
-                    "total_chunks_iterated": chunk_count,
-                    "chunks_with_content": len(chunks),
-                    "message": "LLM completed but returned no text content"
-                })
+                logfire.error(
+                    'agent.streaming.empty_response',
+                    session_id=session_id,
+                    model=requested_model,
+                    total_chunks_iterated=chunk_count,
+                    chunks_with_content=len(chunks),
+                    message="LLM completed but returned no text content"
+                )
                 # Return error to client instead of trying to save empty message
                 yield {
                     "event": "error",
@@ -829,17 +855,17 @@ async def simple_chat_stream(
                     completion_cost = float(price.output_price)
                     total_cost = float(price.total_price)
                     
-                    logger.info({
-                        "event": "streaming_cost_calculated",
-                        "session_id": session_id,
-                        "model": requested_model,
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "prompt_cost": prompt_cost,
-                        "completion_cost": completion_cost,
-                        "total_cost": total_cost,
-                        "method": "genai-prices"
-                    })
+                    logfire.info(
+                        'agent.streaming.cost_calculated',
+                        session_id=session_id,
+                        model=requested_model,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        prompt_cost=prompt_cost,
+                        completion_cost=completion_cost,
+                        total_cost=total_cost,
+                        method="genai-prices"
+                    )
                     
                 except LookupError as e:
                     # Model not in genai-prices database - use fallback pricing from config
@@ -867,39 +893,39 @@ async def simple_chat_stream(
                         completion_cost = (completion_tokens / 1_000_000) * pricing["output_per_1m"]
                         total_cost = prompt_cost + completion_cost
                         
-                        logger.info({
-                            "event": "streaming_cost_calculated",
-                            "session_id": session_id,
-                            "model": requested_model,
-                            "prompt_tokens": prompt_tokens,
-                            "completion_tokens": completion_tokens,
-                            "prompt_cost": prompt_cost,
-                            "completion_cost": completion_cost,
-                            "total_cost": total_cost,
-                            "method": "fallback_pricing",
-                            "source": pricing.get("source", "unknown"),
-                            "config_file": str(fallback_pricing_path)
-                        })
+                        logfire.info(
+                            'agent.streaming.cost_calculated',
+                            session_id=session_id,
+                            model=requested_model,
+                            prompt_tokens=prompt_tokens,
+                            completion_tokens=completion_tokens,
+                            prompt_cost=prompt_cost,
+                            completion_cost=completion_cost,
+                            total_cost=total_cost,
+                            method="fallback_pricing",
+                            source=pricing.get("source", "unknown"),
+                            config_file=str(fallback_pricing_path)
+                        )
                     else:
-                        logger.warning({
-                            "event": "streaming_cost_calculation_failed",
-                            "session_id": session_id,
-                            "model": requested_model,
-                            "error": f"Model not in genai-prices or fallback pricing: {e}",
-                            "error_type": "LookupError",
-                            "fallback": "zero_cost",
-                            "suggestion": f"Add model to {fallback_pricing_path}"
-                        })
+                        logfire.warn(
+                            'agent.streaming.cost_calculation_failed',
+                            session_id=session_id,
+                            model=requested_model,
+                            error=f"Model not in genai-prices or fallback pricing: {e}",
+                            error_type="LookupError",
+                            fallback="zero_cost",
+                            suggestion=f"Add model to {fallback_pricing_path}"
+                        )
                         
                 except Exception as e:
-                    logger.warning({
-                        "event": "streaming_cost_calculation_failed",
-                        "session_id": session_id,
-                        "model": requested_model,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                        "fallback": "zero_cost"
-                    })
+                    logfire.warn(
+                        'agent.streaming.cost_calculation_failed',
+                        session_id=session_id,
+                        model=requested_model,
+                        error=str(e),
+                        error_type=type(e).__name__,
+                        fallback="zero_cost"
+                    )
                 
                 # Prepare cost_data dict for LLMRequestTracker
                 cost_data = {
@@ -921,19 +947,17 @@ async def simple_chat_stream(
                 }
             
             # Log streaming execution
-            logger.info({
-                "event": "openrouter_model_streaming",
-                "session_id": session_id,
-                "chunks_sent": len(chunks),
-                "tokens": {
-                    "prompt": prompt_tokens,
-                    "completion": completion_tokens,
-                    "total": total_tokens
-                },
-                "real_cost": cost_data["total_cost"],
-                "latency_ms": latency_ms,
-                "completion_status": "complete"
-            })
+            logfire.info(
+                'agent.openrouter.streaming',
+                session_id=session_id,
+                chunks_sent=len(chunks),
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                real_cost=cost_data["total_cost"],
+                latency_ms=latency_ms,
+                completion_status="complete"
+            )
             
             # Store cost data using LLMRequestTracker
             llm_request_id = None
@@ -947,27 +971,27 @@ async def simple_chat_stream(
                     # Multi-tenant mode: use the instance-specific config
                     model_settings = instance_config.get("model_settings", {})
                     tracking_model = model_settings.get("model", requested_model)
-                    logger.info({
-                        "event": "streaming_model_config_loaded",
-                        "source": "instance_config",
-                        "tracking_model": tracking_model,
-                        "temperature": model_settings.get("temperature"),
-                        "max_tokens": model_settings.get("max_tokens"),
-                        "session_id": session_id
-                    })
+                    logfire.info(
+                        'agent.streaming.model_config_loaded',
+                        source="instance_config",
+                        tracking_model=tracking_model,
+                        temperature=model_settings.get("temperature"),
+                        max_tokens=model_settings.get("max_tokens"),
+                        session_id=session_id
+                    )
                 else:
                     # Single-tenant mode: use the centralized cascade
                     from .config_loader import get_agent_model_settings
                     model_settings = await get_agent_model_settings("simple_chat")
                     tracking_model = model_settings["model"]
-                    logger.info({
-                        "event": "streaming_model_config_loaded",
-                        "source": "cascade",
-                        "tracking_model": tracking_model,
-                        "temperature": model_settings.get("temperature"),
-                        "max_tokens": model_settings.get("max_tokens"),
-                        "session_id": session_id
-                    })
+                    logfire.info(
+                        'agent.streaming.model_config_loaded',
+                        source="cascade",
+                        tracking_model=tracking_model,
+                        temperature=model_settings.get("temperature"),
+                        max_tokens=model_settings.get("max_tokens"),
+                        session_id=session_id
+                    )
                 
                 # Build full request body with actual messages sent to LLM
                 request_messages = []
@@ -1022,10 +1046,10 @@ async def simple_chat_stream(
                 async with db_service.get_session() as db_session:
                     session_record = await db_session.get(Session, UUID(session_id))
                     if not session_record:
-                        logger.error({
-                            "event": "streaming_session_not_found",
-                            "session_id": session_id
-                        })
+                        logfire.error(
+                            'agent.streaming.session_not_found',
+                            session_id=session_id
+                        )
                         raise ValueError(f"Session not found: {session_id}")
                     
                     # Extract denormalized fields for fast billing queries
@@ -1035,20 +1059,21 @@ async def simple_chat_stream(
                     agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
                 
                 # Log tracking attempt for debugging
-                logger.debug({
-                    "event": "streaming_llm_tracking_start",
-                    "session_id": session_id,
-                    "tracking_model": tracking_model,
-                    "requested_model": requested_model,
-                    "tokens": {"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
-                    "cost": cost_data.get("total_cost", 0.0),
-                    "has_model_settings": model_settings is not None,
-                    "model_settings_keys": list(model_settings.keys()) if model_settings else [],
-                    # Denormalized attribution
-                    "account_slug": account_slug,
-                    "agent_instance_slug": agent_instance_slug,
-                    "agent_type": agent_type
-                })
+                logfire.debug(
+                    'agent.streaming.llm_tracking_start',
+                    session_id=session_id,
+                    tracking_model=tracking_model,
+                    requested_model=requested_model,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    cost=cost_data.get("total_cost", 0.0),
+                    has_model_settings=model_settings is not None,
+                    model_settings_keys=list(model_settings.keys()) if model_settings else [],
+                    account_slug=account_slug,
+                    agent_instance_slug=agent_instance_slug,
+                    agent_type=agent_type
+                )
                 
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
@@ -1078,23 +1103,23 @@ async def simple_chat_stream(
                     completion_status="complete"
                 )
                 
-                logger.info({
-                    "event": "streaming_llm_tracked",
-                    "session_id": session_id,
-                    "llm_request_id": str(llm_request_id),
-                    "model": tracking_model,
-                    "total_cost": cost_data.get("total_cost", 0.0)
-                })
+                logfire.info(
+                    'agent.streaming.llm_tracked',
+                    session_id=session_id,
+                    llm_request_id=str(llm_request_id),
+                    model=tracking_model,
+                    total_cost=cost_data.get("total_cost", 0.0)
+                )
             
             # Save messages to database
-            logger.info({
-                "event": "streaming_messages_saving",
-                "session_id": session_id,
-                "agent_instance_id": str(agent_instance_id),
-                "user_message_length": len(message),
-                "assistant_message_length": len(response_text),
-                "completion_status": "complete"
-            })
+            logfire.info(
+                'agent.streaming.messages_saving',
+                session_id=session_id,
+                agent_instance_id=str(agent_instance_id),
+                user_message_length=len(message),
+                assistant_message_length=len(response_text),
+                completion_status="complete"
+            )
             
             message_service = get_message_service()
             
@@ -1116,36 +1141,34 @@ async def simple_chat_stream(
                 content=response_text
             )
             
-            logger.info({
-                "event": "streaming_messages_saved",
-                "session_id": session_id,
-                "completion_status": "complete"
-            })
+            logfire.info(
+                'agent.streaming.messages_saved',
+                session_id=session_id,
+                completion_status="complete"
+            )
             
             # Yield completion event
             yield {"event": "done", "data": ""}
             
     except Exception as e:
         import traceback
-        logger.error({
-            "event": "streaming_error",
-            "session_id": session_id,
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "chunks_sent": len(chunks),
-            "has_instance_config": instance_config is not None,
-            "traceback": traceback.format_exc()
-        })
+        logfire.exception(
+            'agent.streaming.error',
+            session_id=session_id,
+            error_type=type(e).__name__,
+            chunks_sent=len(chunks),
+            has_instance_config=instance_config is not None
+        )
         
         # Save partial response if any chunks were sent
         if chunks:
-            logger.info({
-                "event": "streaming_partial_messages_saving",
-                "session_id": session_id,
-                "partial_response_length": len("".join(chunks)),
-                "chunks_sent": len(chunks),
-                "completion_status": "partial"
-            })
+            logfire.info(
+                'agent.streaming.partial_messages_saving',
+                session_id=session_id,
+                partial_response_length=len("".join(chunks)),
+                chunks_sent=len(chunks),
+                completion_status="partial"
+            )
             message_service = get_message_service()
             partial_response = "".join(chunks)
             
@@ -1176,12 +1199,12 @@ async def simple_chat_stream(
                 }
             )
             
-            logger.info({
-                "event": "streaming_partial_messages_saved",
-                "session_id": session_id,
-                "completion_status": "partial",
-                "error_type": type(e).__name__
-            })
+            logfire.info(
+                'agent.streaming.partial_messages_saved',
+                session_id=session_id,
+                completion_status="partial",
+                error_type=type(e).__name__
+            )
             
             # Note: Not tracking partial LLM requests since token counts are unavailable in error cases
         

@@ -10,7 +10,6 @@ Unauthorized copying of this file is strictly prohibited.
 
 
 import asyncio
-import logging
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, UTC
 import logfire
@@ -24,9 +23,6 @@ except ImportError:
 
 from backend.app.services.pinecone_client import PineconeClient, get_pinecone_client
 from backend.app.services.embedding_service import get_embedding_service, EmbeddingService
-
-
-logger = logging.getLogger(__name__)
 
 
 class VectorDocument(BaseModel):
@@ -141,11 +137,18 @@ class VectorService:
                     namespace=target_namespace
                 )
             
-            logger.info(f"Successfully upserted document {document.id} to namespace {target_namespace}")
+            logfire.info(
+                'service.vector.upsert.success',
+                document_id=document.id,
+                namespace=target_namespace
+            )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to upsert document {document.id}: {str(e)}")
+            logfire.exception(
+                'service.vector.upsert.failed',
+                document_id=document.id
+            )
             return False
     
     async def upsert_documents_batch(
@@ -169,7 +172,11 @@ class VectorService:
         total_documents = len(documents)
         successful_count = 0
         
-        logger.info(f"Starting batch upsert of {total_documents} documents with batch size {batch_size}")
+        logfire.info(
+            'service.vector.upsert_batch.start',
+            total_documents=total_documents,
+            batch_size=batch_size
+        )
         
         # Process in batches
         for i in range(0, total_documents, batch_size):
@@ -177,7 +184,12 @@ class VectorService:
             batch_number = (i // batch_size) + 1
             total_batches = (total_documents + batch_size - 1) // batch_size
             
-            logger.info(f"Processing batch {batch_number}/{total_batches} ({len(batch)} documents)")
+            logfire.info(
+                'service.vector.upsert_batch.processing',
+                batch_number=batch_number,
+                total_batches=total_batches,
+                batch_size=len(batch)
+            )
             
             try:
                 # Generate embeddings for batch
@@ -215,13 +227,24 @@ class VectorService:
                     )
                 
                 successful_count += len(batch)
-                logger.info(f"Successfully upserted batch {batch_number} to namespace {target_namespace}")
+                logfire.info(
+                    'service.vector.upsert_batch.success',
+                    batch_number=batch_number,
+                    namespace=target_namespace
+                )
                 
             except Exception as e:
-                logger.error(f"Failed to upsert batch {batch_number}: {str(e)}")
+                logfire.exception(
+                    'service.vector.upsert_batch.failed',
+                    batch_number=batch_number
+                )
                 # Continue with next batch rather than failing entirely
         
-        logger.info(f"Batch upsert completed: {successful_count}/{total_documents} documents successful")
+        logfire.info(
+            'service.vector.upsert_batch.complete',
+            successful_count=successful_count,
+            total_documents=total_documents
+        )
         return successful_count, total_documents
     
     async def query_similar(
@@ -312,9 +335,12 @@ class VectorService:
                         for r in results[:3]
                     ])
                 
-                logger.info(
-                    f"Vector query completed: {len(results)} results above threshold {similarity_threshold} "
-                    f"in {query_time_ms:.2f}ms for namespace {target_namespace}"
+                logfire.debug(
+                    'service.vector.query.complete',
+                    results_count=len(results),
+                    threshold=similarity_threshold,
+                    query_time_ms=query_time_ms,
+                    namespace=target_namespace
                 )
                 
                 return VectorQueryResponse(
@@ -325,12 +351,10 @@ class VectorService:
                 )
                 
             except Exception as e:
-                logger.error(f"Vector query failed: {str(e)}")
                 query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
                 
                 # Log error to Logfire span
-                span.set_attribute('error', str(e))
-                span.set_attribute('error_type', type(e).__name__)
+                span.record_exception(e)
                 span.set_attribute('query_time_ms', query_time_ms)
                 
                 return VectorQueryResponse(
@@ -364,11 +388,18 @@ class VectorService:
                     namespace=target_namespace
                 )
             
-            logger.info(f"Successfully deleted document {document_id} from namespace {target_namespace}")
+            logfire.info(
+                'service.vector.delete.success',
+                document_id=document_id,
+                namespace=target_namespace
+            )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to delete document {document_id}: {str(e)}")
+            logfire.exception(
+                'service.vector.delete.failed',
+                document_id=document_id
+            )
             return False
     
     async def delete_namespace(self, namespace: str) -> bool:
@@ -388,11 +419,17 @@ class VectorService:
                     namespace=namespace
                 )
             
-            logger.info(f"Successfully cleared namespace {namespace}")
+            logfire.info(
+                'service.vector.delete_namespace.success',
+                namespace=namespace
+            )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to clear namespace {namespace}: {str(e)}")
+            logfire.exception(
+                'service.vector.delete_namespace.failed',
+                namespace=namespace
+            )
             return False
     
     async def get_document(
@@ -432,7 +469,10 @@ class VectorService:
             return None
             
         except Exception as e:
-            logger.error(f"Failed to fetch document {document_id}: {str(e)}")
+            logfire.exception(
+                'service.vector.get.failed',
+                document_id=document_id
+            )
             return None
     
     async def get_namespace_stats(self, namespace: Optional[str] = None) -> Dict[str, Any]:
@@ -469,7 +509,10 @@ class VectorService:
             return namespace_stats
             
         except Exception as e:
-            logger.error(f"Failed to get namespace stats for {namespace}: {str(e)}")
+            logfire.exception(
+                'service.vector.namespace_stats.failed',
+                namespace=target_namespace
+            )
             return {"namespace": target_namespace, "error": str(e)}
 
 

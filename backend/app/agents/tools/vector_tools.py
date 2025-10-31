@@ -11,7 +11,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 from pydantic_ai import RunContext
 from typing import Optional
-import logging
+import logfire
 
 from backend.app.agents.base.dependencies import SessionDependencies
 from backend.app.services.vector_service import VectorService, VectorQueryResponse
@@ -19,9 +19,6 @@ from backend.app.services.agent_pinecone_config import (
     load_agent_pinecone_config,
     get_cached_pinecone_client
 )
-
-
-logger = logging.getLogger(__name__)
 
 
 async def vector_search(
@@ -75,11 +72,11 @@ async def vector_search(
     # Load agent's Pinecone config
     pinecone_config = load_agent_pinecone_config(agent_config)
     if not pinecone_config:
-        logger.error({
-            "event": "vector_search_config_missing",
-            "session_id": session_id,
-            "agent": agent_config.get("instance_name", "unknown")
-        })
+        logfire.error(
+            'agent.tool.vector_search.config_missing',
+            session_id=session_id,
+            agent=agent_config.get("instance_name", "unknown")
+        )
         return "Vector search configuration error."
     
     # Get cached PineconeClient (reuses connection pool per Pinecone best practices)
@@ -101,15 +98,15 @@ async def vector_search(
         global_vector_config.get("similarity_threshold", 0.7)  # app.yaml → code default
     )
     
-    logger.info({
-        "event": "vector_search_start",
-        "session_id": session_id,
-        "query": query,
-        "index": pinecone_config.index_name,
-        "namespace": pinecone_config.namespace,
-        "top_k": top_k,
-        "threshold": similarity_threshold
-    })
+    logfire.info(
+        'agent.tool.vector_search.start',
+        session_id=session_id,
+        query=query,
+        index=pinecone_config.index_name,
+        namespace=pinecone_config.namespace,
+        top_k=top_k,
+        threshold=similarity_threshold
+    )
     
     # Perform search
     try:
@@ -120,12 +117,12 @@ async def vector_search(
             namespace=pinecone_config.namespace
         )
         
-        logger.info({
-            "event": "vector_search_complete",
-            "session_id": session_id,
-            "results_count": response.total_results,
-            "query_time_ms": response.query_time_ms
-        })
+        logfire.info(
+            'agent.tool.vector_search.complete',
+            session_id=session_id,
+            results_count=response.total_results,
+            query_time_ms=response.query_time_ms
+        )
         
         # Format results for LLM consumption
         if not response.results:
@@ -153,11 +150,10 @@ async def vector_search(
         return "\n".join(formatted_lines)
         
     except Exception as e:
-        logger.error({
-            "event": "vector_search_error",
-            "session_id": session_id,
-            "error": str(e),
-            "query": query
-        })
+        logfire.exception(
+            'agent.tool.vector_search.error',
+            session_id=session_id,
+            query=query
+        )
         return "Vector search encountered an error. Please try rephrasing your query."
 
