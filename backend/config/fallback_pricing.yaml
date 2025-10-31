@@ -94,6 +94,13 @@ models:
     updated: "2025-10-30"
     notes: "10B activated (230B MoE) optimized for agentic workflows, tool use, fast inference. 196k context. Used by agrofresh/agro_info_chat1. Requires reasoning_details preservation for best performance (not yet implemented)."
   
+  meta-llama/llama-4-maverick:
+    input_per_1m: 0.15     # $0.15 per 1M input tokens
+    output_per_1m: 0.60    # $0.60 per 1M output tokens
+    source: "https://openrouter.ai/meta-llama/llama-4-maverick"
+    updated: "2025-10-31"
+    notes: "Llama 4 Maverick 17B Instruct (128E) multimodal MoE from Meta. 17B active (400B total), 128 experts. Native image+text input, 1M context. Early fusion multimodal architecture. Tool use, vision-language tasks. Released Apr 5, 2025. Used by default_account/simple_chat2."
+  
   # NOTE: google/gemini-2.5-flash is available in genai-prices (as "gemini-2.5-flash")
   # No fallback entry needed - code strips provider prefix before calling calc_price()
 
