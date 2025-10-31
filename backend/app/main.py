@@ -72,7 +72,7 @@ Dependencies:
 - Starlette: ASGI foundation with middleware support and SSE capabilities
 - SQLAlchemy: Async ORM for database operations with connection pooling
 - Jinja2: Template engine for server-side HTML rendering
-- Loguru: Advanced logging with structured output and rotation support
+- Logfire: Observability platform with structured logging, tracing, and metrics
 - OpenRouter: LLM API integration for chat completion and streaming
 
 Usage:

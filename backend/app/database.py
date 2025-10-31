@@ -57,7 +57,7 @@ Performance Considerations:
 Dependencies:
 - SQLAlchemy 2.0+ with async support
 - asyncpg driver for PostgreSQL
-- loguru for structured logging
+- Logfire for structured logging and observability
 - configuration module for database settings
 """
 

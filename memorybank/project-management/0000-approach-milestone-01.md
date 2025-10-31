@@ -568,16 +568,20 @@ logfire.debug('service.query.result', result_count=len(result))
   - **Impact**: Full SQLAlchemy tracing working - no changes needed
   - **Findings**: The `sync_engine` wrapper approach is the recommended pattern for async SQLAlchemy engines. Logfire documentation confirms this is the correct approach.
   
-- [ ] 6.4 - Update logging-implementation.md (P4 - Documentation)
-  - Document that HTTPX requires explicit `logfire.instrument_httpx()` call
-  - Document Pydantic instrumentation location (main.py, not per-agent)
-  - Document SQLAlchemy async instrumentation findings
-  - Update "Built-in Integrations" table with actual implementation status
+- [x] 6.4 - Update logging-implementation.md (P4 - Documentation) ✅
+  - Documented that HTTPX requires explicit `logfire.instrument_httpx()` call (not automatic)
+  - Documented Pydantic instrumentation location (main.py, not per-agent)
+  - Documented SQLAlchemy async instrumentation findings (sync_engine wrapper pattern)
+  - Updated "Built-in Integrations" table with actual implementation status
+  - Added SQLAlchemy Async Engine Instrumentation section with code examples
+  - **Impact**: Documentation now reflects actual implementation patterns and best practices
 
 **Dependency Cleanup**:
-- [ ] 6.5 - Remove loguru from dependencies
-  - Remove `loguru` from `requirements.txt` or equivalent
-  - Verify no remaining imports
+- [x] 6.5 - Remove loguru from dependencies ✅
+  - Removed `loguru==0.7.3` from `requirements.txt`
+  - Updated comments in `database.py`, `main.py`, and `tools_base.py` to reference Logfire instead
+  - Verified no production code imports loguru (only explore/ test files still have it)
+  - **Impact**: Cleaner dependencies, no unused logging library
   
 - [ ] 6.6 - Remove standard logging remnants
   - Remove any remaining `import logging` statements

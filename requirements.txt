@@ -9,7 +9,6 @@ sqlalchemy==2.0.43
 alembic==1.16.4
 asyncpg==0.30.0
 greenlet==3.2.4
-loguru==0.7.3
 python-dotenv==1.1.1
 PyYAML==6.0.2
 openai==1.107.1
