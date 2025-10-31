@@ -413,37 +413,85 @@ Unauthorized copying of this file is strictly prohibited.
 ### **Priority 11: Logging Infrastructure Consolidation** 📋 **PLANNED**
 **Epic 0017-013 - Migrate from Loguru to Logfire Logging**
 
-**Why Priority 11**: Consolidate all logging to use Logfire for consistent observability, structured logging, and distributed tracing across the entire application. Currently using mixed approaches (standard `logging`, `loguru`, `logfire`) which creates inconsistency and prevents full utilization of Logfire's observability features.
+**Problem**: Mixed logging approaches (`loguru`, `logging`, `logfire`) create inconsistency and prevent full Logfire observability utilization.
 
-**Status**: Comprehensive migration plan complete with 4 chunks, 12 automated tests, and dual output configuration (console + cloud) documented.
+**Solution**: Migrate all logging to Logfire with structured event naming (`module.action`) and dual output (console + cloud).
 
-**Dependencies**: None - can be implemented alongside other priorities.
+**See**: [Critical Libraries Review - Logfire Patterns](../../analysis/critical-libraries-review.md#7-logfire-pydanticlogfire) | [Epic 0017-013](0017-simple-chat-agent.md#0017-013)
 
-**See**: [Critical Libraries Review - Logfire Patterns](../../analysis/critical-libraries-review.md#7-logfire-pydanticlogfire) for proper instrumentation patterns and best practices.
+---
 
-- [ ] 0017-013-001 - Migrate Simple Chat Agent to Logfire 📋
-  - [ ] 0017-013-001-01 - Replace loguru imports with logfire in simple_chat.py
-  - [ ] 0017-013-001-02 - Migrate services to Logfire
-  - [ ] 0017-013-001-03 - Add Logfire spans for performance tracking
-  - [ ] 0017-013-001-04 - Remove all loguru dependencies
+**Files Impacted** (21 total):
 
-**Key Features**:
-- Dual output: Console logs (screen) + Logfire cloud dashboard
-- Structured logging: `logfire.info('event.name', key=value)` format
-- Event naming convention: Dot notation (`module.action`)
-- No visibility loss: Console output always enabled for development
-- Distributed tracing: Full request flow visibility with spans
+**✅ Already Using Logfire** (verify/keep):
+- `backend/app/services/vector_service.py` ✅ (has both - remove logging, keep logfire)
+- `backend/app/agents/tools/directory_tools.py` ✅
+- `backend/app/agents/tools/prompt_generator.py` ✅
+- `backend/app/agents/simple_chat.py` (partial - has loguru imports too, needs cleanup)
 
-**Benefits**:
-- ✅ Consistent observability across entire codebase
-- ✅ Structured, queryable logs in Logfire dashboard
-- ✅ Automatic Pydantic model instrumentation
-- ✅ Better debugging (trace tool loops, LLM behavior, performance)
-- ✅ Reduced complexity (one logging library instead of three)
+**⚠️ Using Loguru** (migrate - 17 files):
+- `backend/app/main.py` (also has logfire - remove loguru setup)
+- `backend/app/api/account_agents.py`
+- `backend/app/api/agents.py`
+- `backend/app/services/message_service.py`
+- `backend/app/services/session_service.py`
+- `backend/app/services/llm_request_tracker.py`
+- `backend/app/services/directory_importer.py`
+- `backend/app/services/agent_pinecone_config.py`
+- `backend/app/services/pinecone_client.py`
+- `backend/app/services/embedding_service.py`
+- `backend/app/middleware/simple_session_middleware.py`
+- `backend/app/middleware/session_middleware.py`
+- `backend/app/agents/config_loader.py`
+- `backend/app/agents/instance_loader.py`
+- `backend/app/agents/cascade_monitor.py`
+- `backend/app/openrouter_client.py`
+- `backend/app/database.py`
 
-**Testing**: 12 automated tests (unit + integration)
+**⚠️ Using Standard Logging** (migrate - 2 files):
+- `backend/app/services/directory_service.py`
+- `backend/app/agents/tools/vector_tools.py`
 
-**See**: [Epic 0017-013](0017-simple-chat-agent.md#0017-013) for detailed 4-chunk implementation plan
+---
+
+**Implementation Plan**:
+
+**Phase 1: Core Agent Migration** (2-4 hours)
+- [ ] Replace `from loguru import logger` → `import logfire` in `simple_chat.py`
+- [ ] Convert `logger.info()` → `logfire.info('agent.event_name', key=value)` format
+- [ ] Update service files: `message_service.py`, `session_service.py`, `llm_request_tracker.py`, `directory_importer.py`, `agent_pinecone_config.py`, `pinecone_client.py`, `embedding_service.py` (7 files)
+- [ ] Update middleware files: `simple_session_middleware.py`, `session_middleware.py` (2 files)
+
+**Phase 2: API & Infrastructure** (2-3 hours)
+- [ ] Migrate `main.py` (remove `_setup_logger()` loguru config, keep logfire only)
+- [ ] Update API routers (`account_agents.py`, `agents.py`)
+- [ ] Migrate database and config modules (`database.py`, `config_loader.py`, `instance_loader.py`)
+- [ ] Update client modules (`openrouter_client.py`, `pinecone_client.py`)
+
+**Phase 3: Standard Logging Cleanup** (1-2 hours)
+- [ ] Replace `import logging` → `import logfire` in remaining files
+- [ ] Remove `logger = logging.getLogger(__name__)` pattern
+
+**Phase 4: Enhancements & Cleanup** (2-3 hours)
+- [ ] Add Logfire spans for performance tracking (`with logfire.span()`)
+- [ ] Update event naming to dot notation (`module.action`)
+- [ ] Remove loguru from `requirements.txt`
+- [ ] Update documentation (README, project-brief.md)
+
+**Total Effort**: 7-12 hours
+
+**Pattern to Follow**:
+```python
+# BEFORE (loguru)
+from loguru import logger
+logger.info(f"Processing request for {session_id}")
+
+# AFTER (logfire)
+import logfire
+logfire.info('session.request', session_id=str(session_id))
+```
+
+**Testing**: 12 automated tests (unit + integration) | Manual: Verify console output + Logfire dashboard
 
 ---
 

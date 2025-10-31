@@ -296,6 +296,11 @@ search_strategy:
     - lay_terms: ["physical therapy", "physical therapist", "PT", "rehab doctor", "rehabilitation"]
       medical_specialties: ["Physical Medicine and Rehabilitation", "Physical Therapy", "Rehabilitation"]
       search_approach: "Search for 'Physical Medicine' or 'Rehabilitation'"
+    
+    # Urology/Genitourinary
+    - lay_terms: ["urologist", "urologists", "bladder doctor", "kidney stone doctor", "prostate doctor"]
+      medical_specialties: ["Urology", "Urologic Surgery"]
+      search_approach: "Search for 'Urology' - covers bladder, prostate, kidney stones, genitourinary issues"
   
   examples:
     - user_query: "Do you have kidney specialists?"

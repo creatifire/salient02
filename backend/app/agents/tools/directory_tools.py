@@ -30,21 +30,34 @@ async def search_directory(
     """
     Search directory for entries (doctors, drugs, products, consultants, etc.).
     
-    Use for: Name searches, tag/attribute filters, entry-specific fields
+    **CRITICAL: Parameter Selection Rules:**
+    - `query`: ONLY for searching doctor/entry NAMES (e.g., "Dr. Smith", "John")
+    - `filters`: MUST use for specialty, department, gender, or any JSONB field searches
+    - NEVER use `query` for medical specialties - always use `filters={"specialty": "..."}`
+    
+    **For Medical Specialties:**
+    - User asks "urologists" → Use `filters={"specialty": "Urology"}` (NOT query="urologist")
+    - User asks "cardiologists" → Use `filters={"specialty": "Cardiology"}` (NOT query="cardiologist")
+    - User asks "heart doctors" → Use `filters={"specialty": "Cardiology"}` (NOT query="heart")
     
     Args:
         list_name: Which list to search (e.g., "doctors", "prescription_drugs", "electronics")
-        query: Name to search (partial match, case-insensitive)
+        query: Name to search ONLY (e.g., "Dr. Smith", "John", "Mary") - partial match, case-insensitive
+               DO NOT use for specialties or departments - use filters instead
         tag: Tag filter (language for medical, drug class for pharma, category for products)
-        filters: Type-specific JSONB filters as a dictionary
-                 Examples: {"specialty": "Cardiology", "gender": "female"}
+        filters: Type-specific JSONB filters as a dictionary - USE THIS for specialties, departments, etc.
+                 Examples: {"specialty": "Urology", "gender": "female"}
+                          {"specialty": "Cardiology"}  # For "cardiologists" queries
+                          {"department": "Emergency Medicine"}
                           {"drug_class": "NSAID", "indications": "pain"}
                           {"category": "Laptops", "brand": "Dell", "in_stock": "true"}
     
     Examples:
-        # Medical professionals
+        # Medical professionals - ALWAYS use filters for specialty searches
+        search_directory(list_name="doctors", filters={"specialty": "Urology"})  # "what urologists"
+        search_directory(list_name="doctors", filters={"specialty": "Cardiology"})  # "heart doctors"
         search_directory(list_name="doctors", filters={"specialty": "Cardiology", "gender": "female"}, tag="Spanish")
-        search_directory(list_name="doctors", query="smith", filters={"gender": "female"})
+        search_directory(list_name="doctors", query="smith", filters={"gender": "female"})  # Name search OK
         search_directory(list_name="doctors", filters={"department": "Emergency Medicine", "specialty": "Pediatrics"})
         
         # Pharmaceuticals
@@ -53,7 +66,7 @@ async def search_directory(
         
         # Products
         search_directory(list_name="electronics", filters={"category": "Laptops", "brand": "Dell"})
-        search_directory(list_name="electronics", query="macbook", filters={"in_stock": "true"})
+        search_directory(list_name="electronics", query="macbook", filters={"in_stock": "true"})  # Name search OK
     """
     logfire.info(
         'directory.search_called',

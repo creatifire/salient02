@@ -484,8 +484,9 @@ tools:
 - Example: "smith" matches "John Smith", "Smithson"
 
 **fts**: Full-text search with relevance ranking
-- Use for: Natural language queries, word variations
+- Use for: Natural language queries, word variations, fuzzy matching
 - Example: "cardio" matches "cardiologist", "cardiology"
+- **JSONB filters in FTS mode**: Filter values are incorporated into tsquery, enabling fuzzy matching via stemming (e.g., "Urology" matches "Urologic Surgery"). No separate field equality checks.
 - Performance: Fastest (GIN index), best relevance
 
 ### Custom Fields Per Directory Type
@@ -606,6 +607,8 @@ search_directory(list_name="doctors",
 search_directory(list_name="products",
                 filters={"category": "Laptops", "price_range": "under_1000"})
 ```
+
+**Note**: In FTS mode, JSONB filter values are searched via tsvector (fuzzy matching), enabling word variations. In non-FTS modes (substring/exact), filters use regex word-boundary matching for exact field matching.
 
 ### Pattern 3: Language/Tag Filtering
 **Use Case**: Find entries with specific tags

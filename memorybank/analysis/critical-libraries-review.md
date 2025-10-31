@@ -232,9 +232,15 @@ result = await agent.run(prompt, deps=deps)
 
 # ✅ GOOD: Each operation creates independent session
 @agent.tool
-async def search_directory(ctx: RunContext[SessionDependencies], query: str) -> str:
+async def search_directory(
+    ctx: RunContext[SessionDependencies],
+    list_name: str,
+    query: Optional[str] = None,
+    tag: Optional[str] = None,
+    filters: Optional[Dict[str, str]] = None,
+) -> str:
     async with get_db_session() as session:  # Independent session
-        return await service.search(session, query)
+        return await service.search(session, list_name, query, tag, filters)
 ```
 
 **Key Points:**
@@ -494,9 +500,15 @@ agent = Agent('openai:gpt-4o', deps_type=SessionDependencies)
 
 # Tools create independent sessions
 @agent.tool
-async def search_directory(ctx: RunContext[SessionDependencies], query: str) -> str:
+async def search_directory(
+    ctx: RunContext[SessionDependencies],
+    list_name: str,
+    query: Optional[str] = None,
+    tag: Optional[str] = None,
+    filters: Optional[Dict[str, str]] = None,
+) -> str:
     async with get_db_session() as session:  # Independent session
-        return await service.search(session, query)
+        return await service.search(session, list_name, query, tag, filters)
 ```
 
 **Important**: Session-per-operation pattern prevents concurrent operation errors. See [BUG-0023-001](../project-management/bugs-0023.md#bug-0023-001-sqlalchemy-concurrent-operations-error-complete) for implementation details.

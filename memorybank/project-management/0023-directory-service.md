@@ -73,7 +73,7 @@ Schema file → defines entry_data structure
 ## Implementation Architecture
 
 **Tool Layer**: `backend/app/agents/tools/directory_tools.py`
-- Single Pydantic AI tool: `search_directory(list_name, query, tag, **filters)`
+- Single Pydantic AI tool: `search_directory(list_name, query, tag, filters)`
 - Uses `@agent.tool` decorator pattern with `RunContext[SessionDependencies]`
 - Registered dynamically per agent based on config
 - **Explicit list_name parameter** (LLM chooses which list to search)
@@ -477,6 +477,16 @@ psql -c "EXPLAIN ANALYZE SELECT * FROM directory_entries WHERE search_vector @@ 
 - ✅ Relevance ranking shows best matches first
 - ✅ Performance acceptable (< 100ms)
 - ✅ Backward compatible with existing queries
+
+**Issue Fixed** (January 31, 2025):
+- ✅ **BUG-0023-004**: Removed conflicting JSONB substring filter for FTS mode
+  - **Problem**: When `search_mode="fts"` AND `filters={"specialty": "Urology"}`:
+    - tsvector correctly found "Urologic Surgery" doctors
+    - But JSONB field filter `ilike(f"%Urology%")` excluded them (not a substring)
+    - Result: 0 entries returned despite tsvector finding matches
+  - **Fix**: Removed JSONB field filter for FTS mode (tsvector handles all matching)
+  - **Status**: ✅ **COMPLETE** - tsvector now works without conflicts
+  - **See**: [bugs-0023.md](./bugs-0023.md#bug-0023-004) for detailed analysis
 
 #### **2. Schema-Driven Generic Filters (0023-004-001) - Priority 2** ⬇️ **MOVED DOWN**
 **Status**: Planned 📋

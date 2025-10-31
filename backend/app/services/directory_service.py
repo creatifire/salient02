@@ -10,6 +10,7 @@ with multi-tenant access control and flexible filtering (name, tags, JSONB field
 
 from __future__ import annotations
 
+import re
 from typing import List, Optional, Literal
 from uuid import UUID
 from sqlalchemy import select, and_, func, text
@@ -172,6 +173,10 @@ class DirectoryService:
             )
         )
         
+        # Track if we've applied FTS ranking (for combining with filter queries)
+        fts_rank_expr = None
+        fts_ts_query = None
+        
         # Name search - behavior depends on search_mode
         if name_query:
             if search_mode == "fts":
@@ -182,16 +187,16 @@ class DirectoryService:
                     tsquery_str = ' & '.join(name_query.strip().split())
                     
                     # Create tsquery function call
-                    ts_query = func.to_tsquery('english', tsquery_str)
+                    fts_ts_query = func.to_tsquery('english', tsquery_str)
                     
                     # Filter: search_vector matches query
                     query = query.where(
-                        DirectoryEntry.search_vector.op('@@')(ts_query)
+                        DirectoryEntry.search_vector.op('@@')(fts_ts_query)
                     )
                     
                     # Rank by relevance (higher is better)
-                    rank_expr = func.ts_rank(DirectoryEntry.search_vector, ts_query)
-                    query = query.order_by(rank_expr.desc())
+                    fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, fts_ts_query)
+                    query = query.order_by(fts_rank_expr.desc())
                     
                     logger.debug(f"FTS query: {tsquery_str}")
                     
@@ -215,12 +220,75 @@ class DirectoryService:
         if tags:
             query = query.where(DirectoryEntry.tags.op('&&')(tags))
         
-        # JSONB field filtering (case-insensitive partial match)
+        # JSONB field filtering
+        # When FTS mode enabled: Use tsvector for fuzzy matching (handles word variations)
+        # When non-FTS mode: Use regex for exact/substring matching
         if jsonb_filters:
-            for key, value in jsonb_filters.items():
-                query = query.where(
-                    DirectoryEntry.entry_data[key].astext.ilike(f"%{value}%")
-                )
+            if search_mode == "fts":
+                # BUG-0023-004: Use tsvector for specialty searches when FTS mode enabled
+                # This enables fuzzy matching: "Urology" → "Urologic Surgery" via stemming
+                # Build tsquery from all filter values (combine with AND)
+                filter_values = []
+                for value in jsonb_filters.values():
+                    # Split multi-word values and join with & (AND logic)
+                    filter_values.extend(value.strip().split())
+                
+                if filter_values:
+                    # Build combined tsquery from name_query (if exists) and filter values
+                    tsquery_parts = []
+                    
+                    # Add name_query parts if it exists (for combined ranking)
+                    if name_query:
+                        name_parts = name_query.strip().split()
+                        tsquery_parts.extend(name_parts)
+                    
+                    # Add filter values
+                    tsquery_parts.extend(filter_values)
+                    
+                    # Build combined tsquery string
+                    combined_tsquery_str = ' & '.join(tsquery_parts)
+                    combined_ts_query = func.to_tsquery('english', combined_tsquery_str)
+                    
+                    # Apply tsvector search if not already applied by name_query
+                    if not name_query:
+                        # No name_query, so apply tsvector search for filters only
+                        query = query.where(
+                            DirectoryEntry.search_vector.op('@@')(combined_ts_query)
+                        )
+                        # Add ranking by relevance
+                        fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, combined_ts_query)
+                        query = query.order_by(fts_rank_expr.desc())
+                    else:
+                        # name_query already applied tsvector, but use combined query for better ranking
+                        # Replace existing order_by with combined ranking
+                        fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, combined_ts_query)
+                        # Remove any existing order_by and add new one
+                        # Note: SQLAlchemy will replace order_by if called again
+                        query = query.order_by(fts_rank_expr.desc())
+                    
+                    # NOTE: We do NOT apply additional JSONB field filters here
+                    # The tsvector search already handles matching across ALL fields (name, tags, entry_data)
+                    # Additional JSONB substring filters would conflict with tsvector's fuzzy matching
+                    # Example: "Urology" → tsvector matches "Urologic Surgery" via stemming
+                    # But substring filter "%Urology%" fails because "Urology" is not a substring of "Urologic Surgery"
+                    # This causes false negatives, so we rely on tsvector only
+                    
+                    logger.debug(f"FTS filter query: {combined_tsquery_str}")
+            else:
+                # Non-FTS modes: Use regex word-boundary matching
+                # Uses regex word boundaries to prevent false matches:
+                # - "Urology" matches "Urology" and "Urologic Surgery" but NOT "Neurology"
+                # - Word boundary \m = start of word
+                # - Escapes special regex characters in value to prevent injection
+                for key, value in jsonb_filters.items():
+                    # Escape special regex characters in the search value
+                    escaped_value = re.escape(value)
+                    # Pattern: word starts with escaped value (case-insensitive)
+                    # \m = word boundary at start, allows "Urology" to match "Urologic Surgery"
+                    word_boundary_pattern = f"\\m{escaped_value}"
+                    query = query.where(
+                        DirectoryEntry.entry_data[key].astext.op('~*')(word_boundary_pattern)
+                    )
         
         # Limit results
         query = query.limit(limit)

@@ -139,7 +139,11 @@ await DirectoryService.search(
 # Expected: Doctors in Pediatrics department
 ```
 
-**How It Works**: FTS search runs first (using GIN index), then results are filtered using tag array matching and JSONB field equality. All filters must match (AND logic).
+**How It Works**: 
+- **For `name_query` and JSONB filters**: FTS combines both into a single tsquery that searches `search_vector` (includes name, tags, AND entry_data JSONB fields). This enables fuzzy matching via stemming (e.g., "Urology" matches "Urologic Surgery").
+- **For tag filters**: Results are filtered using tag array matching (`tags && :tags`).
+- **Important**: In FTS mode, JSONB filters are handled by tsvector search, NOT by separate field equality checks. This ensures word variations work correctly (e.g., "Urology" → "Urologic Surgery" via stemming).
+- All filters must match (AND logic).
 
 ---
 
@@ -264,19 +268,19 @@ Example natural language queries that the LLM agent should translate to tool cal
 
 | User Query | Expected Tool Call |
 |------------|-------------------|
-| "Find me a cardiologist" | `search_directory(list_name="doctors", query="cardio", search_mode="fts")` |
-| "Spanish-speaking surgeon" | `search_directory(list_name="doctors", query="surgery", tag="Spanish", search_mode="fts")` |
-| "Female pediatrician" | `search_directory(list_name="doctors", query="pediatric", filters={"gender": "female"}, search_mode="fts")` |
-| "Emergency doctor" | `search_directory(list_name="doctors", query="emergency", search_mode="fts")` |
-| "Find Dr. Smith" | `search_directory(list_name="doctors", query="Dr. Smith", search_mode="exact")` |
+| "Find me a cardiologist" | `search_directory(list_name="doctors", filters={"specialty": "Cardiology"})` |
+| "Spanish-speaking surgeon" | `search_directory(list_name="doctors", filters={"specialty": "Surgery"}, tag="Spanish")` |
+| "Female pediatrician" | `search_directory(list_name="doctors", filters={"specialty": "Pediatrics", "gender": "female"})` |
+| "Emergency doctor" | `search_directory(list_name="doctors", filters={"department": "Emergency Medicine"})` |
+| "Find Dr. Smith" | `search_directory(list_name="doctors", query="Dr. Smith")` |
 
-**Why FTS for Natural Language**:
-- Word variations handled automatically ("cardio" finds "cardiologist")
+**Why FTS for Natural Language** (when `search_mode="fts"` in config.yaml):
+- Word variations handled automatically via stemming ("urology" finds "Urologic Surgery")
 - Relevance ranking shows best matches first
 - Fast even with large datasets (GIN index)
 - Multi-word queries work naturally ("emergency medicine")
 
-**Note**: The `search_mode` parameter is configured in the agent's `config.yaml`, so agents typically don't specify it in tool calls. The examples above show explicit modes for clarity.
+**Note**: The `search_mode` is configured in the agent's `config.yaml` (e.g., `search_mode: "fts"`), NOT passed as a parameter to the tool. Tool calls only include `list_name`, `query`, `tag`, and `filters`.
 
 ---
 
@@ -383,22 +387,27 @@ ON directory_entries USING GIN(search_vector);
 FTS queries use this structure:
 
 ```sql
+-- When JSONB filters provided in FTS mode, they're incorporated into tsquery:
 SELECT *
 FROM directory_entries
 WHERE 
     directory_list_id = ANY(:list_ids)  -- Multi-tenant filter
-    AND search_vector @@ to_tsquery('english', :query)  -- FTS match
+    AND search_vector @@ to_tsquery('english', :combined_query)  -- FTS match (includes name_query + filter values)
     AND (:tags IS NULL OR tags && :tags)  -- Tag filter (if provided)
-    AND (:filters IS NULL OR entry_data @> :filters)  -- JSONB filter (if provided)
-ORDER BY ts_rank(search_vector, to_tsquery('english', :query)) DESC
+ORDER BY ts_rank(search_vector, to_tsquery('english', :combined_query)) DESC
 LIMIT :max_results;
 ```
+
+**Key Difference**: In FTS mode, JSONB filter values are combined with `name_query` into a single tsquery that searches the entire `search_vector` (which includes entry_data JSONB fields). This enables fuzzy matching:
+- "Urology" → matches "Urologic Surgery" (via PostgreSQL stemming)
+- "Cardiology" → matches "Cardiologist", "Cardiac" (word variations)
+- **No separate JSONB field equality check** - tsvector handles it all
 
 **Execution Plan** (typical):
 1. GIN index scan on `search_vector` (most selective)
 2. Filter by `directory_list_id` (tenant isolation)
-3. Apply tag and JSONB filters
-4. Sort by relevance score
+3. Apply tag array filter (if provided)
+4. Sort by relevance score (ts_rank DESC)
 5. Return top N results
 
 ---
@@ -419,9 +428,24 @@ SELECT id, name, search_vector
 FROM directory_entries 
 WHERE directory_list_id = :list_id 
 LIMIT 5;
+
+-- Test if tsvector finds the query (for debugging FTS filter issues)
+SELECT name, entry_data->>'specialty' as specialty
+FROM directory_entries 
+WHERE search_vector @@ to_tsquery('english', 'urology')
+LIMIT 5;
+-- If this finds results but tool doesn't, check if non-FTS mode is being used
 ```
 
-**Solution**: If index or column missing, run migration to add them.
+**Common Causes**:
+1. **Index or column missing**: Run migration to add them
+2. **Using wrong search mode**: Verify `search_mode="fts"` in agent config
+3. **Word variation mismatch**: In FTS mode, "Urology" matches "Urologic Surgery" via stemming, but exact substring filters won't work the same way
+
+**Solution**: 
+- If index or column missing, run migration to add them
+- Ensure `search_mode="fts"` is configured for agents that need fuzzy matching
+- In FTS mode, rely on tsvector's fuzzy matching rather than expecting exact field matches
 
 ### Issue: Slow FTS Queries
 
