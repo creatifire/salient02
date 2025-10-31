@@ -215,6 +215,34 @@ messages = session_obj.messages  # Already in memory
 2. **Async Attrs**: Use `await obj.awaitable_attrs.relationship` for lazy-loaded async relationships
 3. **Transaction Management**: Use `async with session.begin()` for transactions
 4. **Connection Pooling**: Configure pool size for async workloads
+5. **Concurrent Operations**: Shared sessions cause "concurrent operations not permitted" errors
+
+### Session-Per-Operation Pattern ✅ **CRITICAL**
+
+**Problem**: Shared database sessions across concurrent operations (parallel tool calls) cause SQLAlchemy errors.
+
+**Solution**: Each operation creates its own session. See [BUG-0023-001](../project-management/bugs-0023.md#bug-0023-001-sqlalchemy-concurrent-operations-error-complete) for full implementation.
+
+```python
+# ❌ BAD: Shared session causes concurrent operation errors
+deps = SessionDependencies(db_session=session)  # ONE shared
+result = await agent.run(prompt, deps=deps)
+  ├─ Tool 1: uses ctx.deps.db_session  # CONFLICT
+  └─ Tool 2: uses ctx.deps.db_session  # CONFLICT
+
+# ✅ GOOD: Each operation creates independent session
+@agent.tool
+async def search_directory(ctx: RunContext[SessionDependencies], query: str) -> str:
+    async with get_db_session() as session:  # Independent session
+        return await service.search(session, query)
+```
+
+**Key Points:**
+- ✅ **DO NOT** store `db_session` in `SessionDependencies` for tools
+- ✅ Tools create own sessions via `get_db_session()` context manager
+- ✅ Cost tracking creates own session (not shared)
+- ✅ Eliminates concurrent operation errors while preserving parallel execution
+- ✅ **Status**: ✅ Implemented and verified (see BUG-0023-001)
 
 ---
 
@@ -412,6 +440,28 @@ async with pool.acquire() as connection:
 1. **Connection Leaks**: Always use `async with` for connection acquisition
 2. **Transaction Isolation**: Understand isolation levels for concurrent access
 3. **Pool Sizing**: Too small causes waiting, too large wastes resources
+4. **Max Overflow**: Must configure `max_overflow` for burst capacity (see [BUG-0023-003](../project-management/bugs-0023.md#bug-0023-003-connection-pool-sizing--p2))
+
+### Connection Pool Configuration ✅
+
+**SQLAlchemy Engine Configuration:**
+```python
+from sqlalchemy.ext.asyncio import create_async_engine
+
+engine = create_async_engine(
+    database_url,
+    pool_size=20,           # Base pool size
+    max_overflow=10,        # Burst capacity (total: 30 connections)
+    pool_pre_ping=True,    # Verify connections before use
+    pool_recycle=3600,     # Recycle connections after 1 hour
+)
+```
+
+**Key Points:**
+- ✅ Set `max_overflow > 0` for burst capacity under concurrent load
+- ✅ Use `pool_pre_ping=True` to detect stale connections
+- ✅ Configure `pool_recycle` to prevent connection exhaustion
+- ⚠️ **Without `max_overflow`**: Pool exhausts under concurrent load (see BUG-0023-003)
 
 ---
 
@@ -433,12 +483,20 @@ class SessionDependencies:
     session_id: str
     account_id: int
     account_slug: str
-    db: AsyncSession
+    # db_session removed - tools create own sessions (BUG-0023-001)
     vector_db: PineconeIndex
     config: AgentConfig
 
 agent = Agent('openai:gpt-4o', deps_type=SessionDependencies)
+
+# Tools create independent sessions
+@agent.tool
+async def search_directory(ctx: RunContext[SessionDependencies], query: str) -> str:
+    async with get_db_session() as session:  # Independent session
+        return await service.search(session, query)
 ```
+
+**Important**: Session-per-operation pattern prevents concurrent operation errors. See [BUG-0023-001](../project-management/bugs-0023.md#bug-0023-001-sqlalchemy-concurrent-operations-error-complete) for implementation details.
 
 ### Cost Tracking ✅
 
@@ -464,8 +522,9 @@ usage = result.usage()  # RunUsage(input_tokens=..., output_tokens=...)
 
 - [ ] **Pinecone Namespaces**: Verify namespace isolation per account
 - [ ] **Logfire Instrumentation**: Ensure all libraries instrumented
-- [ ] **Connection Pools**: Review pool sizing for production load
+- [ ] **Connection Pools**: Review pool sizing for production load (add `max_overflow` per BUG-0023-003)
 - [ ] **Transaction Management**: Verify all multi-step operations use transactions
+- [x] **Session-Per-Operation**: ✅ Complete - All tools create independent sessions (BUG-0023-001)
 
 ---
 
