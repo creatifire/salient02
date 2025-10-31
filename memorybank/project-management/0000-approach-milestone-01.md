@@ -550,10 +550,10 @@ logfire.debug('service.query.result', result_count=len(result))
   - **Impact**: Visibility into LLM API latency, errors, retries, request/response metadata
   - **Verification**: Check Logfire for HTTP request spans during chat interactions
   
-- [ ] 6.2 - Move Pydantic instrumentation to main.py (P2 - Consistency)
-  - Move `logfire.instrument_pydantic()` from `backend/app/agents/simple_chat.py:44` to `backend/app/main.py` (with other instrumentation)
-  - Ensures all Pydantic models are instrumented, not just those loaded after simple_chat
-  - **Impact**: Consistent instrumentation pattern, guaranteed coverage
+- [x] 6.2 - Move Pydantic instrumentation to main.py (P2 - Consistency) ✅
+  - Moved `logfire.instrument_pydantic()` from `backend/app/agents/simple_chat.py:44` to `backend/app/main.py:238`
+  - Now instrumented with FastAPI, Pydantic AI, and HTTPX in central location
+  - **Impact**: Consistent instrumentation pattern, guaranteed coverage of all Pydantic models
   - **Verification**: Verify Pydantic validation spans appear for all models
   
 - [ ] 6.3 - Verify SQLAlchemy async instrumentation (P3 - Investigation)

@@ -230,13 +230,14 @@ async def lifespan(app: FastAPI):
 # Title and lifespan management for production deployment
 app = FastAPI(title="Salient Backend", lifespan=lifespan)
 
-# Logfire Instrumentation: Automatic tracing for FastAPI, Pydantic AI, and HTTPX
-# This captures all HTTP requests, LLM calls, external API calls, and OpenTelemetry GenAI attributes
+# Logfire Instrumentation: Automatic tracing for FastAPI, Pydantic AI, Pydantic, and HTTPX
+# This captures all HTTP requests, LLM calls, model validation, external API calls, and OpenTelemetry GenAI attributes
 try:
     logfire.instrument_fastapi(app)
     logfire.instrument_pydantic_ai()
+    logfire.instrument_pydantic()  # Trace all Pydantic model validation
     logfire.instrument_httpx()  # Trace all outbound HTTP requests (OpenRouter, etc.)
-    print("✅ Logfire instrumentation complete (FastAPI + Pydantic AI + HTTPX)")
+    print("✅ Logfire instrumentation complete (FastAPI + Pydantic AI + Pydantic + HTTPX)")
 except Exception as e:
     # Log instrumentation errors for debugging
     # App can run without Logfire instrumentation if configuration failed

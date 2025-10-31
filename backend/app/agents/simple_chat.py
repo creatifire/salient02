@@ -40,9 +40,6 @@ import time
 import os
 import logfire
 
-# Enable Pydantic instrumentation for automatic logging in Logfire
-logfire.instrument_pydantic()
-
 # Global agent instance (lazy loaded)
 # Global caching disabled for production reliability
 # _chat_agent = None  # Removed: Always create fresh agents
