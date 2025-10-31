@@ -31,6 +31,7 @@
   const fontFamily = globalConfig.fontFamily || (script && script.getAttribute('data-font-family')) || 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   const fontSize = globalConfig.fontSize || (script && script.getAttribute('data-font-size')) || '14px';
   const headerColor = globalConfig.headerColor || (script && script.getAttribute('data-header-color')) || '#169CB5';
+  const fontFamilyUrl = globalConfig.fontFamilyUrl || (script && script.getAttribute('data-font-family-url')) || null;
   
   // Debug mode - enable verbose console logging
   const debugMode = globalConfig.debug !== undefined ? globalConfig.debug : false;
@@ -84,6 +85,15 @@
     host.style.all = 'initial';
     document.body.appendChild(host);
     const root = host.attachShadow({ mode: 'open' });
+
+    // Load Google Font if fontFamilyUrl is provided
+    if (fontFamilyUrl) {
+      const fontLink = document.createElement('link');
+      fontLink.rel = 'stylesheet';
+      fontLink.href = fontFamilyUrl;
+      root.appendChild(fontLink);
+      debugLog('Font family URL loaded:', fontFamilyUrl);
+    }
 
     const style = document.createElement('style');
     style.textContent = `
