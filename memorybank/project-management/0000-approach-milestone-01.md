@@ -236,13 +236,15 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Priority Order** (ranked by impact and urgency):
 
-1. **BUG-0023-002** (P1) - Configuration Cascade Path Error 🔴 **BLOCKING**
+1. **BUG-0023-002** (P1) - Configuration Cascade Path Error ✅ **COMPLETE**
    - **Problem**: Config loader uses wrong path, all agents fall back to global config
    - **Impact**: Directory service and multi-tenant agents can't load instance-specific configs
-   - **Effort**: 1-2 hours
+   - **Effort**: 1-2 hours ✅ **COMPLETE**
    - **Fix**: Update path construction in config loader from `agent_configs/{agent_type}/config.yaml` to `agent_configs/{account_slug}/{instance_slug}/config.yaml`
-   - **Files**: `backend/app/agents/cascade_monitor.py` or config loader
-   - **See**: [bugs-0023.md](bugs-0023.md#bug-0023-002-configuration-cascade-path-error--p1)
+   - **Files**: `backend/app/agents/config_loader.py` ✅ **COMPLETE**
+   - **Status**: ✅ **COMPLETE** - Manual testing passed (January 12, 2025)
+   - **Commit**: `74ed4f9`
+   - **See**: [bugs-0023.md](bugs-0023.md#bug-0023-002-configuration-cascade-path-error--complete)
 
 2. **BUG-0023-003** (P2) - Connection Pool Sizing 🟡 **PRODUCTION READY**
    - **Problem**: `max_overflow=0` means no burst capacity, pool may exhaust under concurrent load
@@ -289,7 +291,7 @@ Unauthorized copying of this file is strictly prohibited.
 - Logfire Instrumentation: Ensure all libraries instrumented
 - Transaction Management: Verify all multi-step operations use transactions
 
-**Status**: Ready for implementation - Priority 5A addresses critical bugs and migrations needed before production deployment.
+**Status**: BUG-0023-002 ✅ COMPLETE - Priority 5A addresses critical bugs and migrations needed before production deployment.
 
 **See**: 
 - [bugs-0023.md](bugs-0023.md) for bug details
