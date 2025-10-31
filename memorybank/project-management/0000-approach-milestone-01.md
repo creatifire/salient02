@@ -229,6 +229,74 @@ Unauthorized copying of this file is strictly prohibited.
   - **Value**: HIGH (unblocks scalability)
   - **Status**: All 5 chunks complete, extensive manual testing, SSE streaming fix included
 
+**Priority 5A - Bug Fixes & Production Readiness** 🔧 **CRITICAL**
+**Epic 0023 Bug Fixes + Critical Library Migrations**
+
+**Why Priority 5A**: Address blocking bugs and critical migrations needed for production stability. These items prevent functionality (BUG-0023-002), impact scalability (BUG-0023-003), or use deprecated patterns that will break in future FastAPI versions.
+
+**Priority Order** (ranked by impact and urgency):
+
+1. **BUG-0023-002** (P1) - Configuration Cascade Path Error 🔴 **BLOCKING**
+   - **Problem**: Config loader uses wrong path, all agents fall back to global config
+   - **Impact**: Directory service and multi-tenant agents can't load instance-specific configs
+   - **Effort**: 1-2 hours
+   - **Fix**: Update path construction in config loader from `agent_configs/{agent_type}/config.yaml` to `agent_configs/{account_slug}/{instance_slug}/config.yaml`
+   - **Files**: `backend/app/agents/cascade_monitor.py` or config loader
+   - **See**: [bugs-0023.md](bugs-0023.md#bug-0023-002-configuration-cascade-path-error--p1)
+
+2. **BUG-0023-003** (P2) - Connection Pool Sizing 🟡 **PRODUCTION READY**
+   - **Problem**: `max_overflow=0` means no burst capacity, pool may exhaust under concurrent load
+   - **Impact**: Connection pool exhaustion during traffic spikes
+   - **Effort**: 15 minutes (single config change)
+   - **Fix**: Add `max_overflow=10` to SQLAlchemy engine configuration
+   - **Files**: Database engine initialization
+   - **See**: [bugs-0023.md](bugs-0023.md#bug-0023-003-connection-pool-sizing--p2) | [Connection Pool Configuration](../../analysis/critical-libraries-review.md#connection-pool-configuration-)
+
+3. **FastAPI Lifespan Migration** 🟡 **DEPRECATION FIX**
+   - **Problem**: Using deprecated `@app.on_event()` pattern (will break in future FastAPI versions)
+   - **Impact**: Future-proofing, prevents breaking changes
+   - **Effort**: 2-4 hours (migrate startup/shutdown handlers)
+   - **Fix**: Migrate from `@app.on_event("startup")`/`@app.on_event("shutdown")` to `lifespan()` context manager
+   - **Files**: `backend/app/main.py` and any endpoint registration code
+   - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
+
+4. **SQLAlchemy selectinload() Migration** 🟢 **PERFORMANCE CRITICAL**
+   - **Problem**: N+1 queries when accessing relationships without eager loading
+   - **Impact**: Performance degradation under load, database connection exhaustion
+   - **Effort**: 4-8 hours (audit all relationship accesses, add selectinload())
+   - **Fix**: Add `selectinload()` for all relationship accesses in queries
+   - **Files**: All service files with relationship queries (messages, sessions, accounts, etc.)
+   - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
+
+5. **Pydantic AI RunContext Verification** 🟢 **ARCHITECTURE COMPLIANCE**
+   - **Problem**: Verify all tools use `RunContext[DepsType]` pattern (may have inconsistencies)
+   - **Impact**: Type safety, proper dependency injection, architecture compliance
+   - **Effort**: 1-2 hours (audit all tools, fix any inconsistencies)
+   - **Fix**: Review all `@agent.tool` functions, ensure first parameter is `RunContext[SessionDependencies]`
+   - **Files**: `backend/app/agents/tools/*.py`, `backend/app/agents/simple_chat.py`
+   - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
+
+6. **Alembic Async Migration Verification** 🟢 **MIGRATION COMPATIBILITY**
+   - **Problem**: Ensure all migrations use async engine patterns
+   - **Impact**: Migration compatibility, prevents blocking migrations
+   - **Effort**: 1-2 hours (review migration scripts, test async patterns)
+   - **Fix**: Verify migrations use `async_engine_from_config()` and `connection.run_sync()` pattern
+   - **Files**: `backend/alembic/env.py` and migration scripts
+   - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
+
+**Medium Priority** (can be addressed after Priority 5A):
+- Pinecone Namespaces: Verify namespace isolation per account
+- Logfire Instrumentation: Ensure all libraries instrumented
+- Transaction Management: Verify all multi-step operations use transactions
+
+**Status**: Ready for implementation - Priority 5A addresses critical bugs and migrations needed before production deployment.
+
+**See**: 
+- [bugs-0023.md](bugs-0023.md) for bug details
+- [critical-libraries-review.md](../../analysis/critical-libraries-review.md) for migration patterns
+
+---
+
 - [ ] 0023-004-003 - Centralized Tool Registry (Optional)
   - Single source of truth for tool metadata
   - Automatic dependency validation
