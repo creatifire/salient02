@@ -206,14 +206,53 @@ async def _load_with_session(
     )
     
     # Step 6: Return AgentInstance dataclass
+    # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
+    # This prevents "Boolean value of this clause is not defined" errors with Logfire
+    from uuid import UUID as UUIDType
+    from sqlalchemy import select
+    
+    # Query columns directly from the joined query result to guarantee Python primitives
+    # This avoids accessing SQLAlchemy model attributes which might be expressions
+    direct_query = (
+        select(
+            AgentInstanceModel.id.label('instance_id'),
+            AgentInstanceModel.account_id.label('account_id'),
+            AgentInstanceModel.agent_type.label('agent_type'),
+            AgentInstanceModel.display_name.label('display_name'),
+            AgentInstanceModel.status.label('status')
+        )
+        .join(Account, AgentInstanceModel.account_id == Account.id)
+        .where(Account.slug == account_slug)
+        .where(AgentInstanceModel.instance_slug == instance_slug)
+    )
+    
+    direct_result = await session.execute(direct_query)
+    direct_row = direct_result.first()
+    
+    if not direct_row:
+        # Should never happen - we already validated instance exists above
+        raise ValueError(f"Unexpected: Instance data not found after validation: {account_slug}/{instance_slug}")
+    
+    # Direct row values are guaranteed to be Python primitives (UUID, str)
+    # No risk of SQLAlchemy expressions
+    instance_id = direct_row.instance_id  # Already UUID (from UUID(as_uuid=True) column)
+    instance_account_id = direct_row.account_id  # Already UUID
+    agent_type_str = direct_row.agent_type  # Already str
+    display_name_str = direct_row.display_name  # Already str
+    status_str = direct_row.status  # Already str
+    
+    # These are already strings from function parameters
+    instance_account_slug = account_slug
+    instance_slug_str = instance_slug
+    
     return AgentInstance(
-        id=instance_model.id,
-        account_id=instance_model.account_id,
-        account_slug=account_slug,
-        instance_slug=instance_slug,
-        agent_type=instance_model.agent_type,
-        display_name=instance_model.display_name,
-        status=instance_model.status,
+        id=instance_id,
+        account_id=instance_account_id,
+        account_slug=instance_account_slug,
+        instance_slug=instance_slug_str,
+        agent_type=agent_type_str,
+        display_name=display_name_str,
+        status=status_str,
         last_used_at=datetime.now(timezone.utc),
         config=config,
         system_prompt=system_prompt

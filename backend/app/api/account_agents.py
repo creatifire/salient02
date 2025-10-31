@@ -36,7 +36,7 @@ Unauthorized copying of this file is strictly prohibited.
 from fastapi import APIRouter, Request, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from loguru import logger
+import logfire
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 
@@ -192,7 +192,7 @@ async def health_check(
         GET /accounts/default_account/agents/health
         -> {"status": "healthy", "account": "default_account", "router": "account-agents"}
     """
-    logger.debug(f"Health check for account: {account_slug}")
+    logfire.debug('api.account.health_check', account_slug=account_slug)
     
     return JSONResponse({
         "status": "healthy",
@@ -254,17 +254,14 @@ async def list_agents_endpoint(
             "count": 2
         }
     """
-    logger.info({
-        "event": "list_agents_request",
-        "account": account_slug
-    })
+    logfire.info('api.account.list_agents.request', account=account_slug)
     
     try:
         # Load instance metadata from database
         instances_metadata = await list_account_instances(account_slug)
         
         if not instances_metadata:
-            logger.warning(f"No instances found for account: {account_slug}")
+            logfire.warn('api.account.list_agents.no_instances', account_slug=account_slug)
             raise HTTPException(
                 status_code=404,
                 detail=f"No agent instances found for account '{account_slug}'"
@@ -281,11 +278,7 @@ async def list_agents_endpoint(
             for inst in instances_metadata
         ]
         
-        logger.info({
-            "event": "list_agents_success",
-            "account": account_slug,
-            "instance_count": len(instances)
-        })
+        logfire.info('api.account.list_agents.success', account=account_slug, instance_count=len(instances))
         
         return AgentListResponse(
             account=account_slug,
@@ -298,18 +291,13 @@ async def list_agents_endpoint(
         raise
     except ValueError as e:
         # ValueError from list_account_instances means invalid/nonexistent account
-        logger.warning(f"Invalid account: {account_slug} - {str(e)}")
+        logfire.warn('api.account.list_agents.invalid_account', account_slug=account_slug, error=str(e))
         raise HTTPException(
             status_code=404,
             detail=f"Account '{account_slug}' not found"
         )
     except Exception as e:
-        logger.error({
-            "event": "list_agents_error",
-            "account": account_slug,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.account.list_agents.error', account=account_slug, error=str(e), error_type=type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to list agent instances: {str(e)}"
@@ -369,12 +357,8 @@ async def chat_endpoint(
     """
     user_message = chat_request.message.strip()
     
-    logger.info({
-        "event": "chat_request",
-        "account": account_slug,
-        "instance": instance_slug,
-        "message_preview": user_message[:100] + "..." if len(user_message) > 100 else user_message
-    })
+    message_preview = user_message[:100] + "..." if len(user_message) > 100 else user_message
+    logfire.info('api.account.chat.request', account=account_slug, instance=instance_slug, message_preview=message_preview)
     
     # ========================================================================
     # STEP 1: LOAD AGENT INSTANCE
@@ -382,29 +366,13 @@ async def chat_endpoint(
     
     try:
         instance = await load_agent_instance(account_slug, instance_slug)
-        logger.debug({
-            "event": "instance_loaded",
-            "instance_id": str(instance.id),
-            "agent_type": instance.agent_type,
-            "display_name": instance.display_name
-        })
+        logfire.debug('api.account.chat.instance_loaded', instance_id=str(instance.id), agent_type=instance.agent_type, display_name=instance.display_name)
     except ValueError as e:
         # Account or instance not found
-        logger.warning({
-            "event": "instance_not_found",
-            "account": account_slug,
-            "instance": instance_slug,
-            "error": str(e)
-        })
+        logfire.warn('api.account.chat.instance_not_found', account=account_slug, instance=instance_slug, error=str(e))
         raise HTTPException(status_code=404, detail=f"Agent instance not found: {account_slug}/{instance_slug}")
     except Exception as e:
-        logger.error({
-            "event": "instance_load_failed",
-            "account": account_slug,
-            "instance": instance_slug,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.account.chat.instance_load_failed', account=account_slug, instance=instance_slug, error=str(e), error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail="Failed to load agent instance")
     
     # ========================================================================
@@ -413,15 +381,12 @@ async def chat_endpoint(
     
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for chat request")
+        logfire.error('api.account.chat.no_session')
         raise HTTPException(status_code=500, detail="Session error")
     
-    logger.debug({
-        "event": "session_retrieved",
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "account_id": str(session.account_id) if session.account_id else None
-    })
+    session_key_prefix = session.session_key[:8] + "..." if session.session_key else None
+    account_id_str = str(session.account_id) if session.account_id else None
+    logfire.debug('api.account.chat.session_retrieved', session_id=str(session.id), session_key_prefix=session_key_prefix, account_id=account_id_str)
     
     # Update session context if NULL (progressive context flow)
     if session.account_id is None:
@@ -458,12 +423,7 @@ async def chat_endpoint(
         max_messages=history_limit
     )
     
-    logger.debug({
-        "event": "history_loaded",
-        "session_id": str(session.id),
-        "history_count": len(message_history),
-        "history_limit": history_limit
-    })
+    logfire.debug('api.account.chat.history_loaded', session_id=str(session.id), history_count=len(message_history), history_limit=history_limit)
     
     # ========================================================================
     # STEP 4: ROUTE TO APPROPRIATE AGENT
@@ -481,11 +441,13 @@ async def chat_endpoint(
             if instance.system_prompt:
                 full_instance_config['system_prompt'] = instance.system_prompt
             
+            # instance.id and instance.account_id are already Python UUID primitives (converted in load_agent_instance)
+            # No conversion needed - they're safe to pass directly to simple_chat and Logfire
             result = await simple_chat(
                 message=user_message,
                 session_id=str(session.id),
-                agent_instance_id=instance.id,  # Multi-tenant: pass agent instance ID
-                account_id=instance.account_id,  # Multi-tenant: pass account ID for data isolation
+                agent_instance_id=instance.id,  # Multi-tenant: pass agent instance ID (already Python UUID from dataclass)
+                account_id=instance.account_id,  # Multi-tenant: pass account ID (already Python UUID from dataclass)
                 message_history=message_history,  # Pass pre-loaded history
                 instance_config=full_instance_config  # Pass instance-specific config with system_prompt
             )
@@ -500,23 +462,13 @@ async def chat_endpoint(
         #     )
         
         else:
-            logger.error({
-                "event": "unknown_agent_type",
-                "agent_type": agent_type,
-                "instance": instance_slug
-            })
+            logfire.error('api.account.chat.unknown_agent_type', agent_type=agent_type, instance=instance_slug)
             raise HTTPException(
                 status_code=400,
                 detail=f"Unknown agent type: {agent_type}. Supported types: simple_chat"
             )
         
-        logger.info({
-            "event": "agent_response_generated",
-            "session_id": str(session.id),
-            "agent_type": agent_type,
-            "response_length": len(result['response']),
-            "llm_request_id": result.get('llm_request_id')
-        })
+        logfire.info('api.account.chat.agent_response_generated', session_id=str(session.id), agent_type=agent_type, response_length=len(result['response']), llm_request_id=result.get('llm_request_id'))
         
         # NOTE: Messages and cost tracking are handled by the agent (simple_chat)
         # which uses Pydantic AI's native tracking and saves via MessageService
@@ -526,14 +478,7 @@ async def chat_endpoint(
         raise
     except Exception as e:
         import traceback
-        logger.error({
-            "event": "agent_call_failed",
-            "session_id": str(session.id),
-            "agent_type": agent_type,
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "traceback": traceback.format_exc()
-        })
+        logfire.exception('api.account.chat.agent_call_failed', session_id=str(session.id), agent_type=agent_type, error=str(e), error_type=type(e).__name__, traceback=traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Agent processing failed: {str(e)}"
@@ -566,14 +511,7 @@ async def chat_endpoint(
         "model": model
     }
     
-    logger.info({
-        "event": "chat_response_complete",
-        "session_id": str(session.id),
-        "account": account_slug,
-        "instance": instance_slug,
-        "response_length": len(result['response']),
-        "llm_request_id": result.get('llm_request_id')
-    })
+    logfire.info('api.account.chat.response_complete', session_id=str(session.id), account=account_slug, instance=instance_slug, response_length=len(result['response']), llm_request_id=result.get('llm_request_id'))
     
     return JSONResponse(response_data)
 
@@ -634,12 +572,8 @@ async def stream_endpoint(
     from fastapi.responses import StreamingResponse
     import json
     
-    logger.info({
-        "event": "stream_request",
-        "account": account_slug,
-        "instance": instance_slug,
-        "message_preview": message[:100] + "..." if len(message) > 100 else message
-    })
+    message_preview = message[:100] + "..." if len(message) > 100 else message
+    logfire.info('api.account.stream.request', account=account_slug, instance=instance_slug, message_preview=message_preview)
     
     # ========================================================================
     # STEP 1: LOAD AGENT INSTANCE
@@ -647,28 +581,12 @@ async def stream_endpoint(
     
     try:
         instance = await load_agent_instance(account_slug, instance_slug)
-        logger.debug({
-            "event": "instance_loaded",
-            "instance_id": str(instance.id),
-            "agent_type": instance.agent_type,
-            "display_name": instance.display_name
-        })
+        logfire.debug('api.account.stream.instance_loaded', instance_id=str(instance.id), agent_type=instance.agent_type, display_name=instance.display_name)
     except ValueError as e:
-        logger.warning({
-            "event": "instance_not_found",
-            "account": account_slug,
-            "instance": instance_slug,
-            "error": str(e)
-        })
+        logfire.warn('api.account.stream.instance_not_found', account=account_slug, instance=instance_slug, error=str(e))
         raise HTTPException(status_code=404, detail=f"Agent instance not found: {account_slug}/{instance_slug}")
     except Exception as e:
-        logger.error({
-            "event": "instance_load_failed",
-            "account": account_slug,
-            "instance": instance_slug,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.account.stream.instance_load_failed', account=account_slug, instance=instance_slug, error=str(e), error_type=type(e).__name__)
         raise HTTPException(status_code=500, detail="Failed to load agent instance")
     
     # ========================================================================
@@ -677,15 +595,12 @@ async def stream_endpoint(
     
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for stream request")
+        logfire.error('api.account.stream.no_session')
         raise HTTPException(status_code=500, detail="Session error")
     
-    logger.debug({
-        "event": "session_retrieved",
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "account_id": str(session.account_id) if session.account_id else None
-    })
+    session_key_prefix = session.session_key[:8] + "..." if session.session_key else None
+    account_id_str = str(session.account_id) if session.account_id else None
+    logfire.debug('api.account.stream.session_retrieved', session_id=str(session.id), session_key_prefix=session_key_prefix, account_id=account_id_str)
     
     # Update session context if NULL (progressive context flow)
     if session.account_id is None:
@@ -722,12 +637,7 @@ async def stream_endpoint(
         max_messages=history_limit
     )
     
-    logger.debug({
-        "event": "history_loaded",
-        "session_id": str(session.id),
-        "history_count": len(message_history),
-        "history_limit": history_limit
-    })
+    logfire.debug('api.account.stream.history_loaded', session_id=str(session.id), history_count=len(message_history), history_limit=history_limit)
     
     # ========================================================================
     # STEP 4: STREAMING GENERATOR FUNCTION
@@ -747,12 +657,13 @@ async def stream_endpoint(
                 if instance.system_prompt:
                     full_instance_config['system_prompt'] = instance.system_prompt
                 
-                # Stream events from agent
+                # instance.id and instance.account_id are already Python UUID primitives (converted in load_agent_instance)
+                # No conversion needed - they're safe to pass directly to simple_chat_stream and Logfire
                 async for event in simple_chat_stream(
                     message=message,
                     session_id=str(session.id),
-                    agent_instance_id=instance.id,
-                    account_id=instance.account_id,  # Multi-tenant: pass account ID for data isolation
+                    agent_instance_id=instance.id,  # Multi-tenant: pass agent instance ID (already Python UUID from dataclass)
+                    account_id=instance.account_id,  # Multi-tenant: pass account ID (already Python UUID from dataclass)
                     message_history=message_history,
                     instance_config=full_instance_config
                 ):
@@ -777,22 +688,12 @@ async def stream_endpoint(
             #         yield f"event: {event['event']}\ndata: {event['data']}\n\n"
             
             else:
-                logger.error({
-                    "event": "unknown_agent_type",
-                    "agent_type": agent_type,
-                    "instance": instance_slug
-                })
+                logfire.error('api.account.stream.unknown_agent_type', agent_type=agent_type, instance=instance_slug)
                 error_data = json.dumps({"message": f"Unknown agent type: {agent_type}"})
                 yield f"event: error\ndata: {error_data}\n\n"
                 
         except Exception as e:
-            logger.error({
-                "event": "streaming_exception",
-                "session_id": str(session.id),
-                "agent_type": agent_type,
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.exception('api.account.stream.streaming_exception', session_id=str(session.id), agent_type=agent_type, error=str(e), error_type=type(e).__name__)
             error_data = json.dumps({"message": f"Streaming failed: {str(e)}"})
             yield f"event: error\ndata: {error_data}\n\n"
     
@@ -800,12 +701,7 @@ async def stream_endpoint(
     # STEP 5: RETURN STREAMING RESPONSE
     # ========================================================================
     
-    logger.info({
-        "event": "stream_initiated",
-        "session_id": str(session.id),
-        "account": account_slug,
-        "instance": instance_slug
-    })
+    logfire.info('api.account.stream.initiated', session_id=str(session.id), account=account_slug, instance=instance_slug)
     
     return StreamingResponse(
         event_generator(),
@@ -868,11 +764,7 @@ async def history_endpoint(
             "count": 2
         }
     """
-    logger.info({
-        "event": "history_request",
-        "account": account_slug,
-        "instance": instance_slug
-    })
+    logfire.info('api.account.history.request', account=account_slug, instance=instance_slug)
     
     try:
         # ====================================================================
@@ -880,11 +772,7 @@ async def history_endpoint(
         # ====================================================================
         session = get_current_session(request)
         if not session:
-            logger.warning({
-                "event": "history_no_session",
-                "account": account_slug,
-                "instance": instance_slug
-            })
+            logfire.warn('api.account.history.no_session', account=account_slug, instance=instance_slug)
             raise HTTPException(
                 status_code=401,
                 detail="No session found. Please send a message first."
@@ -898,7 +786,7 @@ async def history_endpoint(
         )
         
         if not instance:
-            logger.warning(f"Instance not found: {account_slug}/{instance_slug}")
+            logfire.warn('api.account.history.instance_not_found', account_slug=account_slug, instance_slug=instance_slug)
             raise HTTPException(
                 status_code=404,
                 detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
@@ -991,13 +879,7 @@ async def history_endpoint(
                 "timestamp": msg.created_at.isoformat() if msg.created_at else None
             })
         
-        logger.info({
-            "event": "history_loaded",
-            "session_id": str(session.id),
-            "account": account_slug,
-            "instance": instance_slug,
-            "message_count": len(formatted_messages)
-        })
+        logfire.info('api.account.history.loaded', session_id=str(session.id), account=account_slug, instance=instance_slug, message_count=len(formatted_messages))
         
         return JSONResponse({
             "session_id": str(session.id),
@@ -1011,13 +893,7 @@ async def history_endpoint(
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error({
-            "event": "history_error",
-            "account": account_slug,
-            "instance": instance_slug,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.account.history.error', account=account_slug, instance=instance_slug, error=str(e), error_type=type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to load chat history: {str(e)}"
@@ -1061,18 +937,14 @@ async def metadata_endpoint(
             "last_used_at": "2025-10-10T12:34:56Z"
         }
     """
-    logger.info({
-        "event": "metadata_request",
-        "account": account_slug,
-        "instance": instance_slug
-    })
+    logfire.info('api.account.metadata.request', account=account_slug, instance=instance_slug)
     
     try:
         # Load agent instance (includes config with model settings)
         instance = await load_agent_instance(account_slug, instance_slug)
         
         if not instance:
-            logger.warning(f"Instance not found: {account_slug}/{instance_slug}")
+            logfire.warn('api.account.metadata.instance_not_found', account_slug=account_slug, instance_slug=instance_slug)
             raise HTTPException(
                 status_code=404,
                 detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
@@ -1090,18 +962,26 @@ async def metadata_endpoint(
         if instance.last_used_at:
             last_used_at_str = instance.last_used_at.isoformat()
         
-        logger.info({
-            "event": "metadata_retrieved",
-            "account": account_slug,
-            "instance": instance_slug,
-            "model": model
-        })
+        # Get display_name from config file (source of truth) with fallback to database
+        # Config file's 'name' field takes precedence over database 'display_name'
+        display_name = instance.display_name  # Default to database value
+        if instance.config and "name" in instance.config:
+            display_name = instance.config["name"]
+        
+        logfire.info(
+            'api.account.metadata.retrieved',
+            account=account_slug,
+            instance=instance_slug,
+            model=model,
+            display_name=display_name,
+            display_name_source="config" if (instance.config and "name" in instance.config) else "database"
+        )
         
         return AgentInstanceMetadataResponse(
             account_slug=account_slug,
             instance_slug=instance_slug,
             agent_type=instance.agent_type,
-            display_name=instance.display_name,
+            display_name=display_name,
             model=model,
             status=instance.status,
             last_used_at=last_used_at_str
@@ -1112,26 +992,20 @@ async def metadata_endpoint(
         raise
     except ValueError as e:
         # ValueError from load_agent_instance means invalid/nonexistent account/instance
-        logger.warning(f"Invalid account/instance: {account_slug}/{instance_slug} - {str(e)}")
+        logfire.warn('api.account.metadata.invalid_account_instance', account_slug=account_slug, instance_slug=instance_slug, error=str(e))
         raise HTTPException(
             status_code=404,
             detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
         )
     except FileNotFoundError as e:
         # Config file missing
-        logger.error(f"Config file not found: {account_slug}/{instance_slug} - {str(e)}")
+        logfire.error('api.account.metadata.config_not_found', account_slug=account_slug, instance_slug=instance_slug, error=str(e))
         raise HTTPException(
             status_code=404,
             detail=f"Configuration not found for agent instance '{instance_slug}'"
         )
     except Exception as e:
-        logger.error({
-            "event": "metadata_error",
-            "account": account_slug,
-            "instance": instance_slug,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.account.metadata.error', account=account_slug, instance=instance_slug, error=str(e), error_type=type(e).__name__)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve agent instance metadata: {str(e)}"

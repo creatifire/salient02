@@ -189,27 +189,36 @@ class DirectoryService:
             if search_mode == "fts":
                 # Full-text search with relevance ranking
                 try:
-                    # Convert query to tsquery (simple format: replace spaces with &)
-                    # This handles multi-word queries like "heart doctor"
-                    tsquery_str = ' & '.join(name_query.strip().split())
+                    # Sanitize query: split words and filter out tsquery operators
+                    # Remove special tsquery characters (&, |, !) that cause syntax errors
+                    # Example: "Oral & Maxillofacial Surgery" -> ["Oral", "Maxillofacial", "Surgery"]
+                    words = [w for w in name_query.strip().split() if w not in ('&', '|', '!')]
                     
-                    # Create tsquery function call
-                    fts_ts_query = func.to_tsquery('english', tsquery_str)
-                    
-                    # Filter: search_vector matches query
-                    query = query.where(
-                        DirectoryEntry.search_vector.op('@@')(fts_ts_query)
-                    )
-                    
-                    # Rank by relevance (higher is better)
-                    fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, fts_ts_query)
-                    query = query.order_by(fts_rank_expr.desc())
-                    
-                    logfire.debug(
-                        'service.directory.search.fts_query',
-                        tsquery_str=tsquery_str,
-                        name_query=name_query
-                    )
+                    if not words:
+                        # All words were operators, fallback to substring
+                        query = query.where(DirectoryEntry.name.ilike(f"%{name_query}%"))
+                    else:
+                        # Convert sanitized words to tsquery (join with & for AND logic)
+                        tsquery_str = ' & '.join(words)
+                        
+                        # Create tsquery function call
+                        fts_ts_query = func.to_tsquery('english', tsquery_str)
+                        
+                        # Filter: search_vector matches query
+                        query = query.where(
+                            DirectoryEntry.search_vector.op('@@')(fts_ts_query)
+                        )
+                        
+                        # Rank by relevance (higher is better)
+                        fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, fts_ts_query)
+                        query = query.order_by(fts_rank_expr.desc())
+                        
+                        logfire.debug(
+                            'service.directory.search.fts_query',
+                            tsquery_str=tsquery_str,
+                            name_query=name_query,
+                            sanitized_words=words
+                        )
                     
                 except Exception as e:
                     # Fallback to substring search if tsquery fails
@@ -240,10 +249,12 @@ class DirectoryService:
                 # BUG-0023-004: Use tsvector for specialty searches when FTS mode enabled
                 # This enables fuzzy matching: "Urology" → "Urologic Surgery" via stemming
                 # Build tsquery from all filter values (combine with AND)
+                # Sanitize filter values: remove tsquery operators (&, |, !) to prevent syntax errors
                 filter_values = []
                 for value in jsonb_filters.values():
-                    # Split multi-word values and join with & (AND logic)
-                    filter_values.extend(value.strip().split())
+                    # Split multi-word values and filter out special tsquery operators
+                    words = [w for w in value.strip().split() if w not in ('&', '|', '!')]
+                    filter_values.extend(words)
                 
                 if filter_values:
                     # Build combined tsquery from name_query (if exists) and filter values
@@ -251,32 +262,38 @@ class DirectoryService:
                     
                     # Add name_query parts if it exists (for combined ranking)
                     if name_query:
-                        name_parts = name_query.strip().split()
+                        # Sanitize name_query parts (remove tsquery operators)
+                        name_parts = [w for w in name_query.strip().split() if w not in ('&', '|', '!')]
                         tsquery_parts.extend(name_parts)
                     
-                    # Add filter values
+                    # Add sanitized filter values
                     tsquery_parts.extend(filter_values)
                     
-                    # Build combined tsquery string
-                    combined_tsquery_str = ' & '.join(tsquery_parts)
-                    combined_ts_query = func.to_tsquery('english', combined_tsquery_str)
-                    
-                    # Apply tsvector search if not already applied by name_query
-                    if not name_query:
-                        # No name_query, so apply tsvector search for filters only
-                        query = query.where(
-                            DirectoryEntry.search_vector.op('@@')(combined_ts_query)
-                        )
-                        # Add ranking by relevance
-                        fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, combined_ts_query)
-                        query = query.order_by(fts_rank_expr.desc())
+                    if tsquery_parts:
+                        # Build combined tsquery string (all parts already sanitized)
+                        combined_tsquery_str = ' & '.join(tsquery_parts)
+                        combined_ts_query = func.to_tsquery('english', combined_tsquery_str)
                     else:
-                        # name_query already applied tsvector, but use combined query for better ranking
-                        # Replace existing order_by with combined ranking
-                        fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, combined_ts_query)
-                        # Remove any existing order_by and add new one
-                        # Note: SQLAlchemy will replace order_by if called again
-                        query = query.order_by(fts_rank_expr.desc())
+                        # All parts were operators, skip tsquery and use substring fallback
+                        combined_ts_query = None
+                    
+                    if combined_ts_query:
+                        # Apply tsvector search if not already applied by name_query
+                        if not name_query:
+                            # No name_query, so apply tsvector search for filters only
+                            query = query.where(
+                                DirectoryEntry.search_vector.op('@@')(combined_ts_query)
+                            )
+                            # Add ranking by relevance
+                            fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, combined_ts_query)
+                            query = query.order_by(fts_rank_expr.desc())
+                        else:
+                            # name_query already applied tsvector, but use combined query for better ranking
+                            # Replace existing order_by with combined ranking
+                            fts_rank_expr = func.ts_rank(DirectoryEntry.search_vector, combined_ts_query)
+                            # Remove any existing order_by and add new one
+                            # Note: SQLAlchemy will replace order_by if called again
+                            query = query.order_by(fts_rank_expr.desc())
                     
                     # NOTE: We do NOT apply additional JSONB field filters here
                     # The tsvector search already handles matching across ALL fields (name, tags, entry_data)

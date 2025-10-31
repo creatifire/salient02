@@ -202,6 +202,24 @@ class DatabaseService:
                 future=True,  # Use SQLAlchemy 2.0 style
             )
             
+            # Instrument SQLAlchemy engine with Logfire for query tracing
+            # Note: For async engines, we use the underlying sync engine for instrumentation
+            # This enables automatic SQL query logging and tracing
+            try:
+                import logfire
+                # For async engines, access the sync engine via .sync_engine attribute
+                # If sync_engine doesn't exist, try direct instrumentation (may not work for async)
+                sync_engine = getattr(self._engine, 'sync_engine', None)
+                if sync_engine:
+                    logfire.instrument_sqlalchemy(engine=sync_engine)
+                    logger.info("Logfire SQLAlchemy instrumentation enabled (async engine)")
+                else:
+                    # Async engine doesn't expose sync engine - instrumentation via OpenTelemetry instead
+                    logger.debug("Logfire SQLAlchemy instrumentation skipped (async engine, using OpenTelemetry)")
+            except Exception as e:
+                # Non-critical - query tracing will still work via OpenTelemetry
+                logger.warning(f"Logfire SQLAlchemy instrumentation failed: {e}")
+            
             # Create session factory with async session configuration
             # expire_on_commit=False keeps objects usable after commit
             # This is important for async usage patterns where objects may be

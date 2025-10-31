@@ -16,6 +16,9 @@ import logfire
 def _is_sqlalchemy_expression(value: Any) -> bool:
     """Detect SQLAlchemy expressions without triggering evaluation.
     
+    CRITICAL: All checks must be safe and never trigger boolean evaluation.
+    Calling bool() or checking truthiness on SQLAlchemy expressions triggers the error.
+    
     Args:
         value: Value to check
         
@@ -25,16 +28,23 @@ def _is_sqlalchemy_expression(value: Any) -> bool:
     if value is None:
         return False
     
-    # Check module path - SQLAlchemy expressions come from sqlalchemy modules
+    # CRITICAL: Only use safe attribute checks - never call bool(), str(), or repr()
+    # on the value itself, as this triggers SQLAlchemy boolean evaluation
+    
+    # Check module path first (safest check)
     try:
-        type_module = type(value).__module__
-        if type_module and 'sqlalchemy' in type_module.lower():
-            # Additional checks for expression-like objects
+        # type() is safe - doesn't trigger evaluation
+        value_type = type(value)
+        type_module = getattr(value_type, '__module__', None)
+        
+        if type_module and 'sqlalchemy' in str(type_module).lower():
+            # Additional checks for expression-like objects using hasattr (safe)
             # These attribute checks are safe - don't trigger boolean evaluation
             if hasattr(value, '__clause_element__') or hasattr(value, 'key'):
                 return True
     except Exception:
-        # If we can't check safely, assume it's not SQLAlchemy
+        # If ANY check fails, assume it's not SQLAlchemy to avoid triggering errors
+        # Better to pass through and let Logfire handle it than risk evaluation
         pass
     
     return False
@@ -43,6 +53,9 @@ def _is_sqlalchemy_expression(value: Any) -> bool:
 def _sanitize_value(value: Any) -> Any:
     """Convert SQLAlchemy expressions to safe representation.
     
+    CRITICAL: This function must NEVER trigger SQLAlchemy boolean evaluation.
+    We catch all exceptions during detection to prevent errors.
+    
     Args:
         value: Value to sanitize
         
@@ -50,10 +63,17 @@ def _sanitize_value(value: Any) -> Any:
         Safe representation - original value if not SQLAlchemy expression,
         otherwise a placeholder string
     """
-    if _is_sqlalchemy_expression(value):
-        # Return placeholder instead of attempting serialization
-        # This prevents "Boolean value of this clause is not defined" errors
+    # Wrap detection in try/except to prevent any evaluation errors
+    try:
+        if _is_sqlalchemy_expression(value):
+            # Return placeholder instead of attempting serialization
+            # This prevents "Boolean value of this clause is not defined" errors
+            return "<sqlalchemy_expression>"
+    except Exception:
+        # If detection itself fails (might trigger evaluation), treat as SQLAlchemy expression
+        # Better to return placeholder than risk error during serialization
         return "<sqlalchemy_expression>"
+    
     return value
 
 

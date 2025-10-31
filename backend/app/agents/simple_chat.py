@@ -367,7 +367,31 @@ async def simple_chat(
     # Add agent-specific fields for tool access
     session_deps.agent_config = instance_config
     session_deps.agent_instance_id = agent_instance_id
-    session_deps.account_id = account_id  # Multi-tenant: for directory tool data isolation
+    
+    # CRITICAL: Ensure account_id is a Python primitive (not SQLAlchemy expression)
+    # This prevents Logfire serialization errors when Pydantic AI instruments tool calls
+    if account_id is not None:
+        # Safely convert to Python UUID primitive
+        try:
+            if isinstance(account_id, UUID):
+                # Already a Python UUID - safe to use
+                session_deps.account_id = account_id
+            else:
+                # Convert to UUID - this will fail if account_id is a SQLAlchemy expression
+                session_deps.account_id = UUID(str(account_id))
+        except (TypeError, ValueError) as e:
+            # If conversion fails, account_id might be a SQLAlchemy expression
+            # Log warning and use None to prevent Logfire serialization errors
+            logfire.warn(
+                'agent.session_deps.account_id_conversion_failed',
+                session_id=session_id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+                account_id_type=type(account_id).__name__ if account_id is not None else None
+            )
+            session_deps.account_id = None
+    else:
+        session_deps.account_id = None
     
     # Load model settings using centralized cascade (Fixed: comprehensive cascade)
     from .config_loader import get_agent_model_settings
