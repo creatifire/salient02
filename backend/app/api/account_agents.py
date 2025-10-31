@@ -113,6 +113,30 @@ class AgentInstanceInfo(BaseModel):
         }
 
 
+class AgentInstanceMetadataResponse(BaseModel):
+    """Response model for agent instance metadata endpoint."""
+    account_slug: str = Field(..., description="Account identifier")
+    instance_slug: str = Field(..., description="Agent instance identifier slug")
+    agent_type: str = Field(..., description="Type of agent (e.g., simple_chat)")
+    display_name: str = Field(..., description="Human-readable display name")
+    model: str = Field(..., description="LLM model identifier (e.g., 'moonshotai/kimi-k2-0905')")
+    status: str = Field(..., description="Instance status (e.g., 'active')")
+    last_used_at: Optional[str] = Field(None, description="ISO8601 timestamp of last usage")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "account_slug": "default_account",
+                "instance_slug": "simple_chat1",
+                "agent_type": "simple_chat",
+                "display_name": "Simple Chat 1",
+                "model": "moonshotai/kimi-k2-0905",
+                "status": "active",
+                "last_used_at": "2025-10-10T12:34:56Z"
+            }
+        }
+
+
 class AgentListResponse(BaseModel):
     """Response model for agent instance listing endpoint."""
     account: str = Field(..., description="Account slug")
@@ -997,5 +1021,119 @@ async def history_endpoint(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to load chat history: {str(e)}"
+        )
+
+
+# ============================================================================
+# AGENT INSTANCE METADATA ENDPOINT
+# ============================================================================
+
+@router.get("/{account_slug}/agents/{instance_slug}/metadata", response_model=AgentInstanceMetadataResponse)
+async def metadata_endpoint(
+    account_slug: str = Path(..., description="Account identifier slug"),
+    instance_slug: str = Path(..., description="Agent instance identifier slug")
+) -> AgentInstanceMetadataResponse:
+    """
+    Get metadata for a specific agent instance including model information.
+    
+    Returns comprehensive metadata about an agent instance, including the
+    LLM model being used. Useful for UI display and debugging.
+    
+    Args:
+        account_slug: Account identifier from URL path
+        instance_slug: Agent instance identifier from URL path
+        
+    Returns:
+        AgentInstanceMetadataResponse with instance metadata and model info
+        
+    Raises:
+        HTTPException: 404 if account/instance not found or instance is inactive
+        HTTPException: 500 for unexpected errors
+        
+    Example Response:
+        {
+            "account_slug": "default_account",
+            "instance_slug": "simple_chat1",
+            "agent_type": "simple_chat",
+            "display_name": "Simple Chat 1",
+            "model": "moonshotai/kimi-k2-0905",
+            "status": "active",
+            "last_used_at": "2025-10-10T12:34:56Z"
+        }
+    """
+    logger.info({
+        "event": "metadata_request",
+        "account": account_slug,
+        "instance": instance_slug
+    })
+    
+    try:
+        # Load agent instance (includes config with model settings)
+        instance = await load_agent_instance(account_slug, instance_slug)
+        
+        if not instance:
+            logger.warning(f"Instance not found: {account_slug}/{instance_slug}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
+            )
+        
+        # Extract model from config (with fallback)
+        model = "unknown"
+        if instance.config and "model_settings" in instance.config:
+            model = instance.config["model_settings"].get("model", "unknown")
+        elif instance.config and "model" in instance.config:
+            model = instance.config.get("model", "unknown")
+        
+        # Format last_used_at timestamp
+        last_used_at_str = None
+        if instance.last_used_at:
+            last_used_at_str = instance.last_used_at.isoformat()
+        
+        logger.info({
+            "event": "metadata_retrieved",
+            "account": account_slug,
+            "instance": instance_slug,
+            "model": model
+        })
+        
+        return AgentInstanceMetadataResponse(
+            account_slug=account_slug,
+            instance_slug=instance_slug,
+            agent_type=instance.agent_type,
+            display_name=instance.display_name,
+            model=model,
+            status=instance.status,
+            last_used_at=last_used_at_str
+        )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except ValueError as e:
+        # ValueError from load_agent_instance means invalid/nonexistent account/instance
+        logger.warning(f"Invalid account/instance: {account_slug}/{instance_slug} - {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Agent instance '{instance_slug}' not found for account '{account_slug}'"
+        )
+    except FileNotFoundError as e:
+        # Config file missing
+        logger.error(f"Config file not found: {account_slug}/{instance_slug} - {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Configuration not found for agent instance '{instance_slug}'"
+        )
+    except Exception as e:
+        logger.error({
+            "event": "metadata_error",
+            "account": account_slug,
+            "instance": instance_slug,
+            "error": str(e),
+            "error_type": type(e).__name__
+        })
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve agent instance metadata: {str(e)}"
         )
 

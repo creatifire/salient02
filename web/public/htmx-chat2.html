@@ -77,6 +77,7 @@
       <a href="#chat-main" class="skip-link">Skip to chat</a>
       <main id="chat-main" role="main">
         <h1>HTMX Chat - default_account/simple_chat2</h1>
+        <p id="model-info" style="font-size: 0.9rem; color: #666; margin: -0.5rem 0 1rem 0;">Loading model info...</p>
         <div class="chat" aria-live="polite">
           <div id="history-loading" class="loading-indicator" style="display:none;">
             <span class="loading-text">Loading chat history...</span>
@@ -107,6 +108,29 @@
       const hint = document.getElementById('hint');
 
       let activeSSE = null; let activeBotDiv = null; let accumulated = ''; let busy=false; let historyLoaded=false;
+      
+      async function loadModelInfo(){
+        try{
+          const metadataUrl = `${BACKEND_URL}/accounts/${ACCOUNT}/agents/${AGENT}/metadata`;
+          const r = await fetch(metadataUrl, {credentials:'include'});
+          if(r.ok){
+            const data = await r.json();
+            const modelInfo = document.getElementById('model-info');
+            if(modelInfo && data.model){
+              modelInfo.textContent = `Model: ${data.model}`;
+              modelInfo.style.color = '#666';
+            }
+          }else{
+            const modelInfo = document.getElementById('model-info');
+            if(modelInfo) modelInfo.style.display = 'none';
+          }
+        }catch(e){
+          const modelInfo = document.getElementById('model-info');
+          if(modelInfo) modelInfo.style.display = 'none';
+          if(DEBUG) console.error('Failed to load model info:', e);
+        }
+      }
+      
       function addCopy(container){
         const b = document.createElement('button');
         b.className='copy'; b.type='button'; b.setAttribute('aria-label','Copy message'); b.title='Copy';
@@ -260,9 +284,15 @@
       sendBtn.addEventListener('click', send);
       msg.addEventListener('keydown', (e)=>{ const isEnter=e.key==='Enter'; const isCtrl=e.ctrlKey||e.metaKey; if(isEnter&&isCtrl){ e.preventDefault(); send(); } });
       
-      // Load history on page load
-      document.addEventListener('DOMContentLoaded', loadHistory);
-      if(document.readyState!=='loading') loadHistory();
+      // Load history and model info on page load
+      document.addEventListener('DOMContentLoaded', ()=>{
+        loadHistory();
+        loadModelInfo();
+      });
+      if(document.readyState!=='loading'){
+        loadHistory();
+        loadModelInfo();
+      }
     </script>
   </body>
 </html>
