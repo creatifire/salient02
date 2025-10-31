@@ -269,16 +269,16 @@ def load_config() -> Dict[str, Any]:
         # Non-numeric pool_size, fallback to safe default
         db_cfg["pool_size"] = 20
     
-    # Max overflow: Additional connections beyond pool_size (0 = no overflow)
+    # Max overflow: Additional connections beyond pool_size (10 = burst capacity for concurrent load)
     try:
-        max_overflow = int(db_cfg.get("max_overflow", 0))
+        max_overflow = int(db_cfg.get("max_overflow", 10))  # BUG-0023-003: Default to 10 for burst capacity
         if max_overflow < 0:
             # Negative overflow not allowed, use conservative default
-            max_overflow = 0
+            max_overflow = 10  # BUG-0023-003: Use 10 instead of 0
         db_cfg["max_overflow"] = max_overflow
     except Exception:
         # Non-numeric max_overflow, fallback to safe default
-        db_cfg["max_overflow"] = 0
+        db_cfg["max_overflow"] = 10  # BUG-0023-003: Use 10 instead of 0
     
     # Pool timeout: Seconds to wait for available connection
     try:
@@ -482,7 +482,7 @@ def get_database_config() -> Dict[str, Any]:
     Configuration Contents:
     - url: PostgreSQL connection URL (from DATABASE_URL environment variable)
     - pool_size: Number of persistent connections (default: 20)
-    - max_overflow: Additional connections beyond pool_size (default: 0)
+    - max_overflow: Additional connections beyond pool_size (default: 10 for burst capacity)
     - pool_timeout: Seconds to wait for available connection (default: 30)
     
     Security Note:

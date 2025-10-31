@@ -157,7 +157,7 @@ class DatabaseService:
         
         Connection Pool Settings:
         - pool_size: Number of persistent connections (default: 20)
-        - max_overflow: Additional connections beyond pool_size (default: 0)
+        - max_overflow: Additional connections beyond pool_size (default: 10 for burst capacity)
         - pool_timeout: Seconds to wait for connection (default: 30)
         - pool_pre_ping: Validates connections before use (always True)
         
@@ -186,7 +186,7 @@ class DatabaseService:
             
             # Extract pool configuration with defaults optimized for web workloads
             pool_size = db_config.get("pool_size", 20)
-            max_overflow = db_config.get("max_overflow", 0)
+            max_overflow = db_config.get("max_overflow", 10)  # BUG-0023-003: Burst capacity for concurrent load
             pool_timeout = db_config.get("pool_timeout", 30)
             
             # Create async engine with connection pooling

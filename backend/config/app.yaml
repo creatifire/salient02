@@ -6,7 +6,7 @@ database:
   # Database URL is loaded from DATABASE_URL environment variable for security
   # Example: DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/dbname
   pool_size: 20
-  max_overflow: 0
+  max_overflow: 10  # Burst capacity (total: 30 connections) - BUG-0023-003 fix
   pool_timeout: 30
 
 session:
