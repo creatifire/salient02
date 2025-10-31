@@ -281,25 +281,32 @@ def get_configs_directory() -> Path:
 
 
 async def get_agent_parameter(agent_name: str, parameter_path: str, fallback: Any = None, 
-                             global_path: str = None) -> Any:
+                             global_path: str = None, account_slug: Optional[str] = None,
+                             instance_slug: Optional[str] = None) -> Any:
     """
     Generic configuration cascade function for any parameter.
     
     Implements the agent→global→fallback cascade pattern with comprehensive monitoring.
+    Supports both legacy agent_type-based paths and multi-tenant account/instance paths.
     
     Args:
-        agent_name: Agent name for configuration lookup
+        agent_name: Agent name for configuration lookup (legacy) or agent_type identifier
         parameter_path: Dot-notation path to parameter (e.g., "model_settings.temperature")
         fallback: Fallback value if parameter not found in any source
         global_path: Optional custom path in global config (defaults to parameter_path)
+        account_slug: Optional account identifier for multi-tenant path (if provided, instance_slug required)
+        instance_slug: Optional instance identifier for multi-tenant path (if provided, account_slug required)
         
     Returns:
         Parameter value using proper cascade logic with comprehensive audit trail
         
     Examples:
+        # Legacy pattern (backward compatible)
         await get_agent_parameter("simple_chat", "model_settings.temperature", 0.7)
-        await get_agent_parameter("simple_chat", "tools.vector_search.enabled", False)
-        await get_agent_parameter("simple_chat", "context_management.history_limit", 50)
+        
+        # Multi-tenant pattern (BUG-0023-002 fix)
+        await get_agent_parameter("simple_chat", "model_settings.temperature", 0.7,
+                                 account_slug="wyckoff", instance_slug="wyckoff_info_chat1")
     """
     from ..config import load_config
     from .cascade_monitor import CascadeAuditTrail, CascadeMetrics
@@ -309,20 +316,49 @@ async def get_agent_parameter(agent_name: str, parameter_path: str, fallback: An
     
     try:
         # STEP 1: Try agent-specific configuration first (highest priority)
-        agent_config_path = f"backend/config/agent_configs/{agent_name}/config.yaml"
-        try:
-            with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
-                agent_config = await get_agent_config(agent_name)
-                
-                # Navigate through the parameter path
-                value = _get_nested_parameter_from_object(agent_config, parameter_path)
-                if value is not None:
-                    return attempt.success(value)
-                
-                attempt.failure(f"Agent config exists but missing {parameter_path} parameter")
-        except Exception as e:
-            # Exception will be recorded by the context manager
-            pass
+        # Use multi-tenant path if account_slug and instance_slug provided (BUG-0023-002 fix)
+        if account_slug and instance_slug:
+            # Multi-tenant path: agent_configs/{account_slug}/{instance_slug}/config.yaml
+            from .instance_loader import _get_config_path
+            agent_config_path_obj = _get_config_path(account_slug, instance_slug)
+            agent_config_path = str(agent_config_path_obj)
+            
+            try:
+                with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
+                    # Load config directly from file (multi-tenant pattern)
+                    if not agent_config_path_obj.exists():
+                        attempt.failure(f"Config file not found: {agent_config_path}")
+                    else:
+                        import yaml
+                        with open(agent_config_path_obj, 'r', encoding='utf-8') as f:
+                            config_data = yaml.safe_load(f)
+                        
+                        if config_data:
+                            # Navigate through the parameter path
+                            value = _get_nested_parameter(config_data, parameter_path)
+                            if value is not None:
+                                return attempt.success(value)
+                        
+                        attempt.failure(f"Agent config exists but missing {parameter_path} parameter")
+            except Exception as e:
+                # Exception will be recorded by the context manager
+                pass
+        else:
+            # Legacy path: agent_configs/{agent_name}/config.yaml (backward compatibility)
+            agent_config_path = f"backend/config/agent_configs/{agent_name}/config.yaml"
+            try:
+                with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
+                    agent_config = await get_agent_config(agent_name)
+                    
+                    # Navigate through the parameter path
+                    value = _get_nested_parameter_from_object(agent_config, parameter_path)
+                    if value is not None:
+                        return attempt.success(value)
+                    
+                    attempt.failure(f"Agent config exists but missing {parameter_path} parameter")
+            except Exception as e:
+                # Exception will be recorded by the context manager
+                pass
         
         # STEP 2: Fall back to global configuration (app.yaml)
         global_config_path = "backend/config/app.yaml"
@@ -421,15 +457,19 @@ def _get_nested_parameter_from_object(config_obj: Any, parameter_path: str) -> A
         return None
 
 
-async def get_agent_model_settings(agent_name: str) -> dict:
+async def get_agent_model_settings(agent_name: str, account_slug: Optional[str] = None,
+                                   instance_slug: Optional[str] = None) -> dict:
     """
     Get model settings using agent-first configuration cascade with mixed inheritance.
     
     Implements comprehensive model parameter cascade: agent config → global config → fallbacks
     Supports mixed inheritance where individual parameters can come from different sources.
+    Supports both legacy agent_type-based paths and multi-tenant account/instance paths.
     
     Args:
-        agent_name: Agent name for configuration lookup
+        agent_name: Agent name for configuration lookup (legacy) or agent_type identifier
+        account_slug: Optional account identifier for multi-tenant path (BUG-0023-002 fix)
+        instance_slug: Optional instance identifier for multi-tenant path (BUG-0023-002 fix)
         
     Returns:
         Dictionary with model settings using proper cascade logic for each parameter
@@ -469,7 +509,9 @@ async def get_agent_model_settings(agent_name: str) -> dict:
                 agent_name=agent_name,
                 parameter_path=config["agent_path"],
                 fallback=config["fallback"],
-                global_path=config["global_path"]
+                global_path=config["global_path"],
+                account_slug=account_slug,
+                instance_slug=instance_slug
             )
             model_settings[param_name] = value
         except Exception as e:
@@ -481,17 +523,22 @@ async def get_agent_model_settings(agent_name: str) -> dict:
     return model_settings
 
 
-async def get_agent_tool_config(agent_name: str, tool_name: str) -> dict:
+async def get_agent_tool_config(agent_name: str, tool_name: str,
+                                account_slug: Optional[str] = None,
+                                instance_slug: Optional[str] = None) -> dict:
     """
     Get tool configuration using agent-first configuration cascade with mixed inheritance.
     
     Implements comprehensive tool parameter cascade: agent config → fallbacks
     Supports mixed inheritance where individual parameters can come from different sources.
     Enables per-agent tool enable/disable capability with comprehensive monitoring.
+    Supports both legacy agent_type-based paths and multi-tenant account/instance paths.
     
     Args:
-        agent_name: Agent name for configuration lookup
+        agent_name: Agent name for configuration lookup (legacy) or agent_type identifier
         tool_name: Tool name (e.g., 'vector_search', 'web_search', 'conversation_management')
+        account_slug: Optional account identifier for multi-tenant path (BUG-0023-002 fix)
+        instance_slug: Optional instance identifier for multi-tenant path (BUG-0023-002 fix)
         
     Returns:
         Dictionary with tool configuration using proper cascade logic for each parameter
@@ -578,7 +625,9 @@ async def get_agent_tool_config(agent_name: str, tool_name: str) -> dict:
                 agent_name=agent_name,
                 parameter_path=config["agent_path"],
                 fallback=config["fallback"],
-                global_path=None  # Tools don't have global config equivalents
+                global_path=None,  # Tools don't have global config equivalents
+                account_slug=account_slug,
+                instance_slug=instance_slug
             )
             tool_config[param_name] = value
         except Exception as e:
