@@ -6,6 +6,7 @@ Unauthorized copying of this file is strictly prohibited.
 # API Endpoints Documentation
 
 > **Last Updated**: January 12, 2025  
+> **Updates**: Added metadata endpoint, health check endpoint, marked legacy endpoints as deprecated  
 > Comprehensive documentation of all current and planned API endpoints for the Salient AI Chat System, organized by implementation phases and functionality.
 
 ## Overview
@@ -46,7 +47,9 @@ The Salient AI Chat System uses a **multi-tenant, multi-agent architecture** wit
 | `POST` | `/accounts/{account}/agents/{instance}/chat` | Multi-tenant chat (non-streaming) | JSON | ✅ **Production** |
 | `GET` | `/accounts/{account}/agents/{instance}/stream` | Multi-tenant streaming chat (SSE) | SSE Stream | ✅ **Production** |
 | `GET` | `/accounts/{account}/agents/{instance}/history` | Multi-tenant chat history | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/{instance}/metadata` | Agent instance metadata (model, status, display_name) | JSON | ✅ **Production** |
 | `GET` | `/accounts/{account}/agents` | List agent instances for account | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/health` | Health check for multi-tenant router | JSON | ✅ **Production** |
 
 **Features**:
 - ✅ Pydantic AI agents with proper `agent.run()` / `agent.run_stream()`
@@ -55,33 +58,44 @@ The Salient AI Chat System uses a **multi-tenant, multi-agent architecture** wit
 - ✅ Streaming with SSE protocol compliance (multi-line markdown support)
 - ✅ Client-side markdown rendering (GFM tables, code blocks)
 - ✅ Debug logging with auto dev/prod toggle
+- ✅ Dynamic model information via metadata endpoint
 
 **Example URLs**:
 ```
 POST   /accounts/default_account/agents/simple_chat1/chat
 GET    /accounts/default_account/agents/simple_chat1/stream?message=hello
 GET    /accounts/default_account/agents/simple_chat1/history
+GET    /accounts/default_account/agents/simple_chat1/metadata
+GET    /accounts/default_account/agents
+GET    /accounts/default_account/agents/health
 GET    /accounts/acme/agents/acme_chat1/stream?message=test
 ```
 
-### **Legacy Chat Endpoints** (Pre-Multi-Tenant)
+### **Legacy Chat Endpoints** (Pre-Multi-Tenant) ⚠️ **DEPRECATED**
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
-| `POST` | `/chat` | **Legacy** - Non-streaming chat (direct API) | PlainText | ⚠️ Legacy (no Pydantic AI) |
-| `GET` | `/events/stream` | **Legacy** - Streaming SSE (direct API) | SSE Stream | ⚠️ Legacy (no Pydantic AI) |
+| `POST` | `/chat` | **Legacy** - Non-streaming chat (direct API) | PlainText | ⚠️ **DEPRECATED** - Use `/accounts/{account}/agents/{instance}/chat` |
+| `GET` | `/events/stream` | **Legacy** - Streaming SSE (direct API) | SSE Stream | ⚠️ **DEPRECATED** - Use `/accounts/{account}/agents/{instance}/stream` |
+| `POST` | `/agents/simple-chat/chat` | **Legacy** - Agent-specific chat endpoint | JSON | ⚠️ **DEPRECATED** - Use `/accounts/{account}/agents/{instance}/chat` |
 
 **Issues**:
 - ❌ Direct OpenRouter HTTP calls (no Pydantic AI)
 - ❌ Estimated token counts (unreliable)
 - ❌ No cost tracking to `llm_requests` table
 - ⚠️ Used by `localhost:8000` main page (needs migration)
+- ❌ No multi-tenant account isolation
+
+**Migration Path**:
+- Replace `/chat` → `/accounts/default_account/agents/simple_chat1/chat`
+- Replace `/events/stream` → `/accounts/default_account/agents/simple_chat1/stream`
+- Replace `/agents/simple-chat/chat` → `/accounts/{account}/agents/{instance}/chat`
 
 ### **API Endpoints**
 | Method | Endpoint | Description | Response | Status |
 |--------|----------|-------------|----------|--------|
 | `GET` | `/api/config` | Frontend configuration and feature flags | JSON | ✅ Active |
 | `GET` | `/api/session` | Session information for debugging/development | JSON | ✅ Active |
-| `GET` | `/api/chat/history` | **Legacy** chat history (session-only filter) | JSON | ⚠️ Superseded by multi-tenant history |
+| `GET` | `/api/chat/history` | **Legacy** chat history (session-only filter) | JSON | ⚠️ **DEPRECATED** - Use `/accounts/{account}/agents/{instance}/history` |
 
 ### **Development & Monitoring Endpoints**
 | Method | Endpoint | Description | Response | Status |
@@ -116,7 +130,9 @@ GET    /accounts/acme/agents/acme_chat1/stream?message=test
 | `POST` | `/accounts/{account}/agents/{instance}/chat` | Agent instance chat (non-streaming) | JSON | ✅ **Production** |
 | `GET` | `/accounts/{account}/agents/{instance}/stream` | Agent instance streaming (SSE) | SSE Stream | ✅ **Production** |
 | `GET` | `/accounts/{account}/agents/{instance}/history` | Multi-tenant chat history | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/{instance}/metadata` | Agent instance metadata (model, status, display_name) | JSON | ✅ **Production** |
 | `GET` | `/accounts/{account}/agents` | List agent instances for account | JSON | ✅ **Production** |
+| `GET` | `/accounts/{account}/agents/health` | Health check for multi-tenant router | JSON | ✅ **Production** |
 
 **Implemented Features**:
 - ✅ Full Pydantic AI integration (`agent.run()`, `agent.run_stream()`)
@@ -128,6 +144,8 @@ GET    /accounts/acme/agents/acme_chat1/stream?message=test
 - ✅ Session management with cookie-based persistence
 - ✅ Message history with conversation continuity
 - ✅ Debug logging infrastructure
+- ✅ Dynamic model information retrieval via metadata endpoint
+- ✅ Health check endpoint for router monitoring
 
 **Frontend Clients Using Multi-Tenant Endpoints**:
 - ✅ `localhost:4321/demo/simple-chat` - Astro standalone chat
@@ -141,11 +159,28 @@ GET    /accounts/acme/agents/acme_chat1/stream?message=test
 POST /accounts/default_account/agents/simple_chat1/chat
 GET  /accounts/default_account/agents/simple_chat1/stream?message=hello
 GET  /accounts/default_account/agents/simple_chat1/history
+GET  /accounts/default_account/agents/simple_chat1/metadata
+GET  /accounts/default_account/agents
+GET  /accounts/default_account/agents/health
 
 # ACME account with custom agent
 POST /accounts/acme/agents/acme_chat1/chat
 GET  /accounts/acme/agents/acme_chat1/stream?message=test
+GET  /accounts/acme/agents/acme_chat1/metadata
 GET  /accounts/acme/agents
+```
+
+**Metadata Endpoint Response Example**:
+```json
+{
+  "account_slug": "default_account",
+  "instance_slug": "simple_chat1",
+  "agent_type": "simple_chat",
+  "display_name": "Simple Chat 1",
+  "model": "moonshotai/kimi-k2-0905",
+  "status": "active",
+  "last_used_at": "2025-01-12T14:30:00Z"
+}
 ```
 
 **Configuration**:
@@ -160,17 +195,24 @@ GET  /accounts/acme/agents
 | `GET` | `/accounts/{account}/usage` | Usage metrics and billing | JSON | 📋 Planned |
 | `POST` | `/accounts/{account}/agents/{instance}/configure` | Update instance configuration | JSON | 📋 Planned |
 
-### **Legacy Endpoint Migration Plan**
-```
-# TODO: Migrate legacy endpoints to use multi-tenant infrastructure internally
-POST /chat          → POST /accounts/default_account/agents/simple_chat1/chat
-GET  /events/stream → GET  /accounts/default_account/agents/simple_chat1/stream
+### **Legacy Endpoint Migration Plan** ⚠️ **IN PROGRESS**
 
-# Benefits:
-# - Same URL, same response format (backward compatible)
-# - Gains Pydantic AI, cost tracking, proper usage data
-# - Zero impact on existing clients
+**Deprecated Endpoints** (Targeted for removal):
 ```
+POST /chat                        → POST /accounts/{account}/agents/{instance}/chat
+GET  /events/stream               → GET  /accounts/{account}/agents/{instance}/stream
+POST /agents/simple-chat/chat     → POST /accounts/{account}/agents/{instance}/chat
+GET  /api/chat/history            → GET  /accounts/{account}/agents/{instance}/history
+```
+
+**Migration Benefits**:
+- ✅ Same URL, same response format (backward compatible)
+- ✅ Gains Pydantic AI, cost tracking, proper usage data
+- ✅ Zero impact on existing clients
+- ✅ Multi-tenant account isolation
+- ✅ Proper cost attribution per account/instance
+
+**Status**: Legacy endpoints remain active for backward compatibility but should not be used for new development. All new clients should use multi-tenant endpoints.
 
 ---
 

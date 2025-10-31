@@ -265,20 +265,29 @@ Unauthorized copying of this file is strictly prohibited.
    - **Status**: ✅ **COMPLETE** - Already migrated (uses `@asynccontextmanager` with `lifespan()`)
    - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
 
-4. **SQLAlchemy selectinload() Migration** 🟢 **PERFORMANCE CRITICAL**
+4. **SQLAlchemy selectinload() Migration** ✅ **COMPLETE**
    - **Problem**: N+1 queries when accessing relationships without eager loading
    - **Impact**: Performance degradation under load, database connection exhaustion
-   - **Effort**: 4-8 hours (audit all relationship accesses, add selectinload())
-   - **Fix**: Add `selectinload()` for all relationship accesses in queries
-   - **Files**: All service files with relationship queries (messages, sessions, accounts, etc.)
+   - **Effort**: 4-8 hours (audit all relationship accesses, add selectinload()) ✅ **COMPLETE**
+   - **Fix**: Add `selectinload()` for all relationship accesses in queries ✅ **COMPLETE**
+   - **Files**: All service files with relationship queries (messages, sessions, accounts, etc.) ✅ **COMPLETE**
+   - **Implementation**: Added selectinload() to Session, Message, DirectoryList, and DirectoryEntry queries across 7 files
+   - **Status**: ✅ **COMPLETE** - All queries now use eager loading to prevent N+1 queries (January 12, 2025)
+   - **Commit**: `c78799a`
    - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
 
-5. **Pydantic AI RunContext Verification** 🟢 **ARCHITECTURE COMPLIANCE**
+5. **Pydantic AI RunContext Verification** ✅ **COMPLETE**
    - **Problem**: Verify all tools use `RunContext[DepsType]` pattern (may have inconsistencies)
    - **Impact**: Type safety, proper dependency injection, architecture compliance
-   - **Effort**: 1-2 hours (audit all tools, fix any inconsistencies)
-   - **Fix**: Review all `@agent.tool` functions, ensure first parameter is `RunContext[SessionDependencies]`
-   - **Files**: `backend/app/agents/tools/*.py`, `backend/app/agents/simple_chat.py`
+   - **Effort**: 1-2 hours (audit all tools, fix any inconsistencies) ✅ **COMPLETE**
+   - **Fix**: Review all `@agent.tool` functions, ensure first parameter is `RunContext[SessionDependencies]` ✅ **COMPLETE**
+   - **Files**: `backend/app/agents/tools/*.py`, `backend/app/agents/simple_chat.py`, `backend/app/agents/base/agent_base.py` ✅ **COMPLETE**
+   - **Implementation**: 
+     - Verified `vector_search` uses `RunContext[SessionDependencies]` ✅
+     - Verified `search_directory` uses `RunContext[SessionDependencies]` ✅
+     - Fixed `tool_wrapper` in `agent_base.py` to use `RunContext[DepsType]` ✅
+   - **Status**: ✅ **COMPLETE** - All tools now use correct RunContext pattern (January 12, 2025)
+   - **Commit**: Pending
    - **See**: [Critical Libraries Review](../../analysis/critical-libraries-review.md#critical-patterns--1)
 
 6. **Alembic Async Migration Verification** 🟢 **MIGRATION COMPATIBILITY**
@@ -294,7 +303,7 @@ Unauthorized copying of this file is strictly prohibited.
 - Logfire Instrumentation: Ensure all libraries instrumented
 - Transaction Management: Verify all multi-step operations use transactions
 
-**Status**: BUG-0023-002 ✅ COMPLETE, BUG-0023-003 ✅ COMPLETE, FastAPI Lifespan ✅ COMPLETE - Priority 5A addresses critical bugs and migrations needed before production deployment.
+**Status**: BUG-0023-002 ✅ COMPLETE, BUG-0023-003 ✅ COMPLETE, FastAPI Lifespan ✅ COMPLETE, SQLAlchemy selectinload() ✅ COMPLETE, Pydantic AI RunContext ✅ COMPLETE - Priority 5A addresses critical bugs and migrations needed before production deployment.
 
 **See**: 
 - [bugs-0023.md](bugs-0023.md) for bug details

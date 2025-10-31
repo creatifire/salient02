@@ -217,7 +217,7 @@
     // Create title (center)
     const headerTitle = document.createElement('span');
     headerTitle.className = 'header-title';
-    headerTitle.textContent = 'Salient Chat';
+    headerTitle.textContent = 'Salient Chat'; // Default, will be updated from metadata
     
     // Create close button (right side) - now with SVG
     const closeBtn = createHeaderButton(closeIconSrc, 'Close chat', close);
@@ -310,6 +310,7 @@
     let typingTimeout=null; // Track typing indicator timeout
     let configCache = null;
     let historyLoaded = false;
+    let displayNameCache = null; // Cache display name from metadata
     
     // Maximize/minimize state management
     // TODO: Migrate to per-agent localStorage when Epic 0017-007 (per-agent cookies) is implemented
@@ -318,6 +319,43 @@
     
     // Mobile detection
     const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+    
+    async function loadDisplayName(){
+      // Return cached value if available
+      if (displayNameCache) {
+        headerTitle.textContent = displayNameCache;
+        return;
+      }
+      
+      try {
+        // Fetch metadata to get display_name
+        const metadataUrl = new URL(`/accounts/${accountSlug}/agents/${agentInstanceSlug}/metadata`, backend);
+        const r = await fetch(metadataUrl.toString(), { 
+          mode: allowCross ? 'cors' : 'same-origin',
+          credentials: allowCross ? 'include' : 'same-origin'
+        });
+        
+        if (r.ok) {
+          const data = await r.json();
+          if (data.display_name) {
+            displayNameCache = data.display_name;
+            headerTitle.textContent = data.display_name;
+            debugLog('Updated header title to:', data.display_name);
+          } else {
+            // Fallback to account/agent format
+            headerTitle.textContent = `${accountSlug}/${agentInstanceSlug}`;
+          }
+        } else {
+          // Fallback on error
+          headerTitle.textContent = `${accountSlug}/${agentInstanceSlug}`;
+          debugLog('Metadata fetch failed, using fallback title');
+        }
+      } catch (e) {
+        // Fallback on exception
+        headerTitle.textContent = `${accountSlug}/${agentInstanceSlug}`;
+        console.error('[SalientWidget] Display name load error:', e);
+      }
+    }
     
     async function loadHistory(){
       if (historyLoaded) return;
@@ -528,7 +566,7 @@
     let loaded=false;
     async function maybeFetch(){ if (loaded) return; try{ await fetch(new URL('/health', backend).toString(), { mode: allowCross? 'cors':'same-origin' }); }catch{} loaded=true; }
 
-    function open(){ host.setAttribute('data-open', '1'); fab.setAttribute('aria-expanded','true'); pane.setAttribute('aria-hidden','false'); maybeFetch(); loadHistory(); }
+    function open(){ host.setAttribute('data-open', '1'); fab.setAttribute('aria-expanded','true'); pane.setAttribute('aria-hidden','false'); maybeFetch(); loadDisplayName(); loadHistory(); }
     function close(){ host.removeAttribute('data-open'); fab.setAttribute('aria-expanded','false'); pane.setAttribute('aria-hidden','true'); if(activeSSE){ try{ activeSSE.close(); }catch{} activeSSE=null; setBusy(false);} }
     function toggle(){ host.hasAttribute('data-open') ? close() : open(); }
     
@@ -631,6 +669,9 @@
     
     // Load maximize preference on initialization
     loadMaximizePreference();
+    
+    // Load display name on widget creation (even if closed)
+    loadDisplayName();
 
     window.SalientChatWidget = Object.assign(window.SalientChatWidget || {}, { 
       open, 

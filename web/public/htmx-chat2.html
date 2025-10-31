@@ -115,16 +115,34 @@
           const r = await fetch(metadataUrl, {credentials:'include'});
           if(r.ok){
             const data = await r.json();
+            
+            // Update display name in h1 title
+            const h1 = document.querySelector('h1');
+            if(h1 && data.display_name){
+              h1.textContent = data.display_name;
+              if(DEBUG) console.log('Updated title to:', data.display_name);
+            }else if(h1){
+              // Fallback to account/agent format
+              h1.textContent = `${ACCOUNT}/${AGENT}`;
+            }
+            
+            // Update model info
             const modelInfo = document.getElementById('model-info');
             if(modelInfo && data.model){
               modelInfo.textContent = `Model: ${data.model}`;
               modelInfo.style.color = '#666';
             }
           }else{
+            // Fallback on error
+            const h1 = document.querySelector('h1');
+            if(h1) h1.textContent = `${ACCOUNT}/${AGENT}`;
             const modelInfo = document.getElementById('model-info');
             if(modelInfo) modelInfo.style.display = 'none';
           }
         }catch(e){
+          // Fallback on exception
+          const h1 = document.querySelector('h1');
+          if(h1) h1.textContent = `${ACCOUNT}/${AGENT}`;
           const modelInfo = document.getElementById('model-info');
           if(modelInfo) modelInfo.style.display = 'none';
           if(DEBUG) console.error('Failed to load model info:', e);

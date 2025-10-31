@@ -514,9 +514,18 @@ usage = result.usage()  # RunUsage(input_tokens=..., output_tokens=...)
 ### High Priority ⚠️
 
 - [x] **FastAPI Lifespan**: Migrate from `@app.on_event()` to `lifespan()` context manager ✅ **COMPLETE**
-- [ ] **SQLAlchemy Queries**: Add `selectinload()` for all relationship accesses
+- [x] **SQLAlchemy Queries**: Add `selectinload()` for all relationship accesses ✅ **COMPLETE** (January 12, 2025)
+  - **Implementation**: Added selectinload() to all relationship queries across 7 files
+  - **Files Updated**: session_service.py, message_service.py, directory_service.py, prompt_generator.py, simple_session_middleware.py, main.py, account_agents.py
+  - **Relationships Covered**: Session.account, Session.agent_instance, Message.session, Message.agent_instance, Message.llm_request, DirectoryList.entries, DirectoryList.account, DirectoryEntry.directory_list
+  - **Commit**: `c78799a`
+  - **Status**: All queries now prevent N+1 issues by eagerly loading relationships
 - [ ] **Alembic Async**: Ensure migrations use async engine patterns
-- [ ] **Pydantic AI**: Verify all tools use `RunContext[DepsType]` pattern
+- [x] **Pydantic AI**: Verify all tools use `RunContext[DepsType]` pattern ✅ **COMPLETE** (January 12, 2025)
+  - **Implementation**: Verified all tool functions use RunContext type annotations
+  - **Files Updated**: agent_base.py (tool_wrapper), vector_tools.py (vector_search), directory_tools.py (search_directory)
+  - **Status**: All tools verified to use RunContext[SessionDependencies] or RunContext[DepsType]
+  - **Commit**: Pending
 
 ### Medium Priority 📋
 
