@@ -552,23 +552,84 @@ async def simple_chat(
                         response_body_full["provider_details"] = latest_message.provider_details
             
                 # Load session to extract denormalized fields for cost attribution
-                from ..models.session import Session
+                # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
                 from ..database import get_database_service
+                from ..services.session_extractor import get_session_account_fields
+                
                 db_service = get_database_service()
                 async with db_service.get_session() as db_session:
-                    session_record = await db_session.get(Session, UUID(session_id))
-                    if not session_record:
-                        logfire.error(
-                            'agent.session.not_found',
-                            session_id=session_id
+                    account_id, account_slug = await get_session_account_fields(
+                        db_session, UUID(session_id)
+                    )
+                    
+                    # Validate session exists (account_id/account_slug will be None if session not found)
+                    if account_id is None and account_slug is None:
+                        # Check if session exists at all
+                        from ..models.session import Session
+                        session_record = await db_session.get(Session, UUID(session_id))
+                        if not session_record:
+                            logfire.error(
+                                'agent.session.not_found',
+                                session_id=session_id
+                            )
+                            raise ValueError(f"Session not found: {session_id}")
+                    
+                    # Validate required fields are present (may be None for legacy sessions)
+                    if account_id is None or account_slug is None:
+                        logfire.warn(
+                            'agent.session.missing_account_fields',
+                            session_id=session_id,
+                            has_account_id=account_id is not None,
+                            has_account_slug=account_slug is not None
                         )
-                        raise ValueError(f"Session not found: {session_id}")
+                        # Don't fail - allow None values to be passed (tracker handles nullable fields)
                 
-                    # Extract denormalized fields for fast billing queries
-                    account_id = session_record.account_id
-                    account_slug = session_record.account_slug
-                    agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
-                    agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+                # Get agent config values outside session context (don't need DB)
+                agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
+                agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+            
+                # Diagnostic logging: Log values BEFORE calling track_llm_request to identify SQLAlchemy expressions
+                # Safe logging: Wrap ALL operations in try/except to avoid triggering SQLAlchemy expression evaluation
+                def safe_type_name(value):
+                    """Safely get type name, handling SQLAlchemy expressions"""
+                    if value is None:
+                        return 'None'
+                    try:
+                        return type(value).__name__
+                    except Exception as e:
+                        return f"<type check failed: {str(e)}>"
+                
+                def safe_repr(value):
+                    """Safely get repr() of value, handling SQLAlchemy expressions"""
+                    if value is None:
+                        return None
+                    try:
+                        return repr(value)
+                    except Exception as e:
+                        return f"<repr failed: {str(e)}>"
+                
+                # Wrap entire logging call in try/except in case logging itself triggers the error
+                try:
+                    logfire.debug(
+                        'agent.cost_tracking.before_track_call',
+                        session_id=session_id,
+                        agent_instance_id_type=safe_type_name(agent_instance_id),
+                        agent_instance_id_repr=safe_repr(agent_instance_id),
+                        account_id_type=safe_type_name(account_id),
+                        account_id_repr=safe_repr(account_id),
+                        account_slug_type=safe_type_name(account_slug),
+                        account_slug_repr=safe_repr(account_slug),
+                        agent_instance_slug=agent_instance_slug,
+                        agent_type=agent_type
+                    )
+                except Exception as log_error:
+                    # If logging itself fails, log that fact
+                    logfire.warn(
+                        'agent.cost_tracking.before_track_call_failed',
+                        session_id=session_id,
+                        logging_error=str(log_error),
+                        logging_error_type=type(log_error).__name__
+                    )
             
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
@@ -638,17 +699,37 @@ async def simple_chat(
                 
         except Exception as e:
             # Log tracking errors but don't break the response
+            # Use safe Logfire wrapper to handle any SQLAlchemy expressions defensively
             import traceback
-            logfire.error(
+            from ..utils.logfire_safe import safe_logfire_error
+            
+            # Safe string conversions - handle SQLAlchemy expressions gracefully
+            try:
+                agent_instance_id_str = str(agent_instance_id) if agent_instance_id is not None else None
+            except Exception:
+                agent_instance_id_str = None
+            
+            try:
+                session_id_str = str(session_id) if session_id else None
+            except Exception:
+                session_id_str = None
+            
+            try:
+                requested_model_str = str(requested_model) if 'requested_model' in locals() else 'unknown'
+            except Exception:
+                requested_model_str = 'unknown'
+            
+            # Use safe wrapper to prevent SQLAlchemy expression serialization errors
+            safe_logfire_error(
                 'cost_tracking_failed',
                 error_type=type(e).__name__,
                 error_message=str(e),
                 traceback_details=traceback.format_exc(),
-                requested_model=requested_model,
+                requested_model=requested_model_str,
                 result_type=type(result).__name__ if 'result' in locals() else 'not_available',
                 has_usage=hasattr(result, 'usage') if 'result' in locals() else False,
-                session_id=session_id,
-                agent_instance_id=str(agent_instance_id) if agent_instance_id else None
+                session_id=session_id_str,
+                agent_instance_id=agent_instance_id_str
             )
             llm_request_id = None
             prompt_cost = 0.0
@@ -1040,25 +1121,33 @@ async def simple_chat_stream(
                         response_body_full["provider_details"] = latest_message.provider_details
                 
                 # Load session to extract denormalized fields for cost attribution
-                from ..models.session import Session
+                # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
                 from ..database import get_database_service
+                from ..services.session_extractor import get_session_account_fields
+                
                 db_service = get_database_service()
                 async with db_service.get_session() as db_session:
-                    session_record = await db_session.get(Session, UUID(session_id))
-                    if not session_record:
-                        logfire.error(
-                            'agent.streaming.session_not_found',
-                            session_id=session_id
-                        )
-                        raise ValueError(f"Session not found: {session_id}")
+                    account_id, account_slug = await get_session_account_fields(
+                        db_session, UUID(session_id)
+                    )
                     
-                    # Extract denormalized fields for fast billing queries
-                    account_id = session_record.account_id
-                    account_slug = session_record.account_slug
+                    # Validate session exists (account_id/account_slug will be None if session not found)
+                    if account_id is None and account_slug is None:
+                        # Check if session exists at all
+                        from ..models.session import Session
+                        session_record = await db_session.get(Session, UUID(session_id))
+                        if not session_record:
+                            logfire.error(
+                                'agent.streaming.session_not_found',
+                                session_id=session_id
+                            )
+                            raise ValueError(f"Session not found: {session_id}")
+                    
                     agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
                     agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
                 
                 # Log tracking attempt for debugging
+                # All values are now Python primitives (no SQLAlchemy expressions)
                 logfire.debug(
                     'agent.streaming.llm_tracking_start',
                     session_id=session_id,
