@@ -70,6 +70,14 @@
       .loading-indicator{ display:flex; align-items:center; justify-content:center; padding:1rem; color:#666; font-style:italic; }
       .loading-text{ font-size:.9rem; }
       .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+      
+      /* Typing indicator for bot messages */
+      .typing-indicator{ display:flex; align-items:center; justify-content:center; gap:4px; padding:8px 0; min-height:32px; }
+      .typing-indicator span{ width:8px; height:8px; border-radius:50%; background:#999; animation:typing-bounce 1.4s infinite ease-in-out; }
+      .typing-indicator span:nth-child(1){ animation-delay:0s; }
+      .typing-indicator span:nth-child(2){ animation-delay:0.2s; }
+      .typing-indicator span:nth-child(3){ animation-delay:0.4s; }
+      @keyframes typing-bounce{ 0%, 60%, 100%{ transform:translateY(0); opacity:0.7; } 30%{ transform:translateY(-8px); opacity:1; } }
     </style>
   </head>
   <body>
@@ -108,6 +116,7 @@
       const hint = document.getElementById('hint');
 
       let activeSSE = null; let activeBotDiv = null; let accumulated = ''; let busy=false; let historyLoaded=false;
+      let typingTimeout = null; // Track typing indicator timeout
       
       async function loadModelInfo(){
         try{
@@ -224,6 +233,26 @@
         }catch{ c.textContent = trimmed || '[no response]'; }
       }
 
+      // Typing indicator helper functions
+      function showTypingIndicator(container) {
+        if (!container) return;
+        const content = container.querySelector('.content') || container;
+        if (content) {
+          // Insert typing indicator HTML directly into content
+          content.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+          chat.scrollTop = chat.scrollHeight;
+        }
+      }
+      
+      function hideTypingIndicator(container) {
+        if (!container) return;
+        const content = container.querySelector('.content') || container;
+        // Check if content contains typing indicator
+        if (content && content.querySelector('.typing-indicator')) {
+          content.innerHTML = ''; // Clear typing indicator
+        }
+      }
+
       async function doPost(text){
         try{
           const chatUrl = `${BACKEND_URL}/accounts/${ACCOUNT}/agents/${AGENT}/chat`;
@@ -233,10 +262,17 @@
             body: JSON.stringify({ message: text }),
             credentials: 'include'
           });
+          
+          // Clear typing indicator on response
+          if (typingTimeout) clearTimeout(typingTimeout);
+          hideTypingIndicator(activeBotDiv);
+          
           const out = r.ok ? await r.text() : `[http ${r.status}]`;
           if (activeBotDiv){ activeBotDiv.dataset.raw=out; renderMarkdownOrFallback(activeBotDiv, out); }
         }catch(e){ 
           console.error('POST request failed:', e);
+          if (typingTimeout) clearTimeout(typingTimeout);
+          hideTypingIndicator(activeBotDiv);
           if(activeBotDiv) activeBotDiv.textContent='[network error]'; 
         }
         finally{ setBusy(false); }
@@ -260,6 +296,14 @@
         append('user', value); msg.value='';
         activeBotDiv = append('bot',''); accumulated=''; setBusy(true);
         
+        // Clear any existing typing timeout
+        if (typingTimeout) clearTimeout(typingTimeout);
+        
+        // Show typing indicator after 500ms if no response yet
+        typingTimeout = setTimeout(() => {
+          showTypingIndicator(activeBotDiv);
+        }, 500);
+        
         const config = await getConfig();
         const sseEnabled = config.ui.sse_enabled;
         
@@ -274,6 +318,10 @@
           es.onmessage = (ev)=>{ 
             accumulated += ev.data; 
             if(activeBotDiv){ 
+              // Clear timeout and hide indicator when we start showing text
+              if (typingTimeout) clearTimeout(typingTimeout);
+              hideTypingIndicator(activeBotDiv);
+              
               activeBotDiv.dataset.raw=accumulated; 
               const c=activeBotDiv.querySelector('.content')||activeBotDiv; 
               const displayText = accumulated.replace(/\n/g, '<br>'); 
@@ -282,18 +330,24 @@
             } 
           };
           es.addEventListener('done', ()=>{ 
+            if (typingTimeout) clearTimeout(typingTimeout);
+            hideTypingIndicator(activeBotDiv);
             try{ es.close(); }catch{}; 
             activeSSE=null; 
             if(activeBotDiv){ renderMarkdownOrFallback(activeBotDiv, accumulated); } 
             setBusy(false); 
           });
           es.onerror = (e)=>{ 
+            if (typingTimeout) clearTimeout(typingTimeout);
+            hideTypingIndicator(activeBotDiv);
             console.error('SSE error:', e);
             try{ es.close(); }catch{}; 
             activeSSE=null; 
             doPost(value); 
           };
         }catch(e){ 
+          if (typingTimeout) clearTimeout(typingTimeout);
+          hideTypingIndicator(activeBotDiv);
           console.error('SSE failed to initialize:', e);
           doPost(value); 
         }
