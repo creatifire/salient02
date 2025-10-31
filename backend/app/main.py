@@ -998,8 +998,8 @@ async def sse_stream(request: Request):
                             error=str(e),
                             error_type=type(e).__name__,
                             content_length=len(complete_response),
-                            "demo_mode": True
-                        })
+                            demo_mode=True
+                        )
                     
                     # Graceful end signal
                     yield {"event": "end", "data": "end"}
