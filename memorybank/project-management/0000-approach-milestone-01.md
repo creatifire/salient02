@@ -541,13 +541,48 @@ logfire.debug('service.query.result', result_count=len(result))
 21. [x] `backend/app/agents/instance_loader.py` - Migrated 26 logger calls
 22. [x] `backend/app/agents/cascade_monitor.py` - Migrated 7 logger calls
 
-**Phase 6: Final Cleanup** (PENDING)
-- [ ] Remove loguru from `requirements.txt`
-- [ ] Remove any remaining `import logging` statements
-- [ ] Verify all files use `import logfire` only
-- [ ] Update any remaining documentation references
+**Phase 6: Library Integrations & Final Cleanup** (PENDING)
 
-**Progress**: 21/21 files complete (100%) ✅ | Phases 1-4 complete, Phase 5-6 pending
+**Logfire Library Integrations** (best practices):
+- [ ] 6.1 - Add HTTPX instrumentation (P1 - Critical)
+  - Add `logfire.instrument_httpx()` to `backend/app/main.py` with other instrumentation
+  - Enables automatic tracing of all OpenRouter API calls via `openrouter_client.py`
+  - **Impact**: Visibility into LLM API latency, errors, retries, request/response metadata
+  - **Verification**: Check Logfire for HTTP request spans during chat interactions
+  
+- [ ] 6.2 - Move Pydantic instrumentation to main.py (P2 - Consistency)
+  - Move `logfire.instrument_pydantic()` from `backend/app/agents/simple_chat.py:44` to `backend/app/main.py` (with other instrumentation)
+  - Ensures all Pydantic models are instrumented, not just those loaded after simple_chat
+  - **Impact**: Consistent instrumentation pattern, guaranteed coverage
+  - **Verification**: Verify Pydantic validation spans appear for all models
+  
+- [ ] 6.3 - Verify SQLAlchemy async instrumentation (P3 - Investigation)
+  - Check if `sync_engine` approach in `backend/app/database.py:211-217` is working optimally
+  - Consult Logfire docs for recommended async SQLAlchemy instrumentation pattern
+  - Consider alternative if falling back to OpenTelemetry
+  - **Impact**: Ensure full SQLAlchemy tracing (connection pool, transactions)
+  - **Verification**: Check Logfire for SQLAlchemy-specific query metadata
+  
+- [ ] 6.4 - Update logging-implementation.md (P4 - Documentation)
+  - Document that HTTPX requires explicit `logfire.instrument_httpx()` call
+  - Document Pydantic instrumentation location (main.py, not per-agent)
+  - Document SQLAlchemy async instrumentation findings
+  - Update "Built-in Integrations" table with actual implementation status
+
+**Dependency Cleanup**:
+- [ ] 6.5 - Remove loguru from dependencies
+  - Remove `loguru` from `requirements.txt` or equivalent
+  - Verify no remaining imports
+  
+- [ ] 6.6 - Remove standard logging remnants
+  - Remove any remaining `import logging` statements
+  - Verify all files use `import logfire` only
+  
+- [ ] 6.7 - Documentation audit
+  - Update any remaining documentation references to old logging patterns
+  - Verify all examples use Logfire patterns
+
+**Progress**: 21/21 files complete (100%) ✅ | Phases 1-5 complete ✅, Phase 6 pending
 
 **Verification**: Manual testing - verify console output + Logfire dashboard after each file
 
