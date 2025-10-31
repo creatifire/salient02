@@ -55,11 +55,14 @@ import logfire
 # Configure once at application startup
 logfire.configure()
 
-# Enable automatic instrumentation
+# Enable automatic instrumentation (all in main.py for consistency)
 logfire.instrument_fastapi(app)
 logfire.instrument_pydantic_ai()
-logfire.instrument_pydantic()
+logfire.instrument_pydantic()  # Must be in main.py to instrument ALL models
+logfire.instrument_httpx()  # Required for external HTTP tracing (OpenRouter, etc.)
 ```
+
+**Important**: All instrumentation should be in `main.py` at application startup, not in individual modules. This ensures consistent coverage across the entire application.
 
 ### Environment Variables
 
@@ -73,18 +76,21 @@ LOGFIRE_TOKEN=your_token_here
 
 ### Built-in Integrations
 
-Logfire automatically instruments:
+Logfire instrumentation setup:
 
-| Library | What It Captures | Setup |
-|---------|------------------|-------|
-| **FastAPI** | HTTP requests, responses, errors | `logfire.instrument_fastapi(app)` |
-| **Pydantic AI** | Agent runs, tool calls, LLM usage | `logfire.instrument_pydantic_ai()` |
-| **Pydantic** | Model validation, errors | `logfire.instrument_pydantic()` |
-| **SQLAlchemy** | Database queries, performance | `logfire.instrument_sqlalchemy(engine)` |
-| **AsyncPG** | PostgreSQL operations | Automatic via OpenTelemetry |
-| **HTTPX** | External API calls | Automatic via OpenTelemetry |
+| Library | What It Captures | Setup | Status |
+|---------|------------------|-------|--------|
+| **FastAPI** | HTTP requests, responses, errors | `logfire.instrument_fastapi(app)` | ✅ Enabled in `main.py` |
+| **Pydantic AI** | Agent runs, tool calls, LLM usage | `logfire.instrument_pydantic_ai()` | ✅ Enabled in `main.py` |
+| **Pydantic** | Model validation, errors | `logfire.instrument_pydantic()` | ✅ Enabled in `main.py` |
+| **HTTPX** | External API calls (OpenRouter, etc.) | `logfire.instrument_httpx()` | ✅ Enabled in `main.py` |
+| **SQLAlchemy** | Database queries, performance | `logfire.instrument_sqlalchemy(engine)` | ✅ Enabled in `database.py` |
+| **AsyncPG** | PostgreSQL operations | Automatic via OpenTelemetry | ✅ Via SQLAlchemy |
 
-**No code changes required** - instrumentation is automatic once enabled.
+**Implementation Notes**:
+- **HTTPX**: Requires explicit `logfire.instrument_httpx()` call - NOT automatic via OpenTelemetry
+- **Pydantic**: Must be in `main.py` to instrument ALL models (not per-agent imports)
+- **SQLAlchemy**: For async engines, use `sync_engine` wrapper pattern (see SQLAlchemy Async section below)
 
 ---
 
@@ -327,6 +333,42 @@ class MessageService:
 ---
 
 ## Critical Issues & Solutions
+
+### SQLAlchemy Async Engine Instrumentation
+
+**Pattern**: For async SQLAlchemy engines (using asyncpg), access the underlying sync engine:
+
+```python
+# backend/app/database.py
+from sqlalchemy.ext.asyncio import create_async_engine
+import logfire
+
+# Create async engine
+engine = create_async_engine("postgresql+asyncpg://...")
+
+# Instrument via sync_engine wrapper (standard SQLAlchemy pattern)
+sync_engine = getattr(engine, 'sync_engine', None)
+if sync_engine:
+    logfire.instrument_sqlalchemy(engine=sync_engine)
+    logfire.info('database.sqlalchemy_instrumentation_enabled', 
+                 engine_type='async', 
+                 driver='asyncpg')
+```
+
+**Why This Works**:
+- Async engines expose a `sync_engine` attribute that wraps the underlying sync driver
+- This is the standard SQLAlchemy pattern for async engines
+- Logfire's instrumentation works with sync engines, which async engines expose
+- Verified working: SQL queries traced with full statements, duration, metadata
+
+**What Gets Traced**:
+- All SQL queries (SELECT, INSERT, UPDATE, DELETE)
+- Query duration and performance metrics
+- Database system (`db.system: postgresql`)
+- Database name (`db.name: salient_dev`)
+- Full SQL statements (`db.statement` attribute)
+
+**Fallback**: If `sync_engine` isn't available, queries are still traced via OpenTelemetry auto-instrumentation.
 
 ### SQLAlchemy Expression Serialization
 
