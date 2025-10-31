@@ -4,7 +4,8 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Project Brief
-> **Last Updated**: October 20, 2025
+> **Last Updated**: January 31, 2025  
+> **Updates**: Updated architecture document links (consolidated files, new agent-and-tool-design.md)
 
 ## Core Architectural Principles
 
@@ -32,7 +33,8 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Reference Documentation:**
 - [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md) - Complete guide for streaming and non-streaming cost tracking
-- [Endpoint Pydantic AI Matrix](./architecture/endpoint-pydantic-ai-matrix.md) - Complete status of all endpoints and migration plan
+- [Agent and Tool Design](./architecture/agent-and-tool-design.md) - Architectural patterns and conventions
+- [API Endpoints](./architecture/endpoints.md) - Complete endpoint documentation with Pydantic AI implementation status
 
 ---
 
@@ -106,20 +108,19 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 - **Multi-Tenancy**: Account → Agent Instance → Configuration cascade
 
 ### Core Architecture Documents
-- [Technology Stack](./architecture/technology-stack.md)
-- [Code Organization](./architecture/code-organization.md)
-- [Configuration Reference](./architecture/configuration-reference.md)
-- [Agent Configuration](./architecture/agent-configuration.md)
-- [API Endpoints](./architecture/endpoints.md)
-- [Endpoint Pydantic AI Matrix](./architecture/endpoint-pydantic-ai-matrix.md)
-- [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md)
-- [Data Model & ER Diagram](./architecture/datamodel.md)
-- [Simple Chat Agent Design](./architecture/simple-chat-agent-design.md)
-- [Tool Selection & Routing](./architecture/tool-selection-routing.md)
-- [Pinecone Connectivity](./architecture/pinecone-connectivity.md)
-- [SSE Streaming Fix](./architecture/sse-streaming-fix.md)
-- [LLM Tool Calling Performance](./architecture/llm-tool-calling-performance.md)
-- [Open Questions](./architecture/open-questions.md)
+- [Agent and Tool Design](./architecture/agent-and-tool-design.md) - **Architecture patterns and conventions**
+- [Simple Chat Agent Design](./architecture/simple-chat-agent-design.md) - **Template example** (follows agent-and-tool-design.md)
+- [Code Organization](./architecture/code-organization.md) - File structure and technology stack
+- [Configuration Reference](./architecture/configuration-reference.md) - Complete config documentation
+- [API Endpoints](./architecture/endpoints.md) - All endpoints including Pydantic AI implementation status
+- [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md) - Complete cost tracking guide
+- [Data Model & ER Diagram](./architecture/datamodel.md) - Database schema
+- [Tool Selection & Routing](./architecture/tool-selection-routing.md) - Tool routing strategies
+- [Directory Search Tool](./architecture/directory-search-tool.md) - Directory service architecture
+- [Directory Search FTS Guide](./architecture/directory-search-fts-guide.md) - Full-text search guide
+- [Vector Query Tool](./architecture/vector-query-tool.md) - Vector search architecture
+- [LLM Tool Calling Performance](./architecture/llm-tool-calling-performance.md) - Performance analysis
+- [Open Questions](./architecture/open-questions.md) - Technical and product questions
 
 ### Research & Analysis
 - [🎯 OpenRouter Cost Tracking Research](../backend/explore/openrouter-cost-tracking/README.md) - **COMPREHENSIVE ANALYSIS** of OpenRouter integration with Python agent frameworks, including breakthrough discovery of perfect hybrid solution

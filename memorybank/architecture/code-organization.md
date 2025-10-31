@@ -4,7 +4,8 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Code Organization
-> **Last Updated**: September 17, 2025
+> **Last Updated**: January 31, 2025  
+> **Updates**: Added Technology Stack section (merged from technology-stack.md)
 
 ## Goals
 - Keep Python backend and JS frontend decoupled but co-located
@@ -268,8 +269,39 @@ Notes:
 - Shared frontend libraries can live under `packages/` and be included in pnpm workspaces.
 - Database migrations, ORM models, and ingest tools remain under `backend/` per existing design.
 
+## Technology Stack
+
+### Frontend
+- [HTML](https://developer.mozilla.org/en-US/docs/Web/HTML)
+- [HTMX](https://htmx.org/) - Server-driven interactions
+- [CSS](https://developer.mozilla.org/en-US/docs/Web/CSS)
+- [Basecoat CSS](https://basecoatui.com/)
+- [Tailwind CSS](https://tailwindcss.com/) (Basecoat dependency)
+- [Preact](https://preactjs.com/) (optional interactive components via Astro integration)
+- [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Astro](https://astro.build/)
+
+### Backend
+- **Python**:
+  - [FastAPI](https://fastapi.tiangolo.com/)
+  - [Pydantic](https://pydantic.dev/)
+  - [Pydantic AI](https://ai.pydantic.dev/) - **Core LLM framework**
+  - [Jinja2](https://jinja.palletsprojects.com/) (server-side templates for HTMX partials and HTML emails)
+  - [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/orm/quickstart) (ORM)
+  - [Alembic](https://alembic.sqlalchemy.org/) (migrations)
+  - [asyncpg](https://github.com/MagicStack/asyncpg) (Postgres async driver)
+- **LLM Access**: [OpenRouter](https://openrouter.ai/)
+
+### Databases
+- [PostgreSQL](https://www.postgresql.org/) - Chat history, profiles, sessions
+- [Pinecone](https://www.pinecone.io/) - Vector database for embeddings
+
+### External Services
+- [Mailgun](https://www.mailgun.com/) - Outbound email
+
 ## Rationale
-- Mirrors Astro’s documented structure (src/pages/components/layouts, public, config files).
+- Mirrors Astro's documented structure (src/pages/components/layouts, public, config files).
 - Keeps Node dependencies isolated under `web/` (pnpm-friendly), while Python dependencies stay in `backend/`.
 - Preserves the server-driven HTMX approach while allowing an Astro host page for embedding scenarios.
 

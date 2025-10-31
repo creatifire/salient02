@@ -5,6 +5,9 @@ Unauthorized copying of this file is strictly prohibited.
 
 # Configuration Reference
 
+> **Last Updated**: January 31, 2025  
+> **Updates**: Merged agent-configuration.md content, added agent schema reference
+
 ## Overview
 
 The system uses an **agent-first configuration cascade** with YAML files:
@@ -290,8 +293,81 @@ history_limit = await get_agent_history_limit("simple_chat")
 
 ---
 
+## Agent Configuration Schema Reference
+
+### YAML Schema (Minimum Viable)
+
+```yaml
+# Example: backend/config/agent_configs/sales/config.yaml
+
+agent_type: "sales"                 # simple_chat | sales | simple_research | deep_research | digital_expert
+name: "Sales Agent"
+description: "AI sales assistant with CRM integration"
+
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"  # External prompt file
+
+model_settings:
+  model: "openai:gpt-4o"            # LLM id via OpenRouter
+  temperature: 0.3
+  max_tokens: 2000
+
+context_management:
+  history_limit: 50                  # Override app.yaml chat.history_limit
+  context_window_tokens: 8000        # Token limit for conversation context
+  
+  summarization:
+    enabled: true
+    trigger_threshold: 10            # Trigger summary every N messages
+    summary_model: "gpt-4o-mini"     # Cost-optimized summary model
+    summary_length: 200              # Target summary length in words
+
+vector_database:
+  provider: "pinecone"              # pinecone | pgvector (future option)
+  index: "shared-index"             # optional, depends on Pinecone setup
+  namespace: "acme-sales"           # per-account or per-instance namespace
+  top_k: 5
+
+tools:
+  vector_search:
+    enabled: true
+    max_results: 5
+  
+  web_search:
+    enabled: true
+    default_engine: "exa"           # exa | tavily | linkup
+  
+  crm_integration:
+    enabled: true
+    provider: "zoho"                # zoho (first), salesforce, hubspot (future)
+    zoho:
+      base_url: "https://www.zohoapis.com/crm/v2"
+      # OAuth/app credentials via environment/secrets, not YAML
+```
+
+### Configuration Location
+
+**Short Term (Current)**:
+- `backend/config/agent_configs/{agent_type}/config.yaml`
+- `backend/config/agent_configs/{agent_type}/system_prompt.md` (external prompt file)
+- Legacy flat structure (backward compatibility): `simple_chat.yaml`, etc.
+
+**Phase 3+ (Database Migration)**:
+- Move to database tables (`agent_templates`, `agent_instances`)
+- Hot-reload via Agent Factory with LRU caching
+- See [datamodel.md](./datamodel.md) for schema details
+
+### Configuration Notes
+
+- **Secrets**: Never in YAML - use environment variables or secret stores
+- **Parameter Names**: Standardized (e.g., `history_limit`, not `max_history_messages`)
+- **System Prompts**: External `.md` files for better editing experience
+
+---
+
 ## Related Documentation
 
-- **[Agent Configuration](./agent-configuration.md)** - Detailed agent config schemas
 - **[Code Organization](./code-organization.md)** - File structure and loading patterns
 - **[Multi-Account Support](./multi-account-support.md)** - Future database-backed configuration
+- **[Data Model](./datamodel.md)** - Database schema for Phase 3+ configuration

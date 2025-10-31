@@ -5,8 +5,8 @@ Unauthorized copying of this file is strictly prohibited.
 
 # API Endpoints Documentation
 
-> **Last Updated**: January 12, 2025  
-> **Updates**: Added metadata endpoint, health check endpoint, marked legacy endpoints as deprecated  
+> **Last Updated**: January 31, 2025  
+> **Updates**: Merged Pydantic AI implementation matrix, consolidated endpoint documentation  
 > Comprehensive documentation of all current and planned API endpoints for the Salient AI Chat System, organized by implementation phases and functionality.
 
 ## Overview
@@ -404,3 +404,64 @@ cors:
 - **[Simple Chat Agent Implementation](../project-management/0017-simple-chat-agent.md)** - Phase 1 agent details
 
 **Key Insight**: The parallel endpoint strategy ensures **zero disruption** during development while providing a clear evolution path toward sophisticated multi-agent, multi-account architecture.
+
+---
+
+## Pydantic AI Implementation Status
+
+> **Core Principle**: ALL LLM interactions MUST use Pydantic AI. Legacy endpoints violate this principle and need migration.
+
+### ✅ Multi-Tenant Endpoints (Pydantic AI) - Production
+
+| Endpoint | Method | Uses Pydantic AI? | LLM Cost Tracking? | Frontend Clients | Implementation | Status |
+|----------|--------|-------------------|-------------------|------------------|----------------|---------|
+| `/accounts/{account}/agents/{instance}/chat` | `POST` | ✅ **YES** | ✅ **YES** | All Astro demos<br>HTMX chat<br>Widget | Pydantic AI `simple_chat()` | ✅ **PRODUCTION** |
+| `/accounts/{account}/agents/{instance}/stream` | `GET` | ✅ **YES** | ✅ **YES** | All Astro demos<br>HTMX chat<br>Widget | Pydantic AI `simple_chat_stream()` | ✅ **PRODUCTION** |
+| `/accounts/{account}/agents/{instance}/history` | `GET` | N/A | N/A | All Astro demos<br>HTMX chat<br>Widget | Multi-tenant DB query | ✅ **PRODUCTION** |
+
+### ⚠️ Legacy Endpoints (No Pydantic AI) - Deprecated
+
+| Endpoint | Method | Uses Pydantic AI? | LLM Cost Tracking? | Frontend Clients | Implementation | Status |
+|----------|--------|-------------------|-------------------|------------------|----------------|---------|
+| `/events/stream` | `GET` | ❌ **NO** | ❌ **NO** | localhost:8000 only | Direct HTTP<br>`stream_chat_chunks()` | ⚠️ **LEGACY** |
+| `/chat` | `POST` | ❌ **NO** | ❌ **NO** | localhost:8000 only | Direct HTTP<br>`chat_completion_content()` | ⚠️ **LEGACY** |
+
+### Frontend Client Migration Status
+
+| Client | Location | Primary Endpoint | Pydantic AI? | Notes |
+|--------|----------|------------------|--------------|-------|
+| **Backend Main Chat** | `localhost:8000`<br>`backend/templates/index.html` | `/events/stream` (SSE)<br>`/chat` (fallback) | ❌ **NO** | ⚠️ Legacy - needs migration |
+| **Astro Simple Chat Demo** | `localhost:4321/demo/simple-chat` | `/accounts/{account}/agents/{instance}/chat`<br>`/accounts/{account}/agents/{instance}/stream` | ✅ **YES** | ✅ **PRODUCTION READY** |
+| **Floating Chat Widget** | `web/public/widget/chat-widget.js` | `/accounts/{account}/agents/{instance}/stream` (SSE) | ✅ **YES** | ✅ **PRODUCTION READY** |
+| **HTMX Chat (Standalone)** | `web/public/htmx-chat.html` | `/accounts/{account}/agents/{instance}/stream` (SSE) | ✅ **YES** | ✅ **PRODUCTION READY** |
+
+**Migration Summary**: 3 of 6 clients migrated to multi-tenant Pydantic AI endpoints. Main backend page (`localhost:8000`) migration pending.
+
+### Implementation Details
+
+**Correct Implementation (Multi-Tenant)**:
+```python
+# Load agent instance configuration
+instance = await load_agent_instance(account_slug, instance_slug)
+
+# Call Pydantic AI agent
+result = await simple_chat(
+    message=user_message,
+    session_id=str(session.id),
+    agent_instance_id=instance.id,
+    message_history=message_history,
+    instance_config=instance.config
+)
+
+# Usage tracking via result.usage()
+usage_data = result.usage()
+```
+
+**Problems with Legacy Endpoints**:
+- ❌ Uses raw `httpx` HTTP client (no Pydantic AI)
+- ❌ Calls OpenRouter API directly
+- ❌ No automatic usage tracking via `result.usage()`
+- ❌ Estimated token counts (unreliable)
+- ❌ No cost calculation (missing `prompt_cost`, `completion_cost`, `total_cost`)
+
+**Migration Plan**: Update `backend/templates/index.html` to use `/accounts/default_account/agents/simple_chat1/stream`
