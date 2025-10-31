@@ -280,17 +280,17 @@ def _register_legacy_endpoints() -> None:
         app.get("/events/stream")(sse_stream) 
         app.post("/chat", response_class=PlainTextResponse)(chat_fallback)
         
-        logger.info({
-            "event": "legacy_endpoints_registered",
-            "endpoints": ["/", "/events/stream", "/chat"],
-            "enabled": True
-        })
+        logfire.info(
+            'app.legacy_endpoints.registered',
+            endpoints=["/", "/events/stream", "/chat"],
+            enabled=True
+        )
     else:
-        logger.info({
-            "event": "legacy_endpoints_disabled", 
-            "message": "Legacy endpoints disabled via configuration",
-            "enabled": False
-        })
+        logfire.info(
+            'app.legacy_endpoints.disabled',
+            message="Legacy endpoints disabled via configuration",
+            enabled=False
+        )
 
 
 async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str, Any]]:
@@ -421,12 +421,12 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
                     try:
                         processed_content = markdown_renderer.render(processed_content)
                     except Exception as e:
-                        logger.warning({
-                            "event": "markdown_render_failed",
-                            "session_id": str(session_id),
-                            "message_id": str(msg.id),
-                            "error": str(e)
-                        })
+                        logfire.warn(
+                            'app.chat_history.markdown_render_failed',
+                            session_id=str(session_id),
+                            message_id=str(msg.id),
+                            error=str(e)
+                        )
                         # Fallback to original content if markdown rendering fails
                         processed_content = msg.content
             
@@ -440,23 +440,23 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
             }
             formatted_history.append(formatted_message)
         
-        logger.info({
-            "event": "chat_history_loaded",
-            "session_id": str(session_id),
-            "message_count": len(formatted_history),
-            "total_messages": len(messages)
-        })
+        logfire.info(
+            'app.chat_history.loaded',
+            session_id=str(session_id),
+            message_count=len(formatted_history),
+            total_messages=len(messages)
+        )
         
         return formatted_history
         
     except Exception as e:
         # Graceful degradation - return empty history on any error
-        logger.error({
-            "event": "chat_history_load_error", 
-            "session_id": str(session_id),
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.error(
+            'app.chat_history.load_error',
+            session_id=str(session_id),
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return []
 
 
@@ -523,14 +523,14 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     """
     # Get session information for logging and history loading
     session = get_current_session(request)
-    logger.info({
-        "event": "serve_base_page",
-        "path": "/",
-        "client": request.client.host if request.client else None,
-        "user_agent": request.headers.get("user-agent"),
-        "session_id": str(session.id) if session else None,
-        "session_key": session.session_key[:8] + "..." if session else None,
-    })
+    logfire.info(
+        'app.serve_base_page',
+        path="/",
+        client=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        session_id=str(session.id) if session else None,
+        session_key=session.session_key[:8] + "..." if session else None
+    )
     
     cfg = load_config()
     ui_cfg = cfg.get("ui") or {}
@@ -685,7 +685,7 @@ async def health() -> dict:
         }
         
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logfire.error('app.health_check_failed', error=str(e))
         return {
             "status": "unhealthy",
             "timestamp": datetime.now().isoformat(),
@@ -727,7 +727,7 @@ async def sse_stream(request: Request):
     # Get session information for context and message persistence
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for SSE request")
+        logfire.error('app.sse.no_session')
         return HTMLResponse("Session error", status_code=500)
     
     cfg = load_config()
@@ -745,27 +745,27 @@ async def sse_stream(request: Request):
     seed = request.query_params.get("message")
     use_llm = request.query_params.get("llm") == "1"
 
-    logger.info({
-        "event": "sse_request",
-        "path": "/events/stream",
-        "client": request.client.host if request.client else None,
-        "params": dict(request.query_params),
-        "llm": use_llm,
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "message_preview": seed[:100] + "..." if seed and len(seed) > 100 else seed,
-    })
+    logfire.info(
+        'app.sse.request',
+        path="/events/stream",
+        client=request.client.host if request.client else None,
+        params=dict(request.query_params),
+        use_llm=use_llm,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        session_id=str(session.id),
+        session_key=session.session_key[:8] + "..." if session.session_key else None,
+        message_preview=seed[:100] + "..." if seed and len(seed) > 100 else seed
+    )
     
     # DEBUG: Log config loading details (using agent-first cascade)
-    logger.info({
-        "event": "sse_config_debug", 
-        "model_settings": model_settings,
-        "final_model": model,
-        "cascade_source": "agent-first configuration cascade"
-    })
+    logfire.info(
+        'app.sse.config',
+        model_settings=model_settings,
+        final_model=model,
+        cascade_source="agent-first configuration cascade"
+    )
 
     # Save user message to database before streaming starts (if provided)
     message_service = get_message_service()
@@ -779,20 +779,20 @@ async def sse_stream(request: Request):
                 content=seed.strip(),
                 metadata={"source": "sse_stream", "model": model}
             )
-            logger.info({
-                "event": "user_message_saved",
-                "session_id": str(session.id),
-                "message_id": str(user_message_id),
-                "content_length": len(seed.strip())
-            })
+            logfire.info(
+                'app.sse.user_message_saved',
+                session_id=str(session.id),
+                message_id=str(user_message_id),
+                content_length=len(seed.strip())
+            )
         except Exception as e:
             # Log error but continue with streaming functionality
-            logger.error({
-                "event": "user_message_save_failed",
-                "session_id": str(session.id),
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.error(
+                'app.sse.user_message_save_failed',
+                session_id=str(session.id),
+                error=str(e),
+                error_type=type(e).__name__
+            )
 
     async def event_generator():
         # Accumulate assistant message chunks for persistence
