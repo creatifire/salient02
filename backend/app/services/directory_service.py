@@ -277,7 +277,7 @@ class DirectoryService:
                         # All parts were operators, skip tsquery and use substring fallback
                         combined_ts_query = None
                     
-                    if combined_ts_query:
+                    if combined_ts_query is not None:
                         # Apply tsvector search if not already applied by name_query
                         if not name_query:
                             # No name_query, so apply tsvector search for filters only

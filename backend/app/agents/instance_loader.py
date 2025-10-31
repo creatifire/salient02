@@ -124,6 +124,8 @@ async def _load_with_session(
         yaml.YAMLError: If config file is invalid YAML
     """
     # Step 1: Query database for instance metadata
+    from uuid import UUID as UUIDType
+    from sqlalchemy import select
     from ..models.agent_instance import AgentInstanceModel
     from ..models.account import Account
     
@@ -208,8 +210,6 @@ async def _load_with_session(
     # Step 6: Return AgentInstance dataclass
     # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
     # This prevents "Boolean value of this clause is not defined" errors with Logfire
-    from uuid import UUID as UUIDType
-    from sqlalchemy import select
     
     # Query columns directly from the joined query result to guarantee Python primitives
     # This avoids accessing SQLAlchemy model attributes which might be expressions
