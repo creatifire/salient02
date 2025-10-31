@@ -47,6 +47,7 @@ from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..config import get_session_config
 from ..models.session import Session
@@ -237,8 +238,16 @@ class SessionService:
             SessionError: If database query fails
         """
         try:
-            # Query for session by key
-            stmt = select(Session).where(Session.session_key == session_key)
+            # Query for session by key with eager loading of relationships
+            # Using selectinload() prevents N+1 queries if relationships are accessed later
+            stmt = (
+                select(Session)
+                .options(
+                    selectinload(Session.account),  # Eager load account relationship
+                    selectinload(Session.agent_instance)  # Eager load agent_instance relationship
+                )
+                .where(Session.session_key == session_key)
+            )
             result = await self.db_session.execute(stmt)
             session = result.scalar_one_or_none()
             

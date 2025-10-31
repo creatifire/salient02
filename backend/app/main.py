@@ -416,6 +416,7 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
         # Load recent messages (configurable limit) excluding system messages for cleaner UI
         # Use proper SQLAlchemy 2.0 async syntax to get most recent messages first
         from sqlalchemy import desc, select
+        from sqlalchemy.orm import selectinload
         from .models.message import Message
         
         # Get configurable history limit from app config
@@ -430,8 +431,14 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
         db_service = get_database_service()
         async with db_service.get_session() as db_session:
             # Build query for most recent N messages (descending order by created_at)
+            # Using selectinload() prevents N+1 queries if relationships are accessed later
             stmt = (
                 select(Message)
+                .options(
+                    selectinload(Message.session),  # Eager load session relationship
+                    selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                    selectinload(Message.llm_request)  # Eager load llm_request relationship
+                )
                 .where(Message.session_id == session_id)
                 .order_by(desc(Message.created_at))
                 .limit(history_limit)

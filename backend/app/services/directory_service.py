@@ -14,6 +14,7 @@ from typing import List, Optional, Literal
 from uuid import UUID
 from sqlalchemy import select, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from ..models.directory import DirectoryList, DirectoryEntry
 import logging
 
@@ -160,8 +161,15 @@ class DirectoryService:
             return []
         
         # Base query: filter by accessible lists
-        query = select(DirectoryEntry).where(
-            DirectoryEntry.directory_list_id.in_(accessible_list_ids)
+        # Using selectinload() prevents N+1 queries if relationships are accessed later
+        query = (
+            select(DirectoryEntry)
+            .options(
+                selectinload(DirectoryEntry.directory_list)  # Eager load directory_list relationship
+            )
+            .where(
+                DirectoryEntry.directory_list_id.in_(accessible_list_ids)
+            )
         )
         
         # Name search - behavior depends on search_mode

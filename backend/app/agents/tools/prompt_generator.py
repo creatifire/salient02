@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from ...models.directory import DirectoryList
 from ...services.directory_importer import DirectoryImporter
@@ -72,8 +73,14 @@ async def generate_directory_tool_docs(
     logfire.info('directory.generating_docs', accessible_lists=accessible_lists)
     
     # Get list metadata from database
+    # Using selectinload() prevents N+1 queries if relationships are accessed (e.g., in to_dict())
     result = await db_session.execute(
-        select(DirectoryList).where(
+        select(DirectoryList)
+        .options(
+            selectinload(DirectoryList.entries),  # Eager load entries relationship
+            selectinload(DirectoryList.account)  # Eager load account relationship
+        )
+        .where(
             DirectoryList.account_id == account_id,
             DirectoryList.list_name.in_(accessible_lists)
         )

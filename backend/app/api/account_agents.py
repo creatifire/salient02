@@ -908,6 +908,7 @@ async def history_endpoint(
         # STEP 3: LOAD HISTORY FILTERED BY SESSION + AGENT INSTANCE
         # ====================================================================
         from sqlalchemy import desc, select, and_
+        from sqlalchemy.orm import selectinload
         from ..models.message import Message
         
         # Get configurable history limit
@@ -921,8 +922,14 @@ async def history_endpoint(
         db_service = get_database_service()
         async with db_service.get_session() as db_session:
             # Query messages filtered by BOTH session_id AND agent_instance_id
+            # Using selectinload() prevents N+1 queries if relationships are accessed later
             stmt = (
                 select(Message)
+                .options(
+                    selectinload(Message.session),  # Eager load session relationship
+                    selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                    selectinload(Message.llm_request)  # Eager load llm_request relationship
+                )
                 .where(
                     and_(
                         Message.session_id == session.id,

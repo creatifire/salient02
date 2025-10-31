@@ -85,6 +85,7 @@ from fastapi import Request, Response
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
@@ -347,7 +348,15 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
                 if session_cookie:
                     # Session validation: Check if cookie corresponds to valid database session
                     # This prevents session hijacking with invalid or expired session keys
-                    stmt = select(Session).where(Session.session_key == session_cookie)
+                    # Using selectinload() prevents N+1 queries if relationships are accessed later
+                    stmt = (
+                        select(Session)
+                        .options(
+                            selectinload(Session.account),  # Eager load account relationship
+                            selectinload(Session.agent_instance)  # Eager load agent_instance relationship
+                        )
+                        .where(Session.session_key == session_cookie)
+                    )
                     result = await db_session.execute(stmt)
                     session = result.scalar_one_or_none()
                     

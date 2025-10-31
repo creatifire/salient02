@@ -49,6 +49,7 @@ from loguru import logger
 from sqlalchemy import desc, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
 from ..models.message import Message
 from ..database import get_database_service
@@ -312,7 +313,16 @@ class MessageService:
         async with db_service.get_session() as session:
             try:
                 # Build query with optional role filter
-                query = select(Message).where(Message.session_id == session_id)
+                # Using selectinload() prevents N+1 queries if relationships are accessed later
+                query = (
+                    select(Message)
+                    .options(
+                        selectinload(Message.session),  # Eager load session relationship
+                        selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                        selectinload(Message.llm_request)  # Eager load llm_request relationship
+                    )
+                    .where(Message.session_id == session_id)
+                )
                 
                 if role_filter:
                     query = query.where(Message.role == role_filter)
@@ -420,7 +430,16 @@ class MessageService:
         async with db_service.get_session() as session:
             try:
                 # Build query for recent messages
-                query = select(Message).where(Message.session_id == session_id)
+                # Using selectinload() prevents N+1 queries if relationships are accessed later
+                query = (
+                    select(Message)
+                    .options(
+                        selectinload(Message.session),  # Eager load session relationship
+                        selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                        selectinload(Message.llm_request)  # Eager load llm_request relationship
+                    )
+                    .where(Message.session_id == session_id)
+                )
                 
                 # Optionally exclude system messages
                 if not include_system:
