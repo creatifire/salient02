@@ -347,6 +347,8 @@ Unauthorized copying of this file is strictly prohibited.
 - ✅ Queries: "Find a female Spanish-speaking endocrinologist"
 - ⏸️ Future: Pharmaceuticals, products, consultants (after 0023-004-001)
 
+**Note:** Before starting Priority 6, address refactoring tasks BUG-0017-008, BUG-0017-009, and BUG-0017-010 from `@bugs-0017.md` to improve code quality and maintainability.
+
 ### **Priority 6: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
 - [ ] 0017-006-002 - Migrate Profiles Table to JSONB
