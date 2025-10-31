@@ -932,7 +932,7 @@ async def sse_stream(request: Request):
                             error=str(e),
                             error_type=type(e).__name__,
                             content_length=len(complete_response)
-                        })
+                        )
                 
                 # Graceful end signal
                 if not await request.is_disconnected():
