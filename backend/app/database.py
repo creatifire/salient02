@@ -203,21 +203,38 @@ class DatabaseService:
             )
             
             # Instrument SQLAlchemy engine with Logfire for query tracing
-            # Note: For async engines, we use the underlying sync engine for instrumentation
-            # This enables automatic SQL query logging and tracing
+            # For async engines (asyncpg), we access the underlying sync engine via .sync_engine
+            # This is the recommended pattern for async SQLAlchemy engines
+            # Logfire's SQLAlchemy instrumentation works with sync engines, which async engines expose
             try:
-                # For async engines, access the sync engine via .sync_engine attribute
-                # If sync_engine doesn't exist, try direct instrumentation (may not work for async)
+                # Access the sync engine wrapper that async engines expose
+                # This is the standard SQLAlchemy pattern for async engines
                 sync_engine = getattr(self._engine, 'sync_engine', None)
                 if sync_engine:
                     logfire.instrument_sqlalchemy(engine=sync_engine)
-                    logfire.info('database.sqlalchemy_instrumentation_enabled', engine_type='async')
+                    logfire.info(
+                        'database.sqlalchemy_instrumentation_enabled',
+                        engine_type='async',
+                        driver='asyncpg',
+                        method='sync_engine_wrapper'
+                    )
                 else:
-                    # Async engine doesn't expose sync engine - instrumentation via OpenTelemetry instead
-                    logfire.debug('database.sqlalchemy_instrumentation_skipped', reason='async_engine_uses_opentelemetry')
+                    # Fallback: If sync_engine doesn't exist, queries will still be traced
+                    # via OpenTelemetry auto-instrumentation (if enabled)
+                    logfire.debug(
+                        'database.sqlalchemy_instrumentation_skipped',
+                        reason='sync_engine_not_available',
+                        fallback='opentelemetry_auto_instrumentation'
+                    )
             except Exception as e:
-                # Non-critical - query tracing will still work via OpenTelemetry
-                logfire.warn('database.sqlalchemy_instrumentation_failed', error=str(e))
+                # Non-critical - query tracing will still work via OpenTelemetry auto-instrumentation
+                # This prevents instrumentation failures from blocking database initialization
+                logfire.warn(
+                    'database.sqlalchemy_instrumentation_failed',
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    fallback='opentelemetry_auto_instrumentation'
+                )
             
             # Create session factory with async session configuration
             # expire_on_commit=False keeps objects usable after commit

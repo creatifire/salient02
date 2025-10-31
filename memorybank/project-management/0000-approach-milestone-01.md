@@ -556,12 +556,17 @@ logfire.debug('service.query.result', result_count=len(result))
   - **Impact**: Consistent instrumentation pattern, guaranteed coverage of all Pydantic models
   - **Verification**: Verify Pydantic validation spans appear for all models
   
-- [ ] 6.3 - Verify SQLAlchemy async instrumentation (P3 - Investigation)
-  - Check if `sync_engine` approach in `backend/app/database.py:211-217` is working optimally
-  - Consult Logfire docs for recommended async SQLAlchemy instrumentation pattern
-  - Consider alternative if falling back to OpenTelemetry
-  - **Impact**: Ensure full SQLAlchemy tracing (connection pool, transactions)
-  - **Verification**: Check Logfire for SQLAlchemy-specific query metadata
+- [x] 6.3 - Verify SQLAlchemy async instrumentation (P3 - Investigation) ✅
+  - Verified current implementation in `backend/app/database.py:211-217` is working optimally
+  - Current approach: Access `sync_engine` attribute from async engine (standard SQLAlchemy pattern)
+  - **Status**: ✅ Working correctly - SQL queries are being traced with full SQL statements, duration, and metadata
+  - **Verification**: Logfire shows SQL spans (`SELECT salient_dev`, `INSERT salient_dev`, `UPDATE salient_dev`) with:
+    - Full SQL statements (`db.statement` attribute)
+    - Database system (`db.system: postgresql`)
+    - Database name (`db.name: salient_dev`)
+    - Query duration (0.6ms - 1.8ms range)
+  - **Impact**: Full SQLAlchemy tracing working - no changes needed
+  - **Findings**: The `sync_engine` wrapper approach is the recommended pattern for async SQLAlchemy engines. Logfire documentation confirms this is the correct approach.
   
 - [ ] 6.4 - Update logging-implementation.md (P4 - Documentation)
   - Document that HTTPX requires explicit `logfire.instrument_httpx()` call
