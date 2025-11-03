@@ -72,7 +72,7 @@ Dependencies:
 - Starlette: ASGI foundation with middleware support and SSE capabilities
 - SQLAlchemy: Async ORM for database operations with connection pooling
 - Jinja2: Template engine for server-side HTML rendering
-- Loguru: Advanced logging with structured output and rotation support
+- Logfire: Observability platform with structured logging, tracing, and metrics
 - OpenRouter: LLM API integration for chat completion and streaming
 
 Usage:
@@ -86,6 +86,12 @@ Usage:
     export DATABASE_URL="postgresql+asyncpg://user:pass@localhost/db"
     export OPENROUTER_API_KEY="your-api-key"
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import glob
@@ -98,14 +104,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Load environment variables from .env file at project root
+# Must be done before any other imports that depend on env vars (Logfire, database, etc.)
+from dotenv import load_dotenv
+import os
+
+# Determine project root (../../ from backend/app/main.py)
+project_root = Path(__file__).parent.parent.parent
+env_file = project_root / ".env"
+load_dotenv(dotenv_path=env_file)
+print(f"✅ Environment variables loaded from: {env_file}")
+print(f"   LOGFIRE_TOKEN: {'SET' if os.getenv('LOGFIRE_TOKEN') else 'NOT SET'}")
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
 from markdown_it import MarkdownIt
 from sse_starlette.sse import EventSourceResponse
+import logfire
 
 from .config import load_config
 from .database import get_database_service, initialize_database, shutdown_database
@@ -125,6 +143,17 @@ STATIC_DIR = BASE_DIR / "static"
 # Initialize markdown renderer for processing assistant messages
 # Configure with GFM-like features including tables for comprehensive markdown support
 markdown_renderer = MarkdownIt("default", {"breaks": True, "html": False}).enable(['table'])
+
+# Configure Logfire observability at module level (before app creation)
+# This must happen early to properly initialize OpenTelemetry instrumentation
+try:
+    logfire.configure()
+    print("✅ Logfire configured successfully")
+except Exception as e:
+    # Log Logfire configuration errors for debugging
+    # App can run without observability if token is missing or invalid
+    print(f"⚠️  Logfire configuration failed: {type(e).__name__}: {e}")
+    pass
 
 
 @asynccontextmanager
@@ -172,35 +201,48 @@ async def lifespan(app: FastAPI):
             incomplete initialization, ensuring fail-fast behavior for reliability
     """
     # Startup sequence: Initialize all application services and dependencies
-    _setup_logger()
-    logger.info("Starting Salient Sales Bot application...")
+    logfire.info('app.startup.begin')
     
     try:
         # Initialize database service with connection pooling and health verification
         await initialize_database()
-        logger.info("Database service initialized successfully")
+        logfire.info('app.startup.database_initialized')
     except Exception as e:
         # Log startup failure and re-raise to prevent application start
-        logger.error(f"Failed to initialize database: {e}")
+        logfire.error('app.startup.database_init_failed', error=str(e))
         raise  # Fail-fast: don't start application with incomplete initialization
     
     # Yield control to FastAPI application - normal operation begins here
     yield  # Application runs here
     
     # Shutdown sequence: Clean up all resources and close connections gracefully
-    logger.info("Shutting down application...")
+    logfire.info('app.shutdown.begin')
     try:
         # Gracefully shutdown database connections and dispose of connection pools
         await shutdown_database()
-        logger.info("Database service shut down cleanly")
+        logfire.info('app.shutdown.database_closed')
     except Exception as e:
         # Log shutdown errors but don't prevent application exit
-        logger.error(f"Error during database shutdown: {e}")
+        logfire.error('app.shutdown.database_error', error=str(e))
 
 
 # FastAPI application instance with comprehensive configuration
 # Title and lifespan management for production deployment
-app = FastAPI(title="SalesBot Backend", lifespan=lifespan)
+app = FastAPI(title="Salient Backend", lifespan=lifespan)
+
+# Logfire Instrumentation: Automatic tracing for FastAPI, Pydantic AI, Pydantic, and HTTPX
+# This captures all HTTP requests, LLM calls, model validation, external API calls, and OpenTelemetry GenAI attributes
+try:
+    logfire.instrument_fastapi(app)
+    logfire.instrument_pydantic_ai()
+    logfire.instrument_pydantic()  # Trace all Pydantic model validation
+    logfire.instrument_httpx()  # Trace all outbound HTTP requests (OpenRouter, etc.)
+    print("✅ Logfire instrumentation complete (FastAPI + Pydantic AI + Pydantic + HTTPX)")
+except Exception as e:
+    # Log instrumentation errors for debugging
+    # App can run without Logfire instrumentation if configuration failed
+    print(f"⚠️  Logfire instrumentation failed: {type(e).__name__}: {e}")
+    pass
 
 # CORS Middleware Configuration: Enable cross-origin requests for development
 # Allows frontend (localhost:4321) to communicate with backend (localhost:8000)
@@ -217,7 +259,7 @@ app.add_middleware(
 # Excluded paths are optimized for performance (health checks, static assets, dev tools)
 app.add_middleware(
     SimpleSessionMiddleware,
-    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static"]
+    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]
 )
 
 # Static file serving configuration for assets (images, CSS, JS)
@@ -240,68 +282,17 @@ def _register_legacy_endpoints() -> None:
         app.get("/events/stream")(sse_stream) 
         app.post("/chat", response_class=PlainTextResponse)(chat_fallback)
         
-        logger.info({
-            "event": "legacy_endpoints_registered",
-            "endpoints": ["/", "/events/stream", "/chat"],
-            "enabled": True
-        })
+        logfire.info(
+            'app.legacy_endpoints.registered',
+            endpoints=["/", "/events/stream", "/chat"],
+            enabled=True
+        )
     else:
-        logger.info({
-            "event": "legacy_endpoints_disabled", 
-            "message": "Legacy endpoints disabled via configuration",
-            "enabled": False
-        })
-
-
-def _setup_logger() -> None:
-    """
-    Configure structured logging with file rotation and console output.
-    
-    Sets up Loguru with:
-    - JSONL format for structured logging and parsing
-    - File rotation based on size or time intervals
-    - Configurable retention for log cleanup
-    - Console output for development visibility
-    - Timestamped log files for easy identification
-    
-    Configuration loaded from app.yaml logging section with sensible defaults.
-    Log files are created in the configured directory with timestamped names.
-    """
-    cfg = load_config()
-    logging_cfg = cfg.get("logging") or {}
-    level = str(logging_cfg.get("level", "INFO")).upper()
-    # Resolve log directory path relative to backend/ directory
-    configured_path = logging_cfg.get("path")
-    if configured_path:
-        # If path is specified in config, resolve it relative to backend/ directory
-        log_dir = str(BASE_DIR / configured_path.lstrip('./'))
-    else:
-        # Default fallback to backend/logs/
-        log_dir = str(BASE_DIR / "logs")
-    prefix = logging_cfg.get("prefix", "salient-log-")
-    rotation = str(logging_cfg.get("rotation", "1 day"))
-    retention = str(logging_cfg.get("retention", "14 days"))
-    compression = logging_cfg.get("compression")
-    enqueue = bool(logging_cfg.get("enqueue", False))
-
-    # Remove default logger and configure JSONL structured logging
-    logger.remove()
-    logger.add(sys.stdout, level=level, serialize=True, enqueue=enqueue)
-    
-    # Create daily log file with proper rotation (survives restarts)
-    ts = datetime.now().strftime("%Y%m%d")
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
-    file_target = str(Path(log_dir) / f"{prefix}{ts}.jsonl")
-
-    logger.add(
-        file_target,
-        level=level,
-        serialize=True,
-        rotation=rotation,
-        retention=retention,
-        compression=compression,
-        enqueue=enqueue,
-    )
+        logfire.info(
+            'app.legacy_endpoints.disabled',
+            message="Legacy endpoints disabled via configuration",
+            enabled=False
+        )
 
 
 async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str, Any]]:
@@ -374,6 +365,7 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
         # Load recent messages (configurable limit) excluding system messages for cleaner UI
         # Use proper SQLAlchemy 2.0 async syntax to get most recent messages first
         from sqlalchemy import desc, select
+        from sqlalchemy.orm import selectinload
         from .models.message import Message
         
         # Get configurable history limit from app config
@@ -388,8 +380,14 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
         db_service = get_database_service()
         async with db_service.get_session() as db_session:
             # Build query for most recent N messages (descending order by created_at)
+            # Using selectinload() prevents N+1 queries if relationships are accessed later
             stmt = (
                 select(Message)
+                .options(
+                    selectinload(Message.session),  # Eager load session relationship
+                    selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                    selectinload(Message.llm_request)  # Eager load llm_request relationship
+                )
                 .where(Message.session_id == session_id)
                 .order_by(desc(Message.created_at))
                 .limit(history_limit)
@@ -425,12 +423,12 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
                     try:
                         processed_content = markdown_renderer.render(processed_content)
                     except Exception as e:
-                        logger.warning({
-                            "event": "markdown_render_failed",
-                            "session_id": str(session_id),
-                            "message_id": str(msg.id),
-                            "error": str(e)
-                        })
+                        logfire.warn(
+                            'app.chat_history.markdown_render_failed',
+                            session_id=str(session_id),
+                            message_id=str(msg.id),
+                            error=str(e)
+                        )
                         # Fallback to original content if markdown rendering fails
                         processed_content = msg.content
             
@@ -444,23 +442,23 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
             }
             formatted_history.append(formatted_message)
         
-        logger.info({
-            "event": "chat_history_loaded",
-            "session_id": str(session_id),
-            "message_count": len(formatted_history),
-            "total_messages": len(messages)
-        })
+        logfire.info(
+            'app.chat_history.loaded',
+            session_id=str(session_id),
+            message_count=len(formatted_history),
+            total_messages=len(messages)
+        )
         
         return formatted_history
         
     except Exception as e:
         # Graceful degradation - return empty history on any error
-        logger.error({
-            "event": "chat_history_load_error", 
-            "session_id": str(session_id),
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.error(
+            'app.chat_history.load_error',
+            session_id=str(session_id),
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return []
 
 
@@ -527,14 +525,14 @@ async def serve_base_page(request: Request) -> HTMLResponse:
     """
     # Get session information for logging and history loading
     session = get_current_session(request)
-    logger.info({
-        "event": "serve_base_page",
-        "path": "/",
-        "client": request.client.host if request.client else None,
-        "user_agent": request.headers.get("user-agent"),
-        "session_id": str(session.id) if session else None,
-        "session_key": session.session_key[:8] + "..." if session else None,
-    })
+    logfire.info(
+        'app.serve_base_page',
+        path="/",
+        client=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        session_id=str(session.id) if session else None,
+        session_key=session.session_key[:8] + "..." if session else None
+    )
     
     cfg = load_config()
     ui_cfg = cfg.get("ui") or {}
@@ -689,7 +687,7 @@ async def health() -> dict:
         }
         
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logfire.error('app.health_check_failed', error=str(e))
         return {
             "status": "unhealthy",
             "timestamp": datetime.now().isoformat(),
@@ -731,7 +729,7 @@ async def sse_stream(request: Request):
     # Get session information for context and message persistence
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for SSE request")
+        logfire.error('app.sse.no_session')
         return HTMLResponse("Session error", status_code=500)
     
     cfg = load_config()
@@ -749,27 +747,27 @@ async def sse_stream(request: Request):
     seed = request.query_params.get("message")
     use_llm = request.query_params.get("llm") == "1"
 
-    logger.info({
-        "event": "sse_request",
-        "path": "/events/stream",
-        "client": request.client.host if request.client else None,
-        "params": dict(request.query_params),
-        "llm": use_llm,
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "message_preview": seed[:100] + "..." if seed and len(seed) > 100 else seed,
-    })
+    logfire.info(
+        'app.sse.request',
+        path="/events/stream",
+        client=request.client.host if request.client else None,
+        params=dict(request.query_params),
+        use_llm=use_llm,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        session_id=str(session.id),
+        session_key=session.session_key[:8] + "..." if session.session_key else None,
+        message_preview=seed[:100] + "..." if seed and len(seed) > 100 else seed
+    )
     
     # DEBUG: Log config loading details (using agent-first cascade)
-    logger.info({
-        "event": "sse_config_debug", 
-        "model_settings": model_settings,
-        "final_model": model,
-        "cascade_source": "agent-first configuration cascade"
-    })
+    logfire.info(
+        'app.sse.config',
+        model_settings=model_settings,
+        final_model=model,
+        cascade_source="agent-first configuration cascade"
+    )
 
     # Save user message to database before streaming starts (if provided)
     message_service = get_message_service()
@@ -783,20 +781,20 @@ async def sse_stream(request: Request):
                 content=seed.strip(),
                 metadata={"source": "sse_stream", "model": model}
             )
-            logger.info({
-                "event": "user_message_saved",
-                "session_id": str(session.id),
-                "message_id": str(user_message_id),
-                "content_length": len(seed.strip())
-            })
+            logfire.info(
+                'app.sse.user_message_saved',
+                session_id=str(session.id),
+                message_id=str(user_message_id),
+                content_length=len(seed.strip())
+            )
         except Exception as e:
             # Log error but continue with streaming functionality
-            logger.error({
-                "event": "user_message_save_failed",
-                "session_id": str(session.id),
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.error(
+                'app.sse.user_message_save_failed',
+                session_id=str(session.id),
+                error=str(e),
+                error_type=type(e).__name__
+            )
 
     async def event_generator():
         # Accumulate assistant message chunks for persistence
@@ -821,15 +819,15 @@ async def sse_stream(request: Request):
                     pass
                 
                 # DEBUG: Log exact parameters passed to stream_chat_chunks
-                logger.info({
-                    "event": "stream_chat_chunks_call_debug",
-                    "message": seed,
-                    "model": model,
-                    "temperature": temperature, 
-                    "max_tokens": max_tokens,
-                    "extra_headers": headers or None,
-                    "function": "stream_chat_chunks"
-                })
+                logfire.info(
+                    'app.sse.stream_chat_chunks_call',
+                    message=seed,
+                    model=model,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    extra_headers=headers or None,
+                    function="stream_chat_chunks"
+                )
                 
                 # Stream LLM response while accumulating chunks
                 async for tok in stream_chat_chunks(
@@ -840,10 +838,7 @@ async def sse_stream(request: Request):
                     extra_headers=headers or None,
                 ):
                     if await request.is_disconnected():
-                        logger.info({
-                            "event": "sse_disconnected",
-                            "path": "/events/stream",
-                        })
+                        logfire.info('app.sse.disconnected', path="/events/stream")
                         break
                     
                     # Accumulate chunk for persistence
@@ -870,13 +865,13 @@ async def sse_stream(request: Request):
                                 "streaming": True
                             }
                         )
-                        logger.info({
-                            "event": "assistant_message_saved",
-                            "session_id": str(session.id),
-                            "message_id": str(assistant_message_id),
-                            "content_length": len(complete_response),
-                            "chunks_count": len(assistant_chunks)
-                        })
+                        logfire.info(
+                            'app.sse.assistant_message_saved',
+                            session_id=str(session.id),
+                            message_id=str(assistant_message_id),
+                            content_length=len(complete_response),
+                            chunks_count=len(assistant_chunks)
+                        )
                         
                         # Track LLM request for billing (estimated token counts for streaming)
                         try:
@@ -915,31 +910,31 @@ async def sse_stream(request: Request):
                                 },
                                 latency_ms=int((time.perf_counter() - start) * 1000)
                             )
-                            logger.info({
-                                "event": "llm_request_tracked",
-                                "session_id": str(session.id),
-                                "llm_request_id": str(llm_request_id),
-                                "estimated_tokens": estimated_total,
-                                "note": "Token estimates from streaming (no exact counts available)"
-                            })
+                            logfire.info(
+                                'app.sse.llm_request_tracked',
+                                session_id=str(session.id),
+                                llm_request_id=str(llm_request_id),
+                                estimated_tokens=estimated_total,
+                                note="Token estimates from streaming (no exact counts available)"
+                            )
                         except Exception as track_error:
                             # Log tracking error but don't break streaming
-                            logger.warning({
-                                "event": "llm_request_tracking_failed",
-                                "session_id": str(session.id),
-                                "error": str(track_error),
-                                "error_type": type(track_error).__name__
-                            })
+                            logfire.warn(
+                                'app.sse.llm_request_tracking_failed',
+                                session_id=str(session.id),
+                                error=str(track_error),
+                                error_type=type(track_error).__name__
+                            )
                         
                     except Exception as e:
                         # Log error but don't interrupt streaming
-                        logger.error({
-                            "event": "assistant_message_save_failed",
-                            "session_id": str(session.id),
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                            "content_length": len(complete_response)
-                        })
+                        logfire.error(
+                            'app.sse.assistant_message_save_failed',
+                            session_id=str(session.id),
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            content_length=len(complete_response)
+                        )
                 
                 # Graceful end signal
                 if not await request.is_disconnected():
@@ -952,10 +947,7 @@ async def sse_stream(request: Request):
                 count = 0
                 for tok in tokens:
                     if await request.is_disconnected():
-                        logger.info({
-                            "event": "sse_disconnected",
-                            "path": "/events/stream",
-                        })
+                        logfire.info('app.sse.disconnected', path="/events/stream")
                         break
                     if count >= max_tokens:
                         break
@@ -992,40 +984,33 @@ async def sse_stream(request: Request):
                                 "demo_mode": True
                             }
                         )
-                        logger.info({
-                            "event": "assistant_message_saved",
-                            "session_id": str(session.id),
-                            "message_id": str(assistant_message_id),
-                            "content_length": len(complete_response),
-                            "chunks_count": len(assistant_chunks),
-                            "demo_mode": True
-                        })
+                        logfire.info(
+                            'app.sse.assistant_message_saved',
+                            session_id=str(session.id),
+                            message_id=str(assistant_message_id),
+                            content_length=len(complete_response),
+                            chunks_count=len(assistant_chunks),
+                            demo_mode=True
+                        )
                     except Exception as e:
                         # Log error but don't interrupt streaming
-                        logger.error({
-                            "event": "assistant_message_save_failed",
-                            "session_id": str(session.id),
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                            "content_length": len(complete_response),
-                            "demo_mode": True
-                        })
+                        logfire.error(
+                            'app.sse.assistant_message_save_failed',
+                            session_id=str(session.id),
+                            error=str(e),
+                            error_type=type(e).__name__,
+                            content_length=len(complete_response),
+                            demo_mode=True
+                        )
                     
                     # Graceful end signal
                     yield {"event": "end", "data": "end"}
         except Exception as exc:
-            logger.error({
-                "event": "sse_error",
-                "path": "/events/stream",
-                "error": type(exc).__name__,
-            })
+            logfire.error('app.sse.error', path="/events/stream", error=type(exc).__name__)
             if not await request.is_disconnected():
                 yield {"event": "error", "data": f"stream_error: {type(exc).__name__}"}
         finally:
-            logger.info({
-                "event": "sse_complete",
-                "path": "/events/stream",
-            })
+            logfire.info('app.sse.complete', path="/events/stream")
 
     return EventSourceResponse(event_generator())
 
@@ -1061,7 +1046,7 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     # Get session information for context and message persistence
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for chat request")
+        logfire.error('app.chat.no_session')
         return PlainTextResponse("Session error", status_code=500)
     
     cfg = load_config()
@@ -1077,25 +1062,25 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     temperature = float(model_settings["temperature"])
     max_tokens = int(model_settings["max_tokens"])
 
-    logger.info({
-        "event": "chat_fallback_request",
-        "path": "/chat",
-        "client": request.client.host if request.client else None,
-        "model": model,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "message_preview": message[:100] + "..." if len(message) > 100 else message,
-    })
+    logfire.info(
+        'app.chat.request',
+        path="/chat",
+        client=request.client.host if request.client else None,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        session_id=str(session.id),
+        session_key=session.session_key[:8] + "..." if session.session_key else None,
+        message_preview=message[:100] + "..." if len(message) > 100 else message
+    )
     
     # DEBUG: Log chat_fallback config loading details (using agent-first cascade)
-    logger.info({
-        "event": "chat_fallback_config_debug",
-        "model_settings": model_settings,
-        "final_model": model,
-        "cascade_source": "agent-first configuration cascade"
-    })
+    logfire.info(
+        'app.chat.config',
+        model_settings=model_settings,
+        final_model=model,
+        cascade_source="agent-first configuration cascade"
+    )
 
     # Save user message to database before LLM call
     message_service = get_message_service()
@@ -1108,20 +1093,20 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
             content=message,
             metadata={"source": "chat_fallback", "model": model}
         )
-        logger.info({
-            "event": "user_message_saved",
-            "session_id": str(session.id),
-            "message_id": str(user_message_id),
-            "content_length": len(message)
-        })
+        logfire.info(
+            'app.chat.user_message_saved',
+            session_id=str(session.id),
+            message_id=str(user_message_id),
+            content_length=len(message)
+        )
     except Exception as e:
         # Log error but continue with chat functionality
-        logger.error({
-            "event": "user_message_save_failed",
-            "session_id": str(session.id),
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.error(
+            'app.chat.user_message_save_failed',
+            session_id=str(session.id),
+            error=str(e),
+            error_type=type(e).__name__
+        )
 
     # Build optional headers for OpenRouter (recommended)
     headers = {}
@@ -1142,15 +1127,15 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
     start_time = time.perf_counter()
     try:
         # DEBUG: Log exact parameters passed to chat_completion_content
-        logger.info({
-            "event": "chat_completion_content_call_debug",
-            "message": message,
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "extra_headers": headers or None,
-            "function": "chat_completion_content"
-        })
+        logfire.info(
+            'app.chat.completion_call',
+            message=message,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            extra_headers=headers or None,
+            function="chat_completion_content"
+        )
         
         text = await chat_completion_content(
             message=message,
@@ -1176,14 +1161,14 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
                     "user_message_id": str(user_message_id) if user_message_id else None
                 }
             )
-            logger.info({
-                "event": "assistant_message_saved",
-                "session_id": str(session.id),
-                "message_id": str(assistant_message_id),
-                "user_message_id": str(user_message_id) if user_message_id else None,
-                "content_length": len(text),
-                "model": model
-            })
+            logfire.info(
+                'app.chat.assistant_message_saved',
+                session_id=str(session.id),
+                message_id=str(assistant_message_id),
+                user_message_id=str(user_message_id) if user_message_id else None,
+                content_length=len(text),
+                model=model
+            )
             
             # Track LLM request for billing (estimated token counts for non-streaming)
             try:
@@ -1221,43 +1206,43 @@ async def chat_fallback(request: Request) -> PlainTextResponse:
                     },
                     latency_ms=latency_ms
                 )
-                logger.info({
-                    "event": "llm_request_tracked",
-                    "session_id": str(session.id),
-                    "llm_request_id": str(llm_request_id),
-                    "estimated_tokens": estimated_total,
-                    "note": "Token estimates from legacy endpoint (no exact counts available)"
-                })
+                logfire.info(
+                    'app.chat.llm_request_tracked',
+                    session_id=str(session.id),
+                    llm_request_id=str(llm_request_id),
+                    estimated_tokens=estimated_total,
+                    note="Token estimates from legacy endpoint (no exact counts available)"
+                )
             except Exception as track_error:
                 # Log tracking error but don't break response
-                logger.warning({
-                    "event": "llm_request_tracking_failed",
-                    "session_id": str(session.id),
-                    "error": str(track_error),
-                    "error_type": type(track_error).__name__
-                })
+                logfire.warn(
+                    'app.chat.llm_request_tracking_failed',
+                    session_id=str(session.id),
+                    error=str(track_error),
+                    error_type=type(track_error).__name__
+                )
             
         except Exception as e:
             # Log error but don't block response
-            logger.error({
-                "event": "assistant_message_save_failed",
-                "session_id": str(session.id),
-                "user_message_id": str(user_message_id) if user_message_id else None,
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.error(
+                'app.chat.assistant_message_save_failed',
+                session_id=str(session.id),
+                user_message_id=str(user_message_id) if user_message_id else None,
+                error=str(e),
+                error_type=type(e).__name__
+            )
         
         # Return plain text; client will render Markdown + sanitize when allowed
         return PlainTextResponse(text)
         
     except Exception as e:
-        logger.error({
-            "event": "llm_request_failed",
-            "session_id": str(session.id),
-            "user_message_id": str(user_message_id) if user_message_id else None,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.error(
+            'app.chat.llm_request_failed',
+            session_id=str(session.id),
+            user_message_id=str(user_message_id) if user_message_id else None,
+            error=str(e),
+            error_type=type(e).__name__
+        )
         return PlainTextResponse("Sorry, I'm having trouble responding right now.", status_code=500)
 
 
@@ -1355,7 +1340,7 @@ async def get_chat_history(request: Request) -> JSONResponse:
     """
     session = get_current_session(request)
     if not session:
-        logger.warning("Chat history requested but no session found")
+        logfire.warn('app.chat_history.no_session')
         return JSONResponse({"error": "Unauthorized", "messages": []}, status_code=401)
     
     try:
@@ -1365,7 +1350,7 @@ async def get_chat_history(request: Request) -> JSONResponse:
             "messages": chat_history
         })
     except Exception as e:
-        logger.error(f"Failed to load chat history for session {session.id}: {e}")
+        logfire.error('app.chat_history.load_failed', session_id=str(session.id), error=str(e))
         return JSONResponse({"error": "Failed to load chat history", "messages": []}, status_code=500)
 
 
@@ -1458,6 +1443,11 @@ async def tail_logs(request: Request, format: str = "json", count: int = 10) -> 
 # Include agent endpoints for Pydantic AI agent interactions
 from .api.agents import router as agents_router
 app.include_router(agents_router)
+
+# Multi-Tenant Account-Agent Instance Router Registration
+# Include multi-tenant endpoints for account-scoped agent instances
+from .api.account_agents import router as account_agents_router
+app.include_router(account_agents_router)
 
 # Conditional Legacy Endpoint Registration  
 # Register legacy endpoints only if enabled in configuration

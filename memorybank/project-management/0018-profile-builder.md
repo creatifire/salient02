@@ -1,4 +1,10 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0018 - Profile Builder (Customer Intelligence & Tracking)
+> **Last Updated**: October 07, 2025
 
 Build comprehensive customer profiles by tracking visitor interactions, interests, and behavioral patterns.
 

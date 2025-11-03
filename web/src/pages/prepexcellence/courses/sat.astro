@@ -1,0 +1,119 @@
+---
+import PrepExcellenceLayout from "../../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "What's covered in your SAT prep course?",
+  "How long are the SAT courses?",
+  "What materials are included in SAT prep?",
+  "What's your SAT score improvement guarantee?"
+];
+---
+
+<PrepExcellenceLayout title="SAT Preparation Courses - PrepExcellence">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 2.5rem; margin-bottom: 1rem;">SAT Preparation</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #555;">
+      Comprehensive SAT prep with proven strategies and personalized instruction
+    </p>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Our SAT Programs</h2>
+      
+      <div style="margin-bottom: 2rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">12-Week Comprehensive SAT Prep Course</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Our flagship program ideal for students who want thorough review of all SAT Reading, Writing, and Math concepts. 
+          This course provides ample time to build skills systematically and includes:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>In-depth coverage of all SAT sections</li>
+          <li>Weekly full-length practice tests</li>
+          <li>Personalized score analysis and improvement plans</li>
+          <li>Time management and test-taking strategies</li>
+          <li>Taught directly by Dr. Kaisar Alam</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: white; border: 2px solid var(--prepexcel-primary, #6A1B9A); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">5-Week Premium SAT Prep Course</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Focused, efficient preparation with twelve 3-hour classes meeting twice per week. Perfect for students with a solid foundation 
+          who need SAT-specific strategies:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Initial diagnostic test to establish baseline</li>
+          <li>Targeted review of high-yield topics</li>
+          <li>Advanced time-saving techniques</li>
+          <li>Multiple full-length practice tests</li>
+          <li>Small class sizes for personalized attention</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">3-Week Accelerated SAT Prep Course</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Intensive program for students on a tight timeline who need focused preparation:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Fast-paced, efficient instruction</li>
+          <li>Focus on highest-impact strategies</li>
+          <li>Daily practice and review</li>
+          <li>Best for motivated, disciplined students</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: white; border: 2px solid var(--prepexcel-secondary, #1976D2); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.5rem; margin-bottom: 1rem;">Weekend SAT Crash Course</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Quick, targeted review perfect for last-minute preparation or score enhancement:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Intensive weekend sessions</li>
+          <li>Key strategies and shortcuts</li>
+          <li>Practice under timed conditions</li>
+          <li>Common pitfalls and how to avoid them</li>
+        </ul>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">What Makes Our SAT Prep Different</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Reasoning-Based Approach</h3>
+          <p style="line-height: 1.6;">We teach you how to think critically, not just memorize formulas. This leads to lasting improvement.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Time-Saving Techniques</h3>
+          <p style="line-height: 1.6;">Learn proven shortcuts and strategies that help you work faster and more accurately.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Personalized Feedback</h3>
+          <p style="line-height: 1.6;">Every practice test is analyzed to identify your specific areas for improvement.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-primary, #6A1B9A), var(--prepexcel-secondary, #1976D2)); color: white; border-radius: 12px; margin-bottom: 3rem; text-align: center;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">Our 150+ Point Improvement Guarantee</h2>
+      <p style="font-size: 1.1rem; line-height: 1.8; max-width: 700px; margin: 0 auto;">
+        We're so confident in our teaching methods that we guarantee at least a 150-point improvement from your 
+        diagnostic to your actual SAT score. If you attend all classes and complete all assignments but don't see 
+        this improvement, we'll continue working with you at no additional charge.
+      </p>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; margin-right: 1rem;">
+        Enroll Now
+      </a>
+      <a href="/prepexcellence/courses" style="display: inline-block; padding: 1rem 2rem; background: transparent; color: var(--prepexcel-primary, #6A1B9A); border: 2px solid var(--prepexcel-primary, #6A1B9A); text-decoration: none; border-radius: 8px; font-weight: bold;">
+        View All Courses
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

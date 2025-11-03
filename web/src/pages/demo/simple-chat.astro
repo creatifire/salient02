@@ -11,8 +11,14 @@ if (!ENABLE_STANDALONE) {
   return Astro.redirect('/');
 }
 
+// Multi-tenant configuration: default to default_account/simple_chat1
+// Can be overridden via query params: ?account=acme&agent=acme_chat1
+const urlParams = Astro.url.searchParams;
+const accountSlug = urlParams.get('account') || 'default_account';
+const agentInstanceSlug = urlParams.get('agent') || 'simple_chat1';
+
 // Load configuration from backend API at build time
-let config = { ui: { sse_enabled: false, allow_basic_html: true } }; // SSE disabled for simple chat agent
+let config = { ui: { sse_enabled: true, allow_basic_html: true } }; // SSE enabled for multi-tenant endpoints
 try {
   // In development, use the dev server; in production, use the configured target
   const configUrl = import.meta.env.DEV 
@@ -22,23 +28,30 @@ try {
   const response = await fetch(configUrl);
   if (response.ok) {
     config = await response.json();
-    config.ui.sse_enabled = false; // Force disable SSE for simple chat agent testing
   }
 } catch (error) {
   console.warn('Failed to load backend config, using defaults:', error);
 }
 
-const SSE_ENABLED = false; // Explicitly disabled for simple chat agent endpoint
+const SSE_ENABLED = config.ui.sse_enabled;
 const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
 ---
 <Layout>
   <a href="#chat-main" class="skip-link">Skip to chat</a>
   <main id="chat-main" style="padding:2rem 0;" role="main">
-    <h1 style="font-size:2rem;margin:0 0 .5rem;">Simple Chat Agent (OpenRouter Cost Tracking)</h1>
+    <h1 style="font-size:2rem;margin:0 0 .5rem;">Multi-Tenant Chat Agent (OpenRouter Cost Tracking)</h1>
     <div class="info-panel" id="info-panel" style="margin-bottom:1rem;">
       <div class="info-row">
+        <span class="info-label">Account:</span>
+        <span class="info-value">{accountSlug}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Agent:</span>
+        <span class="info-value">{agentInstanceSlug}</span>
+      </div>
+      <div class="info-row">
         <span class="info-label">Endpoint:</span>
-        <span class="info-value">/agents/simple-chat/chat</span>
+        <span class="info-value">/accounts/{accountSlug}/agents/{agentInstanceSlug}/chat</span>
       </div>
       <div class="info-row">
         <span class="info-label">Cost Tracking:</span>
@@ -199,7 +212,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     .loading-text{ font-size:.9rem; }
     .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   </style>
-  <script is:inline define:vars={{ CHAT_TARGET, SSE_ENABLED, ALLOW_BASIC_HTML }}>
+  <script is:inline define:vars={{ CHAT_TARGET, SSE_ENABLED, ALLOW_BASIC_HTML, accountSlug, agentInstanceSlug }}>
     // For simple-chat, always use the backend URL directly (no Vite proxy)
     let CHAT_BASE;
     try {
@@ -208,6 +221,10 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       // Fallback to localhost:8000 if CHAT_TARGET is invalid
       CHAT_BASE = new URL('http://localhost:8000/');
     }
+    
+    // Multi-tenant endpoint paths
+    const ACCOUNT_SLUG = accountSlug;
+    const AGENT_INSTANCE_SLUG = agentInstanceSlug;
     const chat = document.querySelector('.chat');
     const msg = document.getElementById('msg');
     const sendBtn = document.getElementById('send');
@@ -308,7 +325,8 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           loadingIndicator.style.display = 'flex';
         }
         
-        const url = new URL('/api/chat/history', CHAT_BASE);
+        // Use new multi-tenant history endpoint
+        const url = new URL(`/accounts/${ACCOUNT_SLUG}/agents/${AGENT_INSTANCE_SLUG}/history`, CHAT_BASE);
         const response = await fetch(url.toString(), {
           method: 'GET',
           credentials: 'include' // Include session cookies for cross-origin requests
@@ -339,11 +357,10 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           // Set raw content for copy functionality
           div.dataset.raw = message.raw_content || message.content || '';
           
-          // Handle content based on role - bot messages are pre-rendered HTML, user messages are raw text
+          // Handle content based on role
           if (role === 'bot') {
-            // Bot messages come pre-rendered as HTML from backend API
-            const content = div.querySelector('.content') || div;
-            content.innerHTML = message.content || '';  // message.content is already rendered HTML
+            // Bot messages are raw markdown that need to be rendered
+            renderMarkdownOrFallback(div, message.content || '');
           } else {
             // User messages are raw text that need no processing for display
             const content = div.querySelector('.content') || div;
@@ -351,7 +368,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           }
         });
         
-        console.log(`Loaded ${messages.length} historical messages`);
+        console.log(`Loaded ${messages.length} historical messages for ${ACCOUNT_SLUG}/${AGENT_INSTANCE_SLUG}`);
         historyLoaded = true;
         
       } catch (error) {
@@ -390,7 +407,10 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       const content = container.querySelector('.content') || container;
       try{
         if (ALLOW_BASIC_HTML){
-          const html = DOMPurify.sanitize(marked.parse(trimmed, { breaks: true }));
+          const html = DOMPurify.sanitize(marked.parse(trimmed, { 
+            breaks: true,
+            gfm: true  // GitHub Flavored Markdown - enables tables
+          }));
           if (!html || html.replace(/\s/g,'') === ''){
             content.textContent = trimmed || '[no response]';
           } else {
@@ -406,14 +426,14 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
 
     async function doPost(text){
       try{
-        // NEW ENDPOINT: /agents/simple-chat/chat with JSON request/response
+        // Multi-tenant endpoint: /accounts/{account}/agents/{instance}/chat
         const requestBody = {
           message: text,
           message_history: null // Let backend auto-load from session
         };
         
         const startTime = Date.now();
-        const requestUrl = new URL('/agents/simple-chat/chat', CHAT_BASE).toString();
+        const requestUrl = new URL(`/accounts/${ACCOUNT_SLUG}/agents/${AGENT_INSTANCE_SLUG}/chat`, CHAT_BASE).toString();
         
         const r = await fetch(requestUrl, { 
           method:'POST', 

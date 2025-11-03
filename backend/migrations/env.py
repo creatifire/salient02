@@ -4,7 +4,7 @@ import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Add the backend directory to Python path for imports
@@ -94,17 +94,20 @@ def run_migrations_online() -> None:
 
 
 async def run_async_migrations() -> None:
-    """Run migrations in async mode for asyncpg."""
-    # Create async engine
-    database_url = config.get_main_option("sqlalchemy.url")
+    """Run migrations in async mode for asyncpg.
     
-    # Create async engine
-    engine = create_async_engine(database_url, echo=False, poolclass=pool.NullPool)
+    Uses async_engine_from_config() as recommended by Alembic docs for async migrations.
+    This pattern properly reads configuration from alembic.ini config sections.
+    """
+    # Create async engine from config (recommended Alembic pattern)
+    connectable = async_engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
 
-    async with engine.connect() as connection:
+    async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
-    
-    await engine.dispose()
 
 
 def do_run_migrations(connection):

@@ -32,9 +32,12 @@ Performance:
 Dependencies:
 - SQLAlchemy 2.0+ for async database operations
 - UUID for primary key generation
-- Loguru for structured logging and debugging
+- Logfire for structured logging and debugging
 - Pydantic for input validation and type safety
 """
+
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
 
 from __future__ import annotations
 
@@ -42,10 +45,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from loguru import logger
+import logfire
 from sqlalchemy import desc, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
 from ..models.message import Message
 from ..database import get_database_service
@@ -105,26 +109,30 @@ class MessageService:
         session_id: uuid.UUID | str,
         role: str,
         content: str,
+        agent_instance_id: uuid.UUID | str | None = None,
+        llm_request_id: uuid.UUID | str | None = None,
         metadata: Dict[str, Any] | None = None
     ) -> uuid.UUID:
         """
         Save a new message to the database with comprehensive validation.
         
         Creates a new message record with proper validation, session linking,
-        and metadata handling. Ensures data integrity and provides detailed
-        logging for debugging and monitoring.
+        agent attribution, and metadata handling. Ensures data integrity and 
+        provides detailed logging for debugging and monitoring.
         
         Args:
             session_id: Session UUID for message association
             role: Message role (human, assistant, system, tool, developer)
             content: Message text content (required, non-empty)
+            agent_instance_id: Agent instance UUID for multi-tenant attribution (optional for backward compatibility)
+            llm_request_id: LLM request UUID that generated this message (nullable for system messages)
             metadata: Optional metadata for RAG citations, tool calls, etc.
         
         Returns:
             UUID of the created message record
         
         Raises:
-            ValueError: If role is invalid or content is empty
+            ValueError: If role is invalid, content is empty, or agent_instance_id is required but missing
             SQLAlchemyError: If database operation fails
             Exception: For unexpected errors during message creation
         
@@ -133,6 +141,7 @@ class MessageService:
             ...     session_id="550e8400-e29b-41d4-a716-446655440000",
             ...     role="human",
             ...     content="What is the weather like today?",
+            ...     agent_instance_id="660e8400-e29b-41d4-a716-446655440001",
             ...     metadata={"timestamp": "2024-01-01T12:00:00Z"}
             ... )
             >>> print(f"Message saved with ID: {message_id}")
@@ -141,21 +150,60 @@ class MessageService:
         - Content is validated but not sanitized (preserves user intent)
         - Metadata is validated as JSON-serializable
         - Session ID must exist (enforced by foreign key constraint)
+        - Agent instance ID must exist (enforced by foreign key constraint)
         """
         # Input validation
         if not isinstance(session_id, uuid.UUID):
             try:
                 session_id = uuid.UUID(str(session_id))
             except (ValueError, TypeError) as e:
-                logger.error(f"Invalid session_id format: {session_id}, error: {e}")
+                logfire.error(
+                    'service.message.invalid_session_id',
+                    session_id=str(session_id),
+                    error=str(e)
+                )
                 raise ValueError(f"Invalid session_id format: {session_id}") from e
         
+        # Validate agent_instance_id (required for multi-tenant)
+        if agent_instance_id is not None:
+            if not isinstance(agent_instance_id, uuid.UUID):
+                try:
+                    agent_instance_id = uuid.UUID(str(agent_instance_id))
+                except (ValueError, TypeError) as e:
+                    logfire.error(
+                        'service.message.invalid_agent_instance_id',
+                        agent_instance_id=str(agent_instance_id),
+                        error=str(e)
+                    )
+                    raise ValueError(f"Invalid agent_instance_id format: {agent_instance_id}") from e
+        else:
+            # agent_instance_id is required (NOT NULL in schema)
+            logfire.error('service.message.missing_agent_instance_id')
+            raise ValueError("agent_instance_id is required for message attribution")
+        
+        # Validate llm_request_id if provided (nullable, for cost attribution)
+        if llm_request_id is not None:
+            if not isinstance(llm_request_id, uuid.UUID):
+                try:
+                    llm_request_id = uuid.UUID(str(llm_request_id))
+                except (ValueError, TypeError) as e:
+                    logfire.error(
+                        'service.message.invalid_llm_request_id',
+                        llm_request_id=str(llm_request_id),
+                        error=str(e)
+                    )
+                    raise ValueError(f"Invalid llm_request_id format: {llm_request_id}") from e
+        
         if role not in self.VALID_ROLES:
-            logger.error(f"Invalid message role: {role}, valid roles: {self.VALID_ROLES}")
+            logfire.error(
+                'service.message.invalid_role',
+                role=role,
+                valid_roles=list(self.VALID_ROLES)
+            )
             raise ValueError(f"Invalid role: {role}. Valid roles: {self.VALID_ROLES}")
         
         if not content or not content.strip():
-            logger.error("Message content cannot be empty")
+            logfire.error('service.message.empty_content')
             raise ValueError("Message content cannot be empty")
         
         # Validate metadata if provided
@@ -165,7 +213,10 @@ class MessageService:
                 import json
                 json.dumps(metadata)
             except (TypeError, ValueError) as e:
-                logger.error(f"Invalid metadata format: {metadata}, error: {e}")
+                logfire.error(
+                    'service.message.invalid_metadata',
+                    error=str(e)
+                )
                 raise ValueError(f"Metadata must be JSON-serializable: {e}") from e
         
         db_service = get_database_service()
@@ -174,6 +225,8 @@ class MessageService:
                 # Create new message record
                 message = Message(
                     session_id=session_id,
+                    agent_instance_id=agent_instance_id,
+                    llm_request_id=llm_request_id,
                     role=role,
                     content=content.strip(),
                     meta=metadata,
@@ -184,36 +237,34 @@ class MessageService:
                 await session.commit()
                 await session.refresh(message)
                 
-                logger.info({
-                    "event": "message_saved",
-                    "message_id": str(message.id),
-                    "session_id": str(session_id),
-                    "role": role,
-                    "content_length": len(content),
-                    "has_metadata": metadata is not None
-                })
+                logfire.info(
+                    'service.message.saved',
+                    message_id=str(message.id),
+                    session_id=str(session_id),
+                    agent_instance_id=str(agent_instance_id),
+                    llm_request_id=str(llm_request_id) if llm_request_id else None,
+                    role=role,
+                    content_length=len(content),
+                    has_metadata=metadata is not None
+                )
                 
                 return message.id
                 
             except SQLAlchemyError as e:
                 await session.rollback()
-                logger.error({
-                    "event": "message_save_error",
-                    "session_id": str(session_id),
-                    "role": role,
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                logfire.exception(
+                    'service.message.save_error',
+                    session_id=str(session_id),
+                    role=role
+                )
                 raise
             except Exception as e:
                 await session.rollback()
-                logger.error({
-                    "event": "message_save_unexpected_error",
-                    "session_id": str(session_id),
-                    "role": role,
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                logfire.exception(
+                    'service.message.save_unexpected_error',
+                    session_id=str(session_id),
+                    role=role
+                )
                 raise
     
     async def get_session_messages(
@@ -265,19 +316,36 @@ class MessageService:
             try:
                 session_id = uuid.UUID(str(session_id))
             except (ValueError, TypeError) as e:
-                logger.error(f"Invalid session_id format: {session_id}, error: {e}")
+                logfire.error(
+                    'service.message.invalid_session_id',
+                    session_id=str(session_id),
+                    error=str(e)
+                )
                 raise ValueError(f"Invalid session_id format: {session_id}") from e
         
         # Validate role_filter if provided
         if role_filter and role_filter not in self.VALID_ROLES:
-            logger.error(f"Invalid role filter: {role_filter}, valid roles: {self.VALID_ROLES}")
+            logfire.error(
+                'service.message.invalid_role_filter',
+                role_filter=role_filter,
+                valid_roles=list(self.VALID_ROLES)
+            )
             raise ValueError(f"Invalid role filter: {role_filter}. Valid roles: {self.VALID_ROLES}")
         
         db_service = get_database_service()
         async with db_service.get_session() as session:
             try:
                 # Build query with optional role filter
-                query = select(Message).where(Message.session_id == session_id)
+                # Using selectinload() prevents N+1 queries if relationships are accessed later
+                query = (
+                    select(Message)
+                    .options(
+                        selectinload(Message.session),  # Eager load session relationship
+                        selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                        selectinload(Message.llm_request)  # Eager load llm_request relationship
+                    )
+                    .where(Message.session_id == session_id)
+                )
                 
                 if role_filter:
                     query = query.where(Message.role == role_filter)
@@ -294,24 +362,22 @@ class MessageService:
                 result = await session.execute(query)
                 messages = result.scalars().all()
                 
-                logger.info({
-                    "event": "messages_retrieved",
-                    "session_id": str(session_id),
-                    "count": len(messages),
-                    "limit": limit,
-                    "offset": offset,
-                    "role_filter": role_filter
-                })
+                logfire.info(
+                    'service.message.retrieved',
+                    session_id=str(session_id),
+                    count=len(messages),
+                    limit=limit,
+                    offset=offset,
+                    role_filter=role_filter
+                )
                 
                 return list(messages)
                 
             except SQLAlchemyError as e:
-                logger.error({
-                    "event": "messages_retrieval_error",
-                    "session_id": str(session_id),
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                logfire.exception(
+                    'service.message.retrieval_error',
+                    session_id=str(session_id)
+                )
                 raise
     
     async def get_recent_context(
@@ -369,23 +435,43 @@ class MessageService:
             try:
                 session_id = uuid.UUID(str(session_id))
             except (ValueError, TypeError) as e:
-                logger.error(f"Invalid session_id format: {session_id}, error: {e}")
+                logfire.error(
+                    'service.message.invalid_session_id',
+                    session_id=str(session_id),
+                    error=str(e)
+                )
                 raise ValueError(f"Invalid session_id format: {session_id}") from e
         
         # Validate and cap limit
         if limit <= 0:
-            logger.error(f"Invalid limit: {limit}, must be positive")
+            logfire.error(
+                'service.message.invalid_limit',
+                limit=limit
+            )
             raise ValueError(f"Limit must be positive, got: {limit}")
         
         if limit > self.MAX_CONTEXT_LIMIT:
-            logger.warning(f"Limit {limit} exceeds maximum {self.MAX_CONTEXT_LIMIT}, capping")
+            logfire.warn(
+                'service.message.limit_exceeded',
+                limit=limit,
+                max_limit=self.MAX_CONTEXT_LIMIT
+            )
             limit = self.MAX_CONTEXT_LIMIT
         
         db_service = get_database_service()
         async with db_service.get_session() as session:
             try:
                 # Build query for recent messages
-                query = select(Message).where(Message.session_id == session_id)
+                # Using selectinload() prevents N+1 queries if relationships are accessed later
+                query = (
+                    select(Message)
+                    .options(
+                        selectinload(Message.session),  # Eager load session relationship
+                        selectinload(Message.agent_instance),  # Eager load agent_instance relationship
+                        selectinload(Message.llm_request)  # Eager load llm_request relationship
+                    )
+                    .where(Message.session_id == session_id)
+                )
                 
                 # Optionally exclude system messages
                 if not include_system:
@@ -409,23 +495,21 @@ class MessageService:
                         "timestamp": msg.created_at.isoformat() if msg.created_at else None
                     })
                 
-                logger.info({
-                    "event": "context_retrieved",
-                    "session_id": str(session_id),
-                    "count": len(context),
-                    "limit": limit,
-                    "include_system": include_system
-                })
+                logfire.info(
+                    'service.message.context_retrieved',
+                    session_id=str(session_id),
+                    count=len(context),
+                    limit=limit,
+                    include_system=include_system
+                )
                 
                 return context
                 
             except SQLAlchemyError as e:
-                logger.error({
-                    "event": "context_retrieval_error",
-                    "session_id": str(session_id),
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                logfire.exception(
+                    'service.message.context_retrieval_error',
+                    session_id=str(session_id)
+                )
                 raise
     
     async def get_message_count(self, session_id: uuid.UUID | str) -> int:
@@ -454,7 +538,11 @@ class MessageService:
             try:
                 session_id = uuid.UUID(str(session_id))
             except (ValueError, TypeError) as e:
-                logger.error(f"Invalid session_id format: {session_id}, error: {e}")
+                logfire.error(
+                    'service.message.invalid_session_id',
+                    session_id=str(session_id),
+                    error=str(e)
+                )
                 raise ValueError(f"Invalid session_id format: {session_id}") from e
         
         db_service = get_database_service()
@@ -465,21 +553,19 @@ class MessageService:
                 result = await session.execute(query)
                 count = result.scalar() or 0
                 
-                logger.debug({
-                    "event": "message_count_retrieved",
-                    "session_id": str(session_id),
-                    "count": count
-                })
+                logfire.debug(
+                    'service.message.count_retrieved',
+                    session_id=str(session_id),
+                    count=count
+                )
                 
                 return count
                 
             except SQLAlchemyError as e:
-                logger.error({
-                    "event": "message_count_error",
-                    "session_id": str(session_id),
-                    "error": str(e),
-                    "error_type": type(e).__name__
-                })
+                logfire.exception(
+                    'service.message.count_error',
+                    session_id=str(session_id)
+                )
                 raise
 
 

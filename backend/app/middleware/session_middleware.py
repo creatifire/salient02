@@ -14,6 +14,12 @@ The middleware runs on every request and ensures that:
 3. Session cookies are managed securely
 4. Session data is available in request.state
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 from typing import Callable, Optional
@@ -22,7 +28,7 @@ from uuid import UUID
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
-from loguru import logger
+import logfire
 
 from ..database import get_database_service
 from ..services.session_service import SessionService, SessionError
@@ -83,7 +89,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
             # Get database service and check if it's initialized
             db_service = get_database_service()
             if not db_service.is_initialized:
-                logger.warning("Database service not initialized, skipping session middleware")
+                logfire.warn('middleware.session.db_not_initialized')
                 request.state.session = None
                 return await call_next(request)
             
@@ -103,38 +109,33 @@ class SessionMiddleware(BaseHTTPMiddleware):
                         if is_active:
                             # Update activity timestamp
                             await session_service.update_last_activity(session.id)
-                            logger.debug(
-                                "Session resumed and activity updated",
-                                extra={
-                                    "session_id": str(session.id),
-                                    "session_key": session.session_key[:8] + "...",
-                                    "path": request.url.path,
-                                    "client": request.client.host if request.client else None
-                                }
+                            logfire.debug(
+                                'middleware.session.resumed',
+                                session_id=str(session.id),
+                                session_key_prefix=session.session_key[:8],
+                                path=request.url.path,
+                                client=request.client.host if request.client else None
                             )
                         else:
                             # Session expired, will create new one
+                            expired_session_id = str(session.id)
                             session = None
-                            logger.info(
-                                "Session expired, will create new session",
-                                extra={
-                                    "expired_session_id": str(session.id),
-                                    "path": request.url.path
-                                }
+                            logfire.info(
+                                'middleware.session.expired',
+                                expired_session_id=expired_session_id,
+                                path=request.url.path
                             )
                 
                 # Create new session if none exists or expired
                 if not session:
                     session = await session_service.create_session()
-                    logger.info(
-                        "New session created",
-                        extra={
-                            "session_id": str(session.id),
-                            "session_key": session.session_key[:8] + "...",
-                            "path": request.url.path,
-                            "client": request.client.host if request.client else None,
-                            "user_agent": request.headers.get("user-agent", "")[:100]  # Truncate for logs
-                        }
+                    logfire.info(
+                        'middleware.session.created',
+                        session_id=str(session.id),
+                        session_key_prefix=session.session_key[:8],
+                        path=request.url.path,
+                        client=request.client.host if request.client else None,
+                        user_agent=request.headers.get("user-agent", "")[:100]  # Truncate for logs
                     )
                 
                 # Add session to request state for route access
@@ -143,13 +144,12 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 # Routes that need session service should create their own
                 
         except Exception as e:
-            logger.error(
-                f"Session middleware error: {e}",
-                extra={
-                    "path": request.url.path,
-                    "client": request.client.host if request.client else None,
-                    "error_type": type(e).__name__
-                }
+            logfire.exception(
+                'middleware.session.error',
+                error=str(e),
+                path=request.url.path,
+                client=request.client.host if request.client else None,
+                error_type=type(e).__name__
             )
             # Continue without session on error - don't break the app
             request.state.session = None
@@ -169,23 +169,20 @@ class SessionMiddleware(BaseHTTPMiddleware):
                     samesite=cookie_config["samesite"]
                 )
                 
-                logger.debug(
-                    "Session cookie set in response",
-                    extra={
-                        "session_id": str(session.id),
-                        "path": request.url.path,
-                        "cookie_name": cookie_config["key"],
-                        "max_age": cookie_config["max_age"]
-                    }
+                logfire.debug(
+                    'middleware.session.cookie_set',
+                    session_id=str(session.id),
+                    path=request.url.path,
+                    cookie_name=cookie_config["key"],
+                    max_age=cookie_config["max_age"]
                 )
                 
             except Exception as e:
-                logger.error(
-                    f"Failed to set session cookie: {e}",
-                    extra={
-                        "session_id": str(session.id) if session else None,
-                        "path": request.url.path
-                    }
+                logfire.exception(
+                    'middleware.session.cookie_set_failed',
+                    error=str(e),
+                    session_id=str(session.id) if session else None,
+                    path=request.url.path
                 )
         
         return response

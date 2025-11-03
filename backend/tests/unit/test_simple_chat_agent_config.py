@@ -3,6 +3,12 @@ Unit tests for simple_chat.py agent configuration standardization.
 
 Tests for CHUNK 0017-004-001-04: Update simple_chat.py agent implementation
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock, call

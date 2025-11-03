@@ -1,5 +1,11 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Project Brief
-> **Last Updated**: September 12, 2025
+> **Last Updated**: January 31, 2025  
+> **Updates**: Added multi-tenant-security.md design document, updated architecture document links
 
 ## Core Architectural Principles
 
@@ -9,7 +15,7 @@
 
 - ✅ **ALL agents**: Simple Chat, Sales Agent, InfoBot, etc.
 - ✅ **ALL endpoints**: No direct OpenRouter/LLM API calls
-- ✅ **ALL cost tracking**: Via Pydantic AI usage data (see [LLM Cost Tracking](./architecture/tracking_llm_costs.md))
+- ✅ **ALL cost tracking**: Via Pydantic AI usage data (see [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md))
 - ✅ **ALL future agents**: Built on Pydantic AI framework
 
 **Why Pydantic AI?**
@@ -26,95 +32,103 @@
 - Building a library of Pydantic AI agents is core to this project
 
 **Reference Documentation:**
-- [LLM Cost Tracking Architecture](./architecture/tracking_llm_costs.md) - Implementation details for cost tracking
-- [Endpoint Pydantic AI Matrix](./architecture/endpoint-pydantic-ai-matrix.md) - Complete status of all endpoints and migration plan
+- [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md) - Complete guide for streaming and non-streaming cost tracking
+- [Agent and Tool Design](./architecture/agent-and-tool-design.md) - Architectural patterns and conventions
+- [API Endpoints](./architecture/endpoints.md) - Complete endpoint documentation with Pydantic AI implementation status
 
 ---
 
-## Purpose of System
-    - Answer questions about a company's products and services, based on:
-        - Company's Website Content (HTML)
-        - Other Website Content (HTML)
-        - Company provided white papers (PDF)
-        - Company provided data sheets (PDF)
-    - Collect preferences and build a profile of the customer
-    - Maintain session history
-    - Maintain Chat history
-    - Connect the customer to the local sales rep
-    - Send a conversation summary to the customer after:
-        - a period of inactivity
-        - when the conversation ends
+## Purpose
+Multi-tenant AI agent platform for customer engagement, information retrieval, and profile building:
+- Answer questions using RAG (website content, PDFs, documentation)
+- Search structured data directories (medical staff, products, pharmaceuticals, services)
+- Build customer profiles (preferences, contact info, interests)
+- Maintain conversation history with session persistence
+- Connect customers to sales representatives
+- Automated conversation summaries via email
 
-## A Sales Bot powered by:
-    - Large Language Model (LLM)
-        - OpenRouter
-    - Memory
-        - Chat History
-        - Chat Summary
-        - Customer Profile
-            - Products of Interest
-            - Services of Interest
-            - Customer Name
-            - Customer Contact Information
-                - Phone Number
-                - Email Address
-                - Physical Address
-                    - Street Address
-                    - City
-                    - State
-                    - Zip
-        - Past emails
-    - Knowledge
-        - Indexed from Vector Database
+## Core Capabilities
+**Knowledge Sources:**
+- Website content (HTML), PDFs (whitepapers, datasheets)
+- Vector database indexed content (Pinecone)
+- Structured data directories via Directory Service
 
-## Config File
-    - YAML
-        - Which LLM to use
-            - Legacy endpoints: configured in `app.yaml`
-            - Agent endpoints: configured in `agent_configs/{agent_type}.yaml` (overrides app.yaml)
-        - Which Agent to Use
-        - Which Vector Database
-            - Pinecone
-            - Which Pinecone Database
-    - Environment Variables
-        - OpenRouter API Key
-        - Pinecone API Key
+**Directory Service:**
+- Account-level lists (doctors, products, pharmaceuticals, services, etc.)
+- Flexible JSONB schema per entry type
+- Agent-configurable access control
+- Schema definitions: `backend/config/directory_schemas/*.yaml`
+- Tables: `directory_lists`, `directory_entries`
+- Tool: `search_directory()` for Pydantic AI agents
+
+**Customer Profiles:**
+- Contact information (name, email, phone, address)
+- Product/service interests
+- Conversation history and summaries
+
+## Development Environment
+
+**Backend Execution Convention:**
+- Backend is **always run from project root** (where venv is located)
+- Command: `uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000`
+- All imports must use `from backend.app...` not `from app...`
+- Virtual environment: `backend/venv/` activated from project root
+
+**Logging Standards:**
+- **Logfire is the standard** - All logging uses Logfire (migration complete)
+- **Dual output** - Console logs (screen) + Logfire cloud dashboard (when token present)
+- **Structured logging** - Use `logfire.info('event.name', key=value)` format
+- **Event naming** - Dot notation: `module.action` (e.g., `agent.created`, `session.loaded`)
+- **No visibility loss** - Console output always enabled for local development
+
+**Diagnostic Logging Principles:**
+- **NEVER disable diagnostic logging to hide problems** - Fix root causes, not symptoms
+- `logfire.instrument_pydantic()` must remain enabled - verbose logs reveal issues
+- Excessive log messages indicate underlying problems (tool loops, large histories)
+- When logs are noisy: identify and fix the root cause (prompt issues, validation frequency)
+- Diagnostic tools exist to help us see problems - removing them is counterproductive
+
+## Configuration
+**Agent-Level** (`agent_configs/{account}/{agent}/config.yaml`):
+- LLM model selection
+- Tool enablement (vector search, directory search, web search)
+- Directory access: `accessible_lists: ["doctors", "products"]`
+- Vector database namespace and API keys
+
+**System-Level** (`app.yaml`, `.env`):
+- Default LLM models
+- API keys (OpenRouter, Pinecone, OpenAI)
+- Database connections
 
 ## Architecture
-    - RAG Application
-    - Memories in a Relational Database (Postgres)
-    - Knowledge Indexed in a Vector Database (Pinecone)
-    - Pydantic AI Multi-Agent System
+- **RAG Application**: Pydantic AI multi-agent system
+- **Memory**: PostgreSQL (sessions, messages, profiles, LLM requests)
+- **Knowledge**: Pinecone vector database
+- **Structured Data**: Directory Service (multi-tenant, flexible schema)
+- **Multi-Tenancy**: Account → Agent Instance → Configuration cascade
 
 ### Core Architecture Documents
-- [Technology Stack](./architecture/technology-stack.md)
-- [Technical Constraints](./architecture/technical-constraints.md)
-- [Code Organization](./architecture/code-organization.md)
-- [Configuration Reference](./architecture/configuration-reference.md)
-- [Agent Configuration](./architecture/agent-configuration.md)
-- [Agent Configuration Storage](./architecture/agent-configuration-storage.md)
-- [API Endpoints](./architecture/endpoints.md)
-- [LLM Cost Tracking](./architecture/tracking_llm_costs.md)
-- [Chat Widget Architecture](./architecture/chat-widget-architecture.md)
-- [Data Model & ER Diagram](./architecture/datamodel.md)
-- [Multi-Account Support](./architecture/multi-account-support.md)
+- [Agent and Tool Design](./architecture/agent-and-tool-design.md) - **Architecture patterns and conventions**
+- [Simple Chat Agent Design](./architecture/simple-chat-agent-design.md) - **Template example** (follows agent-and-tool-design.md)
+- [Multi-Tenant Security](./architecture/multi-tenant-security.md) - **Account isolation and API security** 🔴 CRITICAL
+- [Code Organization](./architecture/code-organization.md) - File structure and technology stack
+- [Configuration Reference](./architecture/configuration-reference.md) - Complete config documentation
+- [API Endpoints](./architecture/endpoints.md) - All endpoints including Pydantic AI implementation status
+- [Pydantic AI Cost Tracking](./architecture/pydantic-ai-cost-tracking.md) - Complete cost tracking guide
+- [Data Model & ER Diagram](./architecture/datamodel.md) - Database schema
+- [Tool Selection & Routing](./architecture/tool-selection-routing.md) - Tool routing strategies
+- [Directory Search Tool](./architecture/directory-search-tool.md) - Directory service architecture
+- [Directory Search FTS Guide](./architecture/directory-search-fts-guide.md) - Full-text search guide
+- [Vector Query Tool](./architecture/vector-query-tool.md) - Vector search architecture
+- [LLM Tool Calling Performance](./architecture/llm-tool-calling-performance.md) - Performance analysis
+- [Open Questions](./architecture/open-questions.md) - Technical and product questions
 
 ### Research & Analysis
 - [🎯 OpenRouter Cost Tracking Research](../backend/explore/openrouter-cost-tracking/README.md) - **COMPREHENSIVE ANALYSIS** of OpenRouter integration with Python agent frameworks, including breakthrough discovery of perfect hybrid solution
-
-### Design Documents
-- [Simple Chat Agent Design](./design/simple-chat.md)
-- [Agent Endpoint Transition Strategy](./design/agent-endpoint-transition.md)
-
-### Integration & Deployment
-- [SalesBot Integration Options](./architecture/salesbot-integration.md)
-- [Demo Integration Strategy](./architecture/demo-integrations.md)
-- [Cross-Origin Session Handling](./architecture/cross-origin-session-handling.md)
-- [Production Cross-Origin Plan](./architecture/production-cross-origin-plan.md)
-- [Production Deployment Configuration](./architecture/production-deployment-config.md)
-- [Deploying on Render](./architecture/deploying-on-render.md)
-- [API Gateway Kong Policies](./architecture/api-gateway-kong-policies.md)
-- [Redis Usage Policy](./architecture/redis-usage-policy.md)
+- [Advanced Logging](./analysis/advanced-logging.md)
+- [Epic 0022 Library Review](./analysis/epic-0022-library-review.md)
+- [Logging Implementation](./architecture/logging-implementation.md)
+- [Test Suite Analysis](./analysis/test_suite_analysis.md)
 
 ## Planning
 
@@ -122,23 +136,23 @@
 - [Milestone 1 Tactical Approach](./project-management/0000-approach-milestone-01.md)
 - [Master Epic List](./project-management/0000-epics.md)
 
-### Core Epics (Milestone 1)
-- [Chat Memory & Persistence](./project-management/0004-chat-memory.md)
+### Active Epics (Milestone 1 Focus)
+- [Website HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
+- [Chat Memory & Persistence](./project-management/0004-chat-memory.md) - ✅ Completed
 - [Multi-Account and Agent Support](./project-management/0005-multi-account-and-agent-support.md)
 - [Sales Agent](./project-management/0008-sales-agent.md)
-- [Simple Chat Agent](./project-management/0017-simple-chat-agent.md)
+- [Vector Database Integration](./project-management/0011-vector-db-integration.md) - ✅ Completed
+- [Outbound Email Integration](./project-management/0012-outbound-email.md)
+- [Simple Chat Agent](./project-management/0017-simple-chat-agent.md) - 🚧 In Progress
+- [Profile Builder](./project-management/0018-profile-builder.md)
+- [Multi-Tenant Account-Instance Architecture](./project-management/0022-multi-tenant-architecture.md) - 🚧 In Progress
+- [Multi-Purpose Directory Service](./project-management/0023-directory-service.md)
+- [Bugs - Simple Chat Agent](./project-management/bugs-0017.md)
 
-### Foundation Epics
-- [Preliminary Design](./project-management/0001-preliminary-design.md)
-- [Baseline Connectivity](./project-management/0002-baseline-connectivity.md)
-- [Website & HTMX Chatbot](./project-management/0003-website-htmx-chatbot.md)
-
-### Supporting Infrastructure Epics
-- [Website Content Ingestion](./project-management/0010-website-content-ingestion.md)
-- [Vector Database Integration](./project-management/0011-vector-db-integration.md)
-- [Outbound Email](./project-management/0012-outbound-email.md)
-- [Scheduling Integration](./project-management/0013-scheduling-integration.md)
-- [Library Manager](./project-management/0019-library-manager.md)
+### Archived Epics
+For completed early-phase work, superseded approaches, Milestone 2 planning, and future/aspirational capabilities, see:
+- [Architecture Archive](./archive/README.md) - Archived architecture, design, and lessons learned documents
+- [Project Management Archive](./project-management/archive/README.md) - Completed, superseded, and future epics
 
 ## Project Standards
 
@@ -149,5 +163,10 @@
 
 ### Documentation Standards
 - [Commit Message Conventions](./standards/commit-messages.md)
+- [Epic Documentation Standards](./standards/epic-documentation.md)
+- [Milestone Documentation Standards](./standards/milestone-documentation.md)
 - [Python Code Commenting Best Practices](./standards/code-comments-py.md)
 - [JavaScript/TypeScript Code Commenting Best Practices](./standards/code-comments-ts.md)
+
+### Testing Standards
+- [Automated Testing Guidelines](./standards/automated-testing.md)

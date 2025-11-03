@@ -1,0 +1,137 @@
+---
+import PrepExcellenceLayout from "../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "How do I get in touch with PrepExcellence?",
+  "What are your office hours?",
+  "Can I schedule a consultation?",
+  "Where are you located?"
+];
+---
+
+<PrepExcellenceLayout title="Contact Us - PrepExcellence">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 2.5rem; margin-bottom: 1rem; text-align: center;">Contact Us</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 3rem; text-align: center; color: #555;">
+      Ready to start your journey to test prep success? Get in touch with us today!
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 3rem;">
+      
+      <!-- Contact Information -->
+      <div style="padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1.5rem;">Get In Touch</h2>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem; font-size: 1.1rem;">📞 Phone</h3>
+          <p style="line-height: 1.6;">
+            <a href="tel:+12146032254" style="color: var(--prepexcel-primary, #6A1B9A); text-decoration: none; font-weight: bold;">+1 (214) 603-2254</a><br>
+            <a href="tel:+18484483331" style="color: var(--prepexcel-primary, #6A1B9A); text-decoration: none; font-weight: bold;">+1 (848) 448-3331</a>
+          </p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem; font-size: 1.1rem;">📧 Email</h3>
+          <p style="line-height: 1.6;">
+            <a href="mailto:info@prepexcellence.com" style="color: var(--prepexcel-primary, #6A1B9A); text-decoration: none; font-weight: bold;">info@prepexcellence.com</a>
+          </p>
+        </div>
+
+        <div>
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem; font-size: 1.1rem;">⏰ Office Hours</h3>
+          <p style="line-height: 1.8;">
+            <strong>Monday - Friday:</strong> 9:00 AM - 7:00 PM<br>
+            <strong>Saturday:</strong> 10:00 AM - 4:00 PM<br>
+            <strong>Sunday:</strong> By appointment
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-primary, #6A1B9A); border-radius: 12px;">
+        <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1.5rem;">Explore Our Services</h2>
+        <ul style="list-style: none; padding: 0; line-height: 2.5;">
+          <li><a href="/prepexcellence/courses/sat" style="color: var(--prepexcel-secondary, #1976D2); text-decoration: none; font-weight: 500;">→ SAT Preparation</a></li>
+          <li><a href="/prepexcellence/courses/act" style="color: var(--prepexcel-secondary, #1976D2); text-decoration: none; font-weight: 500;">→ ACT Preparation</a></li>
+          <li><a href="/prepexcellence/courses/psat" style="color: var(--prepexcel-secondary, #1976D2); text-decoration: none; font-weight: 500;">→ PSAT Preparation</a></li>
+          <li><a href="/prepexcellence/tutoring" style="color: var(--prepexcel-secondary, #1976D2); text-decoration: none; font-weight: 500;">→ Private Tutoring</a></li>
+          <li><a href="/prepexcellence/admissions" style="color: var(--prepexcel-secondary, #1976D2); text-decoration: none; font-weight: 500;">→ Admissions Consulting</a></li>
+          <li><a href="/prepexcellence/about" style="color: var(--prepexcel-secondary, #1976D2); text-decoration: none; font-weight: 500;">→ About Dr. Alam</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Chat with Us Section -->
+    <section style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-primary, #6A1B9A), var(--prepexcel-secondary, #1976D2)); color: white; border-radius: 12px; margin-bottom: 3rem; text-align: center;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">💬 Chat with Us</h2>
+      <p style="font-size: 1.1rem; line-height: 1.8; max-width: 700px; margin: 0 auto 1.5rem;">
+        Have a quick question? Use our chat widget (bottom right corner) to get instant answers about our courses, 
+        schedules, and pricing.
+      </p>
+      <p style="font-size: 0.95rem; opacity: 0.9;">
+        Our AI assistant is powered by Dr. Alam's knowledge base and can answer most questions immediately.
+      </p>
+    </section>
+
+    <!-- What to Expect -->
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem; text-align: center;">What Happens Next?</h2>
+      <div style="display: grid; gap: 1rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">1. Get in Touch</h3>
+          <p style="line-height: 1.6;">Call, email, or chat with us to discuss your needs and goals.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">2. Free Consultation</h3>
+          <p style="line-height: 1.6;">We'll schedule a free consultation to assess your current level and recommend the best program.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-left: 4px solid var(--prepexcel-primary, #6A1B9A); border-radius: 4px;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">3. Enroll & Begin</h3>
+          <p style="line-height: 1.6;">Once you're ready, enroll in your chosen program and start your path to success!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQs -->
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem; text-align: center;">Frequently Asked Questions</h2>
+      <div style="display: grid; gap: 1rem;">
+        <details style="padding: 1.5rem; background: white; border: 1px solid var(--prepexcel-light, #E1BEE7); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">Do you offer online or in-person classes?</summary>
+          <p style="margin-top: 1rem; line-height: 1.6;">We offer both online and in-person options for most courses. Online classes provide flexibility while maintaining the same quality instruction.</p>
+        </details>
+        <details style="padding: 1.5rem; background: white; border: 1px solid var(--prepexcel-light, #E1BEE7); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">What is your refund policy?</summary>
+          <p style="margin-top: 1rem; line-height: 1.6;">We offer a full refund if you're not satisfied after the first two classes. Contact us for complete details.</p>
+        </details>
+        <details style="padding: 1.5rem; background: white; border: 1px solid var(--prepexcel-light, #E1BEE7); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">How far in advance should I register?</summary>
+          <p style="margin-top: 1rem; line-height: 1.6;">We recommend registering at least 2-3 weeks before your desired start date, as our classes fill up quickly, especially during peak seasons.</p>
+        </details>
+        <details style="padding: 1.5rem; background: white; border: 1px solid var(--prepexcel-light, #E1BEE7); border-radius: 8px;">
+          <summary style="cursor: pointer; font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">Do you provide course materials?</summary>
+          <p style="margin-top: 1rem; line-height: 1.6;">Yes! All course materials, including practice tests, study guides, and workbooks, are included in your tuition.</p>
+        </details>
+      </div>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">Ready to Get Started?</h2>
+      <p style="margin-bottom: 1.5rem; line-height: 1.8;">
+        Contact us today to schedule your free consultation and take the first step toward achieving your test prep goals.
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a href="tel:+12146032254" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Call Us Now
+        </a>
+        <a href="mailto:info@prepexcellence.com" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-secondary, #1976D2); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Send Email
+        </a>
+      </div>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

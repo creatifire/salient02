@@ -6,6 +6,12 @@ cost information from responses and store it in vendor_details.
 
 Based on pydantic-ai Issue #1849: "Store OpenRouter provider metadata in ModelResponse vendor details"
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from typing import Any, Dict
 import os

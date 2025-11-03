@@ -1,18 +1,46 @@
 """
 Shared pytest fixtures and configuration for the backend test suite.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import asyncio
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from unittest.mock import MagicMock
 from typing import Dict, Any
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Ignore manual test scripts (not designed to be run via pytest)
+collect_ignore_glob = ["manual/*.py"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def load_env_file():
+    """Load environment variables from .env file before any tests run."""
+    # Load from project root (two levels up from tests/)
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"\n✅ Loaded environment from: {env_path}")
+        
+        # Verify key variables are loaded (for debugging)
+        if os.getenv('PINECONE_API_KEY'):
+            api_key = os.getenv('PINECONE_API_KEY')
+            print(f"✅ PINECONE_API_KEY loaded: {api_key[:8]}...{api_key[-4:]}")
+        if os.getenv('OPENAI_API_KEY'):
+            api_key = os.getenv('OPENAI_API_KEY')
+            print(f"✅ OPENAI_API_KEY loaded: {api_key[:8]}...{api_key[-4:]}")
+    else:
+        print(f"ℹ️  No .env file found at: {env_path}")
+    
+    yield
 
 
 @pytest.fixture

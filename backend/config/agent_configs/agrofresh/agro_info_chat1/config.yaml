@@ -1,0 +1,64 @@
+# AgroFresh Info Chat - Agricultural Products Information Assistant
+# Demo agent for AgroFresh Solutions website
+# Focus: Product information, crop management, agricultural solutions
+
+agent_type: "simple_chat"
+account: "agrofresh"
+instance_name: "agro_info_chat1"
+name: "AgroFresh Assistant"
+description: "Agricultural products and solutions information assistant for AgroFresh Solutions"
+
+# System prompt configuration
+prompts:
+  system_prompt_file: "./system_prompt.md"
+
+model_settings:
+  model: "minimax/minimax-m2"  # 10B MoE optimized for agentic workflows, tool use, fast inference. 77% cheaper output than gpt-5-mini.
+  temperature: 0.3
+  max_tokens: 2000
+
+tools:
+  vector_search:
+    enabled: true  # Enabled - vector data loaded for AgroFresh website content
+    max_results: 5
+    similarity_threshold: 0.4  # Lower threshold for better recall on diverse content
+    namespace_isolation: true
+    pinecone:
+      project: "Agrobot"
+      index_name: "agrofresh01"
+      index_host: "https://agrofresh01-ndxdzio.svc.eastus2-5e25.prod-azure.pinecone.io"
+      namespace: "__default__"
+      api_key_env: "PINECONE_API_KEY_AGROBOT"  # Agrobot project API key
+      embedding_model: "text-embedding-3-small"
+      dimensions: 1536
+      metric: "cosine"
+  
+  web_search:
+    enabled: false  # Disabled - use direct LLM knowledge only
+    provider: "exa"
+    engines:
+      exa:
+        api_key_env: "EXA_API_KEY"
+        max_results: 10
+      tavily:
+        api_key_env: "TAVILY_API_KEY"
+        max_results: 10
+  
+  conversation_management:
+    enabled: true
+    auto_summarize_threshold: 10
+    summary_model: "moonshotai/kimi-k2-0905"
+
+context_management:
+  history_limit: 50
+  context_window_tokens: 8000
+  summarization:
+    enabled: true
+    trigger_threshold: 10
+    summary_length: 200
+
+dependencies:
+  vector_db_required: true  # Pinecone index agrofresh01 in Agrobot project
+  session_required: true
+  account_context: true  # Multi-tenant architecture enabled
+

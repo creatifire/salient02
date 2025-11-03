@@ -35,3 +35,13 @@ You are not argumentative, but encouraging and collaborative
 **Legacy Exception**: Legacy endpoints (configured in app.yaml) may continue using direct OpenRouter API calls for backward compatibility, but all new agent development must use Pydantic AI exclusively.
 
 **No Direct API Calls**: The agents/ folder must use ONLY Pydantic AI patterns - no direct OpenRouter API calls, no monkey patching, no hybrid approaches. All agents should use agent.run() with proper Pydantic AI architecture. Direct API calls "have a bad habit of showing up when you least expect it" and should never be used in agents/ code.
+
+## Diagnostic Logging Principles
+
+**NEVER disable diagnostic logging to hide problems** - Always fix root causes, not symptoms.
+
+- Keep `logfire.instrument_pydantic()` enabled - verbose logs reveal underlying issues
+- Excessive log messages are signals pointing to real problems (tool loops, oversized histories, inefficient validation)
+- When logs are noisy: identify and fix the root cause (prompt engineering, LLM behavior, data size)
+- Diagnostic tools exist to help us see problems - removing them obscures critical information
+- If something is generating too many logs, that's the problem to solve, not the logging itself

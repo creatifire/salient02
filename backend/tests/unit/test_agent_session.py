@@ -4,6 +4,12 @@ Unit Tests for Agent Session Service - TASK 0017-003-005
 Tests the agent session service functions in isolation without external dependencies.
 Focuses on message conversion logic, stats calculation, and error handling.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 import uuid

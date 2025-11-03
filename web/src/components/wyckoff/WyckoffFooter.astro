@@ -1,0 +1,26 @@
+---
+// Wyckoff Hospital Footer with integrated chat widget
+---
+<footer class="footer-bg" style="padding:2rem 1rem;margin-top:4rem;text-align:center;">
+  <div style="max-width:960px;margin:0 auto;">
+    <p style="margin:0;opacity:.8;color:var(--color-secondary-foreground);">© 2025 Wyckoff Hospital. All rights reserved.</p>
+  </div>
+</footer>
+
+<!-- Chat Widget Configuration for Wyckoff Hospital -->
+<script is:inline define:vars={{ isDev: import.meta.env.DEV }}>
+  window.__SALIENT_WIDGET_CONFIG = {
+    account: 'wyckoff',
+    agent: 'wyckoff_info_chat1',
+    backend: 'http://localhost:8000',
+    allowCross: true,
+    sse: false,  // Disable SSE - use POST only (Pydantic AI doesn't stream tool calls)
+    debug: true,  // Force debug mode ON
+    fontFamily: 'Helvetica, Arial, sans-serif',  // Wyckoff brand font
+    fontSize: '18px',  // Default font size
+    headerColor: '#0277BD'  // Wyckoff primary blue matching navbar/footer
+  };
+  console.log('🔧 WIDGET CONFIG SET:', window.__SALIENT_WIDGET_CONFIG);
+</script>
+<script is:inline src="/widget/chat-widget.js?v=14"></script>
+

@@ -1,0 +1,123 @@
+---
+import PrepExcellenceLayout from "../../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "Why is PSAT preparation important?",
+  "How do I qualify for National Merit?",
+  "Should I take PSAT prep?",
+  "When should I start preparing for the PSAT?"
+];
+---
+
+<PrepExcellenceLayout title="PSAT Preparation - PrepExcellence">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-accent, #9C27B0); font-size: 2.5rem; margin-bottom: 1rem;">PSAT Preparation</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #555;">
+      Build a strong foundation and qualify for National Merit Scholarships
+    </p>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">Why PSAT Matters</h2>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        The PSAT/NMSQT (Preliminary SAT/National Merit Scholarship Qualifying Test) serves multiple important purposes:
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-accent, #9C27B0); margin-bottom: 0.5rem;">🏆 National Merit Scholarships</h3>
+          <p style="line-height: 1.6;">Top PSAT scores can qualify you for prestigious National Merit Scholarships worth thousands of dollars.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-accent, #9C27B0); margin-bottom: 0.5rem;">📝 SAT Practice</h3>
+          <p style="line-height: 1.6;">The PSAT is excellent practice for the SAT, helping you identify areas to improve early.</p>
+        </div>
+        <div style="padding: 1.5rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 8px;">
+          <h3 style="color: var(--prepexcel-accent, #9C27B0); margin-bottom: 0.5rem;">📊 Baseline Assessment</h3>
+          <p style="line-height: 1.6;">Get a realistic assessment of your current skills before beginning serious SAT prep.</p>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">Our PSAT Prep Program</h2>
+      
+      <div style="margin-bottom: 2rem; padding: 2rem; background: white; border: 2px solid var(--prepexcel-accent, #9C27B0); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-accent, #9C27B0); font-size: 1.5rem; margin-bottom: 1rem;">PSAT Fundamentals Course</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Comprehensive preparation designed specifically for the PSAT:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Reading: Evidence-based reading strategies</li>
+          <li>Writing and Language: Grammar and rhetorical skills</li>
+          <li>Mathematics: Calculator and no-calculator sections</li>
+          <li>Test-taking strategies and time management</li>
+          <li>National Merit qualification focus for top performers</li>
+          <li>Smooth transition path to SAT preparation</li>
+        </ul>
+      </div>
+
+      <div style="padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-accent, #9C27B0); font-size: 1.5rem; margin-bottom: 1rem;">National Merit Qualification Track</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          For high-achieving students targeting National Merit Scholarship qualification:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Understanding state-specific cutoff scores</li>
+          <li>Advanced strategies for maximizing each section score</li>
+          <li>Practice with top-tier difficulty questions</li>
+          <li>Personalized score improvement plans</li>
+          <li>Guidance on the National Merit process</li>
+        </ul>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">When to Start PSAT Prep</h2>
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-primary, #6A1B9A); border-radius: 12px;">
+        <div style="display: grid; gap: 1.5rem;">
+          <div>
+            <h3 style="color: var(--prepexcel-accent, #9C27B0); margin-bottom: 0.5rem;">Sophomore Year (PSAT 10)</h3>
+            <p style="line-height: 1.6;">
+              Take the PSAT 10 for practice and to identify areas for improvement. This score doesn't count for National Merit, 
+              so it's a low-stakes opportunity to experience the test.
+            </p>
+          </div>
+          <div>
+            <h3 style="color: var(--prepexcel-accent, #9C27B0); margin-bottom: 0.5rem;">Junior Year (PSAT/NMSQT) - CRITICAL</h3>
+            <p style="line-height: 1.6;">
+              The PSAT taken in junior year is the <strong>only one that counts for National Merit Scholarships</strong>. 
+              Prepare seriously for this test if scholarship qualification is your goal.
+            </p>
+          </div>
+          <div>
+            <h3 style="color: var(--prepexcel-accent, #9C27B0); margin-bottom: 0.5rem;">Ideal Prep Timeline</h3>
+            <p style="line-height: 1.6;">
+              Begin PSAT prep 2-3 months before the October test date. This gives you enough time to build skills 
+              without burning out.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-accent, #9C27B0), var(--prepexcel-primary, #6A1B9A)); color: white; border-radius: 12px; margin-bottom: 3rem; text-align: center;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">PSAT to SAT Pathway</h2>
+      <p style="font-size: 1.1rem; line-height: 1.8; max-width: 700px; margin: 0 auto;">
+        Our PSAT prep naturally transitions into SAT preparation. Students who take our PSAT course are 
+        well-positioned to excel on the SAT with minimal additional preparation time.
+      </p>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-accent, #9C27B0); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; margin-right: 1rem;">
+        Enroll in PSAT Prep
+      </a>
+      <a href="/prepexcellence/courses" style="display: inline-block; padding: 1rem 2rem; background: transparent; color: var(--prepexcel-accent, #9C27B0); border: 2px solid var(--prepexcel-accent, #9C27B0); text-decoration: none; border-radius: 8px; font-weight: bold;">
+        View All Courses
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

@@ -1,0 +1,146 @@
+---
+import WyckoffLayout from '../../layouts/WyckoffLayout.astro';
+import SuggestedQuestions from '../../components/wyckoff/SuggestedQuestions.astro';
+
+const suggestedQuestions = [
+  "What imaging services do you offer?",
+  "Do you have an urgent care center?",
+  "Tell me about your laboratory services",
+  "What rehabilitation services are available?"
+];
+---
+<WyckoffLayout title="Medical Services - Wyckoff Hospital">
+  <section style="padding:2rem 0;">
+    <h1 style="font-size:2.5rem;margin:0 0 1rem;color:#01579B;">Medical Services</h1>
+    <p style="font-size:1.2rem;margin:0 0 2rem;color:#555;line-height:1.6;">
+      Wyckoff Hospital offers a comprehensive range of medical services with state-of-the-art technology 
+      and experienced healthcare professionals.
+    </p>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1.5rem;color:#0277BD;">Diagnostic Services</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;">
+        <div style="padding:1.5rem;background:#f8fbff;border-left:4px solid #0277BD;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#0277BD;">🔬 Laboratory Services</h3>
+          <p style="margin:0 0 1rem;line-height:1.6;color:#555;">
+            Full-service clinical laboratory with advanced testing capabilities:
+          </p>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>Blood tests and analysis</li>
+            <li>Urinalysis</li>
+            <li>Microbiology testing</li>
+            <li>Pathology services</li>
+            <li>Rapid diagnostic testing</li>
+          </ul>
+        </div>
+
+        <div style="padding:1.5rem;background:#f8fbff;border-left:4px solid #00838F;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#00838F;">📸 Imaging Services</h3>
+          <p style="margin:0 0 1rem;line-height:1.6;color:#555;">
+            Advanced medical imaging with board-certified radiologists:
+          </p>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>MRI (Magnetic Resonance Imaging)</li>
+            <li>CT Scans (Computed Tomography)</li>
+            <li>X-Ray services</li>
+            <li>Ultrasound</li>
+            <li>Mammography</li>
+            <li>Nuclear medicine</li>
+          </ul>
+        </div>
+
+        <div style="padding:1.5rem;background:#f8fbff;border-left:4px solid #0277BD;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#0277BD;">❤️ Cardiac Testing</h3>
+          <p style="margin:0 0 1rem;line-height:1.6;color:#555;">
+            Comprehensive cardiovascular diagnostic services:
+          </p>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>Echocardiography</li>
+            <li>Stress testing</li>
+            <li>EKG/ECG</li>
+            <li>Holter monitoring</li>
+            <li>Cardiac CT/MRI</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1.5rem;color:#0277BD;">Therapeutic Services</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;">
+        <div style="padding:1.5rem;background:#f8fbff;border-left:4px solid #00838F;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#00838F;">🏃 Physical Therapy</h3>
+          <p style="margin:0;line-height:1.6;color:#555;">
+            Comprehensive rehabilitation services for injury recovery, post-surgical care, and chronic condition management. 
+            Our licensed physical therapists create personalized treatment plans.
+          </p>
+        </div>
+
+        <div style="padding:1.5rem;background:#f8fbff;border-left:4px solid #0277BD;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#0277BD;">💊 Infusion Therapy</h3>
+          <p style="margin:0;line-height:1.6;color:#555;">
+            Outpatient infusion services for medications, biologics, and IV treatments in a comfortable, 
+            monitored setting with experienced nursing staff.
+          </p>
+        </div>
+
+        <div style="padding:1.5rem;background:#f8fbff;border-left:4px solid #00838F;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#00838F;">🫁 Respiratory Care</h3>
+          <p style="margin:0;line-height:1.6;color:#555;">
+            Comprehensive pulmonary services including breathing treatments, pulmonary function testing, 
+            and sleep disorder evaluation and treatment.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;padding:2rem;background:linear-gradient(135deg, #E0F7FA 0%, #B2EBF2 100%);border-radius:12px;">
+      <h2 style="font-size:1.5rem;margin:0 0 1rem;color:#01579B;">🚑 Urgent Care Services</h2>
+      <p style="margin:0 0 1rem;line-height:1.6;color:#01579B;">
+        For non-life-threatening medical issues that need prompt attention, our Urgent Care Center provides 
+        walk-in services with shorter wait times than the emergency department.
+      </p>
+      <p style="margin:0;line-height:1.6;color:#01579B;"><strong>Hours:</strong> Monday-Friday 8:00 AM - 8:00 PM, Saturday-Sunday 9:00 AM - 5:00 PM</p>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1.5rem;color:#0277BD;">Specialized Programs</h2>
+      <div style="padding:1.5rem;background:white;border:2px solid #E0F7FA;border-radius:8px;">
+        <ul style="margin:0;padding-left:1.5rem;line-height:2;color:#555;">
+          <li><strong>Diabetes Education & Management</strong> - Comprehensive diabetes care program with certified diabetes educators</li>
+          <li><strong>Cardiac Rehabilitation</strong> - Supervised exercise and education for heart disease recovery</li>
+          <li><strong>Wound Care Center</strong> - Advanced treatment for chronic and non-healing wounds</li>
+          <li><strong>Sleep Medicine</strong> - Diagnosis and treatment of sleep disorders including sleep apnea</li>
+          <li><strong>Pain Management</strong> - Multidisciplinary approach to chronic pain treatment</li>
+          <li><strong>Women's Health Center</strong> - Comprehensive women's healthcare services</li>
+          <li><strong>Behavioral Health</strong> - Mental health and substance abuse treatment programs</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1rem;color:#0277BD;">Patient Support Services</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));gap:1.5rem;">
+        <div style="padding:1.25rem;background:#f8fbff;border-radius:8px;">
+          <strong style="color:#0277BD;">💼 Financial Counseling</strong>
+          <p style="margin:0.5rem 0 0;line-height:1.6;color:#555;">Assistance with insurance, billing, and financial assistance programs</p>
+        </div>
+        <div style="padding:1.25rem;background:#f8fbff;border-radius:8px;">
+          <strong style="color:#0277BD;">🌐 Translation Services</strong>
+          <p style="margin:0.5rem 0 0;line-height:1.6;color:#555;">Professional medical interpretation in multiple languages</p>
+        </div>
+        <div style="padding:1.25rem;background:#f8fbff;border-radius:8px;">
+          <strong style="color:#0277BD;">📋 Care Coordination</strong>
+          <p style="margin:0.5rem 0 0;line-height:1.6;color:#555;">Assistance coordinating care across multiple specialists</p>
+        </div>
+        <div style="padding:1.25rem;background:#f8fbff;border-radius:8px;">
+          <strong style="color:#0277BD;">🤝 Social Services</strong>
+          <p style="margin:0.5rem 0 0;line-height:1.6;color:#555;">Connection to community resources and support services</p>
+        </div>
+      </div>
+    </div>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+  </section>
+</WyckoffLayout>
+

@@ -64,7 +64,13 @@ pnpm dev
 - Planning statuses: [ ] open, [x] completed for FEATURES/TASKS/CHUNKS
 
 ## License
-TBD
+
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+
+This software is proprietary and confidential. Unauthorized copying, distribution, 
+or use of this software is strictly prohibited. See [LICENSE](./LICENSE) for details.
+
+For licensing inquiries, contact Ape4, Inc.
 
 ## Logging configuration
 - Location: `backend/config/app.yaml` under `logging:`

@@ -30,6 +30,12 @@ Business Logic:
 - Database integrity constraints prevent session key collisions
 - Failed operations trigger automatic rollback for data consistency
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import secrets
 import string
@@ -37,10 +43,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from loguru import logger
+import logfire
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..config import get_session_config
 from ..models.session import Session
@@ -189,32 +196,37 @@ class SessionService:
             # Refresh to get auto-generated fields (UUID, exact timestamps)
             await self.db_session.refresh(session)
             
-            logger.info(
-                "Session created successfully",
-                extra={
-                    "session_id": str(session.id),
-                    "session_key": session_key[:8] + "...",  # Log partial key for privacy
-                    "email": email,
-                    "is_anonymous": is_anonymous
-                }
+            logfire.info(
+                'service.session.created',
+                session_id=str(session.id),
+                session_key_preview=session_key[:8] + "...",  # Log partial key for privacy
+                email=email,
+                is_anonymous=is_anonymous
             )
             
             return session
             
         except IntegrityError as e:
             await self.db_session.rollback()
-            logger.error(f"Session key collision during creation: {e}")
+            logfire.warn(
+                'service.session.key_collision',
+                error=str(e)
+            )
             # Retry with new key on collision (very unlikely with secure generation)
             return await self.create_session(email=email, metadata=metadata)
             
         except SQLAlchemyError as e:
             await self.db_session.rollback()
-            logger.error(f"Database error during session creation: {e}")
+            logfire.exception(
+                'service.session.create_database_error'
+            )
             raise SessionError(f"Failed to create session: {str(e)}") from e
             
         except Exception as e:
             await self.db_session.rollback()
-            logger.error(f"Unexpected error during session creation: {e}")
+            logfire.exception(
+                'service.session.create_unexpected_error'
+            )
             raise SessionError(f"Unexpected error creating session: {str(e)}") from e
     
     async def get_session_by_key(self, session_key: str) -> Optional[Session]:
@@ -231,33 +243,126 @@ class SessionService:
             SessionError: If database query fails
         """
         try:
-            # Query for session by key
-            stmt = select(Session).where(Session.session_key == session_key)
+            # Query for session by key with eager loading of relationships
+            # Using selectinload() prevents N+1 queries if relationships are accessed later
+            stmt = (
+                select(Session)
+                .options(
+                    selectinload(Session.account),  # Eager load account relationship
+                    selectinload(Session.agent_instance)  # Eager load agent_instance relationship
+                )
+                .where(Session.session_key == session_key)
+            )
             result = await self.db_session.execute(stmt)
             session = result.scalar_one_or_none()
             
             if session:
-                logger.debug(
-                    "Session found by key",
-                    extra={
-                        "session_id": str(session.id),
-                        "session_key": session_key[:8] + "...",
-                        "email": session.email,
-                        "last_activity": session.last_activity_at.isoformat() if session.last_activity_at else None
-                    }
+                logfire.debug(
+                    'service.session.found_by_key',
+                    session_id=str(session.id),
+                    session_key_preview=session_key[:8] + "...",
+                    email=session.email,
+                    last_activity=session.last_activity_at.isoformat() if session.last_activity_at else None
                 )
             else:
-                logger.debug(f"No session found for key: {session_key[:8]}...")
+                logfire.debug(
+                    'service.session.not_found',
+                    session_key_preview=session_key[:8] + "..."
+                )
                 
             return session
             
         except SQLAlchemyError as e:
-            logger.error(f"Database error retrieving session by key: {e}")
+            logfire.exception(
+                'service.session.retrieve_database_error'
+            )
             raise SessionError(f"Failed to retrieve session: {str(e)}") from e
             
         except Exception as e:
-            logger.error(f"Unexpected error retrieving session by key: {e}")
+            logfire.exception(
+                'service.session.retrieve_unexpected_error'
+            )
             raise SessionError(f"Unexpected error retrieving session: {str(e)}") from e
+    
+    async def update_session_context(
+        self,
+        session_id: UUID,
+        account_id: UUID,
+        account_slug: str,
+        agent_instance_id: UUID,
+        agent_instance_slug: str
+    ) -> bool:
+        """
+        Update session with account and agent instance context.
+        
+        This prevents "vapid sessions" (sessions with NULL account/agent IDs)
+        by populating the multi-tenant context when a session is first used.
+        
+        Args:
+            session_id: UUID of the session to update
+            account_id: Account UUID
+            account_slug: Account slug for fast queries
+            agent_instance_id: Agent instance UUID
+            agent_instance_slug: Agent instance slug for fast analytics
+            
+        Returns:
+            bool: True if session was updated, False if session not found
+            
+        Raises:
+            SessionError: If database update fails
+        """
+        try:
+            # Update session with account/agent context (including denormalized slug)
+            stmt = (
+                update(Session)
+                .where(Session.id == session_id)
+                .values(
+                    account_id=account_id,
+                    account_slug=account_slug,
+                    agent_instance_id=agent_instance_id,
+                    agent_instance_slug=agent_instance_slug,
+                    updated_at=datetime.now(timezone.utc)
+                )
+            )
+            
+            result = await self.db_session.execute(stmt)
+            await self.db_session.commit()
+            
+            # Check if any row was updated
+            updated = result.rowcount > 0
+            
+            if updated:
+                logfire.info(
+                    'service.session.context_updated',
+                    session_id=str(session_id),
+                    account_id=str(account_id),
+                    account_slug=account_slug,
+                    agent_instance_id=str(agent_instance_id),
+                    agent_instance_slug=agent_instance_slug
+                )
+            else:
+                logfire.warn(
+                    'service.session.context_update_not_found',
+                    session_id=str(session_id)
+                )
+                
+            return updated
+            
+        except SQLAlchemyError as e:
+            await self.db_session.rollback()
+            logfire.exception(
+                'service.session.context_update_database_error',
+                session_id=str(session_id)
+            )
+            raise SessionError(f"Failed to update session context: {str(e)}") from e
+            
+        except Exception as e:
+            await self.db_session.rollback()
+            logfire.exception(
+                'service.session.context_update_unexpected_error',
+                session_id=str(session_id)
+            )
+            raise SessionError(f"Unexpected error updating session context: {str(e)}") from e
     
     async def update_last_activity(
         self, 
@@ -295,26 +400,33 @@ class SessionService:
             updated = result.rowcount > 0
             
             if updated:
-                logger.debug(
-                    "Session activity updated",
-                    extra={
-                        "session_id": str(session_id),
-                        "activity_time": activity_time.isoformat()
-                    }
+                logfire.debug(
+                    'service.session.activity_updated',
+                    session_id=str(session_id),
+                    activity_time=activity_time.isoformat()
                 )
             else:
-                logger.warning(f"No session found for activity update: {session_id}")
+                logfire.warn(
+                    'service.session.activity_update_not_found',
+                    session_id=str(session_id)
+                )
                 
             return updated
             
         except SQLAlchemyError as e:
             await self.db_session.rollback()
-            logger.error(f"Database error updating session activity: {e}")
+            logfire.exception(
+                'service.session.activity_update_database_error',
+                session_id=str(session_id)
+            )
             raise SessionError(f"Failed to update session activity: {str(e)}") from e
             
         except Exception as e:
             await self.db_session.rollback()
-            logger.error(f"Unexpected error updating session activity: {e}")
+            logfire.exception(
+                'service.session.activity_update_unexpected_error',
+                session_id=str(session_id)
+            )
             raise SessionError(f"Unexpected error updating activity: {str(e)}") from e
     
     async def update_session_email(
@@ -355,27 +467,34 @@ class SessionService:
             updated = result.rowcount > 0
             
             if updated:
-                logger.info(
-                    "Session email updated",
-                    extra={
-                        "session_id": str(session_id),
-                        "email": email,
-                        "is_anonymous": False
-                    }
+                logfire.info(
+                    'service.session.email_updated',
+                    session_id=str(session_id),
+                    email=email,
+                    is_anonymous=False
                 )
             else:
-                logger.warning(f"No session found for email update: {session_id}")
+                logfire.warn(
+                    'service.session.email_update_not_found',
+                    session_id=str(session_id)
+                )
                 
             return updated
             
         except SQLAlchemyError as e:
             await self.db_session.rollback()
-            logger.error(f"Database error updating session email: {e}")
+            logfire.exception(
+                'service.session.email_update_database_error',
+                session_id=str(session_id)
+            )
             raise SessionError(f"Failed to update session email: {str(e)}") from e
             
         except Exception as e:
             await self.db_session.rollback()
-            logger.error(f"Unexpected error updating session email: {e}")
+            logfire.exception(
+                'service.session.email_update_unexpected_error',
+                session_id=str(session_id)
+            )
             raise SessionError(f"Unexpected error updating email: {str(e)}") from e
     
     async def is_session_active(
@@ -406,16 +525,14 @@ class SessionService:
         
         is_active = current_time < expiry_time
         
-        logger.debug(
-            "Session activity check",
-            extra={
-                "session_id": str(session.id),
-                "last_activity": session.last_activity_at.isoformat(),
-                "current_time": current_time.isoformat(),
-                "expiry_time": expiry_time.isoformat(),
-                "is_active": is_active,
-                "inactivity_minutes": inactivity_minutes
-            }
+        logfire.debug(
+            'service.session.activity_check',
+            session_id=str(session.id),
+            last_activity=session.last_activity_at.isoformat(),
+            current_time=current_time.isoformat(),
+            expiry_time=expiry_time.isoformat(),
+            is_active=is_active,
+            inactivity_minutes=inactivity_minutes
         )
         
         return is_active
@@ -464,13 +581,11 @@ class SessionService:
         session_key = ''.join(secrets.choice(alphabet) for _ in range(length))
         
         # Log key generation for debugging (length only, never the actual key)
-        logger.debug(
-            "Generated cryptographically secure session key",
-            extra={
-                "key_length": length,
-                "alphabet_size": len(alphabet),
-                "entropy_bits": length * 6  # log2(64) ≈ 6 bits per character
-            }
+        logfire.debug(
+            'service.session.key_generated',
+            key_length=length,
+            alphabet_size=len(alphabet),
+            entropy_bits=length * 6  # log2(64) ≈ 6 bits per character
         )
         
         return session_key
@@ -555,7 +670,7 @@ class SessionError(Exception):
         >>> try:
         ...     session = await service.create_session()
         ... except SessionError as e:
-        ...     logger.error(f"Session operation failed: {e}")
+        ...     logfire.error('service.session.operation_failed', error=str(e))
         ...     raise HTTPException(status_code=500, detail="Session error")
     """
     pass

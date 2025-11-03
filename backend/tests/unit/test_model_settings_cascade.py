@@ -4,6 +4,12 @@ Tests for model settings cascade implementation.
 Tests for CHUNK 0017-004-003-01: Model settings cascade implementation
 Verifies generic cascade infrastructure, model settings cascade, and monitoring integration.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -341,7 +347,7 @@ class TestSimpleChatIntegration:
 
         # Mock all dependencies
         with patch('app.agents.config_loader.get_agent_model_settings') as mock_get_model_settings:
-            with patch('app.agents.simple_chat.get_agent_history_limit') as mock_get_history_limit:
+            with patch('app.agents.config_loader.get_agent_history_limit') as mock_get_history_limit:
                 with patch('app.agents.simple_chat.SessionDependencies.create') as mock_session_create:
                     with patch('app.agents.simple_chat.get_chat_agent') as mock_get_chat_agent:
                         with patch('app.agents.simple_chat.load_conversation_history') as mock_load_history:

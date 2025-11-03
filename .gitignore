@@ -42,6 +42,9 @@ backend/logs/
 *.log
 *.jsonl
 
+# Data files
+backend/data/
+
 # Node / Astro
 node_modules/
 web/node_modules/

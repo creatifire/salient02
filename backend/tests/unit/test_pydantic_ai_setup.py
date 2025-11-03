@@ -2,6 +2,12 @@
 Unit tests for CHUNK 0005-001-001-01 - Pydantic AI Dependencies
 Tests the installation and compatibility of pydantic-ai with the project.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 import pytest
 import sys
 

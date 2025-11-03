@@ -1,4 +1,10 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0012 - Outbound Email Integration
+> **Last Updated**: August 27, 2025
 
 > Goal: Implement comprehensive outbound email capabilities using Mailgun for conversation summaries, appointment confirmations, lead notifications, and automated sales communications.
 

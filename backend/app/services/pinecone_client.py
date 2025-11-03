@@ -2,10 +2,16 @@
 Pinecone Client Service
 Manages Pinecone connections, health checks, and retry logic.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import time
-import logging
+import logfire
 from typing import Dict, List, Optional, Any, Tuple
 from contextlib import asynccontextmanager
 
@@ -24,9 +30,6 @@ backend_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(backend_dir))
 
 from config.pinecone_config import pinecone_config_manager, PineconeConfig
-
-
-logger = logging.getLogger(__name__)
 
 
 class PineconeConnectionError(Exception):
@@ -58,6 +61,33 @@ class PineconeClient:
         if not pinecone_config_manager.validate_config(self.config):
             raise ValueError(f"Invalid Pinecone configuration for environment: {self.config.environment}")
     
+    @classmethod
+    def create_from_agent_config(cls, agent_config):
+        """
+        Factory method to create PineconeClient from AgentPineconeConfig.
+        
+        Args:
+            agent_config: AgentPineconeConfig instance from agent's config.yaml
+            
+        Returns:
+            PineconeClient configured for the specific agent
+        """
+        from config.pinecone_config import PineconeConfig, PineconeEnvironment
+        
+        # Convert AgentPineconeConfig to PineconeConfig
+        pinecone_config = PineconeConfig(
+            api_key=agent_config.api_key,
+            index_name=agent_config.index_name,
+            index_host=agent_config.index_host,
+            namespace=agent_config.namespace,
+            dimensions=agent_config.dimensions,
+            metric="cosine",  # Default metric
+            embedding_model=agent_config.embedding_model,
+            environment=PineconeEnvironment.DEVELOPMENT  # Will be overridden by env detection
+        )
+        
+        return cls(config=pinecone_config)
+    
     @property
     def client(self) -> Pinecone:
         """Get or create Pinecone client with connection retry"""
@@ -76,26 +106,36 @@ class PineconeClient:
         """Create Pinecone client with retry logic"""
         for attempt in range(self._max_connection_attempts):
             try:
-                logger.info(f"Creating Pinecone client (attempt {attempt + 1}/{self._max_connection_attempts})")
+                logfire.info(
+                    'service.pinecone.client.creating',
+                    attempt=attempt + 1,
+                    max_attempts=self._max_connection_attempts
+                )
                 
                 client = Pinecone(
                     api_key=self.config.api_key,
                     # Additional configuration could be added here
                 )
                 
-                logger.info("Pinecone client created successfully")
+                logfire.info('service.pinecone.client.created')
                 self._connection_attempts = 0
                 return client
                 
             except Exception as e:
                 self._connection_attempts += 1
-                logger.warning(
-                    f"Failed to create Pinecone client (attempt {attempt + 1}): {str(e)}"
+                logfire.warn(
+                    'service.pinecone.client.create_failed',
+                    attempt=attempt + 1,
+                    error=str(e)
                 )
                 
                 if attempt < self._max_connection_attempts - 1:
                     sleep_time = self.config.retry_delay * (2 ** attempt)  # Exponential backoff
-                    logger.info(f"Retrying in {sleep_time} seconds...")
+                    logfire.info(
+                        'service.pinecone.client.retrying',
+                        sleep_time=sleep_time,
+                        next_attempt=attempt + 2
+                    )
                     time.sleep(sleep_time)
                 else:
                     raise PineconeConnectionError(
@@ -106,7 +146,11 @@ class PineconeClient:
         """Create Pinecone index connection with retry logic"""
         for attempt in range(self._max_connection_attempts):
             try:
-                logger.info(f"Creating index connection (attempt {attempt + 1}/{self._max_connection_attempts})")
+                logfire.info(
+                    'service.pinecone.index.creating',
+                    attempt=attempt + 1,
+                    max_attempts=self._max_connection_attempts
+                )
                 
                 # Remove https:// prefix if present - Pinecone client handles this
                 host = self.config.index_host
@@ -115,17 +159,26 @@ class PineconeClient:
                 
                 index = self.client.Index(host=host)
                 
-                logger.info(f"Index connection created successfully for host: {host}")
+                logfire.info(
+                    'service.pinecone.index.created',
+                    host=host
+                )
                 return index
                 
             except Exception as e:
-                logger.warning(
-                    f"Failed to create index connection (attempt {attempt + 1}): {str(e)}"
+                logfire.warn(
+                    'service.pinecone.index.create_failed',
+                    attempt=attempt + 1,
+                    error=str(e)
                 )
                 
                 if attempt < self._max_connection_attempts - 1:
                     sleep_time = self.config.retry_delay * (2 ** attempt)
-                    logger.info(f"Retrying in {sleep_time} seconds...")
+                    logfire.info(
+                        'service.pinecone.index.retrying',
+                        sleep_time=sleep_time,
+                        next_attempt=attempt + 2
+                    )
                     time.sleep(sleep_time)
                 else:
                     raise PineconeConnectionError(
@@ -149,7 +202,7 @@ class PineconeClient:
             return {"status": "cached", "message": "Using cached health check result"}
         
         try:
-            logger.info("Performing Pinecone health check...")
+            logfire.info('service.pinecone.health_check.starting')
             
             # Test basic index stats call
             stats = self.index.describe_index_stats()
@@ -170,12 +223,16 @@ class PineconeClient:
             }
             
             self._last_health_check = current_time
-            logger.info("Pinecone health check passed")
+            logfire.info(
+                'service.pinecone.health_check.passed',
+                index_name=self.config.index_name,
+                total_vector_count=stats.total_vector_count
+            )
             
             return health_info
             
         except Exception as e:
-            logger.error(f"Pinecone health check failed: {str(e)}")
+            logfire.exception('service.pinecone.health_check.failed')
             raise PineconeHealthCheckError(f"Health check failed: {str(e)}")
     
     async def test_connection(self) -> bool:
@@ -192,7 +249,7 @@ class PineconeClient:
     
     def reset_connection(self):
         """Reset client and index connections (useful for error recovery)"""
-        logger.info("Resetting Pinecone connections...")
+        logfire.info('service.pinecone.connection.reset')
         self._client = None
         self._index = None
         self._connection_attempts = 0
@@ -204,7 +261,7 @@ class PineconeClient:
         try:
             yield self
         except Exception as e:
-            logger.error(f"Error in Pinecone operation: {str(e)}")
+            logfire.exception('service.pinecone.operation.error')
             # Reset connection on certain error types
             if isinstance(e, (PineconeConnectionError, PineconeException)):
                 self.reset_connection()
@@ -230,10 +287,24 @@ class PineconeClient:
         }
 
 
-# Global Pinecone client instance
-pinecone_client = PineconeClient()
+# Global Pinecone client instance (lazy initialization)
+# Only created when actually needed (not at module import time)
+_pinecone_client: Optional[PineconeClient] = None
+
+
+def get_default_pinecone_client() -> PineconeClient:
+    """
+    Get or create the default global Pinecone client (lazy initialization).
+    Only initializes when first accessed, not at module import time.
+    This allows agent-specific clients to be created without requiring
+    global PINECONE_API_KEY environment variable.
+    """
+    global _pinecone_client
+    if _pinecone_client is None:
+        _pinecone_client = PineconeClient()
+    return _pinecone_client
 
 
 async def get_pinecone_client() -> PineconeClient:
     """Dependency injection helper for FastAPI"""
-    return pinecone_client
+    return get_default_pinecone_client()

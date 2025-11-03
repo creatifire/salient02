@@ -134,6 +134,14 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     .loading-text{ font-size:.9rem; }
     .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     
+    /* Typing indicator for bot messages */
+    .typing-indicator{ display:flex; align-items:center; justify-content:center; gap:4px; padding:8px 0; min-height:32px; }
+    .typing-indicator span{ width:8px; height:8px; border-radius:50%; background:#999; animation:typing-bounce 1.4s infinite ease-in-out; }
+    .typing-indicator span:nth-child(1){ animation-delay:0s; }
+    .typing-indicator span:nth-child(2){ animation-delay:0.2s; }
+    .typing-indicator span:nth-child(3){ animation-delay:0.4s; }
+    @keyframes typing-bounce{ 0%, 60%, 100%{ transform:translateY(0); opacity:0.7; } 30%{ transform:translateY(-8px); opacity:1; } }
+    
     /* Table styles for markdown tables */
     .msg.bot table { 
       border-collapse: collapse; 
@@ -195,6 +203,7 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
     let accumulated = '';
     let busy = false;
     let historyLoaded = false;
+    let typingTimeout = null; // Track typing indicator timeout
 
     function addCopyButton(container){
       const btn = document.createElement('button');
@@ -341,15 +350,44 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       }
     }
 
+    // Typing indicator helper functions
+    function showTypingIndicator(container) {
+      if (!container) return;
+      const content = container.querySelector('.content') || container;
+      if (content) {
+        // Insert typing indicator HTML directly into content
+        content.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+        chat.scrollTop = chat.scrollHeight;
+      }
+    }
+    
+    function hideTypingIndicator(container) {
+      if (!container) return;
+      const content = container.querySelector('.content') || container;
+      // Check if content contains typing indicator
+      if (content && content.querySelector('.typing-indicator')) {
+        content.innerHTML = ''; // Clear typing indicator
+      }
+    }
+
     async function doPost(text){
       try{
         const r = await fetch(new URL('/chat', CHAT_BASE).toString(), { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ message: text }), credentials: 'include' });
+        
+        // Clear typing indicator on response
+        if (typingTimeout) clearTimeout(typingTimeout);
+        hideTypingIndicator(activeBotDiv);
+        
         const out = r.ok ? await r.text() : `[http ${r.status}]`;
         if (activeBotDiv){
           activeBotDiv.dataset.raw = out;
           renderMarkdownOrFallback(activeBotDiv, out);
         }
-      }catch{ if(activeBotDiv) activeBotDiv.textContent='[network error]'; }
+      }catch{ 
+        if (typingTimeout) clearTimeout(typingTimeout);
+        hideTypingIndicator(activeBotDiv);
+        if(activeBotDiv) activeBotDiv.textContent='[network error]'; 
+      }
       finally{ setBusy(false); }
     }
 
@@ -364,6 +402,14 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
       accumulated = '';
       setBusy(true);
 
+      // Clear any existing typing timeout
+      if (typingTimeout) clearTimeout(typingTimeout);
+      
+      // Show typing indicator after 500ms if no response yet
+      typingTimeout = setTimeout(() => {
+        showTypingIndicator(activeBotDiv);
+      }, 500);
+
       if (!SSE_ENABLED){
         doPost(value);
         return;
@@ -377,6 +423,10 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
         es.onmessage = (ev)=>{
           accumulated += ev.data;
           if (activeBotDiv){
+            // Clear timeout and hide indicator when we start showing text
+            if (typingTimeout) clearTimeout(typingTimeout);
+            hideTypingIndicator(activeBotDiv);
+            
             activeBotDiv.dataset.raw = accumulated;
             const content = activeBotDiv.querySelector('.content') || activeBotDiv;
             // During streaming, preserve line breaks as <br> for better real-time display
@@ -386,6 +436,8 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           }
         };
         es.addEventListener('end', ()=>{
+          if (typingTimeout) clearTimeout(typingTimeout);
+          hideTypingIndicator(activeBotDiv);
           try{ es.close(); }catch{}
           activeSSE = null;
           if (activeBotDiv){
@@ -393,8 +445,18 @@ const ALLOW_BASIC_HTML = config.ui.allow_basic_html;
           }
           setBusy(false);
         });
-        es.onerror = ()=>{ try{ es.close(); }catch{}; activeSSE=null; doPost(value); };
-      }catch{ doPost(value); }
+        es.onerror = ()=>{ 
+          if (typingTimeout) clearTimeout(typingTimeout);
+          hideTypingIndicator(activeBotDiv);
+          try{ es.close(); }catch{}; 
+          activeSSE=null; 
+          doPost(value); 
+        };
+      }catch{ 
+        if (typingTimeout) clearTimeout(typingTimeout);
+        hideTypingIndicator(activeBotDiv);
+        doPost(value); 
+      }
     }
 
     sendBtn?.addEventListener('click', send);

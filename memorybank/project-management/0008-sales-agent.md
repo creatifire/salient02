@@ -1,4 +1,10 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0008 - Sales Agent (Milestone 1)
+> **Last Updated**: August 28, 2025
 
 > Goal: Implement Pydantic AI-powered sales agent with essential CRM integration, customer profile capture, conversation summaries, and appointment scheduling to establish the foundation for a complete sales automation system.
 

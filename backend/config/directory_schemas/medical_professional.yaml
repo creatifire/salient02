@@ -1,0 +1,407 @@
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
+# Medical Professional Directory Schema
+# Used for doctors, physicians, nurses, therapists, and other healthcare professionals
+
+entry_type: medical_professional
+schema_version: "1.0"
+description: "Schema for medical professionals including doctors, nurses, therapists, and healthcare providers"
+
+# Required fields that must be present in entry_data JSONB
+required_fields:
+  - department
+  - specialty
+
+# Optional fields that may be present in entry_data JSONB
+optional_fields:
+  - board_certifications
+  - education
+  - residencies
+  - fellowships
+  - internship
+  - gender
+  - profile_pic
+  - insurance
+
+# Field definitions with types and examples
+fields:
+  department:
+    type: string
+    description: "Primary department or medical service area"
+    examples:
+      - "Emergency Medicine"
+      - "Surgery"
+      - "Cardiology"
+      - "Pediatrics"
+      - "Internal Medicine"
+  
+  specialty:
+    type: string
+    description: "Medical specialty or subspecialty (American spelling)"
+    examples:
+      - "Interventional Cardiology"
+      - "Plastic Surgery"
+      - "Orthopedic Surgery"
+      - "Pediatric Cardiology"
+    notes: "CSV column 'speciality' is normalized to 'specialty'"
+  
+  board_certifications:
+    type: text
+    description: "Board certifications with certification name and year"
+    format: "Free-form text, often multi-line with certification name and year"
+    example: "Plastic Surgery, 2006\nSurgery (General Surgery), 2003"
+  
+  education:
+    type: string
+    description: "Medical school and degree"
+    examples:
+      - "Harvard Medical School, MD"
+      - "Universidad Central del Este"
+      - "Johns Hopkins University School of Medicine, MD"
+  
+  residencies:
+    type: text
+    description: "Residency training programs with institution, specialty, and years"
+    format: "Free-form text, often multi-line"
+    example: "Brooklyn Hospital Center, Surgery (General Surgery) 1997-2002"
+  
+  fellowships:
+    type: text
+    description: "Fellowship training programs with institution, specialty, and years"
+    format: "Free-form text, often multi-line"
+    example: "University of Mississippi, Surgery of the Hand 2002-2003"
+  
+  internship:
+    type: text
+    description: "Internship program with institution, specialty, and years"
+    format: "Free-form text"
+    example: "Metropolitan Hospital Center, Pediatrics, Internal Medicine 1994-1995"
+  
+  gender:
+    type: string
+    description: "Gender identification"
+    examples:
+      - "male"
+      - "female"
+      - "non-binary"
+  
+  profile_pic:
+    type: string
+    description: "URL or path to profile picture"
+    example: "https://example.com/profiles/doctor_123.jpg"
+  
+  insurance:
+    type: text
+    description: "Accepted insurance providers"
+    format: "Free-form text or comma-separated list"
+
+# Tags usage (stored in tags[] ARRAY column)
+tags_usage:
+  description: "Languages spoken by the medical professional"
+  source_column: "language"
+  format: "Comma-separated list, will be split into array"
+  examples:
+    - "English"
+    - "Spanish"
+    - "Hindi"
+    - "Mandarin"
+    - "French"
+  notes: "Empty or null language values are skipped"
+
+# Contact info usage (stored in contact_info JSONB column)
+contact_info_fields:
+  phone:
+    description: "Primary contact phone number"
+    example: "555-1234"
+  
+  location:
+    description: "Office location or building"
+    example: "Building A, Floor 3"
+  
+  facility:
+    description: "Hospital or medical facility name"
+    example: "Main Hospital Campus"
+
+# Data handling rules
+data_handling:
+  empty_fields: "Skip empty or null values (don't store in JSONB)"
+  spelling: "Normalize 'speciality' to 'specialty' (American English)"
+  tags_parsing: "Gracefully parse comma-separated languages, strip whitespace"
+  multiline: "Preserve multiline formatting for certifications, residencies, fellowships"
+
+# Validation rules (Phase 1)
+validation:
+  required_on_import: true
+  name_required: true  # name column is always required
+  required_fields_check: true  # Check department and specialty are present
+  type_checking: false  # Phase 2 enhancement
+  format_validation: false  # Phase 2 enhancement
+
+# Search configuration
+search_config:
+  search_mode: "fts"  # exact | substring | fts
+  description: |
+    Full-text search (FTS) enables intelligent matching with:
+    - Word variations: "cardio" matches "cardiologist", "cardiology"
+    - Stemming: "cardiologists" matches "cardiologist" (singular)
+    - Relevance ranking: Most relevant results first (name > tags > entry_data)
+    - Multi-word queries: "heart doctor" matches doctors in cardiology
+  
+  how_it_works: |
+    FTS indexes all searchable content with weighted priorities:
+    - Weight A (highest): Name field - e.g., "Dr. Smith"
+    - Weight B (medium): Tags (languages) - e.g., "Spanish", "English"
+    - Weight C (lowest): All entry_data fields - department, specialty, education, etc.
+    
+    Search queries are processed with PostgreSQL's to_tsquery():
+    - Single words: "cardio" → searches for "cardio*" forms
+    - Multiple words: "heart doctor" → searches for "heart" AND "doctor"
+    - Results ranked by ts_rank() - higher relevance scores first
+  
+  query_examples:
+    - query: "cardio"
+      matches:
+        - "cardiologist (in name)"
+        - "cardiology (in department)"
+        - "cardiovascular (in specialty)"
+      note: "Word variations handled via stemming"
+    
+    - query: "heart doctor"
+      matches:
+        - "Doctors with heart OR cardiology in their data"
+        - "Combined with doctors with doctor in name"
+      note: "Multi-word queries use AND logic"
+    
+    - query: "spanish speaking"
+      matches:
+        - "Doctors with Spanish in tags array"
+        - "Doctors with spanish in any entry_data field"
+      note: "Tags have higher weight (B) than entry_data (C)"
+    
+    - query: "plastic surgery"
+      matches:
+        - "Department: Surgery + Specialty: Plastic Surgery"
+        - "Specialty: Plastic Surgery ranks highest"
+      note: "Relevance ranking ensures best matches first"
+    
+    - query: "emergency"
+      matches:
+        - "Emergency Medicine (department)"
+        - "Emergency (in specialty)"
+      note: "Partial word matching via stemming"
+
+  search_modes:
+    exact:
+      description: "Exact name match (case-sensitive)"
+      use_case: "When you have the exact doctor name"
+      example: 'search(name_query="Dr. John Smith", search_mode="exact")'
+    
+    substring:
+      description: "Case-insensitive partial match (default)"
+      use_case: "Simple name contains queries"
+      example: 'search(name_query="smith", search_mode="substring")'
+      note: "Backward compatible - existing code works without changes"
+    
+    fts:
+      description: "Full-text search with ranking (recommended)"
+      use_case: "Natural language queries, word variations, relevance"
+      example: 'search(name_query="cardio", search_mode="fts")'
+      benefits:
+        - "Handles plurals and word variations"
+        - "Searches across all fields (name, tags, entry_data)"
+        - "Results ranked by relevance"
+        - "Faster for large datasets (GIN index)"
+
+# Search strategy for LLM guidance
+# Used by prompt_generator.py to teach LLM how to handle general/ambiguous terms
+# CRITICAL: Medical terminology has many synonyms - always expand lay terms to medical specialties
+search_strategy:
+  guidance: |
+    **BEFORE searching, think step-by-step:**
+    1. What medical specialty does this term refer to?
+    2. What are the formal medical names for this?
+    3. Make 2-4 tool calls with different related specialties
+    4. Combine all results before responding to user
+    
+    **Common Medical Synonyms - Use These Mappings:**
+  
+  synonym_mappings:
+    # Primary Care
+    - lay_terms: ["primary care", "general practice", "family practice", "family doctor", "general doctor", "PCP"]
+      medical_specialties: ["Family Medicine", "General Internal Medicine", "Internal Medicine"]
+      search_approach: "Try EACH specialty separately - they're stored differently in the database"
+    
+    # Kidney/Renal
+    - lay_terms: ["kidney doctor", "kidney specialist", "renal specialist", "kidney disease"]
+      medical_specialties: ["Nephrology"]
+      search_approach: "Search for 'Nephrology' - this is the formal specialty name"
+    
+    # Heart/Cardiac
+    - lay_terms: ["heart doctor", "heart specialist", "cardiac specialist"]
+      medical_specialties: ["Cardiology", "Interventional Cardiology", "Cardiac Surgery"]
+      search_approach: "Search 'Cardiology' first, then 'Cardiac Surgery' if surgical intervention mentioned"
+    
+    # Digestive/GI
+    - lay_terms: ["stomach doctor", "digestive specialist", "GI doctor", "intestine doctor"]
+      medical_specialties: ["Gastroenterology", "Gastroenterology and Hepatology"]
+      search_approach: "Search for 'Gastroenterology' - covers all digestive system"
+    
+    # Children
+    - lay_terms: ["children's doctor", "kids doctor", "baby doctor"]
+      medical_specialties: ["Pediatrics", "Neonatology", "Pediatric Surgery"]
+      search_approach: "Search 'Pediatrics' for general, 'Neonatology' for newborns"
+    
+    # Women's Health
+    - lay_terms: ["women's doctor", "pregnancy doctor", "OBGYN", "gynecologist"]
+      medical_specialties: ["Obstetrics and Gynecology", "Gynecology", "Maternal Fetal Medicine"]
+      search_approach: "Search for 'Obstetrics' or 'Gynecology'"
+    
+    # Brain/Nervous System
+    - lay_terms: ["brain doctor", "nerve doctor", "neurologist"]
+      medical_specialties: ["Neurology", "Neurosurgery"]
+      search_approach: "Search 'Neurology' first, then 'Neurosurgery' for surgical cases"
+    
+    # Bones/Joints
+    - lay_terms: ["bone doctor", "joint doctor", "sports medicine", "orthopedic"]
+      medical_specialties: ["Orthopedic Surgery", "Sports Medicine", "Orthopedics"]
+      search_approach: "Search for 'Orthopedic' - covers bones, joints, sports injuries"
+    
+    # Skin
+    - lay_terms: ["skin doctor", "dermatologist", "acne doctor"]
+      medical_specialties: ["Dermatology"]
+      search_approach: "Search for 'Dermatology'"
+    
+    # Eyes
+    - lay_terms: ["eye doctor", "vision doctor", "ophthalmologist"]
+      medical_specialties: ["Ophthalmology"]
+      search_approach: "Search for 'Ophthalmology'"
+    
+    # Ears/Nose/Throat
+    - lay_terms: ["ENT", "ear doctor", "throat doctor", "sinus doctor"]
+      medical_specialties: ["Otorhinolaryngology", "Otolaryngology"]
+      search_approach: "Search for 'Otolaryngology' or 'Otorhinolaryngology'"
+    
+    # Mental Health/Behavioral Health
+    - lay_terms: ["mental health", "behavioral health", "psychiatrist", "therapist", "counselor", "psychologist"]
+      medical_specialties: ["Psychiatry", "Psychology", "Behavioral Health"]
+      search_approach: "Search for 'Psychiatry' for medical doctors, 'Psychology' for psychologists"
+    
+    # Endocrinology/Hormones/Thyroid
+    - lay_terms: ["thyroid doctor", "hormone doctor", "diabetes doctor", "endocrine specialist"]
+      medical_specialties: ["Endocrinology", "Endocrinology and Metabolism"]
+      search_approach: "Search for 'Endocrinology' - covers thyroid, diabetes, hormones"
+    
+    # Physical Therapy/Rehabilitation
+    - lay_terms: ["physical therapy", "physical therapist", "PT", "rehab doctor", "rehabilitation"]
+      medical_specialties: ["Physical Medicine and Rehabilitation", "Physical Therapy", "Rehabilitation"]
+      search_approach: "Search for 'Physical Medicine' or 'Rehabilitation'"
+    
+    # Urology/Genitourinary
+    - lay_terms: ["urologist", "urologists", "bladder doctor", "kidney stone doctor", "prostate doctor"]
+      medical_specialties: ["Urology", "Urologic Surgery"]
+      search_approach: "Search for 'Urology' - covers bladder, prostate, kidney stones, genitourinary issues"
+  
+  examples:
+    - user_query: "Do you have kidney specialists?"
+      thought_process: |
+        1. User said "kidney specialists" - this is a lay term
+        2. The formal medical specialty is "Nephrology"
+        3. I'll search for specialty="Nephrology"
+      tool_calls:
+        - 'search_directory(list_name="doctors", filters={"specialty": "Nephrology"})'
+    
+    - user_query: "I need a family practice doctor"
+      thought_process: |
+        1. User said "family practice" - this has 2 medical specialty names
+        2. Could be "Family Medicine" OR "General Internal Medicine"
+        3. I'll search BOTH and combine results
+      tool_calls:
+        - 'search_directory(list_name="doctors", filters={"specialty": "Family Medicine"})'
+        - 'search_directory(list_name="doctors", filters={"specialty": "General Internal Medicine"})'
+    
+    - user_query: "Who are your heart doctors?"
+      thought_process: |
+        1. "Heart doctors" could mean Cardiology or Cardiac Surgery
+        2. I'll search both specialties
+      tool_calls:
+        - 'search_directory(list_name="doctors", filters={"specialty": "Cardiology"})'
+        - 'search_directory(list_name="doctors", department="Cardiology")'
+
+# Searchable fields for system prompt generation
+# These fields can be used in the filters parameter: filters={"field_name": "value"}
+# This section is used by prompt_generator.py to auto-generate tool documentation
+searchable_fields:
+  department:
+    type: string
+    description: "Medical department (Cardiology, Emergency Medicine, Surgery, etc.)"
+    examples:
+      - "Cardiology"
+      - "Emergency Medicine"
+      - "Pediatrics"
+      - "Surgery"
+      - "Internal Medicine"
+  
+  specialty:
+    type: string
+    description: "Medical specialty or sub-specialty"
+    examples:
+      - "Interventional Cardiology"
+      - "Pediatric Surgery"
+      - "Plastic Surgery"
+      - "Orthopedic Surgery"
+      - "Endocrinology"
+  
+  gender:
+    type: string
+    description: "Gender (male/female/non-binary)"
+    examples:
+      - "male"
+      - "female"
+      - "non-binary"
+  
+  education:
+    type: string
+    description: "Medical school and degree"
+    examples:
+      - "Harvard Medical School, MD"
+      - "Johns Hopkins University, MD"
+      - "Stanford University School of Medicine, MD"
+  
+  board_certifications:
+    type: text
+    description: "Board certifications (searchable via text matching)"
+    examples:
+      - "Cardiology"
+      - "Surgery"
+      - "Internal Medicine"
+      - "Pediatrics"
+    note: "Use partial matching for multi-line certification text"
+
+# Search and filter capabilities
+searchable_by:
+  - name  # Indexed column, fast text search
+  - tags  # Languages spoken, GIN indexed array
+  - department  # JSONB field, can filter
+  - specialty  # JSONB field, can filter
+  - gender  # JSONB field, can filter
+
+# Example entry
+example:
+  name: "Dr. Jane Smith, MD"
+  tags:
+    - "English"
+    - "Spanish"
+  contact_info:
+    phone: "555-0123"
+    location: "Building A, Room 301"
+    facility: "Main Hospital"
+  entry_data:
+    department: "Cardiology"
+    specialty: "Interventional Cardiology"
+    board_certifications: "Cardiology, 2010\nInterventional Cardiology, 2012"
+    education: "Harvard Medical School, MD"
+    residencies: "Mass General Hospital, Internal Medicine 2005-2008"
+    fellowships: "Cleveland Clinic, Cardiology 2008-2011"
+    gender: "female"
+

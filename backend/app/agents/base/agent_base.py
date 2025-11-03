@@ -20,12 +20,15 @@ Design:
 - Maintains compatibility with existing session management
 """
 
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
 from __future__ import annotations
 
 import asyncio
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import Model
 
 from .dependencies import BaseDependencies, AccountScopedDependencies
@@ -119,7 +122,7 @@ class BaseAgent:
         
         # Create Pydantic AI tool decorator and register
         @self.agent.tool
-        async def tool_wrapper(ctx, **kwargs) -> Any:
+        async def tool_wrapper(ctx: RunContext[DepsType], **kwargs) -> Any:
             """Wrapper function for Pydantic AI tool integration."""
             result = await tool.execute(ctx.deps, **kwargs)
             

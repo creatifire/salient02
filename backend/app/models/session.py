@@ -20,12 +20,18 @@ Security Considerations:
 - Email addresses are indexed but not unique (allows multiple sessions per email)
 - All timestamps use timezone-aware datetime for consistency
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime, String, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -132,8 +138,65 @@ class Session(Base):
         comment="Extensible session metadata in JSON format"
     )
     
+    # Multi-tenant architecture columns
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Account this session belongs to"
+    )
+    
+    account_slug: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+        comment="Denormalized account slug for query performance"
+    )
+    
+    agent_instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_instances.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Agent instance handling this session"
+    )
+    
+    agent_instance_slug: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment="Denormalized agent instance slug for fast analytics - avoids JOINs to agent_instances"
+    )
+    
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="User ID when authenticated (null for anonymous sessions)"
+    )
+    
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=func.now(),
+        onupdate=func.now(),
+        comment="Last session update timestamp"
+    )
+    
     # Relationships - defined with string references to avoid circular imports
     # CASCADE DELETE ensures data consistency when sessions are removed
+    
+    # Multi-tenant relationships
+    account: Mapped["Account"] = relationship(
+        "Account",
+        back_populates="sessions",
+        doc="Account that owns this session"
+    )
+    
+    agent_instance: Mapped["AgentInstanceModel"] = relationship(
+        "AgentInstanceModel",
+        doc="Agent instance handling this session"
+    )
     
     # One-to-many: Session → Messages (chat history)
     messages: Mapped[list["Message"]] = relationship(
@@ -191,7 +254,11 @@ class Session(Base):
                 'is_anonymous': False,
                 'created_at': '2024-01-01T12:00:00+00:00',
                 'last_activity_at': '2024-01-01T12:30:00+00:00',
-                'meta': {}
+                'meta': {},
+                'account_id': 'xyz...',
+                'account_slug': 'acme',
+                'agent_instance_id': 'abc...',
+                'agent_instance_slug': 'simple_chat1'
             }
         """
         return {
@@ -204,5 +271,9 @@ class Session(Base):
                 self.last_activity_at.isoformat() 
                 if self.last_activity_at else None
             ),
-            "meta": self.meta or {}
+            "meta": self.meta or {},
+            "account_id": str(self.account_id) if self.account_id else None,
+            "account_slug": self.account_slug,
+            "agent_instance_id": str(self.agent_instance_id) if self.agent_instance_id else None,
+            "agent_instance_slug": self.agent_instance_slug
         }

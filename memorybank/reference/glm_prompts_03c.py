@@ -1,3 +1,8 @@
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
 CONTEXTUALIZE_SYSTEM_PROMPT = """
 Given a chat history and the latest user question
 which might reference context in the chat history,

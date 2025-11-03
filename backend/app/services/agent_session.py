@@ -20,11 +20,17 @@ Dependencies:
 - Pydantic AI message types for proper agent integration
 - UUID handling for session identification
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from typing import List, Dict, Any, Optional
 from .message_service import get_message_service
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
-from datetime import datetime
+from datetime import datetime, UTC
 import uuid
 
 
@@ -75,7 +81,7 @@ async def load_agent_conversation(session_id: str, max_messages: Optional[int] =
             pydantic_message = ModelRequest(
                 parts=[UserPromptPart(
                     content=msg.content,
-                    timestamp=msg.created_at or datetime.now()
+                    timestamp=msg.created_at or datetime.now(UTC)
                 )]
             )
         elif msg.role == "assistant":
@@ -84,7 +90,7 @@ async def load_agent_conversation(session_id: str, max_messages: Optional[int] =
                 parts=[TextPart(content=msg.content)],
                 usage=None,  # Historical messages don't have usage data
                 model_name="agent-session",  # Identifier for loaded session messages
-                timestamp=msg.created_at or datetime.now()
+                timestamp=msg.created_at or datetime.now(UTC)
             )
         else:
             # Skip system messages and unknown roles

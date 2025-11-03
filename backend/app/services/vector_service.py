@@ -2,12 +2,18 @@
 Vector Database Service
 Handles document ingestion, querying, and vector operations with Pinecone.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
-import logging
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
 from datetime import datetime, UTC
+import logfire
+from pydantic import BaseModel, Field, field_validator
 
 try:
     from pinecone.exceptions import PineconeException
@@ -15,40 +21,56 @@ except ImportError:
     # Fallback for different pinecone versions
     PineconeException = Exception
 
-from app.services.pinecone_client import PineconeClient, get_pinecone_client
-from app.services.embedding_service import get_embedding_service, EmbeddingService
+from backend.app.services.pinecone_client import PineconeClient, get_pinecone_client
+from backend.app.services.embedding_service import get_embedding_service, EmbeddingService
 
 
-logger = logging.getLogger(__name__)
+class VectorDocument(BaseModel):
+    """Document for vector storage with validation"""
+    id: str = Field(..., min_length=1, description="Unique document identifier")
+    text: str = Field(..., min_length=1, description="Document text content")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Document metadata")
+    embedding: Optional[List[float]] = Field(None, description="Vector embedding")
+    namespace: Optional[str] = Field(None, description="Pinecone namespace")
+    
+    @field_validator('embedding')
+    @classmethod
+    def validate_embedding(cls, v: Optional[List[float]]) -> Optional[List[float]]:
+        """Validate embedding dimensions are consistent"""
+        if v is not None and len(v) == 0:
+            raise ValueError("Embedding cannot be empty list")
+        return v
+    
+    model_config = {"extra": "forbid"}  # Strict - no extra fields allowed
 
 
-@dataclass
-class VectorDocument:
-    """Document for vector storage"""
-    id: str
-    text: str
-    metadata: Dict[str, Any]
-    embedding: Optional[List[float]] = None
-    namespace: Optional[str] = None
+class VectorQueryResult(BaseModel):
+    """Result from vector similarity search with validation"""
+    id: str = Field(..., min_length=1, description="Result document ID")
+    text: str = Field(default="", description="Result text content")
+    score: float = Field(..., ge=0.0, le=1.0, description="Similarity score (0-1)")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Result metadata")
+    namespace: str = Field(..., min_length=1, description="Source namespace")
+    
+    model_config = {"extra": "forbid"}  # Strict - no extra fields allowed
 
 
-@dataclass
-class VectorQueryResult:
-    """Result from vector similarity search"""
-    id: str
-    text: str
-    score: float
-    metadata: Dict[str, Any]
-    namespace: str
-
-
-@dataclass
-class VectorQueryResponse:
-    """Complete response from vector query"""
-    results: List[VectorQueryResult]
-    total_results: int
-    query_time_ms: float
-    namespace: str
+class VectorQueryResponse(BaseModel):
+    """Complete response from vector query with validation"""
+    results: List[VectorQueryResult] = Field(default_factory=list, description="Query results")
+    total_results: int = Field(..., ge=0, description="Total number of results")
+    query_time_ms: float = Field(..., ge=0.0, description="Query execution time in milliseconds")
+    namespace: str = Field(..., min_length=1, description="Query namespace")
+    
+    @field_validator('total_results')
+    @classmethod
+    def validate_total_matches_results(cls, v: int, info) -> int:
+        """Ensure total_results matches length of results list"""
+        if 'results' in info.data and v != len(info.data['results']):
+            raise ValueError(f"total_results ({v}) must match results length ({len(info.data['results'])})")
+        return v
+    
+    model_config = {"extra": "forbid"}  # Strict - no extra fields allowed
 
 
 class VectorService:
@@ -61,11 +83,17 @@ class VectorService:
         pinecone_client: Optional[PineconeClient] = None,
         embedding_service: Optional[EmbeddingService] = None
     ):
-        from app.services.pinecone_client import pinecone_client as default_pinecone_client
-        from app.services.embedding_service import embedding_service as default_embedding_service
+        # Lazy import and initialization - only create defaults if not provided
+        if pinecone_client is None:
+            from backend.app.services.pinecone_client import get_default_pinecone_client
+            pinecone_client = get_default_pinecone_client()
         
-        self.pinecone_client = pinecone_client or default_pinecone_client
-        self.embedding_service = embedding_service or default_embedding_service
+        if embedding_service is None:
+            from backend.app.services.embedding_service import get_default_embedding_service
+            embedding_service = get_default_embedding_service()
+        
+        self.pinecone_client = pinecone_client
+        self.embedding_service = embedding_service
     
     async def upsert_document(
         self, 
@@ -109,11 +137,18 @@ class VectorService:
                     namespace=target_namespace
                 )
             
-            logger.info(f"Successfully upserted document {document.id} to namespace {target_namespace}")
+            logfire.info(
+                'service.vector.upsert.success',
+                document_id=document.id,
+                namespace=target_namespace
+            )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to upsert document {document.id}: {str(e)}")
+            logfire.exception(
+                'service.vector.upsert.failed',
+                document_id=document.id
+            )
             return False
     
     async def upsert_documents_batch(
@@ -137,7 +172,11 @@ class VectorService:
         total_documents = len(documents)
         successful_count = 0
         
-        logger.info(f"Starting batch upsert of {total_documents} documents with batch size {batch_size}")
+        logfire.info(
+            'service.vector.upsert_batch.start',
+            total_documents=total_documents,
+            batch_size=batch_size
+        )
         
         # Process in batches
         for i in range(0, total_documents, batch_size):
@@ -145,7 +184,12 @@ class VectorService:
             batch_number = (i // batch_size) + 1
             total_batches = (total_documents + batch_size - 1) // batch_size
             
-            logger.info(f"Processing batch {batch_number}/{total_batches} ({len(batch)} documents)")
+            logfire.info(
+                'service.vector.upsert_batch.processing',
+                batch_number=batch_number,
+                total_batches=total_batches,
+                batch_size=len(batch)
+            )
             
             try:
                 # Generate embeddings for batch
@@ -183,13 +227,24 @@ class VectorService:
                     )
                 
                 successful_count += len(batch)
-                logger.info(f"Successfully upserted batch {batch_number} to namespace {target_namespace}")
+                logfire.info(
+                    'service.vector.upsert_batch.success',
+                    batch_number=batch_number,
+                    namespace=target_namespace
+                )
                 
             except Exception as e:
-                logger.error(f"Failed to upsert batch {batch_number}: {str(e)}")
+                logfire.exception(
+                    'service.vector.upsert_batch.failed',
+                    batch_number=batch_number
+                )
                 # Continue with next batch rather than failing entirely
         
-        logger.info(f"Batch upsert completed: {successful_count}/{total_documents} documents successful")
+        logfire.info(
+            'service.vector.upsert_batch.complete',
+            successful_count=successful_count,
+            total_documents=total_documents
+        )
         return successful_count, total_documents
     
     async def query_similar(
@@ -216,63 +271,98 @@ class VectorService:
             Query response with results
         """
         start_time = asyncio.get_event_loop().time()
+        target_namespace = namespace or self.pinecone_client.get_namespace()
         
-        try:
-            # Generate query embedding
-            query_embedding = await self.embedding_service.embed_text(query_text)
-            
-            # Determine namespace
-            target_namespace = namespace or self.pinecone_client.get_namespace()
-            
-            # Query Pinecone
-            async with self.pinecone_client.connection_context():
-                response = self.pinecone_client.index.query(
-                    vector=query_embedding,
-                    top_k=top_k,
-                    include_values=False,
-                    include_metadata=include_metadata,
-                    namespace=target_namespace,
-                    filter=metadata_filter
+        # Logfire span for entire vector search operation
+        with logfire.span(
+            'pinecone.query',
+            query_text=query_text[:100],  # Truncate for readability
+            top_k=top_k,
+            similarity_threshold=similarity_threshold,
+            namespace=target_namespace,
+            metadata_filter=metadata_filter
+        ) as span:
+            try:
+                # Generate query embedding with nested span
+                with logfire.span('pinecone.embedding', query_length=len(query_text)):
+                    query_embedding = await self.embedding_service.embed_text(query_text)
+                    span.set_attribute('embedding_dimensions', len(query_embedding))
+                
+                # Query Pinecone with nested span
+                with logfire.span(
+                    'pinecone.search',
+                    index_name=self.pinecone_client.config.index_name if hasattr(self.pinecone_client, 'config') else 'unknown'
+                ):
+                    async with self.pinecone_client.connection_context():
+                        response = self.pinecone_client.index.query(
+                            vector=query_embedding,
+                            top_k=top_k,
+                            include_values=False,
+                            include_metadata=include_metadata,
+                            namespace=target_namespace,
+                            filter=metadata_filter
+                        )
+                    
+                    # Log raw response stats
+                    span.set_attribute('raw_matches_count', len(response.matches))
+                
+                # Process results
+                results = []
+                for match in response.matches:
+                    # Apply similarity threshold
+                    if match.score >= similarity_threshold:
+                        result = VectorQueryResult(
+                            id=match.id,
+                            text=match.metadata.get("text", "") if match.metadata else "",
+                            score=match.score,
+                            metadata=match.metadata or {},
+                            namespace=target_namespace
+                        )
+                        results.append(result)
+                
+                query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+                
+                # Log response details to Logfire span
+                span.set_attribute('results_count', len(results))
+                span.set_attribute('filtered_count', len(response.matches) - len(results))
+                span.set_attribute('query_time_ms', query_time_ms)
+                if results:
+                    span.set_attribute('top_score', results[0].score)
+                    span.set_attribute('lowest_score', results[-1].score)
+                    # Capture preview of results (first 3 IDs and scores)
+                    span.set_attribute('results_preview', [
+                        {'id': r.id, 'score': round(r.score, 3)} 
+                        for r in results[:3]
+                    ])
+                
+                logfire.debug(
+                    'service.vector.query.complete',
+                    results_count=len(results),
+                    threshold=similarity_threshold,
+                    query_time_ms=query_time_ms,
+                    namespace=target_namespace
                 )
-            
-            # Process results
-            results = []
-            for match in response.matches:
-                # Apply similarity threshold
-                if match.score >= similarity_threshold:
-                    result = VectorQueryResult(
-                        id=match.id,
-                        text=match.metadata.get("text", "") if match.metadata else "",
-                        score=match.score,
-                        metadata=match.metadata or {},
-                        namespace=target_namespace
-                    )
-                    results.append(result)
-            
-            query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
-            
-            logger.info(
-                f"Vector query completed: {len(results)} results above threshold {similarity_threshold} "
-                f"in {query_time_ms:.2f}ms for namespace {target_namespace}"
-            )
-            
-            return VectorQueryResponse(
-                results=results,
-                total_results=len(results),
-                query_time_ms=query_time_ms,
-                namespace=target_namespace
-            )
-            
-        except Exception as e:
-            logger.error(f"Vector query failed: {str(e)}")
-            query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
-            
-            return VectorQueryResponse(
-                results=[],
-                total_results=0,
-                query_time_ms=query_time_ms,
-                namespace=namespace or "unknown"
-            )
+                
+                return VectorQueryResponse(
+                    results=results,
+                    total_results=len(results),
+                    query_time_ms=query_time_ms,
+                    namespace=target_namespace
+                )
+                
+            except Exception as e:
+                query_time_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+                
+                # Log error to Logfire span
+                span.record_exception(e)
+                span.set_attribute('query_time_ms', query_time_ms)
+                
+                return VectorQueryResponse(
+                    results=[],
+                    total_results=0,
+                    query_time_ms=query_time_ms,
+                    namespace=namespace or "unknown"
+                )
     
     async def delete_document(
         self, 
@@ -298,11 +388,18 @@ class VectorService:
                     namespace=target_namespace
                 )
             
-            logger.info(f"Successfully deleted document {document_id} from namespace {target_namespace}")
+            logfire.info(
+                'service.vector.delete.success',
+                document_id=document_id,
+                namespace=target_namespace
+            )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to delete document {document_id}: {str(e)}")
+            logfire.exception(
+                'service.vector.delete.failed',
+                document_id=document_id
+            )
             return False
     
     async def delete_namespace(self, namespace: str) -> bool:
@@ -322,11 +419,17 @@ class VectorService:
                     namespace=namespace
                 )
             
-            logger.info(f"Successfully cleared namespace {namespace}")
+            logfire.info(
+                'service.vector.delete_namespace.success',
+                namespace=namespace
+            )
             return True
             
         except Exception as e:
-            logger.error(f"Failed to clear namespace {namespace}: {str(e)}")
+            logfire.exception(
+                'service.vector.delete_namespace.failed',
+                namespace=namespace
+            )
             return False
     
     async def get_document(
@@ -366,7 +469,10 @@ class VectorService:
             return None
             
         except Exception as e:
-            logger.error(f"Failed to fetch document {document_id}: {str(e)}")
+            logfire.exception(
+                'service.vector.get.failed',
+                document_id=document_id
+            )
             return None
     
     async def get_namespace_stats(self, namespace: Optional[str] = None) -> Dict[str, Any]:
@@ -403,7 +509,10 @@ class VectorService:
             return namespace_stats
             
         except Exception as e:
-            logger.error(f"Failed to get namespace stats for {namespace}: {str(e)}")
+            logfire.exception(
+                'service.vector.namespace_stats.failed',
+                namespace=target_namespace
+            )
             return {"namespace": target_namespace, "error": str(e)}
 
 

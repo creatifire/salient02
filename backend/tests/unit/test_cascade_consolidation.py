@@ -4,6 +4,12 @@ Cascade consolidation tests for simple_chat.py.
 Tests for CHUNK 0017-004-002-02: Consolidate cascade usage in simple_chat.py
 Verifies that simple_chat.py uses centralized cascade functions consistently.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock

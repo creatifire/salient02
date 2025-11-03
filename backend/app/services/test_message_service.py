@@ -5,6 +5,12 @@ This module provides comprehensive testing for the message service,
 including unit tests for all core functionality and integration tests
 with the database layer.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
 import uuid

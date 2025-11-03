@@ -16,11 +16,15 @@ Design:
 - Provides account isolation and resource management
 """
 
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
+from uuid import UUID
 
 from ...database import get_db_session, get_database_service  # Existing database integration
 from ...config import load_config  # Existing configuration system
@@ -104,6 +108,16 @@ class SessionDependencies(BaseDependencies):
     # Conversation context
     conversation_history: Optional[list] = None
     history_limit: int = 20
+    
+    # Agent configuration (for tool access)
+    agent_config: Optional[Dict[str, Any]] = None
+    
+    # db_session removed - tools create own sessions via get_db_session() (BUG-0023-001)
+    # This eliminates concurrent DB operation errors while preserving parallel tool execution
+    
+    # Multi-tenant support
+    agent_instance_id: Optional[int] = None  # Agent instance ID (for attribution)
+    account_id: Optional[UUID] = None  # Account ID (for multi-tenant data isolation)
     
     @classmethod
     async def create(

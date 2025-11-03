@@ -4,6 +4,12 @@ Validation and integration tests for configuration standardization.
 Tests for CHUNK 0017-004-001-10: Validation and integration testing
 Ensures no regressions with parameter name changes and validates system behavior.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import pytest
 import subprocess

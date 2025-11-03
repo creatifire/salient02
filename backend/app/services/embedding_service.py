@@ -2,26 +2,21 @@
 Embedding Service
 Handles text embedding generation using OpenAI's embedding models.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 import asyncio
-import logging
 import os
+import logfire
 from typing import List, Optional
 from dataclasses import dataclass
 
-import sys
-from pathlib import Path
 import openai
 from openai import AsyncOpenAI
-
-# Add backend directory to path for config imports
-backend_dir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(backend_dir))
-
-from config.pinecone_config import pinecone_config_manager
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,13 +45,15 @@ class EmbeddingService:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
         
-        # Get embedding model from Pinecone config
-        pinecone_config = pinecone_config_manager.get_config()
+        # Use environment variables or sensible defaults for embedding
+        # Don't depend on Pinecone config - embedding service is independent
+        model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+        dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "1536"))
         
         return EmbeddingConfig(
-            model=pinecone_config.embedding_model,
+            model=model,
             api_key=api_key,
-            dimensions=pinecone_config.dimensions
+            dimensions=dimensions
         )
     
     async def embed_text(self, text: str) -> List[float]:
@@ -73,7 +70,11 @@ class EmbeddingService:
             # Truncate text if too long
             if len(text) > self.config.max_tokens * 4:  # Rough character estimate
                 text = text[:self.config.max_tokens * 4]
-                logger.warning(f"Text truncated to {self.config.max_tokens * 4} characters for embedding")
+                logfire.warn(
+                    'service.embedding.text_truncated',
+                    original_length=len(text),
+                    truncated_length=self.config.max_tokens * 4
+                )
             
             response = await self.client.embeddings.create(
                 model=self.config.model,
@@ -83,11 +84,16 @@ class EmbeddingService:
             
             embedding = response.data[0].embedding
             
-            logger.debug(f"Generated embedding for text of length {len(text)} using model {self.config.model}")
+            logfire.debug(
+                'service.embedding.generated',
+                text_length=len(text),
+                model=self.config.model,
+                dimensions=self.config.dimensions
+            )
             return embedding
             
         except Exception as e:
-            logger.error(f"Failed to generate embedding: {str(e)}")
+            logfire.exception('service.embedding.generate_failed')
             raise
     
     async def embed_texts(self, texts: List[str]) -> List[List[float]]:
@@ -107,7 +113,11 @@ class EmbeddingService:
         batch_size = self.config.batch_size
         all_embeddings = []
         
-        logger.info(f"Generating embeddings for {total_texts} texts with batch size {batch_size}")
+        logfire.info(
+            'service.embedding.batch.starting',
+            total_texts=total_texts,
+            batch_size=batch_size
+        )
         
         # Process in batches
         for i in range(0, total_texts, batch_size):
@@ -115,16 +125,29 @@ class EmbeddingService:
             batch_number = (i // batch_size) + 1
             total_batches = (total_texts + batch_size - 1) // batch_size
             
-            logger.info(f"Processing embedding batch {batch_number}/{total_batches} ({len(batch)} texts)")
+            logfire.info(
+                'service.embedding.batch.processing',
+                batch_number=batch_number,
+                total_batches=total_batches,
+                batch_size=len(batch)
+            )
             
             try:
                 # Truncate texts if too long
                 processed_batch = []
+                truncated_count = 0
                 for text in batch:
                     if len(text) > self.config.max_tokens * 4:
                         text = text[:self.config.max_tokens * 4]
-                        logger.warning(f"Text truncated to {self.config.max_tokens * 4} characters for embedding")
+                        truncated_count += 1
                     processed_batch.append(text)
+                
+                if truncated_count > 0:
+                    logfire.warn(
+                        'service.embedding.batch.texts_truncated',
+                        batch_number=batch_number,
+                        truncated_count=truncated_count
+                    )
                 
                 response = await self.client.embeddings.create(
                     model=self.config.model,
@@ -135,18 +158,29 @@ class EmbeddingService:
                 batch_embeddings = [data.embedding for data in response.data]
                 all_embeddings.extend(batch_embeddings)
                 
-                logger.info(f"Successfully generated embeddings for batch {batch_number}")
+                logfire.info(
+                    'service.embedding.batch.complete',
+                    batch_number=batch_number,
+                    embeddings_generated=len(batch_embeddings)
+                )
                 
                 # Small delay to respect rate limits
                 if batch_number < total_batches:
                     await asyncio.sleep(0.1)
                     
             except Exception as e:
-                logger.error(f"Failed to generate embeddings for batch {batch_number}: {str(e)}")
+                logfire.exception(
+                    'service.embedding.batch.failed',
+                    batch_number=batch_number
+                )
                 # For now, raise the exception - could implement retry logic here
                 raise
         
-        logger.info(f"Successfully generated embeddings for all {total_texts} texts")
+        logfire.info(
+            'service.embedding.batch.all_complete',
+            total_texts=total_texts,
+            total_embeddings=len(all_embeddings)
+        )
         return all_embeddings
     
     def get_model_info(self) -> dict:
@@ -159,15 +193,29 @@ class EmbeddingService:
         }
 
 
-# Global embedding service instance
-embedding_service = EmbeddingService()
+# Global embedding service instance (lazy initialization)
+# Only created when actually needed (not at module import time)
+_embedding_service: Optional[EmbeddingService] = None
+
+
+def get_default_embedding_service() -> EmbeddingService:
+    """
+    Get or create the default global embedding service (lazy initialization).
+    Only initializes when first accessed, not at module import time.
+    This allows agent-specific services to be created without requiring
+    global Pinecone configuration.
+    """
+    global _embedding_service
+    if _embedding_service is None:
+        _embedding_service = EmbeddingService()
+    return _embedding_service
 
 
 def get_embedding_service() -> EmbeddingService:
-    """Dependency injection helper"""
-    return embedding_service
+    """Dependency injection helper (for backwards compatibility)"""
+    return get_default_embedding_service()
 
 
 async def get_embedding_service_async() -> EmbeddingService:
     """Async dependency injection helper for FastAPI"""
-    return embedding_service
+    return get_default_embedding_service()

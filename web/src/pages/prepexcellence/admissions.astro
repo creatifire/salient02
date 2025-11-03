@@ -1,0 +1,127 @@
+---
+import PrepExcellenceLayout from "../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "Do you help with college essays?",
+  "What admissions consulting services do you provide?",
+  "How do I choose the right college?",
+  "Can you help with the Common App?"
+];
+---
+
+<PrepExcellenceLayout title="College Admissions Consulting - PrepExcellence">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 2.5rem; margin-bottom: 1rem;">College Admissions Consulting</h1>
+    <p style="font-size: 1.2rem; margin-bottom: 2rem; color: #555;">
+      Expert guidance through every step of the college application process
+    </p>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Beyond Test Prep</h2>
+      <p style="line-height: 1.8; margin-bottom: 2rem;">
+        Great test scores are important, but they're just one part of a successful college application. Our admissions 
+        consulting services help you present your strongest possible application to your dream schools.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Our Services</h2>
+      
+      <div style="margin-bottom: 2rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">College Selection Strategy</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Find schools that match your academic profile, interests, and goals:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Identifying reach, target, and safety schools</li>
+          <li>Understanding admission requirements and selectivity</li>
+          <li>Evaluating academic programs and campus culture</li>
+          <li>Financial aid and scholarship considerations</li>
+          <li>Creating a balanced college list</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: white; border: 2px solid var(--prepexcel-primary, #6A1B9A); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">Essay Review & Editing</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Your personal essay is your chance to stand out. We help you:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Brainstorm compelling essay topics</li>
+          <li>Develop a unique voice and narrative</li>
+          <li>Structure your essays effectively</li>
+          <li>Revise and polish your writing</li>
+          <li>Tailor essays to specific schools</li>
+          <li>Common App essay and supplemental essays</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 2rem; padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.5rem; margin-bottom: 1rem;">Application Strategy</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Navigate the complex application process:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Common Application and Coalition App guidance</li>
+          <li>Understanding Early Decision, Early Action, and Regular Decision</li>
+          <li>Activity list optimization</li>
+          <li>Letter of recommendation strategy</li>
+          <li>Interview preparation</li>
+          <li>Application timeline management</li>
+        </ul>
+      </div>
+
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-secondary, #1976D2); border-radius: 12px;">
+        <h3 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.5rem; margin-bottom: 1rem;">Extracurricular Planning</h3>
+        <p style="line-height: 1.8; margin-bottom: 1rem;">
+          Build a compelling profile through strategic involvement:
+        </p>
+        <ul style="line-height: 1.8; margin-left: 1.5rem;">
+          <li>Identifying meaningful extracurricular activities</li>
+          <li>Developing leadership opportunities</li>
+          <li>Summer program recommendations</li>
+          <li>Building a cohesive narrative through activities</li>
+        </ul>
+      </div>
+    </section>
+
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">Consultation Packages</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        <div style="padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px; text-align: center;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.3rem; margin-bottom: 1rem;">Basic Package</h3>
+          <p style="line-height: 1.6; margin-bottom: 1rem;">Essay review and college list development</p>
+          <div style="font-size: 1.5rem; font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">5 Hours</div>
+        </div>
+        <div style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-primary, #6A1B9A), var(--prepexcel-secondary, #1976D2)); color: white; border-radius: 12px; text-align: center;">
+          <h3 style="font-size: 1.3rem; margin-bottom: 1rem;">Comprehensive Package</h3>
+          <p style="line-height: 1.6; margin-bottom: 1rem;">Complete admissions support from start to finish</p>
+          <div style="font-size: 1.5rem; font-weight: bold;">15 Hours</div>
+        </div>
+        <div style="padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px; text-align: center;">
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.3rem; margin-bottom: 1rem;">Custom Package</h3>
+          <p style="line-height: 1.6; margin-bottom: 1rem;">Tailored to your specific needs</p>
+          <div style="font-size: 1.5rem; font-weight: bold; color: var(--prepexcel-primary, #6A1B9A);">Flexible</div>
+        </div>
+      </div>
+    </section>
+
+    <section style="padding: 2rem; background: linear-gradient(135deg, var(--prepexcel-primary, #6A1B9A), var(--prepexcel-secondary, #1976D2)); color: white; border-radius: 12px; margin-bottom: 3rem; text-align: center;">
+      <h2 style="font-size: 1.8rem; margin-bottom: 1rem;">Start Early for Best Results</h2>
+      <p style="font-size: 1.1rem; line-height: 1.8; max-width: 700px; margin: 0 auto;">
+        Ideally, begin working with us in your junior year or even earlier. However, we can help students at any stage 
+        of the application process.
+      </p>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem;">
+        Schedule a Consultation
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

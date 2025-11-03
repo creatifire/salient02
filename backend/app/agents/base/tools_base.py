@@ -18,6 +18,9 @@ Design Principles:
 - Integration with Pydantic AI tool decorators
 """
 
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
 from __future__ import annotations
 
 import asyncio
@@ -230,7 +233,7 @@ class BaseTool(ABC):
         - Fallback strategy execution
         - Error reporting to external systems
         """
-        # TODO: Integrate with existing logging system (loguru)
+        # TODO: Integrate with existing logging system (Logfire)
         print(f"Tool {self.name} error: {error.message}")
     
     def get_usage_stats(self) -> Dict[str, Any]:

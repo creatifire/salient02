@@ -1,0 +1,133 @@
+---
+import PrepExcellenceLayout from "../../../layouts/PrepExcellenceLayout.astro";
+import SuggestedQuestions from "../../../components/wyckoff/SuggestedQuestions.astro";
+
+const suggestedQuestions = [
+  "What courses do you offer?",
+  "When do winter courses start?",
+  "How long are your SAT prep courses?",
+  "What's included in your course pricing?"
+];
+---
+
+<PrepExcellenceLayout title="Test Prep Courses - PrepExcellence">
+  <div style="max-width: 1000px; margin: 0 auto;">
+    <h1 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 2.5rem; margin-bottom: 1rem; text-align: center;">Our Courses</h1>
+    <p style="text-align: center; font-size: 1.2rem; margin-bottom: 3rem; color: #555;">
+      Comprehensive test preparation programs designed for success
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 3rem;">
+      
+      <!-- SAT Prep -->
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-primary, #6A1B9A); border-radius: 12px; transition: transform 0.2s;">
+        <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">SAT Preparation</h2>
+        <p style="line-height: 1.6; margin-bottom: 1rem;">
+          Our comprehensive SAT prep courses include proven strategies, practice tests, and personalized instruction to maximize your score.
+        </p>
+        <ul style="line-height: 1.8; margin-bottom: 1.5rem;">
+          <li>12-Week Comprehensive Course</li>
+          <li>5-Week Premium Course</li>
+          <li>3-Week Accelerated Course</li>
+          <li>Weekend Crash Course</li>
+        </ul>
+        <a href="/prepexcellence/courses/sat" style="display: inline-block; padding: 0.75rem 1.5rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Learn More →
+        </a>
+      </div>
+
+      <!-- ACT Prep -->
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-secondary, #1976D2); border-radius: 12px; transition: transform 0.2s;">
+        <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem;">ACT Preparation</h2>
+        <p style="line-height: 1.6; margin-bottom: 1rem;">
+          Specialized ACT preparation focusing on the unique format and timing strategies needed to excel on this test.
+        </p>
+        <ul style="line-height: 1.8; margin-bottom: 1.5rem;">
+          <li>Comprehensive ACT Course</li>
+          <li>Science Section Mastery</li>
+          <li>Time Management Strategies</li>
+          <li>Full-Length Practice Tests</li>
+        </ul>
+        <a href="/prepexcellence/courses/act" style="display: inline-block; padding: 0.75rem 1.5rem; background: var(--prepexcel-secondary, #1976D2); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Learn More →
+        </a>
+      </div>
+
+      <!-- PSAT Prep -->
+      <div style="padding: 2rem; background: white; border: 2px solid var(--prepexcel-accent, #9C27B0); border-radius: 12px; transition: transform 0.2s;">
+        <h2 style="color: var(--prepexcel-accent, #9C27B0); font-size: 1.8rem; margin-bottom: 1rem;">PSAT Preparation</h2>
+        <p style="line-height: 1.6; margin-bottom: 1rem;">
+          Build a strong foundation and qualify for National Merit Scholarships with our targeted PSAT prep program.
+        </p>
+        <ul style="line-height: 1.8; margin-bottom: 1.5rem;">
+          <li>PSAT Fundamentals Course</li>
+          <li>National Merit Qualification</li>
+          <li>Early SAT Preparation</li>
+          <li>Score Optimization</li>
+        </ul>
+        <a href="/prepexcellence/courses/psat" style="display: inline-block; padding: 0.75rem 1.5rem; background: var(--prepexcel-accent, #9C27B0); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Learn More →
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Summer Enrichment -->
+    <section style="padding: 2rem; background: var(--prepexcel-bg, #F3E5F5); border-radius: 12px; margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-primary, #6A1B9A); font-size: 1.8rem; margin-bottom: 1rem;">Summer Enrichment Programs</h2>
+      <p style="line-height: 1.8; margin-bottom: 1rem;">
+        Get ahead during summer break with our specialized programs designed to build skills and prepare for upcoming tests.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+        <div>
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem;">Summer SAT Boot Camp</h3>
+          <p style="line-height: 1.6;">Intensive 4-week program with daily classes and practice</p>
+        </div>
+        <div>
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem;">Academic Skills Development</h3>
+          <p style="line-height: 1.6;">Build critical reading and math reasoning skills</p>
+        </div>
+        <div>
+          <h3 style="color: var(--prepexcel-secondary, #1976D2); margin-bottom: 0.5rem;">Computer Science & Coding</h3>
+          <p style="line-height: 1.6;">Introduction to programming and computational thinking</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Course Features -->
+    <section style="margin-bottom: 3rem;">
+      <h2 style="color: var(--prepexcel-secondary, #1976D2); font-size: 1.8rem; margin-bottom: 1rem; text-align: center;">All Courses Include</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+        <div style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">📚</div>
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Course Materials</h3>
+          <p>Comprehensive study guides and practice tests</p>
+        </div>
+        <div style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">👨‍🏫</div>
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Expert Instruction</h3>
+          <p>Taught by Dr. Alam and experienced educators</p>
+        </div>
+        <div style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">📊</div>
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Progress Tracking</h3>
+          <p>Regular assessments and personalized feedback</p>
+        </div>
+        <div style="text-align: center; padding: 1.5rem;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
+          <h3 style="color: var(--prepexcel-primary, #6A1B9A); margin-bottom: 0.5rem;">Score Guarantee</h3>
+          <p>150+ point improvement or we keep working with you</p>
+        </div>
+      </div>
+    </section>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+
+    <div style="text-align: center; margin-top: 3rem;">
+      <a href="/prepexcellence/contact" style="display: inline-block; padding: 1rem 2rem; background: var(--prepexcel-primary, #6A1B9A); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem;">
+        Enroll Now
+      </a>
+    </div>
+  </div>
+</PrepExcellenceLayout>
+

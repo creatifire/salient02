@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Python Coding Standards
 
 > Essential coding standards for maintainable, consistent Python code
@@ -309,9 +314,9 @@ from typing import Dict, List, Optional
 
 # Third-party imports (alphabetical)
 import httpx
+import logfire
 import sqlalchemy
 from fastapi import FastAPI
-from loguru import logger
 from pydantic import BaseModel
 
 # Local application imports (relative imports)

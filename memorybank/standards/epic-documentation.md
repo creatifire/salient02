@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic Documentation Standards
 
 Document epics for implementation clarity and progress tracking. Based on proven patterns from Epic 0002 (Baseline Connectivity) and Epic 0017 (Simple Chat Agent).

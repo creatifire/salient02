@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Data Model & Entity Relationship Diagram
 > **Last Updated**: August 28, 2025
 

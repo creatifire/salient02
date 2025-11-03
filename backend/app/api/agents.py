@@ -4,11 +4,17 @@ FastAPI router for agent endpoints.
 This module provides RESTful endpoints for interacting with AI agents,
 with comprehensive session handling, message persistence, and error handling.
 """
+"""
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+"""
+
+
 
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from loguru import logger
+import logfire
 from typing import Optional, List
 
 from ..agents.simple_chat import simple_chat
@@ -43,13 +49,13 @@ async def simple_chat_endpoint(
     # 1. SESSION HANDLING - Extract and validate session
     session = get_current_session(request)
     if not session:
-        logger.error("No session available for simple chat request")
+        logfire.error('api.agents.simple_chat.no_session')
         return JSONResponse({"error": "Session error"}, status_code=500)
     
     # 2. INPUT VALIDATION & SECURITY
     message = str(chat_request.message or "").strip()
     if not message:
-        logger.warning(f"Empty message from session {session.id}")
+        logfire.warn('api.agents.simple_chat.empty_message', session_id=str(session.id))
         return JSONResponse({"error": "Empty message"}, status_code=400)
     
     # 3. CONFIGURATION LOADING - Use agent-first cascade
@@ -64,16 +70,9 @@ async def simple_chat_endpoint(
     ) or llm_config.get("model", "deepseek/deepseek-chat-v3.1")
     
     # 4. COMPREHENSIVE LOGGING - Request with correct agent model
-    logger.info({
-        "event": "simple_chat_request",
-        "path": "/agents/simple-chat/chat",
-        "session_id": str(session.id),
-        "session_key": session.session_key[:8] + "..." if session.session_key else None,
-        "message_preview": message[:100] + "..." if len(message) > 100 else message,
-        "model": f"openrouter:{agent_model}",  # Show actual agent model
-        "temperature": llm_config.get("temperature", 0.3),
-        "max_tokens": llm_config.get("max_tokens", 1024)
-    })
+    session_key_prefix = session.session_key[:8] + "..." if session.session_key else None
+    message_preview = message[:100] + "..." if len(message) > 100 else message
+    logfire.info('api.agents.simple_chat.request', path="/agents/simple-chat/chat", session_id=str(session.id), session_key_prefix=session_key_prefix, message_preview=message_preview, model=f"openrouter:{agent_model}", temperature=llm_config.get("temperature", 0.3), max_tokens=llm_config.get("max_tokens", 1024))
     
     # 5. MESSAGE PERSISTENCE - Before LLM call
     message_service = get_message_service()
@@ -86,20 +85,10 @@ async def simple_chat_endpoint(
             content=message,
             metadata={"source": "simple_chat", "agent_type": "simple_chat"}
         )
-        logger.info({
-            "event": "user_message_saved",
-            "session_id": str(session.id),
-            "message_id": str(user_message_id),
-            "content_length": len(message)
-        })
+        logfire.info('api.agents.simple_chat.user_message_saved', session_id=str(session.id), message_id=str(user_message_id), content_length=len(message))
     except Exception as e:
         # ERROR HANDLING - Database failures don't block chat
-        logger.error({
-            "event": "user_message_save_failed",
-            "session_id": str(session.id),
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.agents.simple_chat.user_message_save_failed', session_id=str(session.id), error=str(e), error_type=type(e).__name__)
     
     try:
         # 6. PYDANTIC AI AGENT CALL - Simple and clean
@@ -134,25 +123,15 @@ async def simple_chat_endpoint(
             )
             
             # 8. COMPREHENSIVE LOGGING - Success
-            logger.info({
-                "event": "assistant_message_saved",
-                "session_id": str(session.id),
-                "message_id": str(assistant_message_id),
-                "user_message_id": str(user_message_id) if user_message_id else None,
-                "content_length": len(result['response']),
-                "usage": result.get('usage', {}),
-                "agent_type": "simple_chat",
-                "llm_request_id": result.get('llm_request_id')  # Include LLM request ID for traceability
-            })
+            usage_dict = result.get('usage', {})
+            if hasattr(usage_dict, '__dict__'):
+                usage_dict = usage_dict.__dict__
+            elif hasattr(usage_dict, 'dict'):
+                usage_dict = usage_dict.dict()
+            logfire.info('api.agents.simple_chat.assistant_message_saved', session_id=str(session.id), message_id=str(assistant_message_id), user_message_id=str(user_message_id) if user_message_id else None, content_length=len(result['response']), usage=usage_dict, agent_type="simple_chat", llm_request_id=result.get('llm_request_id'))
         except Exception as e:
             # ERROR HANDLING - Database failures don't block response
-            logger.error({
-                "event": "assistant_message_save_failed",
-                "session_id": str(session.id),
-                "user_message_id": str(user_message_id) if user_message_id else None,
-                "error": str(e),
-                "error_type": type(e).__name__
-            })
+            logfire.exception('api.agents.simple_chat.assistant_message_save_failed', session_id=str(session.id), user_message_id=str(user_message_id) if user_message_id else None, error=str(e), error_type=type(e).__name__)
         
         # Return JSON response with cost tracking data for simple-chat UI
         # Convert RunUsage object to dict for JSON serialization
@@ -176,26 +155,14 @@ async def simple_chat_endpoint(
             "model": agent_model  # Include actual model name for frontend display
         }
         
-        logger.info({
-            "event": "api_response_debug",
-            "session_id": str(session.id),
-            "agent_model": agent_model,
-            "response_preview": result['response'][:100] + "..." if len(result['response']) > 100 else result['response'],
-            "response_length": len(result['response']),
-            "llm_request_id": result.get('llm_request_id')
-        })
+        response_preview = result['response'][:100] + "..." if len(result['response']) > 100 else result['response']
+        logfire.info('api.agents.simple_chat.response_debug', session_id=str(session.id), agent_model=agent_model, response_preview=response_preview, response_length=len(result['response']), llm_request_id=result.get('llm_request_id'))
         
         return JSONResponse(response_data)
         
     except Exception as e:
         # ERROR HANDLING & GRACEFUL DEGRADATION - LLM failures
-        logger.error({
-            "event": "simple_chat_agent_failed",
-            "session_id": str(session.id),
-            "user_message_id": str(user_message_id) if user_message_id else None,
-            "error": str(e),
-            "error_type": type(e).__name__
-        })
+        logfire.exception('api.agents.simple_chat.agent_failed', session_id=str(session.id), user_message_id=str(user_message_id) if user_message_id else None, error=str(e), error_type=type(e).__name__)
         return JSONResponse({
             "error": "Sorry, I'm having trouble responding right now.",
             "response": "Sorry, I'm having trouble responding right now."

@@ -1,4 +1,10 @@
+<!--
+Copyright (c) 2025 Ape4, Inc. All rights reserved.
+Unauthorized copying of this file is strictly prohibited.
+-->
+
 # Epic 0005 - Multi-Agent Support
+> **Last Updated**: September 04, 2025
 
 > Goal: Implement multi-account and multi-agent infrastructure supporting four agent types (simple-chat, sales, simple-research, deep-research) with account-scoped routing, agent instance management, and intelligent query routing within accounts.
 
