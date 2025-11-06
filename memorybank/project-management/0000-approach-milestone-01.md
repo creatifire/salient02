@@ -432,8 +432,8 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Status**: ✅ **COMPLETE** - All tasks implemented and tested
 
-**Note:** Update to latest version of pydantic-ai
-**Note:** Update to latest version of open-ai
+**Note:** Update to latest version of pydantic-ai: 1.11.1
+**Note:** Update to latest version of open-ai: 2.7.1
 **Note:** Before starting Priority 6, address refactoring tasks BUG-0017-008 from `@bugs-0017.md` to improve code quality and maintainability.
 **Note:** Before starting Priority 6, address refactoring tasks BUG-0017-009 from `@bugs-0017.md` to improve code quality and maintainability.
 **Note:** Before starting Priority 6, address refactoring tasks BUG-0017-010 from `@bugs-0017.md` to improve code quality and maintainability.

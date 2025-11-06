@@ -1,0 +1,132 @@
+---
+import WindriverLayout from '../../../layouts/WindriverLayout.astro';
+import SuggestedQuestions from '../../../components/windriver/SuggestedQuestions.astro';
+
+const suggestedQuestions = [
+  "What are your emergency room hours?",
+  "What should I bring to the emergency room?",
+  "Do you have a pediatric emergency department?",
+  "How long is the typical ER wait time?"
+];
+---
+<WindriverLayout title="Emergency Services - Windriver Hospital">
+  <section style="padding:2rem 0;">
+    <nav style="margin-bottom:1.5rem;">
+      <a href="/windriver/departments" style="color:#2E7D32;text-decoration:none;font-weight:500;">← Back to Departments</a>
+    </nav>
+
+    <div style="padding:1.5rem;background:#fff3cd;border-left:4px solid #ff9800;border-radius:8px;margin-bottom:2rem;">
+      <p style="margin:0;font-weight:600;color:#856404;font-size:1.1rem;">⚠️ For Life-Threatening Emergencies, Call 911 Immediately</p>
+    </div>
+
+    <h1 style="font-size:2.5rem;margin:0 0 1rem;color:#1B5E20;">Emergency Services</h1>
+    <p style="font-size:1.2rem;margin:0 0 2rem;color:#555;line-height:1.6;">
+      Our Emergency Department provides 24/7 comprehensive emergency care with board-certified emergency medicine physicians, 
+      trauma specialists, and state-of-the-art facilities.
+    </p>
+
+    <div style="margin:3rem 0;padding:2rem;background:#E8F5E9;border-radius:12px;border-left:4px solid #00695C;">
+      <h2 style="font-size:1.8rem;margin:0 0 1rem;color:#1B5E20;">🚑 Open 24/7/365</h2>
+      <p style="margin:0;font-size:1.1rem;line-height:1.6;color:#1B5E20;">
+        We never close. Our emergency department is staffed around the clock with experienced physicians, 
+        nurses, and support staff ready to handle any medical emergency.
+      </p>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1.5rem;color:#2E7D32;">Our Capabilities</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1.5rem;">
+        <div style="padding:1.5rem;background:#f1f8e9;border-left:4px solid #d32f2f;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#d32f2f;">🏥 Level II Trauma Center</h3>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>Advanced trauma resuscitation</li>
+            <li>Immediate surgical capabilities</li>
+            <li>Helicopter landing pad</li>
+            <li>Trauma surgery team on call 24/7</li>
+            <li>Rapid response protocols</li>
+          </ul>
+        </div>
+
+        <div style="padding:1.5rem;background:#f1f8e9;border-left:4px solid #2E7D32;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#2E7D32;">⚡ Rapid Diagnostics</h3>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>On-site CT, MRI, and X-ray</li>
+            <li>Point-of-care laboratory testing</li>
+            <li>Ultrasound capabilities</li>
+            <li>Cardiac catheterization lab</li>
+            <li>Interventional radiology</li>
+          </ul>
+        </div>
+
+        <div style="padding:1.5rem;background:#f1f8e9;border-left:4px solid #00695C;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#00695C;">👨‍⚕️ Specialist Support</h3>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>Immediate cardiology consultation</li>
+            <li>Neurology for stroke care</li>
+            <li>Orthopedic specialists</li>
+            <li>Pediatric emergency medicine</li>
+            <li>Critical care intensivists</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1.5rem;color:#2E7D32;">When to Visit the ER</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+        <div style="padding:1.5rem;background:#ffebee;border-left:4px solid #d32f2f;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#d32f2f;">🚨 EMERGENCY (Call 911)</h3>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>Chest pain or pressure</li>
+            <li>Difficulty breathing</li>
+            <li>Severe bleeding</li>
+            <li>Stroke symptoms (facial drooping, weakness)</li>
+            <li>Loss of consciousness</li>
+            <li>Severe allergic reactions</li>
+            <li>Major trauma or injuries</li>
+          </ul>
+        </div>
+
+        <div style="padding:1.5rem;background:#e8f5e9;border-left:4px solid #4caf50;border-radius:8px;">
+          <h3 style="margin:0 0 0.75rem;color:#2e7d32;">✓ URGENT (Visit ER or Urgent Care)</h3>
+          <ul style="margin:0;padding-left:1.25rem;line-height:1.8;color:#555;">
+            <li>High fever with symptoms</li>
+            <li>Severe pain (abdominal, back)</li>
+            <li>Possible fractures</li>
+            <li>Deep cuts requiring stitches</li>
+            <li>Severe burns</li>
+            <li>Vomiting/diarrhea with dehydration</li>
+            <li>Eye injuries</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1rem;color:#2E7D32;">What to Bring</h2>
+      <div style="padding:1.5rem;background:white;border:2px solid #E8F5E9;border-radius:8px;">
+        <ul style="margin:0;padding-left:1.5rem;line-height:2;color:#555;">
+          <li><strong>Photo ID</strong> and insurance cards</li>
+          <li><strong>List of current medications</strong> (including dosages)</li>
+          <li><strong>List of allergies</strong> to medications or other substances</li>
+          <li><strong>Contact information</strong> for your primary care physician</li>
+          <li><strong>Any relevant medical records</strong> or recent test results</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin:3rem 0;">
+      <h2 style="font-size:1.8rem;margin:0 0 1rem;color:#2E7D32;">Location & Contact</h2>
+      <div style="padding:1.5rem;background:white;border:2px solid #E8F5E9;border-radius:8px;">
+        <p style="margin:0 0 1rem;line-height:1.6;"><strong>Hours:</strong> Open 24 hours a day, 7 days a week, 365 days a year</p>
+        <p style="margin:0 0 1rem;line-height:1.6;"><strong>Location:</strong> Main Hospital, Ground Floor, Emergency Entrance</p>
+        <p style="margin:0 0 1rem;line-height:1.6;"><strong>Phone:</strong> (555) 123-4500 (Non-emergency inquiries only)</p>
+        <p style="margin:0 0 1rem;line-height:1.6;"><strong>Address:</strong> 374 Stockholm Street, Brooklyn, NY 11237</p>
+        <p style="margin:0;line-height:1.6;font-weight:600;color:#d32f2f;">⚠️ For emergencies, always call 911</p>
+      </div>
+    </div>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+  </section>
+</WindriverLayout>
+

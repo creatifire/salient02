@@ -1,0 +1,24 @@
+/* Windriver Hospital - Green/Teal Healthcare Theme */
+
+:root {
+  --windriver-primary: #2E7D32;     /* Forest Green */
+  --windriver-secondary: #00695C;   /* Teal */
+  --windriver-accent: #4CAF50;      /* Light Green */
+  --windriver-text: #1B5E20;       /* Dark Green */
+}
+
+.navbar-bg {
+  background: var(--windriver-primary);
+  color: white;
+}
+
+.footer-bg {
+  background: var(--windriver-primary);
+  color: white;
+}
+
+/* Override color variables for Windriver Hospital */
+body {
+  --color-secondary-foreground: white;
+}
+
