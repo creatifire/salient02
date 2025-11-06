@@ -369,39 +369,39 @@ Unauthorized copying of this file is strictly prohibited.
 **Implementation Plan**:
 
 #### **Task 5B-001: Widget Color Configuration Support** 📋
-- [ ] 5B-001-001 - CHUNK: Add color config parameters to widget
+- [x] 5B-001-001 - CHUNK: Add color config parameters to widget ✅
   - Add `userBubbleColor`, `botBubbleColor`, `chatBackgroundColor`, `fabColor` to config parsing
   - Support both `data-*` attributes and `window.__SALIENT_WIDGET_CONFIG` object
   - Default values: User `#eef6ff`, Bot `#fffbe6`, Background `#fff`, FAB `#108D43`
   - **Fallback logic**: If `fabColor` not provided, fallback to `headerColor` value (if available)
-  - **Location**: `web/public/widget/chat-widget.js` lines 30-34
+  - **Location**: `web/public/widget/chat-widget.js` lines 36-41
   - **Manual Tests**: Verify config parsing works for both attribute and global config methods
   - **Automated Tests**: N/A (widget is standalone, no test framework)
 
-- [ ] 5B-001-002 - CHUNK: Update widget CSS to use config colors
+- [x] 5B-001-002 - CHUNK: Update widget CSS to use config colors ✅
   - Replace hardcoded colors in style template with config variables
-  - User bubble: `.msg.user` background (line 119)
-  - Bot bubble: `.msg.bot` background (line 120)
-  - Chat background: `.chat` background (line 115)
-  - FAB button: `#fab` background (line 104)
-  - **Location**: `web/public/widget/chat-widget.js` lines 98-186 (style template)
+  - User bubble: `.msg.user` background (line 126)
+  - Bot bubble: `.msg.bot` background (line 127)
+  - Chat background: `.chat` background (line 122)
+  - FAB button: `#fab` background (line 111)
+  - **Location**: `web/public/widget/chat-widget.js` lines 106-186 (style template)
   - **Manual Tests**: Verify colors apply correctly when config provided
   - **Automated Tests**: N/A
 
 #### **Task 5B-002: Demo Site Color Configuration** 📋
-- [ ] 5B-002-001 - CHUNK: Update Wyckoff site colors
+- [x] 5B-002-001 - CHUNK: Update Wyckoff site colors ✅
   - Add color config to `web/src/components/wyckoff/WyckoffFooter.astro`
   - Colors: User `#E3F2FD`, Bot `#E0F7FA`, Background `#F8FBFF`, FAB `#0277BD` (matches headerColor)
   - **Manual Tests**: Load `/wyckoff` page, verify chat widget matches blue theme
   - **Automated Tests**: N/A
 
-- [ ] 5B-002-002 - CHUNK: Update AgroFresh site colors
+- [x] 5B-002-002 - CHUNK: Update AgroFresh site colors ✅
   - Add color config to `web/src/components/agrofresh/AgroFreshFooter.astro`
   - Colors: User `#E8F5E9`, Bot `#F1F8E9`, Background `#FFFFFF`, FAB `#2E7D32` (matches headerColor)
   - **Manual Tests**: Load `/agrofresh` page, verify chat widget matches green theme
   - **Automated Tests**: N/A
 
-- [ ] 5B-002-003 - CHUNK: Update Windriver site colors and display name
+- [x] 5B-002-003 - CHUNK: Update Windriver site colors and display name ✅
   - Add color config to `web/src/components/windriver/WindriverFooter.astro`
   - Colors: User `#E8F5E9`, Bot `#F1F8E9`, Background `#FFFFFF`, FAB `#2E7D32` (matches headerColor)
   - **Display name**: Update `name` field in `backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml` to "Wind River Hospital" (with space) instead of "Windriver Hospital Assistant"
@@ -409,20 +409,20 @@ Unauthorized copying of this file is strictly prohibited.
   - **Manual Tests**: Load `/windriver` page, verify chat widget matches green theme and shows "Wind River Hospital" in header
   - **Automated Tests**: N/A
 
-- [ ] 5B-002-004 - CHUNK: Update PrepExcellence site colors
+- [x] 5B-002-004 - CHUNK: Update PrepExcellence site colors ✅
   - Add color config to `web/src/components/prepexcellence/PrepExcellenceFooter.astro`
   - Colors: User `#F3E5F5`, Bot `#E1BEE7`, Background `#FFFFFF`, FAB `#6A1B9A` (matches headerColor)
   - **Manual Tests**: Load `/prepexcellence` page, verify chat widget matches purple theme
   - **Automated Tests**: N/A
 
 #### **Task 5B-003: Documentation & Testing** 📋
-- [ ] 5B-003-001 - CHUNK: Update widget demo page documentation
+- [x] 5B-003-001 - CHUNK: Update widget demo page documentation ✅
   - Add color configuration examples to `web/src/pages/demo/widget.astro`
   - Document `userBubbleColor`, `botBubbleColor`, `chatBackgroundColor`, `fabColor` attributes
   - **Manual Tests**: Verify documentation examples are accurate
   - **Automated Tests**: N/A
 
-- [ ] 5B-003-002 - CHUNK: Cross-site visual verification
+- [x] 5B-003-002 - CHUNK: Cross-site visual verification ✅
   - Test all 4 demo sites to ensure colors match brand identity
   - Verify color contrast meets accessibility standards (WCAG AA minimum)
   - **Manual Tests**: Visual inspection of each site's chat widget

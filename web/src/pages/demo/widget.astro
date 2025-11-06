@@ -26,7 +26,12 @@ import Layout from '../../layouts/Layout.astro';
   data-agent="simple_chat1"
   data-backend="http://localhost:8000"
   data-allow-cross="1"
-  data-sse="1"&gt;
+  data-sse="1"
+  data-header-color="#169CB5"
+  data-user-bubble-color="#eef6ff"
+  data-bot-bubble-color="#fffbe6"
+  data-chat-background-color="#fff"
+  data-fab-color="#108D43"&gt;
 &lt;/script&gt;</pre>
     <p style="font-size:0.9rem;color:#666;margin-top:0.5rem;">
       <strong>Attributes:</strong><br>
@@ -34,8 +39,83 @@ import Layout from '../../layouts/Layout.astro';
       • <code>data-agent</code> - Agent instance slug (default: simple_chat1)<br>
       • <code>data-backend</code> - Backend URL (default: current origin)<br>
       • <code>data-allow-cross</code> - Enable CORS (default: 0)<br>
-      • <code>data-sse</code> - Enable SSE streaming (default: 1)
+      • <code>data-sse</code> - Enable SSE streaming (default: 1)<br>
+      • <code>data-header-color</code> - Header background color (default: #169CB5)<br>
+      • <code>data-user-bubble-color</code> - User message bubble color (default: #eef6ff)<br>
+      • <code>data-bot-bubble-color</code> - Bot message bubble color (default: #fffbe6)<br>
+      • <code>data-chat-background-color</code> - Chat area background color (default: #fff)<br>
+      • <code>data-fab-color</code> - Floating action button color (default: uses headerColor, fallback: #108D43)
     </p>
+    
+    <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">Color Customization</h2>
+    <p>Customize the chat widget colors to match your brand identity. Colors can be set via data attributes or the global config object.</p>
+    
+    <h3 style="font-size:1.2rem;margin:1.5rem 0 0.75rem;">Using Data Attributes</h3>
+    <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;font-size:0.9rem;">&lt;script 
+  src="/widget/chat-widget.js" 
+  data-account="my_account"
+  data-agent="my_agent"
+  data-header-color="#0277BD"
+  data-user-bubble-color="#E3F2FD"
+  data-bot-bubble-color="#E0F7FA"
+  data-chat-background-color="#F8FBFF"
+  data-fab-color="#0277BD"&gt;
+&lt;/script&gt;</pre>
+    
+    <h3 style="font-size:1.2rem;margin:1.5rem 0 0.75rem;">Using Global Config Object</h3>
+    <p>Set colors via <code>window.__SALIENT_WIDGET_CONFIG</code> before loading the widget script:</p>
+    <pre style="background:#f5f5f5;padding:1rem;border-radius:.5rem;white-space:pre-wrap;font-size:0.9rem;">&lt;script is:inline&gt;
+  window.__SALIENT_WIDGET_CONFIG = &#123;
+    account: 'my_account',
+    agent: 'my_agent',
+    backend: 'http://localhost:8000',
+    headerColor: '#0277BD',
+    userBubbleColor: '#E3F2FD',
+    botBubbleColor: '#E0F7FA',
+    chatBackgroundColor: '#F8FBFF',
+    fabColor: '#0277BD'  // Falls back to headerColor if not provided
+  &#125;;
+&lt;/script&gt;
+&lt;script src="/widget/chat-widget.js" is:inline&gt;&lt;/script&gt;</pre>
+    
+    <h3 style="font-size:1.2rem;margin:1.5rem 0 0.75rem;">Color Fallback Logic</h3>
+    <p style="font-size:0.9rem;color:#666;">
+      Colors are resolved in this order:<br>
+      1. <code>window.__SALIENT_WIDGET_CONFIG</code> object value<br>
+      2. <code>data-*</code> attribute value<br>
+      3. Default fallback value<br><br>
+      <strong>Special case:</strong> <code>fabColor</code> falls back to <code>headerColor</code> if not explicitly set, then to the default green (#108D43).
+    </p>
+    
+    <h3 style="font-size:1.2rem;margin:1.5rem 0 0.75rem;">Example: Brand Color Themes</h3>
+    <p>Here are example color configurations for different brand themes:</p>
+    
+    <details style="margin:1rem 0;padding:1rem;background:#f8f9fa;border-radius:8px;">
+      <summary style="cursor:pointer;font-weight:600;margin-bottom:0.5rem;">Blue Healthcare Theme (Wyckoff)</summary>
+      <pre style="background:#fff;padding:0.75rem;border-radius:4px;font-size:0.85rem;margin-top:0.5rem;">headerColor: '#0277BD',
+userBubbleColor: '#E3F2FD',
+botBubbleColor: '#E0F7FA',
+chatBackgroundColor: '#F8FBFF',
+fabColor: '#0277BD'</pre>
+    </details>
+    
+    <details style="margin:1rem 0;padding:1rem;background:#f8f9fa;border-radius:8px;">
+      <summary style="cursor:pointer;font-weight:600;margin-bottom:0.5rem;">Green Theme (AgroFresh/Windriver)</summary>
+      <pre style="background:#fff;padding:0.75rem;border-radius:4px;font-size:0.85rem;margin-top:0.5rem;">headerColor: '#2E7D32',
+userBubbleColor: '#E8F5E9',
+botBubbleColor: '#F1F8E9',
+chatBackgroundColor: '#FFFFFF',
+fabColor: '#2E7D32'</pre>
+    </details>
+    
+    <details style="margin:1rem 0;padding:1rem;background:#f8f9fa;border-radius:8px;">
+      <summary style="cursor:pointer;font-weight:600;margin-bottom:0.5rem;">Purple Theme (PrepExcellence)</summary>
+      <pre style="background:#fff;padding:0.75rem;border-radius:4px;font-size:0.85rem;margin-top:0.5rem;">headerColor: '#6A1B9A',
+userBubbleColor: '#F3E5F5',
+botBubbleColor: '#E1BEE7',
+chatBackgroundColor: '#FFFFFF',
+fabColor: '#6A1B9A'</pre>
+    </details>
     
     <h2 style="font-size:1.5rem;margin:2rem 0 1rem;">Test It Out</h2>
     <p>Click the "Chat" button in the bottom right corner to start chatting with <strong>default_account/simple_chat1</strong>.</p>
