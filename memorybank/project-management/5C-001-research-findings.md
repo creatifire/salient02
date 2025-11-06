@@ -3,6 +3,37 @@
 > **Python Version**: 3.14.0 (confirmed via `python3 --version`)  
 > **Status**: ✅ Research Complete
 
+## Documentation Sources
+
+**This research is based on CURRENT/LATEST documentation:**
+
+### **Pydantic AI Documentation**
+- **Source**: https://ai.pydantic.dev/llms-full.txt
+- **Type**: Current/Latest (not versioned - reflects latest stable release)
+- **Access Method**: Direct fetch via DDG search tool
+- **Confirmed**: `output_type` parameter is the current standard API
+- **Verified**: Example code in docs uses `output_type=SupportOutput`
+
+### **OpenAI API Documentation**
+- **Source**: https://cdn.openai.com/API/docs/txt/llms.txt
+- **Type**: Current/Latest API documentation
+- **Subsets Available**:
+  - `llms-models-pricing.txt` - Model data and pricing
+  - `llms-guides.txt` - Guide documentation
+  - `llms-api-reference.txt` - API reference
+  - `llms-full.txt` - Combined guides and API reference
+- **Access Method**: Direct fetch via DDG search tool
+- **OpenAPI Spec**: https://app.stainless.com/api/spec/documented/openai/openapi.documented.yml
+
+### **Context7 Sources (Supporting)**
+- `/websites/ai_pydantic_dev` - Pydantic AI website documentation (current)
+- `/websites/platform_openai` - OpenAI platform documentation (current)
+- Note: Context7 versioned snapshots (v1.0.5, v1.105.0) were NOT used; website sources provide current docs
+
+**Documentation Currency**: ✅ **CONFIRMED CURRENT** - Research findings are based on the latest available documentation for both libraries, ensuring accuracy for our v1.11.1 (pydantic-ai) and v2.7.1 (openai) upgrade targets.
+
+---
+
 ## Executive Summary
 
 **Good News**: The upgrade path is much simpler than initially anticipated!
