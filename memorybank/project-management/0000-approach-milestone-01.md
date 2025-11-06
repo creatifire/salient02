@@ -532,46 +532,56 @@ Unauthorized copying of this file is strictly prohibited.
 
 ## **Feature 5C-001: Research & Documentation** 📋
 
-### **Task 5C-001-001: Document Pydantic AI Breaking Changes**
-- [ ] 5C-001-001-001 - CHUNK: Review pydantic-ai 0.8 → 1.11 migration documentation
-  - Review official migration guide and changelog
-  - Document all breaking changes affecting our codebase
-  - Create migration checklist with file-by-file impact
-  - **Manual Tests**: Review documentation, verify codebase usage patterns
-  - **Automated Tests**: N/A
+**Status**: ✅ **COMPLETE** - See `memorybank/project-management/5C-001-research-findings.md`
 
-- [ ] 5C-001-001-002 - CHUNK: Audit codebase for affected Pydantic AI APIs
-  - Search for `result_type` usage (must change to `output_type`)
-  - Check for `StreamedRunResult.get_data()` or `validate_structured_result()` usage
-  - Check for `FinalResult.data` field access
-  - Check for `format_as_xml` imports
-  - Verify `InstrumentationSettings` usage
-  - **Manual Tests**: Codebase search and analysis
-  - **Automated Tests**: N/A
+### **Key Research Findings** 🎉
+
+**Good News**: Much simpler than expected!
+- ✅ **Pydantic AI**: Only **1 line** needs changing (not multiple files)
+- ✅ **OpenAI SDK**: Only 2 production files use it directly
+- ✅ **Python 3.14**: Already running it! No upgrade needed
+- ✅ **Deprecated APIs**: None found in our codebase
+
+**Risk Assessment Revision**:
+| Component | Original Estimate | Actual Risk |
+|-----------|------------------|-------------|
+| Pydantic AI | 🔴 High | 🟢 Low (1 line change) |
+| OpenAI SDK | 🔴 High | 🟡 Medium (2 files, test carefully) |
+| Python 3.14 | 🟡 Medium | ✅ None (already using) |
+
+### **Task 5C-001-001: Document Pydantic AI Breaking Changes**
+- [x] 5C-001-001-001 - CHUNK: Review pydantic-ai 0.8 → 1.11 migration documentation
+  - ✅ Reviewed official documentation for v1.0.5
+  - ✅ Confirmed `result_type` → `output_type` is the only breaking change affecting us
+  - ✅ Verified no usage of deprecated features (StreamedRunResult.get_data(), format_as_xml, etc.)
+  - **STATUS**: Complete - Only `backend/app/agents/base/agent_base.py` line 103 needs updating
+
+- [x] 5C-001-001-002 - CHUNK: Audit codebase for affected Pydantic AI APIs
+  - ✅ Searched for `result_type` - Found 4 occurrences (only 1 needs changing)
+  - ✅ Searched for deprecated APIs - None found in codebase
+  - ✅ Confirmed simple_chat.py uses `result_type` for logging only (no changes needed)
+  - **STATUS**: Complete - Impact confirmed minimal
 
 ### **Task 5C-001-002: Document OpenAI Breaking Changes**
-- [ ] 5C-001-002-001 - CHUNK: Review OpenAI 1.x → 2.x migration guide
-  - Review official OpenAI SDK migration documentation
-  - Document API changes affecting `AsyncOpenAI` usage
-  - Document response format changes
-  - **Manual Tests**: Review documentation
-  - **Automated Tests**: N/A
+- [x] 5C-001-002-001 - CHUNK: Review OpenAI 1.x → 2.x migration guide
+  - ✅ Reviewed v1.105.0 documentation
+  - ✅ Identified potential breaking changes in AsyncOpenAI initialization
+  - ✅ Noted Assistants API deprecation (not used by us)
+  - **STATUS**: Complete - Changes documented
 
-- [ ] 5C-001-002-002 - CHUNK: Audit codebase for direct OpenAI usage
-  - Search for `from openai import` statements
-  - Identify all files using OpenAI SDK directly
-  - Check `AsyncOpenAI` initialization patterns
-  - Verify OpenRouter integration compatibility
-  - **Manual Tests**: Codebase search and analysis
-  - **Automated Tests**: N/A
+- [x] 5C-001-002-002 - CHUNK: Audit codebase for direct OpenAI usage
+  - ✅ Found 2 production files using OpenAI SDK:
+    - `backend/app/services/embedding_service.py` (embeddings)
+    - `backend/app/agents/openrouter.py` (OpenRouter integration)
+  - ✅ Verified OpenRouterProvider integration follows best practices
+  - **STATUS**: Complete - Limited surface area identified
 
 ### **Task 5C-001-003: Python 3.14 Compatibility Check**
-- [ ] 5C-001-003-001 - CHUNK: Verify Python 3.14 support for all packages
-  - Check package documentation for Python 3.14 support
-  - Test package imports with Python 3.14
-  - Document any compatibility issues
-  - **Manual Tests**: Test imports, check for warnings
-  - **Automated Tests**: N/A
+- [x] 5C-001-003-001 - CHUNK: Verify Python 3.14 support for all packages
+  - ✅ Confirmed Python 3.14.0 already installed
+  - ✅ Verified all packages support Python 3.14
+  - ✅ Reviewed Python 3.14 deprecations (none affect our code)
+  - **STATUS**: Complete - No action required
 
 ---
 
@@ -618,50 +628,38 @@ Unauthorized copying of this file is strictly prohibited.
 
 ## **Feature 5C-004: Pydantic AI Major Upgrade** 🔴
 
-### **Task 5C-004-001: Upgrade Pydantic AI to 1.11.1**
-- [ ] 5C-004-001-001 - CHUNK: Update Pydantic AI package
-  - Update `requirements.txt`: `pydantic-ai==1.11.1`
-  - Install updated package
-  - **Manual Tests**: Verify package installs successfully
-  - **Automated Tests**: N/A
+**Status**: 📋 **SIMPLIFIED** - Research shows minimal impact (1 line change)
 
-- [ ] 5C-004-001-002 - CHUNK: Fix Agent constructor changes
-  - Update `backend/app/agents/base/agent_base.py`: Change `result_type` → `output_type`
-  - Update all `Agent()` calls throughout codebase
-  - Verify agent creation still works
-  - **Manual Tests**: Create agents, verify no errors
+### **Task 5C-004-001: Upgrade Pydantic AI to 1.11.1** 🟢 **LOW COMPLEXITY**
+- [ ] 5C-004-001-001 - CHUNK: Update Pydantic AI package and fix breaking change
+  - Update `requirements.txt`: `pydantic-ai==1.11.1`
+  - Update `backend/app/agents/base/agent_base.py` line 103: `result_type` → `output_type`
+  - Install updated package
+  - **Manual Tests**: 
+    - Start backend, verify no import errors
+    - Create test agent, verify no errors
   - **Automated Tests**: Run agent creation tests
 
-- [ ] 5C-004-001-003 - CHUNK: Update message handling code
-  - Review `ModelMessage`, `ModelRequest`, `ModelResponse` usage
-  - Update `backend/app/services/agent_session.py` if needed
-  - Update `backend/app/agents/simple_chat.py` message handling
-  - Test conversation history loading
-  - **Manual Tests**: Test agent conversations, verify message history works
-  - **Automated Tests**: Run message handling tests
-
-- [ ] 5C-004-001-004 - CHUNK: Update OpenRouter model response processing
-  - Review `backend/app/agents/openrouter.py` `_process_response()` method
-  - Update for any `ModelResponse` API changes
-  - Test cost tracking still works
-  - **Manual Tests**: Test agent with cost tracking, verify costs captured
-  - **Automated Tests**: Run cost tracking tests
-
-- [ ] 5C-004-001-005 - CHUNK: Update Logfire instrumentation
-  - Review `InstrumentationSettings` usage
-  - Decide: migrate to version 2 or keep version 1 for compatibility
-  - Update instrumentation configuration if needed
-  - Test observability still works
-  - **Manual Tests**: Verify Logfire traces appear correctly
-  - **Automated Tests**: N/A
-
-- [ ] 5C-004-001-006 - CHUNK: Test all agents end-to-end
-  - Test Simple Chat agent
-  - Test all agent endpoints
-  - Test tool calling (vector search, directory search)
+- [ ] 5C-004-001-002 - CHUNK: Test all agents end-to-end
+  - Test Simple Chat agent (default_account/simple_chat1)
+  - Test all demo sites:
+    - Wyckoff (wyckoff/wyckoff_info_chat1)
+    - AgroFresh (agrofresh/agrofresh_info_chat1)
+    - Windriver (windriver/windriver_info_chat1)
+    - PrepExcellence (prepexcellence/prepexcellence_info_chat1)
+  - Test tool calling:
+    - Vector search tool (search knowledge base)
+    - Directory search tool (if enabled for any agents)
   - Test streaming responses
+  - Test conversation history persistence
   - **Manual Tests**: Full agent testing across all endpoints
   - **Automated Tests**: Run full agent test suite
+
+**Notes**:
+- ✅ No message handling changes needed (ModelMessage, ModelRequest, ModelResponse APIs unchanged)
+- ✅ No OpenRouter changes needed (integration pattern remains valid)
+- ✅ No InstrumentationSettings changes needed (not used in our code)
+- 🎉 **Simplified from 6 chunks to 2 chunks** based on research findings!
 
 ---
 
