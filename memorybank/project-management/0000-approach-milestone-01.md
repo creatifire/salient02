@@ -532,7 +532,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 ## **Feature 5C-001: Research & Documentation** 📋
 
-**Status**: ✅ **COMPLETE** - See `memorybank/project-management/5C-001-research-findings.md`
+**Status**: ✅ **COMPLETE** - See `memorybank/project-management/refactor-5C-001-research-findings.md`
 
 ### **Key Research Findings** 🎉
 
