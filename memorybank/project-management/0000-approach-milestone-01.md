@@ -434,6 +434,249 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Note:** Update to latest version of pydantic-ai: 1.11.1
 **Note:** Update to latest version of open-ai: 2.7.1
+
+### **Priority 5C: Library Dependency Updates** 📦 **MAINTENANCE**
+
+**Why Priority 5C**: Keep dependencies up-to-date for security patches, bug fixes, and new features. Some packages have major version updates that may require code changes.
+
+**Current vs Latest Versions**:
+
+| Package | Current | Latest | Update Type | Notes |
+|---------|---------|--------|-------------|-------|
+| **pydantic-ai** | 0.8.1 | **1.11.1** | 🔴 **MAJOR** | 0.x → 1.x (breaking changes expected) |
+| **openai** | 1.107.1 | **2.7.1** | 🔴 **MAJOR** | 1.x → 2.x (breaking changes expected) |
+| **openrouter** | ❌ **N/A** | **N/A** | ✅ **CORRECT** | No official package - use `openai` SDK with OpenRouter base URL |
+| fastapi | 0.120.4 | 0.121.0 | 🟡 Minor | 0.120.4 → 0.121.0 |
+| uvicorn | 0.35.0 | 0.38.0 | 🟡 Minor | 0.35.0 → 0.38.0 |
+| pydantic | 2.12.3 | 2.12.4 | 🟢 Patch | 2.12.3 → 2.12.4 |
+| genai-prices | 0.0.35 | 0.0.36 | 🟢 Patch | 0.0.35 → 0.0.36 |
+| jinja2 | 3.1.6 | 3.1.6 | ✅ Current | Already latest |
+| logfire | 4.14.2 | 4.14.2 | ✅ Current | Already latest |
+| sqlalchemy | 2.0.44 | 2.0.44 | ✅ Current | Already latest |
+| alembic | 1.17.1 | 1.17.1 | ✅ Current | Already latest |
+| asyncpg | 0.30.0 | 0.30.0 | ✅ Current | Already latest |
+| greenlet | 3.2.4 | 3.2.4 | ✅ Current | Already latest |
+| python-dotenv | 1.2.1 | 1.2.1 | ✅ Current | Already latest |
+| PyYAML | 6.0.3 | 6.0.3 | ✅ Current | Already latest |
+| pinecone | 7.3.0 | 7.3.0 | ✅ Current | Already latest |
+| httpx | 0.28.1 | 0.28.1 | ✅ Current | Already latest |
+| sse-starlette | 3.0.3 | 3.0.3 | ✅ Current | Already latest |
+
+**Breaking Changes Analysis**:
+
+#### **1. pydantic-ai: 0.8.1 → 1.11.1** 🔴 **MAJOR**
+
+**Key Breaking Changes Identified**:
+- **`result_type` parameter removed**: Replaced with `output_type` in `Agent()` constructor
+  - **Impact**: `backend/app/agents/base/agent_base.py` line 103 uses `result_type=AgentResponse`
+  - **Fix**: Change to `output_type=AgentResponse`
+- **`get_data()` and `validate_structured_result()` removed**: From `StreamedRunResult` class
+  - **Impact**: Check if used in streaming code
+  - **Fix**: Access data directly from result object
+- **`format_as_xml` module removed**: Entire module deprecated
+  - **Impact**: Check if used anywhere
+  - **Fix**: Use alternative XML formatting libraries if needed
+- **`data` field removed**: From `FinalResult` class
+  - **Impact**: Check result handling code
+  - **Fix**: Access fields directly instead of via `.data`
+- **InstrumentationSettings default version**: Changed from 1 to 2
+  - **Impact**: Logfire integration may need updates
+  - **Fix**: Explicitly set `version=1` for backward compatibility if needed, or migrate to version 2
+- **API changes**: Various message handling and model response changes
+  - **Impact**: `ModelMessage`, `ModelRequest`, `ModelResponse` usage throughout codebase
+  - **Fix**: Review and update message handling patterns
+
+**Files Affected**:
+- `backend/app/agents/base/agent_base.py` - `result_type` → `output_type`
+- `backend/app/agents/simple_chat.py` - Agent creation, message handling
+- `backend/app/agents/openrouter.py` - Model response processing
+- `backend/app/services/agent_session.py` - Message conversion
+- `backend/app/api/agents.py` - Message handling
+- All tool files using `RunContext`
+
+#### **2. openai: 1.107.1 → 2.7.1** 🔴 **MAJOR**
+
+**Key Breaking Changes**:
+- **API structure changes**: Significant refactoring of client API
+- **Async client changes**: `AsyncOpenAI` initialization and usage patterns
+- **Response format changes**: Response object structure modifications
+- **Error handling**: Exception types and error response formats
+
+**Files Affected**:
+- `backend/app/agents/openrouter.py` - Uses `AsyncOpenAI` with OpenRouter base URL
+- `backend/app/services/embedding_service.py` - Uses `AsyncOpenAI` for embeddings
+- `backend/app/openrouter_client.py` - Direct HTTP client (may not be affected)
+
+**Compatibility Check Required**:
+- Verify Pydantic AI's `OpenRouterProvider` compatibility with OpenAI 2.x
+- Test OpenRouter integration after upgrade
+
+#### **3. Python 3.14 Compatibility** 🟡
+
+**Key Considerations**:
+- **Deprecations**: Several stdlib modules deprecated but backward compatible
+- **Library Support**: Verify all packages support Python 3.14
+- **Type System**: No breaking changes expected
+- **Performance**: Potential improvements, no breaking changes
+
+**Action Required**:
+- Test all packages with Python 3.14
+- Check for deprecation warnings
+- Update code if using deprecated features
+
+**OpenRouter Integration**: ✅ **NO CHANGES NEEDED**
+- Current implementation uses OpenAI SDK with OpenRouter base URL (official recommendation)
+- No standalone package required
+
+---
+
+## **Feature 5C-001: Research & Documentation** 📋
+
+### **Task 5C-001-001: Document Pydantic AI Breaking Changes**
+- [ ] 5C-001-001-001 - CHUNK: Review pydantic-ai 0.8 → 1.11 migration documentation
+  - Review official migration guide and changelog
+  - Document all breaking changes affecting our codebase
+  - Create migration checklist with file-by-file impact
+  - **Manual Tests**: Review documentation, verify codebase usage patterns
+  - **Automated Tests**: N/A
+
+- [ ] 5C-001-001-002 - CHUNK: Audit codebase for affected Pydantic AI APIs
+  - Search for `result_type` usage (must change to `output_type`)
+  - Check for `StreamedRunResult.get_data()` or `validate_structured_result()` usage
+  - Check for `FinalResult.data` field access
+  - Check for `format_as_xml` imports
+  - Verify `InstrumentationSettings` usage
+  - **Manual Tests**: Codebase search and analysis
+  - **Automated Tests**: N/A
+
+### **Task 5C-001-002: Document OpenAI Breaking Changes**
+- [ ] 5C-001-002-001 - CHUNK: Review OpenAI 1.x → 2.x migration guide
+  - Review official OpenAI SDK migration documentation
+  - Document API changes affecting `AsyncOpenAI` usage
+  - Document response format changes
+  - **Manual Tests**: Review documentation
+  - **Automated Tests**: N/A
+
+- [ ] 5C-001-002-002 - CHUNK: Audit codebase for direct OpenAI usage
+  - Search for `from openai import` statements
+  - Identify all files using OpenAI SDK directly
+  - Check `AsyncOpenAI` initialization patterns
+  - Verify OpenRouter integration compatibility
+  - **Manual Tests**: Codebase search and analysis
+  - **Automated Tests**: N/A
+
+### **Task 5C-001-003: Python 3.14 Compatibility Check**
+- [ ] 5C-001-003-001 - CHUNK: Verify Python 3.14 support for all packages
+  - Check package documentation for Python 3.14 support
+  - Test package imports with Python 3.14
+  - Document any compatibility issues
+  - **Manual Tests**: Test imports, check for warnings
+  - **Automated Tests**: N/A
+
+---
+
+## **Feature 5C-002: Minor/Patch Version Updates** 🟡
+
+### **Task 5C-002-001: Update Low-Risk Packages**
+- [ ] 5C-002-001-001 - CHUNK: Update fastapi, uvicorn, pydantic, genai-prices
+  - Update `requirements.txt` with latest versions:
+    - `fastapi==0.121.0`
+    - `uvicorn[standard]==0.38.0`
+    - `pydantic==2.12.4`
+    - `genai-prices==0.0.36`
+  - Install updated packages
+  - Test application startup
+  - **Manual Tests**: Start backend server, verify no import errors, test basic endpoints
+  - **Automated Tests**: Run full test suite
+
+---
+
+## **Feature 5C-003: OpenAI SDK Major Upgrade** 🔴
+
+### **Task 5C-003-001: Upgrade OpenAI to 2.7.1**
+- [ ] 5C-003-001-001 - CHUNK: Update OpenAI package
+  - Update `requirements.txt`: `openai==2.7.1`
+  - Install updated package
+  - **Manual Tests**: Verify package installs successfully
+  - **Automated Tests**: N/A
+
+- [ ] 5C-003-001-002 - CHUNK: Update direct OpenAI usage
+  - Update `backend/app/services/embedding_service.py` if needed
+  - Update `backend/app/agents/openrouter.py` if API changes required
+  - Test OpenAI client initialization
+  - **Manual Tests**: Test embedding generation, test OpenRouter client
+  - **Automated Tests**: Run embedding service tests
+
+- [ ] 5C-003-001-003 - CHUNK: Verify Pydantic AI compatibility
+  - Test Pydantic AI's `OpenRouterProvider` with OpenAI 2.x
+  - Verify `OpenAIChatModel` compatibility
+  - Test agent creation and execution
+  - **Manual Tests**: Create test agent, run simple query
+  - **Automated Tests**: Run agent tests
+
+---
+
+## **Feature 5C-004: Pydantic AI Major Upgrade** 🔴
+
+### **Task 5C-004-001: Upgrade Pydantic AI to 1.11.1**
+- [ ] 5C-004-001-001 - CHUNK: Update Pydantic AI package
+  - Update `requirements.txt`: `pydantic-ai==1.11.1`
+  - Install updated package
+  - **Manual Tests**: Verify package installs successfully
+  - **Automated Tests**: N/A
+
+- [ ] 5C-004-001-002 - CHUNK: Fix Agent constructor changes
+  - Update `backend/app/agents/base/agent_base.py`: Change `result_type` → `output_type`
+  - Update all `Agent()` calls throughout codebase
+  - Verify agent creation still works
+  - **Manual Tests**: Create agents, verify no errors
+  - **Automated Tests**: Run agent creation tests
+
+- [ ] 5C-004-001-003 - CHUNK: Update message handling code
+  - Review `ModelMessage`, `ModelRequest`, `ModelResponse` usage
+  - Update `backend/app/services/agent_session.py` if needed
+  - Update `backend/app/agents/simple_chat.py` message handling
+  - Test conversation history loading
+  - **Manual Tests**: Test agent conversations, verify message history works
+  - **Automated Tests**: Run message handling tests
+
+- [ ] 5C-004-001-004 - CHUNK: Update OpenRouter model response processing
+  - Review `backend/app/agents/openrouter.py` `_process_response()` method
+  - Update for any `ModelResponse` API changes
+  - Test cost tracking still works
+  - **Manual Tests**: Test agent with cost tracking, verify costs captured
+  - **Automated Tests**: Run cost tracking tests
+
+- [ ] 5C-004-001-005 - CHUNK: Update Logfire instrumentation
+  - Review `InstrumentationSettings` usage
+  - Decide: migrate to version 2 or keep version 1 for compatibility
+  - Update instrumentation configuration if needed
+  - Test observability still works
+  - **Manual Tests**: Verify Logfire traces appear correctly
+  - **Automated Tests**: N/A
+
+- [ ] 5C-004-001-006 - CHUNK: Test all agents end-to-end
+  - Test Simple Chat agent
+  - Test all agent endpoints
+  - Test tool calling (vector search, directory search)
+  - Test streaming responses
+  - **Manual Tests**: Full agent testing across all endpoints
+  - **Automated Tests**: Run full agent test suite
+
+---
+
+**Upgrade Order**: 
+1. **5C-001**: Research & Documentation (parallel tasks)
+2. **5C-002**: Minor/Patch Updates (quick validation)
+3. **5C-003**: OpenAI SDK Upgrade (foundational dependency)
+4. **5C-004**: Pydantic AI Upgrade (depends on OpenAI)
+
+**Dependencies**: 
+- Task 5C-004 depends on Task 5C-003 (pydantic-ai uses openai)
+- Task 5C-001 should complete before Task 5C-003 and Task 5C-004 (informed implementation)
+
+**Status**: 📋 **PLANNED** - Ready for implementation
+
 **Note:** Before starting Priority 6, address refactoring tasks BUG-0017-008 from `@bugs-0017.md` to improve code quality and maintainability.
 **Note:** Before starting Priority 6, address refactoring tasks BUG-0017-009 from `@bugs-0017.md` to improve code quality and maintainability.
 **Note:** Before starting Priority 6, address refactoring tasks BUG-0017-010 from `@bugs-0017.md` to improve code quality and maintainability.
