@@ -32,6 +32,8 @@ from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
+from .chat_helpers import build_request_messages, build_response_body, extract_session_account_info, save_message_pair
+from .cost_calculator import calculate_streaming_costs, track_chat_request
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -512,64 +514,28 @@ async def simple_chat(
                         tracking_model=tracking_model
                     )
             
-                # Build full request body with actual messages sent to LLM
-                request_messages = []
-                # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
-                if message_history:
-                    for msg in message_history:
-                        # Determine role and extract content from Pydantic AI message objects
-                        if isinstance(msg, ModelRequest):
-                            role = "user"
-                            content = msg.parts[0].content if msg.parts else ""
-                        elif isinstance(msg, ModelResponse):
-                            role = "assistant"
-                            content = msg.parts[0].content if msg.parts else ""
-                        else:
-                            continue
-                    
-                        request_messages.append({
-                            "role": role,
-                            "content": content
-                        })
-                # Add current user message
-                request_messages.append({
-                    "role": "user",
-                    "content": message
-                })
+                # Build full request body with actual messages sent to LLM (using helper)
+                request_messages = build_request_messages(message_history or [], message)
             
-                # Build full response body with actual LLM response
-                response_body_full = {
-                    "content": response_text,
-                    "usage": {
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "total_tokens": total_tokens
-                    },
-                    "model": requested_model
-                }
+                # Build full response body with actual LLM response (using helper)
+                response_body_full = build_response_body(
+                    response_text=response_text,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    requested_model=requested_model,
+                    result=result
+                )
             
-                # Add provider details if available
-                new_messages = result.new_messages()
-                if new_messages:
-                    latest_message = new_messages[-1]
-                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                        response_body_full["provider_details"] = latest_message.provider_details
-            
-                # Load session to extract denormalized fields for cost attribution
-                # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
-                from ..database import get_database_service
-                from ..services.session_extractor import get_session_account_fields
+                # Load session to extract denormalized fields for cost attribution (using helper)
+                account_id, account_slug = await extract_session_account_info(UUID(session_id))
                 
-                db_service = get_database_service()
-                async with db_service.get_session() as db_session:
-                    account_id, account_slug = await get_session_account_fields(
-                        db_session, UUID(session_id)
-                    )
-                    
-                    # Validate session exists (account_id/account_slug will be None if session not found)
-                    if account_id is None and account_slug is None:
-                        # Check if session exists at all
-                        from ..models.session import Session
+                # Validate session exists (account_id/account_slug will be None if session not found)
+                if account_id is None and account_slug is None:
+                    from ..database import get_database_service
+                    from ..models.session import Session
+                    db_service = get_database_service()
+                    async with db_service.get_session() as db_session:
                         session_record = await db_session.get(Session, UUID(session_id))
                         if not session_record:
                             logfire.error(
@@ -1029,67 +995,29 @@ async def simple_chat_stream(
                         session_id=session_id
                     )
                 
-                # Build full request body with actual messages sent to LLM
-                request_messages = []
-                # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
-                if message_history:
-                    for msg in message_history:
-                        # Determine role and extract content from Pydantic AI message objects
-                        if isinstance(msg, ModelRequest):
-                            role = "user"
-                            content = msg.parts[0].content if msg.parts else ""
-                        elif isinstance(msg, ModelResponse):
-                            role = "assistant"
-                            content = msg.parts[0].content if msg.parts else ""
-                        else:
-                            continue
-                        
-                        request_messages.append({
-                            "role": role,
-                            "content": content
-                        })
-                # Add current user message
-                request_messages.append({
-                    "role": "user",
-                    "content": message
-                })
+                # Build full request body with actual messages sent to LLM (using helper)
+                request_messages = build_request_messages(message_history or [], message)
                 
-                # Build full response body with actual LLM response
-                response_body_full = {
-                    "content": response_text,
-                    "usage": {
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "total_tokens": total_tokens
-                    },
-                    "model": requested_model,
-                    "streaming": {
-                        "chunks_sent": len(chunks)
-                    }
-                }
+                # Build full response body with actual LLM response (using helper)
+                response_body_full = build_response_body(
+                    response_text=response_text,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    requested_model=requested_model,
+                    result=result,
+                    streaming_chunks=len(chunks)
+                )
                 
-                # Add provider details if available
-                new_messages = result.new_messages()
-                if new_messages:
-                    latest_message = new_messages[-1]
-                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                        response_body_full["provider_details"] = latest_message.provider_details
+                # Load session to extract denormalized fields for cost attribution (using helper)
+                account_id, account_slug = await extract_session_account_info(UUID(session_id))
                 
-                # Load session to extract denormalized fields for cost attribution
-                # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
-                from ..database import get_database_service
-                from ..services.session_extractor import get_session_account_fields
-                
-                db_service = get_database_service()
-                async with db_service.get_session() as db_session:
-                    account_id, account_slug = await get_session_account_fields(
-                        db_session, UUID(session_id)
-                    )
-                    
-                    # Validate session exists (account_id/account_slug will be None if session not found)
-                    if account_id is None and account_slug is None:
-                        # Check if session exists at all
-                        from ..models.session import Session
+                # Validate session exists (account_id/account_slug will be None if session not found)
+                if account_id is None and account_slug is None:
+                    from ..database import get_database_service
+                    from ..models.session import Session
+                    db_service = get_database_service()
+                    async with db_service.get_session() as db_session:
                         session_record = await db_session.get(Session, UUID(session_id))
                         if not session_record:
                             logfire.error(
@@ -1097,9 +1025,9 @@ async def simple_chat_stream(
                                 session_id=session_id
                             )
                             raise ValueError(f"Session not found: {session_id}")
-                    
-                    agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
-                    agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+                
+                agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
+                agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
                 
                 # Log tracking attempt for debugging
                 # All values are now Python primitives (no SQLAlchemy expressions)
