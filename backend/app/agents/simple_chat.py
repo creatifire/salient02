@@ -368,25 +368,8 @@ async def simple_chat(
     # CRITICAL: Ensure account_id is a Python primitive (not SQLAlchemy expression)
     # This prevents Logfire serialization errors when Pydantic AI instruments tool calls
     if account_id is not None:
-        # Safely convert to Python UUID primitive
-        try:
-            if isinstance(account_id, UUID):
-                # Already a Python UUID - safe to use
-                session_deps.account_id = account_id
-            else:
-                # Convert to UUID - this will fail if account_id is a SQLAlchemy expression
-                session_deps.account_id = UUID(str(account_id))
-        except (TypeError, ValueError) as e:
-            # If conversion fails, account_id might be a SQLAlchemy expression
-            # Log warning and use None to prevent Logfire serialization errors
-            logfire.warn(
-                'agent.session_deps.account_id_conversion_failed',
-                session_id=session_id,
-                error_type=type(e).__name__,
-                error_message=str(e),
-                account_id_type=type(account_id).__name__ if account_id is not None else None
-            )
-            session_deps.account_id = None
+        # Convert to Python UUID (simplified)
+        session_deps.account_id = UUID(str(account_id)) if account_id and not isinstance(account_id, UUID) else account_id
     else:
         session_deps.account_id = None
     
@@ -611,46 +594,16 @@ async def simple_chat(
             
                 # Diagnostic logging: Log values BEFORE calling track_llm_request to identify SQLAlchemy expressions
                 # Safe logging: Wrap ALL operations in try/except to avoid triggering SQLAlchemy expression evaluation
-                def safe_type_name(value):
-                    """Safely get type name, handling SQLAlchemy expressions"""
-                    if value is None:
-                        return 'None'
-                    try:
-                        return type(value).__name__
-                    except Exception as e:
-                        return f"<type check failed: {str(e)}>"
-                
-                def safe_repr(value):
-                    """Safely get repr() of value, handling SQLAlchemy expressions"""
-                    if value is None:
-                        return None
-                    try:
-                        return repr(value)
-                    except Exception as e:
-                        return f"<repr failed: {str(e)}>"
-                
-                # Wrap entire logging call in try/except in case logging itself triggers the error
-                try:
-                    logfire.debug(
-                        'agent.cost_tracking.before_track_call',
-                        session_id=session_id,
-                        agent_instance_id_type=safe_type_name(agent_instance_id),
-                        agent_instance_id_repr=safe_repr(agent_instance_id),
-                        account_id_type=safe_type_name(account_id),
-                        account_id_repr=safe_repr(account_id),
-                        account_slug_type=safe_type_name(account_slug),
-                        account_slug_repr=safe_repr(account_slug),
-                        agent_instance_slug=agent_instance_slug,
-                        agent_type=agent_type
-                    )
-                except Exception as log_error:
-                    # If logging itself fails, log that fact
-                    logfire.warn(
-                        'agent.cost_tracking.before_track_call_failed',
-                        session_id=session_id,
-                        logging_error=str(log_error),
-                        logging_error_type=type(log_error).__name__
-                    )
+                # Debug logging for cost tracking (simplified - removed defensive wrappers)
+                logfire.debug(
+                    'agent.cost_tracking.before_track_call',
+                    session_id=session_id,
+                    agent_instance_id=str(agent_instance_id) if agent_instance_id else None,
+                    account_id=str(account_id) if account_id else None,
+                    account_slug=account_slug,
+                    agent_instance_slug=agent_instance_slug,
+                    agent_type=agent_type
+                )
             
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
@@ -720,37 +673,18 @@ async def simple_chat(
                 
         except Exception as e:
             # Log tracking errors but don't break the response
-            # Use safe Logfire wrapper to handle any SQLAlchemy expressions defensively
+            # Log cost tracking failure (simplified - removed defensive wrappers)
             import traceback
-            from ..utils.logfire_safe import safe_logfire_error
-            
-            # Safe string conversions - handle SQLAlchemy expressions gracefully
-            try:
-                agent_instance_id_str = str(agent_instance_id) if agent_instance_id is not None else None
-            except Exception:
-                agent_instance_id_str = None
-            
-            try:
-                session_id_str = str(session_id) if session_id else None
-            except Exception:
-                session_id_str = None
-            
-            try:
-                requested_model_str = str(requested_model) if 'requested_model' in locals() else 'unknown'
-            except Exception:
-                requested_model_str = 'unknown'
-            
-            # Use safe wrapper to prevent SQLAlchemy expression serialization errors
-            safe_logfire_error(
+            logfire.error(
                 'cost_tracking_failed',
                 error_type=type(e).__name__,
                 error_message=str(e),
                 traceback_details=traceback.format_exc(),
-                requested_model=requested_model_str,
+                requested_model=str(requested_model) if 'requested_model' in locals() else 'unknown',
                 result_type=type(result).__name__ if 'result' in locals() else 'not_available',
                 has_usage=hasattr(result, 'usage') if 'result' in locals() else False,
-                session_id=session_id_str,
-                agent_instance_id=agent_instance_id_str
+                session_id=str(session_id) if session_id else None,
+                agent_instance_id=str(agent_instance_id) if agent_instance_id else None
             )
             llm_request_id = None
             prompt_cost = 0.0
