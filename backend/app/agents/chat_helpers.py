@@ -15,6 +15,7 @@ from typing import List, Dict, Any, Tuple, Optional
 from uuid import UUID
 from ..services.message_service import get_message_service
 from ..database import get_database_service
+from dataclasses import dataclass
 import logfire
 
 
@@ -230,4 +231,99 @@ async def save_message_pair(
             error=str(e),
             error_type=type(e).__name__
         )
+
+
+@dataclass
+class ChatExecutionContext:
+    """
+    Consolidated execution context for chat operations.
+    
+    Centralizes all initialization and config loading for simple_chat() and 
+    simple_chat_stream() functions, eliminating scattered config access patterns.
+    """
+    session_deps: Any  # SessionDependencies
+    message_history: List[ModelMessage]
+    agent: Any  # Pydantic AI Agent
+    requested_model: str
+    model_settings: Dict[str, Any]
+
+
+async def initialize_chat_context(
+    session_id: str,
+    agent_instance_id: Optional[int],
+    account_id: Optional[UUID],
+    instance_config: Optional[dict],
+    message_history: Optional[List[ModelMessage]] = None
+) -> ChatExecutionContext:
+    """
+    Initialize all chat execution context in one place.
+    
+    Consolidates configuration loading, session dependency creation, history loading,
+    and agent initialization - eliminating duplicated initialization logic between
+    simple_chat() and simple_chat_stream() functions.
+    
+    Args:
+        session_id: Session ID for conversation context
+        agent_instance_id: Agent instance ID for multi-tenant
+        account_id: Account UUID for multi-tenant
+        instance_config: Instance-specific configuration
+        message_history: Optional pre-loaded message history
+        
+    Returns:
+        ChatExecutionContext with all initialized components
+        
+    Example:
+        >>> ctx = await initialize_chat_context(session_id, agent_id, account_id, config)
+        >>> result = await ctx.agent.run(message, deps=ctx.session_deps, message_history=ctx.message_history)
+    """
+    from .config_loader import get_agent_history_limit, get_agent_model_settings
+    from ..config import load_config
+    
+    # Load history_limit from agent-first configuration cascade
+    default_history_limit = await get_agent_history_limit("simple_chat")
+    
+    # Create session dependencies with agent config for tools
+    from .base.dependencies import SessionDependencies
+    session_deps = await SessionDependencies.create(
+        session_id=session_id,
+        user_id=None,  # Optional for simple chat
+        history_limit=default_history_limit
+    )
+    
+    # Add agent-specific fields for tool access
+    session_deps.agent_config = instance_config
+    session_deps.agent_instance_id = agent_instance_id
+    
+    # Convert account_id to Python UUID (simplified)
+    if account_id is not None:
+        session_deps.account_id = UUID(str(account_id)) if account_id and not isinstance(account_id, UUID) else account_id
+    else:
+        session_deps.account_id = None
+    
+    # Load model settings using centralized cascade
+    model_settings = await get_agent_model_settings("simple_chat")
+    
+    # Load conversation history if not provided
+    if message_history is None:
+        from ..agents.simple_chat import load_conversation_history
+        message_history = await load_conversation_history(
+            session_id=session_id,
+            max_messages=None  # Uses get_agent_history_limit internally
+        )
+    
+    # Get the agent (pass instance_config and account_id for multi-tenant support)
+    from ..agents.simple_chat import get_chat_agent
+    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    
+    # Extract requested model for logging and tracking
+    config_to_use = instance_config if instance_config is not None else load_config()
+    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    
+    return ChatExecutionContext(
+        session_deps=session_deps,
+        message_history=message_history,
+        agent=agent,
+        requested_model=requested_model,
+        model_settings=model_settings
+    )
 
