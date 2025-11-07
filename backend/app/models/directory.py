@@ -30,7 +30,7 @@ class DirectoryList(Base):
     """
     __tablename__ = "directory_lists"
     
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), 
         ForeignKey("accounts.id", ondelete="CASCADE"), 
@@ -88,7 +88,7 @@ class DirectoryEntry(Base):
     """
     __tablename__ = "directory_entries"
     
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     directory_list_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), 
         ForeignKey("directory_lists.id", ondelete="CASCADE"), 

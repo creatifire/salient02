@@ -80,12 +80,12 @@ class Session(Base):
     
     __tablename__ = "sessions"
     
-    # Primary key - UUID for scalability and security
+    # Primary key - UUID v7 for scalability, security, and time-ordering
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), 
         primary_key=True, 
-        default=uuid.uuid4,
-        comment="Primary key for session identification"
+        default=uuid.uuid7,
+        comment="Primary key for session identification (UUID v7 - time-ordered)"
     )
     
     # Browser session cookie value - unique across all sessions
