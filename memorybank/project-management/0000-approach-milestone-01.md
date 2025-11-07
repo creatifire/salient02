@@ -696,9 +696,38 @@ Unauthorized copying of this file is strictly prohibited.
 - ✅ No breaking changes in production code
 - 🎉 **Complexity**: Much lower than expected!
 
-**Note:** Before starting Priority 6, address refactoring tasks BUG-0017-008 from `@bugs-0017.md` to improve code quality and maintainability.
-**Note:** Before starting Priority 6, address refactoring tasks BUG-0017-009 from `@bugs-0017.md` to improve code quality and maintainability.
-**Note:** Before starting Priority 6, address refactoring tasks BUG-0017-010 from `@bugs-0017.md` to improve code quality and maintainability.
+**Refactoring Tasks Before Priority 6:**
+
+Execute in this order for optimal results:
+
+1. **BUG-0017-007 Phase 1** (Legacy Endpoints - Disable) 🎯 **DO FIRST**
+   - Reason: Easiest (config-only change), reduces test surface immediately
+   - Impact: Eliminates confusion about which endpoints to use
+   - Effort: 5 minutes (one config line + verification)
+   - Risk: Very low (multi-tenant endpoints already tested)
+
+2. **BUG-0017-008** (config_loader.py refactoring)
+   - Reason: Foundation for BUG-0017-009
+   - Impact: Simplifies configuration access patterns
+   - Dependencies: None
+   - BUG-0017-009 needs this completed first
+
+3. **BUG-0017-009** (simple_chat.py refactoring)
+   - Reason: Benefits from simplified config access (BUG-0017-008)
+   - Impact: Major complexity reduction (1326 → ~600 lines)
+   - Dependencies: Requires BUG-0017-008 complete
+
+4. **BUG-0017-010** (llm_request_tracker.py refactoring)
+   - Reason: Independent, can apply patterns learned from 008/009
+   - Impact: Code quality improvement
+   - Dependencies: None (but benefits from 008/009 patterns)
+
+5. **BUG-0017-007 Phase 3** (Legacy Endpoints - Complete Removal) 🗑️ **DO LAST**
+   - Reason: Delete legacy code AFTER other refactorings complete
+   - Impact: Clean codebase, remove ~1000 lines
+   - Why Last: Avoid refactoring code that will be deleted
+
+**Summary**: Start with quick win (007-Phase1), then foundation work (008), then dependent work (009), then independent work (010), finally cleanup (007-Phase3).
 
 ### **Priority 6: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
