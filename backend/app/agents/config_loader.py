@@ -36,6 +36,8 @@ import logfire
 
 from ..config import load_config
 from .base.types import AgentConfig
+from .config_cascade_helpers import get_nested_value, resolve_config_path, cascade_parameters
+from .config_specs import MODEL_PARAMETER_SPECS, TOOL_PARAMETER_SPECS
 
 
 class AgentConfigError(Exception):
@@ -317,49 +319,30 @@ async def get_agent_parameter(agent_name: str, parameter_path: str, fallback: An
     
     try:
         # STEP 1: Try agent-specific configuration first (highest priority)
-        # Use multi-tenant path if account_slug and instance_slug provided (BUG-0023-002 fix)
-        if account_slug and instance_slug:
-            # Multi-tenant path: agent_configs/{account_slug}/{instance_slug}/config.yaml
-            from .instance_loader import _get_config_path
-            agent_config_path_obj = _get_config_path(account_slug, instance_slug)
-            agent_config_path = str(agent_config_path_obj)
-            
-            try:
-                with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
-                    # Load config directly from file (multi-tenant pattern)
-                    if not agent_config_path_obj.exists():
-                        attempt.failure(f"Config file not found: {agent_config_path}")
-                    else:
-                        import yaml
-                        with open(agent_config_path_obj, 'r', encoding='utf-8') as f:
-                            config_data = yaml.safe_load(f)
-                        
-                        if config_data:
-                            # Navigate through the parameter path
-                            value = _get_nested_parameter(config_data, parameter_path)
-                            if value is not None:
-                                return attempt.success(value)
-                        
-                        attempt.failure(f"Agent config exists but missing {parameter_path} parameter")
-            except Exception as e:
-                # Exception will be recorded by the context manager
-                pass
-        else:
-            # Legacy path: agent_configs/{agent_name}/config.yaml (backward compatibility)
-            agent_config_path = f"backend/config/agent_configs/{agent_name}/config.yaml"
-            try:
-                with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
-                    agent_config = await get_agent_config(agent_name)
+        # Use unified path resolution for both multi-tenant and legacy paths
+        agent_config_path_obj = resolve_config_path(agent_name, account_slug, instance_slug)
+        agent_config_path = str(agent_config_path_obj)
+        
+        try:
+            with audit_trail.attempt_source("agent_config", agent_config_path) as attempt:
+                # Load config directly from file
+                if not agent_config_path_obj.exists():
+                    attempt.failure(f"Config file not found: {agent_config_path}")
+                else:
+                    import yaml
+                    with open(agent_config_path_obj, 'r', encoding='utf-8') as f:
+                        config_data = yaml.safe_load(f)
                     
-                    # Navigate through the parameter path
-                    value = _get_nested_parameter_from_object(agent_config, parameter_path)
-                    if value is not None:
-                        return attempt.success(value)
+                    if config_data:
+                        # Navigate through the parameter path using unified helper
+                        value = get_nested_value(config_data, parameter_path)
+                        if value is not None:
+                            return attempt.success(value)
                     
                     attempt.failure(f"Agent config exists but missing {parameter_path} parameter")
-            except Exception as e:
-                # Exception will be recorded by the context manager
-                pass
+        except Exception as e:
+            # Exception will be recorded by the context manager
+            pass
         
         # STEP 2: Fall back to global configuration (app.yaml)
         global_config_path = "backend/config/app.yaml"
@@ -369,7 +352,7 @@ async def get_agent_parameter(agent_name: str, parameter_path: str, fallback: An
                 
                 # Use custom global path if provided, otherwise use parameter_path
                 lookup_path = global_path or parameter_path
-                value = _get_nested_parameter(global_config, lookup_path)
+                value = get_nested_value(global_config, lookup_path)
                 if value is not None:
                     return attempt.success(value)
                 
@@ -398,64 +381,8 @@ async def get_agent_parameter(agent_name: str, parameter_path: str, fallback: An
         audit_trail.finalize_and_log()
 
 
-def _get_nested_parameter(config_dict: dict, parameter_path: str) -> Any:
-    """
-    Navigate through nested dictionary using dot notation.
-    
-    Args:
-        config_dict: Dictionary to navigate
-        parameter_path: Dot-notation path (e.g., "model_settings.temperature")
-        
-    Returns:
-        Parameter value or None if not found
-        
-    Examples:
-        _get_nested_parameter({"model_settings": {"temperature": 0.3}}, "model_settings.temperature") → 0.3
-        _get_nested_parameter({"tools": {"vector_search": {"enabled": True}}}, "tools.vector_search.enabled") → True
-    """
-    try:
-        current = config_dict
-        for key in parameter_path.split('.'):
-            if isinstance(current, dict) and key in current:
-                current = current[key]
-            else:
-                return None
-        return current
-    except (KeyError, TypeError, AttributeError):
-        return None
-
-
-def _get_nested_parameter_from_object(config_obj: Any, parameter_path: str) -> Any:
-    """
-    Navigate through nested object attributes using dot notation.
-    
-    Args:
-        config_obj: Object to navigate (Pydantic model or similar)
-        parameter_path: Dot-notation path (e.g., "model_settings.temperature")
-        
-    Returns:
-        Parameter value or None if not found
-        
-    Examples:
-        _get_nested_parameter_from_object(agent_config, "model_settings.temperature") → 0.3
-        _get_nested_parameter_from_object(agent_config, "tools.vector_search.enabled") → True
-    """
-    try:
-        current = config_obj
-        path_parts = parameter_path.split('.')
-        
-        for i, key in enumerate(path_parts):
-            if hasattr(current, key):
-                current = getattr(current, key)
-                # If we got a dictionary and there are more path parts, continue with dict navigation
-                if isinstance(current, dict) and i < len(path_parts) - 1:
-                    remaining_path = '.'.join(path_parts[i + 1:])
-                    return _get_nested_parameter(current, remaining_path)
-            else:
-                return None
-        return current
-    except (AttributeError, TypeError, KeyError):
-        return None
+# Helper functions removed - now using unified get_nested_value() from config_cascade_helpers
+# This consolidates _get_nested_parameter() and _get_nested_parameter_from_object() into a single function
 
 
 async def get_agent_model_settings(agent_name: str, account_slug: Optional[str] = None,
@@ -482,51 +409,14 @@ async def get_agent_model_settings(agent_name: str, account_slug: Optional[str] 
             "max_tokens": 2000                   # From agent or global config
         }
     """
-    # Define model parameters with their fallback values and global paths
-    model_parameters = {
-        "model": {
-            "agent_path": "model_settings.model",
-            "global_path": "llm.model", 
-            "fallback": "deepseek/deepseek-chat-v3.1"
-        },
-        "temperature": {
-            "agent_path": "model_settings.temperature",
-            "global_path": "llm.temperature",
-            "fallback": 0.7
-        },
-        "max_tokens": {
-            "agent_path": "model_settings.max_tokens", 
-            "global_path": "llm.max_tokens",
-            "fallback": 1024
-        }
-    }
-    
-    # Use generic cascade for each parameter independently (mixed inheritance)
-    model_settings = {}
-    
-    for param_name, config in model_parameters.items():
-        try:
-            value = await get_agent_parameter(
-                agent_name=agent_name,
-                parameter_path=config["agent_path"],
-                fallback=config["fallback"],
-                global_path=config["global_path"],
-                account_slug=account_slug,
-                instance_slug=instance_slug
-            )
-            model_settings[param_name] = value
-        except Exception as e:
-            # Log error but continue with fallback
-            logfire.warn(
-                'config.agent.model_setting_error',
-                param_name=param_name,
-                agent_name=agent_name,
-                error=str(e),
-                fallback=config["fallback"]
-            )
-            model_settings[param_name] = config["fallback"]
-    
-    return model_settings
+    # Use unified cascade helper with specs from config_specs module
+    return await cascade_parameters(
+        agent_name=agent_name,
+        parameter_specs=MODEL_PARAMETER_SPECS,
+        get_agent_parameter_func=get_agent_parameter,
+        account_slug=account_slug,
+        instance_slug=instance_slug
+    )
 
 
 async def get_agent_tool_config(agent_name: str, tool_name: str,
@@ -556,66 +446,8 @@ async def get_agent_tool_config(agent_name: str, tool_name: str,
             "similarity_threshold": 0.7   # From agent config or fallback
         }
     """
-    # Define tool-specific parameter configurations
-    tool_configs = {
-        "vector_search": {
-            "enabled": {
-                "agent_path": "tools.vector_search.enabled",
-                "fallback": True
-            },
-            "max_results": {
-                "agent_path": "tools.vector_search.max_results",
-                "fallback": 5
-            },
-            "similarity_threshold": {
-                "agent_path": "tools.vector_search.similarity_threshold",
-                "fallback": 0.7
-            },
-            "namespace_isolation": {
-                "agent_path": "tools.vector_search.namespace_isolation",
-                "fallback": True
-            }
-        },
-        "web_search": {
-            "enabled": {
-                "agent_path": "tools.web_search.enabled",
-                "fallback": False
-            },
-            "provider": {
-                "agent_path": "tools.web_search.provider",
-                "fallback": "exa"
-            },
-            "max_results": {
-                "agent_path": "tools.web_search.max_results",
-                "fallback": 10
-            }
-        },
-        "conversation_management": {
-            "enabled": {
-                "agent_path": "tools.conversation_management.enabled",
-                "fallback": True
-            },
-            "auto_summarize_threshold": {
-                "agent_path": "tools.conversation_management.auto_summarize_threshold",
-                "fallback": 10
-            }
-        },
-        "profile_capture": {
-            "enabled": {
-                "agent_path": "tools.profile_capture.enabled",
-                "fallback": False
-            }
-        },
-        "email_summary": {
-            "enabled": {
-                "agent_path": "tools.email_summary.enabled",
-                "fallback": False
-            }
-        }
-    }
-    
-    # Get the parameter configuration for this tool
-    if tool_name not in tool_configs:
+    # Get the parameter configuration for this tool from specs module
+    if tool_name not in TOOL_PARAMETER_SPECS:
         logfire.warn(
             'config.agent.unknown_tool',
             tool_name=tool_name,
@@ -624,35 +456,14 @@ async def get_agent_tool_config(agent_name: str, tool_name: str,
         )
         return {"enabled": False}
     
-    parameters = tool_configs[tool_name]
-    
-    # Use generic cascade for each parameter independently (mixed inheritance)
-    tool_config = {}
-    
-    for param_name, config in parameters.items():
-        try:
-            value = await get_agent_parameter(
-                agent_name=agent_name,
-                parameter_path=config["agent_path"],
-                fallback=config["fallback"],
-                global_path=None,  # Tools don't have global config equivalents
-                account_slug=account_slug,
-                instance_slug=instance_slug
-            )
-            tool_config[param_name] = value
-        except Exception as e:
-            # Log error but continue with fallback
-            logfire.warn(
-                'config.agent.tool_setting_error',
-                param_name=param_name,
-                tool_name=tool_name,
-                agent_name=agent_name,
-                error=str(e),
-                fallback=config["fallback"]
-            )
-            tool_config[param_name] = config["fallback"]
-    
-    return tool_config
+    # Use unified cascade helper with specs from config_specs module
+    return await cascade_parameters(
+        agent_name=agent_name,
+        parameter_specs=TOOL_PARAMETER_SPECS[tool_name],
+        get_agent_parameter_func=get_agent_parameter,
+        account_slug=account_slug,
+        instance_slug=instance_slug
+    )
 
 
 # Global config loader instance
