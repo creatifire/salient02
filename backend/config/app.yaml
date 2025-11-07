@@ -61,7 +61,7 @@ llm:
   max_tokens: 1024
 
 legacy:
-  enabled: true                   # Can be toggled to false for parallel development
+  enabled: false                  # Disabled - Use multi-tenant endpoints only (BUG-0017-007 Phase 1)
   endpoints:
     chat: "/chat"                  # Legacy chat endpoint
     stream: "/events/stream"       # Legacy SSE streaming
