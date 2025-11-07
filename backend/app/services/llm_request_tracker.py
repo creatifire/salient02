@@ -120,124 +120,44 @@ class LLMRequestTracker:
         if error_metadata:
             final_response["error_metadata"] = error_metadata
         
-        # Diagnostic logging: Log incoming values at function entry
-        # Safe logging: Wrap ALL operations in try/except to avoid triggering SQLAlchemy expression evaluation
-        def safe_type_name(value):
-            """Safely get type name, handling SQLAlchemy expressions"""
-            if value is None:
-                return 'None'
-            try:
-                return type(value).__name__
-            except Exception:
-                return "<type check failed>"
-        
-        def safe_repr(value):
-            """Safely get repr() of value, handling SQLAlchemy expressions"""
-            if value is None:
-                return None
-            try:
-                return repr(value)
-            except Exception as e:
-                return f"<repr failed: {str(e)}>"
-        
-        # Wrap entire logging call in try/except in case logging itself triggers the error
-        try:
-            logfire.debug(
-                'service.llm_tracker.track_start',
-                session_id=str(session_id),
-                agent_instance_id_type=safe_type_name(agent_instance_id),
-                agent_instance_id_repr=safe_repr(agent_instance_id),
-                account_id_type=safe_type_name(account_id),
-                account_id_repr=safe_repr(account_id),
-                account_slug_type=safe_type_name(account_slug),
-                account_slug_repr=safe_repr(account_slug)
-            )
-        except Exception as log_error:
-            # If logging itself fails, log that fact
-            logfire.warn(
-                'service.llm_tracker.track_start_logging_failed',
-                session_id=str(session_id),
-                logging_error=str(log_error),
-                logging_error_type=type(log_error).__name__
-            )
-        
         # Convert all SQLAlchemy expressions to Python primitives before creating model
-        # This prevents "Boolean value of this clause is not defined" errors when SQLAlchemy
-        # tries to evaluate expressions during model creation
         def _is_sqlalchemy_expression(value):
-            """Check if value is a SQLAlchemy column expression BEFORE attempting conversion.
-            
-            This prevents triggering boolean evaluation errors by detecting SQLAlchemy expressions
-            using safe attribute checks (no evaluation required).
-            """
+            """Check if value is a SQLAlchemy expression by module name."""
             if value is None:
                 return False
-            # SQLAlchemy expressions have specific module paths
-            # Check the module name of the type's class without triggering evaluation
             try:
-                type_module = type(value).__module__
-                if type_module and ('sqlalchemy' in type_module.lower()):
-                    # Additional check: SQLAlchemy expressions have these attributes
-                    # Checking attributes is safe - doesn't trigger boolean evaluation
-                    if hasattr(value, '__clause_element__') or hasattr(value, 'key'):
-                        return True
+                return 'sqlalchemy' in type(value).__module__.lower()
             except Exception:
-                # If we can't check safely, assume it's not SQLAlchemy
-                pass
-            return False
+                return False
         
         def _ensure_primitive(value, value_type, field_name):
-            """Convert SQLAlchemy expressions or any value to Python primitive.
-            
-            Args:
-                value: Can be SQLAlchemy expression, UUID, string, or None
-                value_type: Target type (UUID, str)
-                field_name: Name of field for logging
-            
-            Returns:
-                Python primitive of value_type or None
-            """
+            """Convert value to Python primitive (UUID or str)."""
             if value is None:
                 return None
             
-            # CRITICAL: Check for SQLAlchemy expressions BEFORE any string conversion
-            # Calling str() or repr() on SQLAlchemy expressions triggers boolean evaluation
+            # Check for SQLAlchemy expressions
             if _is_sqlalchemy_expression(value):
-                # This is a SQLAlchemy expression - we can't convert it here
-                # It should have been converted at the source (simple_chat.py)
-                # Return None to indicate conversion failure
                 logfire.warn(
-                    f'service.llm_tracker.primitive_conversion.{field_name}_sqlalchemy_expression',
-                    message='SQLAlchemy expression detected - should have been converted at source',
-                    value_type_module=type(value).__module__ if value is not None else None
+                    f'service.llm_tracker.{field_name}_sqlalchemy_expression',
+                    message='SQLAlchemy expression detected - should be converted at source'
                 )
                 return None
             
-            # Safe to proceed with conversion - value is not a SQLAlchemy expression
+            # Convert to target type
             try:
                 if value_type == UUID:
-                    # Already checked it's not SQLAlchemy, safe to convert
-                    if isinstance(value, UUID):
-                        return value
-                    return UUID(str(value))
+                    return value if isinstance(value, UUID) else UUID(str(value))
                 elif value_type == str:
-                    # Already checked it's not SQLAlchemy, safe to convert
-                    if isinstance(value, str):
-                        return value
-                    return str(value)
-                else:
-                    return value
-            except (TypeError, ValueError) as convert_error:
-                # Conversion failed for non-SQLAlchemy value (unexpected)
+                    return value if isinstance(value, str) else str(value)
+                return value
+            except (TypeError, ValueError) as e:
                 logfire.warn(
-                    f'service.llm_tracker.primitive_conversion.{field_name}_conversion_failed',
-                    error_type=type(convert_error).__name__,
-                    error_message=str(convert_error)
+                    f'service.llm_tracker.{field_name}_conversion_failed',
+                    error=str(e)
                 )
                 return None
         
         # Convert all UUID and string values to primitives
-        logfire.debug('service.llm_tracker.primitive_conversion.start')
         agent_instance_id_primitive = _ensure_primitive(agent_instance_id, UUID, 'agent_instance_id')
         account_id_primitive = _ensure_primitive(account_id, UUID, 'account_id')
         account_slug_primitive = _ensure_primitive(account_slug, str, 'account_slug')
@@ -245,20 +165,8 @@ class LLMRequestTracker:
         agent_type_primitive = _ensure_primitive(agent_type, str, 'agent_type')
         completion_status_primitive = _ensure_primitive(completion_status, str, 'completion_status') if completion_status else "complete"
         
-        # Diagnostic logging: Log all values before creating LLMRequest model
-        logfire.debug(
-            'service.llm_tracker.before_model_creation',
-            agent_instance_id=str(agent_instance_id_primitive) if agent_instance_id_primitive else None,
-            account_id=str(account_id_primitive) if account_id_primitive else None,
-            account_slug=account_slug_primitive,
-            agent_instance_slug=agent_instance_slug_primitive,
-            agent_type=agent_type_primitive
-        )
-        
         # Create LLM request record with all primitive values
-        # Wrap in try/except to catch any SQLAlchemy expression evaluation errors during model creation
         try:
-            logfire.debug('service.llm_tracker.model_creation.start')
             llm_request = LLMRequest(
                 session_id=session_id,
                 agent_instance_id=agent_instance_id_primitive,  # Multi-tenant: track which agent made the request
