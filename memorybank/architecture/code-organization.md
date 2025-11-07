@@ -5,7 +5,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 # Code Organization
 > **Last Updated**: January 31, 2025  
-> **Updates**: Added Technology Stack section (merged from technology-stack.md)
+> **Updates**: Added configuration system documentation (BUG-0017-008 refactoring)
 
 ## Goals
 - Keep Python backend and JS frontend decoupled but co-located
@@ -22,6 +22,9 @@ salient02/
     app/                       # Python modules (routers, services)
       agents/                  # Pydantic AI agents module (NEW)
         __init__.py
+        config_loader.py       # Agent configuration loading (refactored BUG-0017-008)
+        config_cascade_helpers.py  # Reusable cascade patterns (BUG-0017-008)
+        config_specs.py        # Configuration specifications (BUG-0017-008)
         base/                  # Base agent classes and shared functionality
           __init__.py
           agent_base.py        # Base agent class with common dependencies
@@ -223,9 +226,18 @@ Notes:
   - `simple_research/`: Research agent with document intelligence (Epic 0015)
   - `deep_research/`: Advanced multi-step investigation agent (Epic 0016)
 
+- **Configuration System**: Agent configuration management in `backend/app/agents/`
+  - `config_loader.py`: Agent configuration loading and management (refactored BUG-0017-008)
+  - `config_cascade_helpers.py`: Reusable cascade patterns for config resolution (BUG-0017-008)
+    - `cascade_parameters()`: Unified cascade loop for model/tool configs
+    - `resolve_config_path()`: Unified multi-tenant and legacy path resolution
+    - `get_nested_value()`: Unified dict and object navigation
+  - `config_specs.py`: Configuration specifications separated from logic (BUG-0017-008)
+    - `MODEL_PARAMETER_SPECS`: Model parameter definitions (model, temperature, max_tokens)
+    - `TOOL_PARAMETER_SPECS`: Tool parameter definitions (vector_search, web_search, etc.)
+
 - **Agent Factory System**: Dynamic creation in `backend/app/agents/factory/` (Phase 3+)
   - `agent_factory.py`: Creates configured agent instances
-  - `config_loader.py`: Loads configurations (YAML → database transition)
   - `instance_manager.py`: Manages agent instance lifecycle
   - `registry.py`: Tracks active agent instances
   - `cache.py`: LRU cache for frequently accessed instances
