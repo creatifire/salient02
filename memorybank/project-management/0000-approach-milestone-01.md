@@ -759,84 +759,91 @@ Execute in this order for optimal results:
 - **Debugging**: Human-readable timestamps embedded in UUID
 - **Query optimization**: Range queries on time windows more efficient
 
-**Key Questions for User**:
+**User Decision Summary**: ✅ **CONFIRMED**
 
-1. **Existing Data Migration** 🔴 **CRITICAL**
-   - You said "No backward compatibility required"
-   - **Question**: Does this mean:
-     - a) We can leave existing UUID v4 data as-is (new records use v7, old records stay v4)?
-     - b) We should migrate all existing UUIDs to v7 format (requires data migration)?
-     - c) Fresh database (no existing production data to worry about)?
+1. **Data Migration**: ✅ **NOT NEEDED** - Development environment, can drop all tables and start fresh!
+2. **Backward Compatibility**: ✅ **NOT REQUIRED** - No production data to preserve
+3. **Approach**: ✅ **Clean slate** - Simple code change + fresh database
 
-2. **Generation Strategy**
-   - **Question**: Should we use:
-     - a) **Python-side generation**: `default=uuid.uuid7` (consistent with current pattern for most models) ✅ **Recommended**
-     - b) **Database-side generation**: PostgreSQL extension/function (consistent with Account/AgentInstance)
-     - c) **Mixed approach**: Keep current patterns, just switch v4 → v7?
-   
-3. **Testing Strategy**
-   - **Question**: Do we need to:
-     - a) Test UUID v7 ordering properties (time-based sorting)?
-     - b) Verify database index performance improvements?
-     - c) Test backward compatibility (v4 UUIDs still work in v7 system)?
+**This dramatically simplifies the migration!** 🎉
 
-4. **Documentation Scope**
-   - **Question**: Where should this be documented?
-     - a) `memorybank/architecture/datamodel.md` (update UUID column definitions)
-     - b) `memorybank/standards/` (new file: `uuid-standards.md`?)
-     - c) Code comments in models
-     - d) All of the above?
+**Remaining Decisions**:
 
-5. **Rollout Approach**
-   - **Question**: Should we:
-     - a) All models at once (big bang)? ✅ **Recommended** (simple, consistent)
-     - b) One model at a time (incremental)?
-     - c) New models use v7, existing models stay v4 (hybrid)?
+1. **Generation Strategy** (RECOMMENDED: Python-side)
+   - ✅ **Python-side**: `default=uuid.uuid7` for all 5 Python models (Session, Profile, Message, LLMRequest, Directory)
+   - ⏸️ **PostgreSQL-side**: Keep `gen_random_uuid()` (v4) for Account/AgentInstance OR research `pg_uuidv7` extension?
+   - **Recommendation**: Python-side for consistency, keep PostgreSQL models as-is (mixed v4/v7 is fine in dev)
 
-**Proposed Implementation Plan** (pending answers):
+2. **Testing Strategy** (SIMPLIFIED)
+   - ✅ Test UUID v7 generation works
+   - ✅ Verify time-ordering property (newer UUIDs > older UUIDs)
+   - ✅ Verify database accepts UUID v7 format
+   - ❌ No need to test v4/v7 compatibility (fresh database!)
 
-**Feature 5D-001: Python Model Updates** 🟢 **Ready to implement**
+3. **Documentation Scope**
+   - ✅ Update `memorybank/architecture/datamodel.md` (note UUID v7 usage)
+   - ✅ Create `memorybank/standards/uuid-standards.md` (rationale + best practices)
+   - ✅ Update model docstrings (mention time-ordering benefit)
+
+4. **Rollout Approach**
+   - ✅ **All Python models at once** (5 files, simple find-replace)
+   - ⏸️ **PostgreSQL models**: Decide if worth researching `pg_uuidv7` or keep as-is
+
+**Simplified Implementation Plan** 🚀
+
+**Feature 5D-001: Code Changes** 🟢 **READY - Simple find-replace!**
 - Task 5D-001-001: Update Session model: `default=uuid.uuid4` → `default=uuid.uuid7`
 - Task 5D-001-002: Update Profile model: `default=uuid.uuid4` → `default=uuid.uuid7`
 - Task 5D-001-003: Update Message model: `default=uuid.uuid4` → `default=uuid.uuid7`
 - Task 5D-001-004: Update LLMRequest model: `default=uuid.uuid4` → `default=uuid.uuid7`
 - Task 5D-001-005: Update Directory models (2): `default=uuid.uuid4` → `default=uuid.uuid7`
+- **Estimated Time**: 5 minutes (literal find-replace across 5 files)
 
-**Feature 5D-002: PostgreSQL Model Strategy**
-- Task 5D-002-001: Research PostgreSQL UUID v7 support (`pg_uuidv7` extension?)
-- Task 5D-002-002: Update Account model OR document why keeping `gen_random_uuid()` (v4)
-- Task 5D-002-003: Update AgentInstance model OR document why keeping `gen_random_uuid()` (v4)
+**Feature 5D-002: Database Reset** 🟢 **READY - Fresh start!**
+- Task 5D-002-001: Drop all tables (or drop entire database)
+- Task 5D-002-002: Run Alembic migrations to recreate tables with UUID v7
+- Task 5D-002-003: Verify tables created successfully
+- **Estimated Time**: 2 minutes (standard database reset)
 
-**Feature 5D-003: Testing & Verification**
-- Task 5D-003-001: Test UUID v7 generation and time-ordering (sortable by creation time)
-- Task 5D-003-002: Verify database compatibility (UUID column type unchanged)
-- Task 5D-003-003: Test backward compatibility (existing v4 UUIDs still work)
-- Task 5D-003-004: Create sample data and verify ordering properties
+**Feature 5D-003: Testing & Verification** 🟢 **READY - Simple tests**
+- Task 5D-003-001: Test UUID v7 generation works (create test records)
+- Task 5D-003-002: Verify time-ordering property (newer UUIDs > older UUIDs when sorted)
+- Task 5D-003-003: Verify database accepts UUID v7 format (no type errors)
+- **Estimated Time**: 10 minutes (basic smoke tests)
 
-**Feature 5D-004: Documentation**
-- Task 5D-004-001: Update `datamodel.md` (UUID v7 for all primary keys)
-- Task 5D-004-002: Create `memorybank/standards/uuid-standards.md` (rationale, usage, examples)
-- Task 5D-004-003: Update model docstrings (note UUID v7 time-ordering property)
-- Task 5D-004-004: Add migration notes (if data migration required)
+**Feature 5D-004: Documentation** 🟢 **READY**
+- Task 5D-004-001: Update `datamodel.md` (note UUID v7 usage + benefits)
+- Task 5D-004-002: Create `memorybank/standards/uuid-standards.md` (why v7, how to use)
+- Task 5D-004-003: Update model docstrings (mention time-ordering benefit)
+- **Estimated Time**: 30 minutes (comprehensive documentation)
+
+**Total Estimated Time**: ~50 minutes for complete migration! 🎉
 
 **Estimated Impact**:
-- ✅ Python-side models: 5 files (simple `uuid4` → `uuid7` replacement)
-- ⏸️ PostgreSQL-side models: 2 files (pending research on pg_uuidv7)
-- ✅ Service layer changes: None (UUID generation happens in models)
-- ⏸️ Database migration: TBD (depends on answer to Question #1)
-- ✅ Documentation: 2-3 files
+- ✅ Python models: 5 files (5-line change total)
+- ✅ Database: Fresh start (drop + recreate)
+- ✅ Service layer: No changes needed
+- ✅ PostgreSQL models: Keep as-is (gen_random_uuid v4 is fine for Account/AgentInstance)
+- ✅ Documentation: 3 files
 
 **Risk Assessment**:
-- 🟢 **Low risk overall** - Simple code change with Python 3.14 native support
-- 🟢 **Low risk** if no data migration (new records only, existing v4 records unchanged)
-- 🟡 **Medium risk** if data migration required (need to regenerate all UUIDs, update foreign keys)
-- 🟢 **No Python upgrade risk** - Already on 3.14.0!
+- 🟢 **VERY LOW RISK** - Development environment, no production data
+- 🟢 **Simple change** - Literal find-replace operation
+- 🟢 **Reversible** - Can always switch back to uuid4 if needed
+- 🟢 **No migration complexity** - Fresh database eliminates all migration concerns
+- 🟢 **Native Python support** - Python 3.14.0 already confirmed
+
+**PostgreSQL Models Decision**:
+- **Account** & **AgentInstance** can keep `server_default=func.gen_random_uuid()` (UUID v4)
+- Mixed v4/v7 is perfectly fine in development
+- PostgreSQL `pg_uuidv7` extension research can be deferred to later
+- Benefit: No PostgreSQL extension installation needed
 
 ---
 
-**Next Steps**: User answers to 5 questions above will determine the detailed implementation plan.
+**Ready to Implement**: All blockers removed! 🚀
 
-**Ready to Start**: Python 3.14.0 with native UUID v7 support is confirmed! ✅
+**Next Step**: Proceed with implementation or wait for user confirmation?
 
 ### **Priority 6: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
