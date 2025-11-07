@@ -700,11 +700,11 @@ Unauthorized copying of this file is strictly prohibited.
 
 Execute in this order for optimal results:
 
-1. **BUG-0017-007 Phase 1** (Legacy Endpoints - Disable) 🎯 **DO FIRST**
-   - Reason: Easiest (config-only change), reduces test surface immediately
-   - Impact: Eliminates confusion about which endpoints to use
-   - Effort: 5 minutes (one config line + verification)
-   - Risk: Very low (multi-tenant endpoints already tested)
+1. **BUG-0017-007 Phase 1** (Legacy Endpoints - Disable) ✅ **COMPLETE**
+   - Status: Legacy endpoints disabled via `backend/config/app.yaml` (set `legacy.enabled: false`)
+   - Impact: Eliminates confusion about which endpoints to use, reduces test surface
+   - Manual Testing: Restart backend and verify legacy endpoints return 404
+   - Next: Phase 3 will delete ~1000 lines of legacy code (after other refactorings)
 
 2. **BUG-0017-008** (config_loader.py refactoring)
    - Reason: Foundation for BUG-0017-009
