@@ -5,345 +5,75 @@ Unauthorized copying of this file is strictly prohibited.
 
 # Dynamic Prompting Architecture
 
-**Problem**: Single static system prompt cannot optimize for diverse request types (directory search vs. billing questions vs. emergency guidance).
+## Summary
 
-**Goal**: Adapt prompt content based on request context to improve response quality without architectural complexity.
+**Problem**: Static system prompts can't adapt to query context (emergency vs. billing vs. directory search).
 
----
+**Solution**: 5-phase incremental enhancement of `simple_chat.py` to support tool-agnostic prompt composition, schema-driven directory selection, multi-tool support with caching, context modules, and MCP integration.
 
-## Current State
+**Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase, ship value every 2-3 days.
 
-**Static Prompt Loading**:
-- Each agent instance loads one system prompt at creation: `{account}/{instance}/system_prompt.md`
-- Pydantic AI `Agent(model, system_prompt=...)` accepts string at construction
-- Existing dynamic augmentation: `prompt_generator.py` appends directory tool docs
+**Timeline**: 15-21 days total
+- Phase 1: Tool abstraction (2-3 days) → Vector search ready
+- Phase 2: Schema standardization (1-2 days) → Multi-directory support
+- Phase 3: Multi-tool + caching (3-4 days) → 70% cost savings
+- Phase 4: Modular prompts (4-5 days) → 40% quality improvement
+- Phase 5: MCP integration (5-7 days) → External tool ecosystem
 
-**Location**: `backend/app/agents/simple_chat.py`
+**Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
-**Current Behavior (Already Progressive)**:
-```python
-# 1. Simple agent: Just base prompt
-if no directory tools configured:
-    prompt = load_base_prompt()  # Just system_prompt.md
-
-# 2. Directory-enhanced agent: Base + directory docs
-if directory tools configured:
-    prompt = load_base_prompt() + generate_directory_tool_docs()
-```
-
-**Limitations** (for complex scenarios):
-- Same prompt for all request types (no context modules)
-- Cannot prioritize urgent vs. routine queries
-- Cannot inject domain-specific knowledge based on context
-- Difficult to A/B test prompts for specific scenarios
-
-**What works well**:
-- ✅ Simple agents work with zero config (just system_prompt.md)
-- ✅ Directory enhancement is automatic (if tools.directory configured)
-- ✅ No complexity unless needed
+**See Also**: `memorybank/analysis/advanced-agent-strategies.md` for alternative approaches evaluated.
 
 ---
 
-## Progressive Enhancement Model (Opt-In Complexity)
+## Progressive Enhancement Model
 
-**Design Principle**: Agents should work with minimal configuration. Add complexity only when needed.
+**Principle**: Agents work with minimal config. Add complexity only when needed.
 
-### Agent Complexity Levels
+### Complexity Levels
 
-```
-Level 1: Simple Agent (Zero Config)
-├─ system_prompt.md only
-├─ No tools, no dynamic prompting
-└─ Use case: Basic chatbot, FAQ bot
+**Level 1: Simple Agent**
+- `system_prompt.md` only
+- Use case: Basic chatbot, FAQ bot
 
-Level 2: Directory-Enhanced Agent (Current - Automatic)
-├─ system_prompt.md
-├─ + Auto-generated directory tool docs (if tools.directory configured)
-└─ Use case: Doctor finder, phone directory lookup
+**Level 2: Directory-Enhanced (Current)**
+- `system_prompt.md` + auto-generated directory docs
+- Use case: Doctor finder, phone directory lookup
+- Config: `tools.directory.enabled: true`
 
-Level 3: Module-Enhanced Agent (Proposed - Opt-In)
-├─ system_prompt.md
-├─ + Directory tool docs (if configured)
-├─ + Context modules (keyword-based selection)
-└─ Use case: Hospital assistant with emergency/billing context
+**Level 3: Module-Enhanced (Phase 4)**
+- Level 2 + context modules (keyword-selected)
+- Use case: Hospital assistant with emergency/billing context
+- Config: `prompting.modules.enabled: true`
 
-Level 4: Fully Dynamic Agent (Future - Opt-In)
-├─ system_prompt.md
-├─ + Directory tool docs
-├─ + Context modules
-├─ + Dynamic instructions (message prepending)
-└─ Use case: Multi-domain assistant with urgent query handling
-```
+**Level 4: Fully Dynamic (Future)**
+- Level 3 + dynamic instructions (message prepending)
+- Use case: Multi-domain with urgent query detection
+- Config: `prompting.dynamic_instructions.enabled: true`
 
 ### Configuration Examples
 
-#### Example 1: Simple Agent (Minimal Config)
-
-**Use case**: Basic chatbot with no special features
-
+**Simple Agent** (Level 1):
 ```yaml
-# agent_configs/default_account/simple_chat1/config.yaml
-
 name: "Simple Chat Bot"
 model_settings:
   model: "deepseek/deepseek-chat-v3.1"
-  temperature: 0.7
-
-# That's it! Just uses system_prompt.md
+# That's it! Uses system_prompt.md only
 ```
 
-**Prompt composition**:
-```
-Final prompt = system_prompt.md
-```
-
----
-
-#### Example 2: Directory-Only Agent (Current Behavior)
-
-**Use case**: Doctor finder with medical directory
-
+**Directory Agent** (Level 2 - Current):
 ```yaml
-# agent_configs/wyckoff/doctor_finder/config.yaml
-
 name: "Doctor Finder"
-model_settings:
-  model: "deepseek/deepseek-chat-v3.1"
-
 tools:
   directory:
     enabled: true
-    accessible_lists:
-      - "doctors"
-
-# Directory docs auto-generated from schema - no extra config needed!
+    accessible_lists: ["doctors"]
+# Directory docs auto-generated, no prompting config needed
 ```
 
-**Prompt composition**:
-```
-Final prompt = system_prompt.md 
-             + auto-generated directory tool docs (from medical_professional.yaml)
-```
-
-**No prompting config needed** - directory enhancement is automatic!
-
----
-
-#### Example 3: Module-Enhanced Agent (Proposed - Opt-In)
-
-**Use case**: Hospital assistant with emergency + billing context
-
+**Module-Enhanced** (Level 3 - Phase 4):
 ```yaml
-# agent_configs/wyckoff/hospital_assistant/config.yaml
-
 name: "Hospital Assistant"
-model_settings:
-  model: "deepseek/deepseek-chat-v3.1"
-
-tools:
-  directory:
-    enabled: true
-    accessible_lists:
-      - "doctors"
-      - "phone_directory"
-
-# NEW: Opt-in to dynamic prompting
-prompting:
-  modules:
-    enabled: true  # Must explicitly enable
-    
-    # Keyword → module mappings (each agent defines its own)
-    keyword_mappings:
-      - keywords: ["billing", "insurance", "payment", "medicare", "medicaid"]
-        module: "administrative/billing_policies.md"
-        priority: 1
-      
-      - keywords: ["emergency", "urgent", "er", "911", "chest pain"]
-        module: "medical/emergency_protocols.md"
-        priority: 10  # Higher priority for emergencies
-      
-      - keywords: ["symptom", "pain", "sick", "hurt"]
-        module: "medical/clinical_disclaimers.md"
-        priority: 1
-      
-      - keywords: ["hipaa", "privacy", "confidential"]
-        module: "shared/hipaa_compliance.md"
-        priority: 1
-```
-
-**Prompt composition**:
-```
-Final prompt = system_prompt.md 
-             + auto-generated directory tool docs
-             + dynamically selected modules (based on keyword_mappings config)
-```
-
-**Module selection** (config-based):
-- Query: "What's the ER number?" → Loads `medical/emergency_protocols.md` (matches "er")
-- Query: "Do you take Medicare?" → Loads `administrative/billing_policies.md` (matches "medicare")
-- Query: "General question" → No modules loaded (just base + directory)
-
----
-
-#### Example 4: Fully Dynamic Agent (Future - Opt-In)
-
-**Use case**: Multi-domain assistant with urgent query handling
-
-```yaml
-# agent_configs/wyckoff/full_assistant/config.yaml
-
-name: "Full Hospital Assistant"
-model_settings:
-  model: "deepseek/deepseek-chat-v3.1"
-
-tools:
-  directory:
-    enabled: true
-    accessible_lists:
-      - "doctors"
-      - "phone_directory"
-
-prompting:
-  modules:
-    enabled: true
-    
-    # Comprehensive keyword mappings
-    keyword_mappings:
-      - keywords: ["billing", "insurance", "payment", "medicare", "medicaid", "cost"]
-        module: "administrative/billing_policies.md"
-        priority: 1
-      
-      - keywords: ["emergency", "urgent", "er", "911", "chest pain", "bleeding"]
-        module: "medical/emergency_protocols.md"
-        priority: 10
-      
-      - keywords: ["symptom", "pain", "sick", "hurt", "fever"]
-        module: "medical/clinical_disclaimers.md"
-        priority: 1
-      
-      - keywords: ["appointment", "schedule", "book", "visit"]
-        module: "administrative/appointment_scheduling.md"
-        priority: 1
-  
-  dynamic_instructions:
-    enabled: true  # Opt-in to message prepending
-    emergency_detection: true
-    followup_context: true
-```
-
-**Prompt composition**:
-```
-Final prompt = system_prompt.md 
-             + auto-generated directory tool docs
-             + dynamically selected modules
-             + [URGENT] prefix (if emergency detected in query)
-```
-
----
-
-### Configuration Design Principles
-
-**1. Zero Config Works**
-```yaml
-# Minimal agent - just needs model and system_prompt.md
-name: "Simple Bot"
-model_settings:
-  model: "deepseek/deepseek-chat-v3.1"
-```
-
-**2. Progressive Enhancement**
-```yaml
-# Add directory → Auto-generates tool docs (no prompting config)
-tools:
-  directory:
-    enabled: true
-    accessible_lists: ["doctors"]
-```
-
-**3. Explicit Opt-In for Complexity**
-```yaml
-# Want modules? Must explicitly enable
-prompting:
-  modules:
-    enabled: true  # ← Explicit opt-in
-    keyword_mappings: [...]  # ← Define which modules to load
-```
-
-**4. No Breaking Changes**
-- Existing agents without `prompting` config → Continue to work exactly as before
-- Adding `prompting.modules.enabled: false` → Same as not having config at all
-- Only agents with `prompting.modules.enabled: true` → Use dynamic modules
-
-**5. Sensible Defaults**
-```yaml
-# Minimal module config
-prompting:
-  modules:
-    enabled: true
-    # keyword_mappings: define which modules to load based on query keywords
-```
-
----
-
-### Implementation: Backward Compatible
-
-**Key principle**: Existing agents work unchanged. New features are opt-in via config.
-
-```python
-async def generate_full_prompt(
-    agent_config: dict,
-    account_id: UUID,
-    db_session: AsyncSession,
-    user_query: Optional[str] = None  # Optional - backward compatible
-) -> str:
-    """Generate complete prompt with optional dynamic modules."""
-    
-    # 1. Always load base prompt (existing)
-    base = load_base_prompt(agent_config)
-    
-    # 2. Auto-generate directory docs if configured (existing)
-    directory_docs = await generate_directory_tool_docs(...) if configured else ""
-    
-    # 3. Optionally load context modules (NEW - opt-in only)
-    module_content = ""
-    if agent_config.get("prompting", {}).get("modules", {}).get("enabled") and user_query:
-        module_content = load_and_combine_modules(select_modules(user_query, agent_config))
-    
-    # 4. Compose final prompt
-    return "\n\n".join(filter(None, [base, directory_docs, module_content]))
-```
-
-**Backward compatible**: If `user_query` not provided or `modules.enabled` not true → Same behavior as before.
-
-**See "Code Organization" section for complete implementation details.**
-
----
-
-### Summary: How to Enable/Disable Dynamic Prompting
-
-| Agent Type | Configuration Required | Behavior |
-|------------|------------------------|----------|
-| **Simple** | None (just model + system_prompt.md) | Base prompt only |
-| **Directory** | `tools.directory.enabled: true` | Base + auto-generated directory docs |
-| **Module-Enhanced** | `prompting.modules.enabled: true` | Base + directory + context modules |
-| **Fully Dynamic** | `prompting.modules.enabled: true`<br>`prompting.dynamic_instructions.enabled: true` | Base + directory + modules + message prepending |
-
-**To disable dynamic prompting**:
-- **Option 1**: Don't add `prompting` config (existing behavior)
-- **Option 2**: Add `prompting.modules.enabled: false` (explicit)
-- **Option 3**: Remove `prompting` section entirely
-
-**To enable directory enhancement only** (current behavior):
-```yaml
-tools:
-  directory:
-    enabled: true
-    accessible_lists: ["doctors"]
-# No prompting config = directory auto-enhancement only
-```
-
-**To enable dynamic modules**:
-```yaml
 tools:
   directory:
     enabled: true
@@ -351,17 +81,32 @@ tools:
 
 prompting:
   modules:
-    enabled: true  # ← Explicit opt-in
+    enabled: true  # Explicit opt-in
     keyword_mappings:
-      - keywords: ["emergency", "urgent", "er"]
+      - keywords: ["emergency", "urgent", "er", "911"]
         module: "medical/emergency_protocols.md"
         priority: 10
+      - keywords: ["billing", "insurance", "medicare"]
+        module: "administrative/billing_policies.md"
+        priority: 1
 ```
 
-**Progressive enhancement is automatic**:
-- Add directories → Directory docs auto-generated
-- Add modules config → Modules loaded dynamically
-- No config → Simple agent (no complexity)
+### Backward Compatibility
+
+```python
+async def generate_full_prompt(..., user_query: Optional[str] = None) -> str:
+    base = load_base_prompt(agent_config)
+    directory_docs = await generate_directory_tool_docs(...) if configured else ""
+    
+    # NEW: Optional modules (only if enabled)
+    module_content = ""
+    if agent_config.get("prompting", {}).get("modules", {}).get("enabled") and user_query:
+        module_content = load_and_combine_modules(select_modules(user_query, agent_config))
+    
+    return "\n\n".join(filter(None, [base, directory_docs, module_content]))
+```
+
+Existing agents without `prompting` config work unchanged.
 
 ---
 
@@ -700,25 +445,6 @@ formal = ', '.join(f'"{term}"' for term in formal_terms)
 - ✅ Legal: "Practice Area Mappings (Client → Legal)"
 - ✅ Education: "Course Subject Mappings (Student → Catalog)"
 - ✅ Real Estate: "Property Type Mappings (Common → MLS Terms)"
-
----
-
-#### Migration Path
-
-**Phase 1**: Update existing schemas
-1. Add `synonym_mappings_heading` to `medical_professional.yaml`
-2. Rename `medical_specialties` → `formal_terms` (keep old key for backward compat)
-3. Update `phone_directory.yaml` to use `formal_terms` from the start
-
-**Phase 2**: Update `prompt_generator.py`
-1. Read heading from schema with fallback
-2. Use standardized `formal_terms` key
-3. Maintain backward compatibility with old keys
-
-**Phase 3**: Documentation
-1. Create schema authoring guide with examples
-2. Document convention in architecture docs
-3. Update existing schemas to new standard
 
 ---
 
@@ -1123,30 +849,27 @@ prompting:
 
 ## Integration Points
 
-**See "Code Organization" section above** for complete file structure and implementation details.
+**Phase 1** (Tool Abstraction):
+- Create `base_tool.py`, `tool_registry.py`, `directory_tool.py`
+- Add `generate_full_prompt()` to `prompt_generator.py`
+- Wrap existing `generate_directory_tool_docs()` (no changes to existing function)
 
-### API Changes
+**Phase 2** (Schema Standardization):
+- Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas
+- Update `medical_professional.yaml`, create `phone_directory.yaml`
 
-**Minimal changes required**:
+**Phase 3** (Multi-Tool + Caching):
+- Create `vector_search_tool.py` (if vector search ready)
+- Add prompt caching markers to `generate_full_prompt()`
 
-1. **Enhance `prompt_generator.py`**:
-   - Keep: `load_base_prompt()`, `generate_directory_tool_docs()` (existing)
-   - Add: `generate_full_prompt()` - orchestrates base + directory + modules (Phase 1)
+**Phase 4** (Modular Prompts):
+- Create `module_loader.py`, `module_selector.py`
+- Create module library structure
+- Add `prompting.modules` config parsing
 
-2. **Add new modules** (Phase 1):
-   - `module_loader.py` - Account→System resolution
-   - `module_selector.py` - Keyword-based selection
-
-3. **Agent initialization** (backward compatible):
-```python
-   # Phase 0 (existing behavior)
-   prompt = await generate_directory_tool_docs(...)
-   
-   # Phase 1 (opt-in, if prompting.modules.enabled)
-   prompt = await generate_full_prompt(..., user_query=message)
-   ```
-
-**Backward compatible**: All changes are opt-in via config. Existing agents work unchanged.
+**Phase 5** (MCP Integration):
+- Create `mcp_tool.py`
+- Add MCP discovery to `main.py`
 
 ---
 
@@ -1850,64 +1573,31 @@ prompting:
 
 ---
 
-## Schema Creation Tasks
+## Schema Creation Tasks (Phase 2)
 
-**Directory Schemas Needed** (create in `backend/config/directory_schemas/`):
+**Schemas needed in `backend/config/directory_schemas/`**:
 
-- [x] **medical_professional.yaml** - EXISTING (needs Phase 0 updates)
-  - Status: Exists, needs `synonym_mappings_heading` + `directory_purpose` added
-  - Location: `backend/config/directory_schemas/medical_professional.yaml`
-  - Use case: Wyckoff doctors directory
+- [x] **medical_professional.yaml** - Update in Phase 2
+  - Add `synonym_mappings_heading` and `directory_purpose`
+  - Rename `medical_specialties` → `formal_terms` (keep old key for backward compat)
 
-- [ ] **phone_directory.yaml** - NEW (for hospital departments)
-  - Status: Not created yet
-  - Use case: Wyckoff hospital department phone numbers (ER, billing, appointments, etc.)
-  - Required sections:
-    - `entry_type: phone_directory`
-    - `directory_purpose` (description, use_for, example_queries, not_for)
-    - `required_fields` (department_name, phone_number, service_type)
-    - `optional_fields` (hours_of_operation, building_location, fax, email)
-    - `search_strategy` (guidance, synonym_mappings with `formal_terms`, examples)
-    - `searchable_fields` (department_name, service_type, hours_of_operation)
-  - Referenced in: Feature 0023-009 (Phone Directory for Hospital Departments)
+- [ ] **phone_directory.yaml** - Create in Phase 2
+  - For hospital departments (ER, billing, appointments)
+  - Include: `directory_purpose`, `formal_terms`, search strategy
 
-- [ ] **pharmaceutical.yaml** - EXISTING MAPPER, NEEDS SCHEMA
-  - Status: Mapper exists (`DirectoryImporter.pharmaceutical_mapper`), schema file missing
-  - Use case: Pharmaceutical/drug information directories
-  - Required sections: TBD (analyze existing mapper to determine fields)
+- [ ] **pharmaceutical.yaml** - Future
+  - Mapper exists, needs schema
 
-- [ ] **product_catalog.yaml** - EXISTING MAPPER, NEEDS SCHEMA
-  - Status: Mapper exists (`DirectoryImporter.product_mapper`), schema file missing
-  - Use case: Product catalogs for e-commerce or inventory
-  - Required sections: TBD (analyze existing mapper to determine fields)
+- [ ] **product_catalog.yaml** - Future
+  - Mapper exists, needs schema
 
-- [ ] **services.yaml** - FUTURE (mentioned in examples)
-  - Status: Not started
-  - Use case: Hospital services and programs (e.g., physical therapy, lab services, imaging)
-  - Required sections: TBD (design based on future requirements)
-
-**Schema Creation Priority**:
-1. **Update existing**: `medical_professional.yaml` (Phase 0 Part A & B)
-2. **Create for Wyckoff**: `phone_directory.yaml` (Feature 0023-009)
-3. **Backfill existing mappers**: `pharmaceutical.yaml`, `product_catalog.yaml`
-4. **Future expansion**: `services.yaml` and others as needed
-
-**Schema Creation Checklist** (for each new schema):
-- [ ] Define `entry_type` and `schema_version`
-- [ ] Add `directory_purpose` section (description, use_for, example_queries, not_for)
-- [ ] Define `required_fields` and `optional_fields`
-- [ ] Define `searchable_fields` with descriptions and examples
-- [ ] Create `search_strategy` section:
-  - [ ] Add `synonym_mappings_heading`
-  - [ ] Add `guidance` text for LLM
-  - [ ] Add `synonym_mappings` using standardized `formal_terms` key
-  - [ ] Add concrete `examples` with thought processes
-- [ ] Define `tags_usage` if applicable
-- [ ] Define `contact_info_fields` if applicable
-- [ ] Create corresponding mapper function in `DirectoryImporter`
-- [ ] Add mapper to registry in `seed_directory.py`
-- [ ] Create sample CSV data file
-- [ ] Test import and search functionality
+**Schema creation checklist**:
+- Define `entry_type` and `schema_version`
+- Add `directory_purpose` (description, use_for, example_queries, not_for)
+- Define required/optional/searchable fields
+- Add `search_strategy` with `synonym_mappings_heading` and `formal_terms`
+- Create mapper in `DirectoryImporter` + register in `seed_directory.py`
+- Test import and search
 
 ---
 
@@ -2430,28 +2120,40 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ## Code Organization
 
-### Executive Summary
+### New Files by Phase
 
-**Code Reuse**: 61% reuse ratio (400 lines of existing infrastructure reused / 660 lines new code)
+**Phase 1** (Tool Abstraction):
+- `base_tool.py`: `AgentTool` interface (~50 lines)
+- `tool_registry.py`: Tool registration and discovery (~80 lines)
+- `directory_tool.py`: DirectoryTool wrapper (~60 lines)
 
-**Incremental Implementation** (simplified scope):
-- Phase 0: ~150 lines (schema standardization)
-- Phase 1: ~330 lines (module system, opt-in, simplified)
-- Phase 2: ~180 lines (dynamic instructions, opt-in, simplified)
+**Phase 2** (Schema Standardization):
+- Update `prompt_generator.py`: Domain-agnostic logic (~50 lines modified)
+- Update schemas: `medical_professional.yaml`, create `phone_directory.yaml`
 
-**Backward Compatibility**: All existing agents (wyckoff, windriver, agrofresh, prepexcellence, acme, default_account) work unchanged. New features require explicit opt-in via config.
+**Phase 3** (Multi-Tool + Caching):
+- `vector_search_tool.py`: VectorSearchTool implementation (~100 lines)
+- Update `prompt_generator.py`: Multi-tool composition + caching markers (~100 lines)
 
-**Key Files**:
-- New: `module_loader.py`, `module_selector.py`, `instruction_injector.py`
-- Enhanced: `prompt_generator.py` (add `generate_full_prompt()`)
-- Reused: `config_loader.py`, `types.py`, existing `prompt_generator.py` functions
-- Removed: `token_counter.py` (not needed - trust LLM context windows)
+**Phase 4** (Modular Prompts):
+- `module_loader.py`: Account→System resolution (~150 lines)
+- `module_selector.py`: Keyword-based selection (~100 lines)
+- Create module library: `prompt_modules/` structure
 
-**Simplifications** (reduced ~240 lines of complexity):
-- ✅ No token budget enforcement (modern LLMs handle large prompts)
-- ✅ No prompt caching (defer to post-MVP)
-- ✅ No system-level config files (each agent defines its own mappings)
-- ✅ Removed unnecessary parameters (selection_mode, available_modules)
+**Phase 5** (MCP Integration):
+- `mcp_tool.py`: MCP server wrapper (~150 lines)
+- Update `main.py`: MCP discovery at startup (~50 lines)
+
+### Code Reuse
+
+**Existing infrastructure leveraged** (~400 lines):
+- `config_loader.py`: Parameter cascade logic
+- `prompt_generator.py`: Base prompt loading, directory docs generation
+- `types.py`: Pydantic validation
+
+**New code required** (~900 lines total across 5 phases)
+
+**Backward Compatibility**: All existing agents work unchanged. Each phase is 100% opt-in via config.
 
 ---
 
@@ -2500,57 +2202,42 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ```
 backend/app/agents/tools/
-  # Core prompt generation (already exists, enhance)
-  prompt_generator.py           # Domain-agnostic prompt composition
-    - load_base_prompt()        # Load system_prompt.md (existing)
-    - generate_directory_tool_docs()  # Schema-driven docs (existing, Phase 0)
-    - generate_full_prompt()    # NEW: Orchestrates all components (Phase 1)
+  prompt_generator.py
+    - load_base_prompt()                # Existing
+    - generate_directory_tool_docs()    # Existing (Phase 2: make domain-agnostic)
+    - generate_full_prompt()            # NEW (Phase 1: orchestrates all tools)
   
-  # NEW: Module system (Phase 1)
-  module_loader.py              # Module resolution and loading
-    - find_module()             # Account→System resolution
-    - load_module_content()     # Load markdown modules
-    - load_and_combine_modules()  # Multi-module composition
+  base_tool.py                  # NEW (Phase 1): AgentTool interface
+  tool_registry.py              # NEW (Phase 1): Tool registration
+  directory_tool.py             # NEW (Phase 1): Wraps existing directory logic
+  vector_search_tool.py         # NEW (Phase 3): Vector search support
+  mcp_tool.py                   # NEW (Phase 5): MCP server wrapper
   
-  module_selector.py            # Config-based module selection
-    - select_modules()          # Keyword-based selection
-    - apply_priority()          # Priority sorting
-  
-  # NEW: Dynamic instructions (Phase 2 - Future)
-  instruction_injector.py       # Message prepending logic
-    - evaluate_conditions()     # Keyword-based condition evaluation
-    - inject_instructions()     # Apply instruction mappings
+  module_loader.py              # NEW (Phase 4): Account→System resolution
+  module_selector.py            # NEW (Phase 4): Keyword-based selection
 
 backend/config/
-  # Infrastructure configuration
-  app.yaml                      # System-wide settings (database, logging, LLM, prompting)
-                                # ADD: prompting.recommended_module_size_tokens
+  app.yaml                      # Add prompting.recommended_module_size_tokens
   
-  # Domain-specific configurations
-  prompt_modules/               # System-level modules (shared across accounts)
+  prompt_modules/               # NEW (Phase 4): System-level modules
     shared/
-      hipaa_compliance.md       # Federal law (universal)
-      tone_guidelines.md        # Best practices (universal)
+      hipaa_compliance.md
+      tone_guidelines.md
     medical/
-      clinical_disclaimers.md   # Standard disclaimers (universal)
-    administrative/
-      insurance_info.md         # Generic insurance concepts (universal)
+      clinical_disclaimers.md
   
-  directory_schemas/            # Already exists
-    medical_professional.yaml   # Phase 0: Add directory_purpose
-    phone_directory.yaml        # Phase 0: Create with purpose
+  directory_schemas/
+    medical_professional.yaml   # Update (Phase 2): Add directory_purpose
+    phone_directory.yaml        # NEW (Phase 2): Hospital departments
   
-    agent_configs/
-    {account}/
-      modules/                  # Account-level module overrides
-        medical/
-          emergency_protocols.md
-        administrative/
-          billing_policies.md
-      
-      {instance}/
-        system_prompt.md        # Base prompt (existing)
-        config.yaml             # Agent config (enhance with prompting section)
+  agent_configs/{account}/
+    modules/                    # NEW (Phase 4): Account-specific modules
+      medical/emergency_protocols.md
+      administrative/billing_policies.md
+    
+    {instance}/
+      system_prompt.md          # Existing
+      config.yaml               # Update (Phase 4): Add prompting section
 ```
 
 ---
@@ -2686,40 +2373,9 @@ prompting:
 
 ---
 
-### Code Reuse Metrics
-
-**Existing Infrastructure Reused**:
-- `config_loader.py`: get_agent_parameter(), resolve_config_path() - **~200 lines reused**
-- `prompt_generator.py`: load_base_prompt(), generate_directory_tool_docs() - **~150 lines reused**
-- `types.py`: AgentConfig Pydantic validation - **~50 lines reused**
-- **Total reused: ~400 lines** (avoid duplicating)
-
-**New Code Required** (simplified scope):
-- Phase 0: ~150 lines (schema updates + fallback logic)
-- Phase 1: ~330 lines (module system, simplified)
-- Phase 2: ~180 lines (dynamic instructions, simplified)
-- **Total new: ~660 lines** (reduced from ~900 via simplifications)
-
-**Reuse Ratio**: 400 lines reused / 660 lines new = **61% reuse** (excellent leverage of existing infrastructure!)
-
-**Simplifications applied**:
-- ✅ Removed token budget enforcement (trust LLM context windows)
-- ✅ Deferred prompt caching (post-MVP optimization)
-- ✅ No system-level keyword_mappings (each agent defines its own)
-- ✅ Removed selection_mode and available_modules parameters
-- ✅ Simplified Phase 2 to keyword conditions only
-
----
-
-### Optimization Opportunities
-
-**Deferred to post-MVP**: Lazy loading (modules on demand), config compilation (pre-compile keyword lookups), shared module pool (memory optimization). See [dynamic-prompting-alternatives.md](./dynamic-prompting-alternatives.md) for details.
-
----
-
 ### Testing Strategy
 
-**MVP Testing**: Unit tests for module loader/selector, integration tests for backward compatibility with existing agents (wyckoff, windriver, agrofresh, prepexcellence, acme, default_account). Detailed test plan during implementation phase.
+Unit tests for each new module (tool registry, module loader, module selector). Integration tests verify backward compatibility with all existing agents. Detailed test plan created during implementation.
 
 ---
 
