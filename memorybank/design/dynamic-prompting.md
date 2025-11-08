@@ -363,37 +363,15 @@ prompting:
 
 ---
 
-## Architectural Options
+## Architectural Approach: Modular Prompt Composition
 
-### Option 1: Request Classification + Prompt Routing
+**Why This Approach**: Balances specialization with simplicity. No agent recreation needed (Pydantic AI compatible), no extra LLM calls (low latency), and progressive enhancement means complexity is opt-in.
 
-**Mechanism**: Classify request intent, load specialized prompt template
-
-```
-User Request → Intent Classifier → Select Prompt → Run Agent
-     ↓              ↓                    ↓              ↓
-"Find doctor"   directory_search    directory.md    Execute
-"Billing"       administrative      admin.md        Execute
-```
-
-**Structure**:
-```
-agent_configs/wyckoff/wyckoff_info_chat1/
-  ├── system_prompt.md           # Default
-  ├── prompts/
-  │   ├── directory_search.md    # Doctor/service finding
-  │   ├── administrative.md      # Billing, insurance
-  │   ├── clinical_info.md       # Medical education
-  │   └── emergency.md           # Urgent care
-```
-
-**Pros**: High specialization, clean separation, easy A/B testing per intent
-
-**Cons**: Added latency (classifier call), Pydantic AI constructs agent with static prompt, misclassification risk
+**Alternative approaches considered**: [Prompt Routing, Multi-Agent, Message Prepending](./dynamic-prompting-alternatives.md) - documented separately for reference.
 
 ---
 
-### Option 2: Modular Prompt Composition ⭐ RECOMMENDED
+### Modular Prompt Composition
 
 **Mechanism**: Assemble prompt from reusable modules based on request context
 
@@ -571,79 +549,7 @@ Query: Load "shared/hipaa_compliance.md"
 
 ---
 
-### Option 3: Multi-Agent Routing
-
-**Mechanism**: Route to specialized agents instead of changing prompts
-
-```
-Frontend → Router Agent → Specialized Agent → Response
-              ↓              ↓
-         "Find doctor"   DirectoryAgent (directory-optimized prompt)
-         "Billing"       AdminAgent (billing-optimized prompt)
-```
-
-**Agent Definitions**:
-```
-agent_configs/wyckoff/
-  ├── wyckoff_router/          # Routes requests
-  ├── wyckoff_directory/       # Doctor search specialist
-  ├── wyckoff_admin/           # Billing specialist
-  ├── wyckoff_clinical/        # Medical info specialist
-  └── wyckoff_general/         # Fallback
-```
-
-**Pros**: True specialization, can use different models per domain, easier testing, scales independently
-
-**Cons**: Higher complexity, 2x latency (router + specialist), 2x cost, routing errors, context loss on handoff
-
----
-
-### Option 4: Dynamic Instructions (Message Prepending)
-
-**Mechanism**: Inject context-specific instructions into user message at runtime
-
-```python
-async def run_with_context(agent, user_message: str) -> str:
-    context = analyze_request(user_message)
-    
-    instructions = []
-    if context.needs_directory:
-        instructions.append("[CONTEXT: Directory search - use search_directory tool]")
-    
-    if context.is_urgent:
-        instructions.append("[PRIORITY: Urgent - provide emergency contact first]")
-    
-    enhanced = "\n".join(instructions) + f"\n\nUser: {user_message}"
-    return await agent.run(enhanced)
-```
-
-**Pros**: No architecture changes, single agent, works with current API, minimal latency
-
-**Cons**: Longer messages, less clean, instructions might conflict with base prompt, LLM may ignore injected context
-
----
-
-## Comparison
-
-| Option | Complexity | Latency | Specialization | Maintainability | Opt-In | Works with Pydantic AI |
-|--------|-----------|---------|----------------|-----------------|--------|------------------------|
-| 1. Prompt Routing | Medium | High | High | Medium | Yes | Requires agent recreation |
-| **2. Modular Composition** ⭐ | **Medium** | **Low** | **Medium** | **High** | **Yes** | **Yes** |
-| 3. Multi-Agent | High | High | Very High | Medium | Yes | Yes |
-| 4. Dynamic Instructions | Low | Low | Low | High | Yes | Yes |
-
-**Note**: All options are optional enhancements. Agents work perfectly fine without them!
-
-**Recommended for most agents**: Level 2 (Directory-Enhanced) - no dynamic prompting needed!
-
-**Dynamic prompting (Modular Composition) only needed for**:
-- Agents with multiple use cases requiring different response patterns
-- Agents handling emergency/urgent queries needing priority handling
-- Agents with domain-specific compliance requirements (HIPAA, disclaimers)
-
----
-
-## Recommended Approach: Schema-Driven + Modular Composition + Dynamic Instructions
+## Core Design Principles
 
 **IMPORTANT**: Dynamic prompting is OPTIONAL. Most agents work perfectly with just base prompt or base + directory docs!
 
@@ -696,24 +602,6 @@ async def generate_context_aware_prompt(
 **Key Design**: 
 - **Schemas** = Directory domain knowledge (what to search for)
 - **Modules** = Contextual enhancements (how to respond in specific situations)
-
-**Phase 2: Dynamic Instructions for Edge Cases**
-
-Handle time-sensitive context that can't be known at agent creation:
-
-```python
-# backend/app/agents/simple_chat.py (enhanced)
-
-async def simple_chat_stream(message: str, ...):
-    # Detect critical context
-    if has_emergency_keywords(message):
-        message = f"[URGENT: Provide emergency contact immediately]\n\n{message}"
-    
-    if is_followup_question(message_history):
-        message = f"[CONTEXT: User following up on previous topic]\n\n{message}"
-    
-    result = await agent.run(message, ...)
-```
 
 ---
 
@@ -1166,6 +1054,32 @@ def select_modules(query: str, agent_config: dict) -> List[str]:
 
 ---
 
+### Use Case Examples
+
+These examples demonstrate how module selection works in practice:
+
+**Emergency Detection**:
+- Query: "My chest hurts, who should I see?"
+- Modules loaded: `emergency_protocols.md`, `clinical_disclaimers.md`
+- Expected behavior: Agent prioritizes emergency contact, then suggests cardiologists
+
+**Billing Question**:
+- Query: "Do you take Medicare?"
+- Modules loaded: `billing_policies.md`, `insurance_info.md`
+- Expected behavior: Agent provides insurance acceptance details, payment options
+
+**Doctor Search**:
+- Query: "Who are your cardiologists?"
+- Modules loaded: Directory tool docs (auto-generated from `medical_professional.yaml` schema)
+- Expected behavior: Agent uses search_directory tool with synonym mappings from YAML
+
+**General Chat**:
+- Query: "What are your hours?"
+- Modules loaded: None (base prompt sufficient)
+- Expected behavior: Simple response from base knowledge
+
+---
+
 ### Module Structure
 
 **Example module** (`medical/emergency_protocols.md`):
@@ -1227,48 +1141,6 @@ def get_cached_prompt(base_hash: str, modules_tuple: tuple, dir_hash: str) -> st
 - **Total cap**: 2000 tokens
 
 **Enforcement**: Module selector prioritizes most relevant modules if multiple match.
-
----
-
-## Use Case Examples
-
-### Emergency Detection
-**Query**: "My chest hurts, who should I see?"
-
-**Modules loaded**: `emergency_protocols.md`, `clinical_disclaimers.md`
-
-**Dynamic instruction**: `[URGENT: Provide ER number + 911 guidance first]`
-
-**Expected behavior**: Agent prioritizes emergency contact, then suggests cardiologists.
-
----
-
-### Billing Question
-**Query**: "Do you take Medicare?"
-
-**Modules loaded**: `billing_policies.md`, `insurance_info.md`
-
-**Expected behavior**: Agent provides insurance acceptance details, payment options.
-
----
-
-### Doctor Search (Current)
-**Query**: "Who are your cardiologists?"
-
-**Modules loaded**: Directory tool docs (auto-generated from `medical_professional.yaml` schema)
-
-**Expected behavior**: Agent uses search_directory tool effectively.
-
-**Schema-driven**: Synonym mappings from YAML guide LLM to search for "Cardiology" specialty.
-
----
-
-### General Chat
-**Query**: "What are your hours?"
-
-**Modules loaded**: None (base prompt sufficient)
-
-**Expected behavior**: Simple response from base knowledge.
 
 ---
 
@@ -1340,25 +1212,6 @@ backend/app/agents/tools/
    - Create agent with composed prompt
 
 **Backward compatible**: If `user_query` not provided, falls back to current behavior.
-
----
-
-## Testing Strategy
-
-### Unit Tests
-- Module selection logic (keyword matching)
-- Prompt composition (base + directory + modules)
-- Cache invalidation
-
-### Integration Tests
-- End-to-end with different query types
-- Verify correct modules loaded for each scenario
-- Token count validation (stay under budget)
-
-### A/B Testing
-- Compare responses with/without contextual modules
-- Measure improvement in response quality per intent
-- Track user satisfaction by request type
 
 ---
 
@@ -1511,71 +1364,101 @@ backend/app/agents/tools/
 
 ---
 
-**Phase 2**: Dynamic Instructions (OPTIONAL - Future Enhancement)
-
-**Who needs this?**: Agents handling urgent/emergency queries where message prepending is critical
-
-**Implementation**:
-1. Add emergency keyword detection
-2. Add message prepending logic (inject `[URGENT]` prefix)
-3. Add `prompting.dynamic_instructions` config section
-4. Test critical scenarios (chest pain, bleeding, etc.)
-
-**Opt-in**: Requires `prompting.dynamic_instructions.enabled: true`
-
----
-
-**Phase 3**: Refinement (Future - If Needed)
-1. Add LLM-based intent classifier if keyword approach insufficient
-2. Expand module library based on usage patterns
-3. Optimize token budget allocation
-
----
-
-## Success Metrics
-
-**Quality**:
-- Response relevance score (manual evaluation)
-- Correct tool usage rate (directory search when needed)
-- Emergency response accuracy (provides ER number + 911)
-
-**Performance**:
-- Cache hit rate > 70%
-- Module selection latency < 10ms
-- Total prompt generation < 50ms
-
-**Adoption**:
-- Number of modules created
-- Module reuse across agents
-- A/B test winners promoted to production
-
----
-
-## Risk Mitigation
-
-**Risk**: Module instructions conflict with base prompt  
-**Mitigation**: Module review process, integration testing, namespace instructions (`[EMERGENCY:...]`, `[BILLING:...]`)
-
-**Risk**: Prompt length exceeds token budget  
-**Mitigation**: Enforce 2000 token cap, prioritize modules, cache full prompts
-
-**Risk**: Keyword matching misses nuanced queries  
-**Mitigation**: Start simple (keywords), add LLM classifier in Phase 3 if needed
-
-**Risk**: Cache invalidation issues  
-**Mitigation**: Hash-based cache keys, clear on file updates, short TTL (5 minutes)
-
----
-
 ## Future Enhancements
 
-**Conversation Context**: Load modules based on conversation history, not just current query
+### Phase 2: Dynamic Instructions (Message Prepending)
 
-**Intent Confidence**: Track which modules actually improved responses, auto-adjust selection
+**Status**: Proposed enhancement for handling time-critical context
 
-**Multi-Language**: Support module selection for non-English queries
+**Problem**: Some context cannot be predetermined at agent creation time and needs runtime injection. Examples:
+- Emergency/urgent queries requiring immediate priority handling
+- Follow-up questions needing conversation history awareness
+- Time-sensitive instructions (e.g., "Pharmacy closes in 30 minutes")
 
-**Agent-Specific Modules**: Allow per-account customization (`wyckoff/modules/` overrides global)
+**Solution**: Inject context-specific instructions directly into the user message before agent processing.
+
+**Implementation Approach**:
+```python
+# backend/app/agents/simple_chat.py
+
+async def simple_chat_stream(message: str, message_history: list, ...):
+    # Detect critical context patterns
+    instructions = []
+    
+    # Emergency detection
+    if has_emergency_keywords(message):
+        instructions.append("[URGENT: Provide emergency contact first (911 + ER direct line)]")
+    
+    # Follow-up detection
+    if is_followup_question(message_history):
+        instructions.append("[CONTEXT: User following up on previous answer]")
+    
+    # Inject instructions before message
+    if instructions:
+        message = "\n".join(instructions) + f"\n\n{message}"
+    
+    result = await agent.run(message, ...)
+```
+
+**Configuration** (opt-in via agent config):
+```yaml
+prompting:
+  dynamic_instructions:
+    enabled: true
+    emergency_detection: true      # Detect emergency keywords
+    followup_context: true          # Add context for follow-ups
+```
+
+**Why Optional**: Adds message length overhead and may conflict with base prompt if not carefully designed. Most agents don't need this level of runtime control.
+
+**When to Reconsider**: If agents frequently miss critical context cues or need runtime priority adjustments based on query urgency.
+
+---
+
+### Phase 3: Advanced Module Selection
+
+**Status**: Future refinement if keyword-based approach proves insufficient
+
+**Problem**: Simple keyword matching may miss nuanced queries or context that requires more sophisticated intent classification.
+
+**Proposed Enhancements**:
+
+1. **LLM-Based Intent Classifier**:
+   - Use lightweight LLM call to classify query intent before module selection
+   - More accurate than keyword matching for complex queries
+   - Trade-off: Added latency (~50-100ms) and cost per request
+
+2. **Conversation History Analysis**:
+   - Load modules based on conversation context, not just current query
+   - Example: User asked about billing 2 turns ago → Keep billing modules loaded
+   - Improves coherence for multi-turn conversations
+
+3. **Dynamic Module Prioritization**:
+   - Track which modules actually improved response quality
+   - Auto-adjust module selection based on effectiveness metrics
+   - Machine learning approach to optimize module combinations
+
+4. **Multi-Language Support**:
+   - Translate keywords or use language-agnostic embeddings for module selection
+   - Support non-English queries with same module library
+
+**When to Reconsider**: After collecting real-world usage data showing keyword approach limitations. Current approach should be tested first before adding complexity.
+
+---
+
+### Other Future Considerations
+
+**Token Budget Optimization**:
+- Dynamic token allocation based on query complexity
+- Compress or summarize less-critical modules when approaching budget
+
+**Module Versioning**:
+- Version control for modules with rollback capability
+- A/B testing framework for comparing module versions
+
+**Cross-Account Module Sharing**:
+- Marketplace or library of community-contributed modules
+- Standardized format for sharing best practices
 
 ---
 
