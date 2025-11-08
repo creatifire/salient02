@@ -14,10 +14,11 @@ Unauthorized copying of this file is strictly prohibited.
 **Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase.
 
 **Phases**:
-- Phase 1: Schema standardization → Multi-directory support
-- Phase 2: Multi-tool + caching → 70% cost savings
-- Phase 3: Modular prompts → 40% quality improvement
-- Phase 4: MCP integration → External tool ecosystem (native support!)
+- Phase 1: Tool abstraction layer → Foundation for extensibility
+- Phase 2: Schema standardization → Multi-directory support
+- Phase 3: Multi-tool + caching → 70% cost savings
+- Phase 4: Modular prompts → 40% quality improvement
+- Phase 5: MCP integration → External tool ecosystem (native support!)
 
 **Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
@@ -847,24 +848,30 @@ prompting:
 
 ## Integration Points
 
-**Phase 1** (Schema Standardization):
+**Phase 1** (Tool Abstraction Layer):
+- Create `base_tool.py`, `tool_registry.py`, `directory_tool.py`
+- Update `generate_full_prompt()` to use tool registry
+- Wrap existing directory_tools.py with DirectoryTool
+- 100% backward compatible (existing behavior unchanged)
+
+**Phase 2** (Schema Standardization):
 - Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas (domain-agnostic)
 - Update `medical_professional.yaml`: rename `medical_specialties` → `formal_terms`, add `directory_purpose`
 - Create `phone_directory.yaml` with standardized structure
 - No backward compatibility code needed (nothing in production)
 
-**Phase 2** (Multi-Tool + Caching):
+**Phase 3** (Multi-Tool + Caching):
 - Wrap existing tools using Pydantic AI's `FunctionToolset`
 - Update `simple_chat.py` to pass multiple toolsets: `toolsets=[directory_toolset, vector_toolset]`
 - Add prompt caching markers to system prompt composition
 
-**Phase 3** (Modular Prompts):
+**Phase 4** (Modular Prompts):
 - Create `module_loader.py`, `module_selector.py`
 - Create module library structure
 - Add `prompting.modules` config parsing
 - Use Pydantic AI's `prepare_tools` for dynamic module injection
 
-**Phase 4** (MCP Integration):
+**Phase 5** (MCP Integration):
 - **Use native Pydantic AI support**: `from pydantic_ai.mcp import MCPServerStdio`
 - Configure MCP servers in agent config
 
@@ -1925,8 +1932,8 @@ prompting:
 **Expected Results**: 50-60% overall quality gain
 
 **Incremental Value Delivery**:
-- After Phase 1: Vector search ready
-- After Phase 2: Phone directory ready
+- After Phase 1: Tool abstraction foundation (enables multi-tool support)
+- After Phase 2: Phone directory ready (schema-driven multi-directory selection)
 - After Phase 3: 70% cost reduction + vector search working
 - After Phase 4: Emergency protocols + billing context working
 - After Phase 5: GitHub/Slack integrations working
