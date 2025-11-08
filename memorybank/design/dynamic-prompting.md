@@ -1460,19 +1460,22 @@ tools:
      mcp:
        enabled: true
        servers:
+         # Tavily (recommended first test - remote server, no install)
+         tavily:
+           url: "https://mcp.tavily.com/mcp/?tavilyApiKey=tvly-YOUR_KEY"
+           tool_prefix: "tavily"
+         
+         # GitHub (stdio-based)
          github:
            command: "uvx"
            args: ["mcp-server-github"]
            timeout: 10
-           tool_prefix: "gh"  # Optional: prefix tools to avoid conflicts
+           tool_prefix: "gh"
          
+         # Slack (SSE-based)
          slack:
-           url: "http://localhost:3001/sse"  # SSE-based server
+           url: "http://localhost:3001/sse"
            tool_prefix: "slack"
-         
-         filesystem:
-           command: "uvx"
-           args: ["mcp-server-filesystem", "/path/to/data"]
    ```
 
 3. **Load MCP servers dynamically** (`backend/app/agents/simple_chat.py`):
@@ -1556,10 +1559,14 @@ tools:
            required_tool: "slack"
    ```
 
-7. **Pilot with 1-2 MCP servers**:
-   - Start with GitHub (issue creation) or Slack (notifications)
-   - Verify Pydantic AI auto-discovers tools from MCP server
-   - Verify graceful handling of MCP server unavailability
+7. **Pilot with Tavily MCP** (recommended first test):
+   - **Why Tavily**: [Official MCP support](https://docs.tavily.com/documentation/mcp), remote server available, web search tool
+   - **Remote server**: `https://mcp.tavily.com/mcp/?tavilyApiKey=<key>` (easiest - no local install)
+   - **Local NPX**: `npx -y tavily-mcp@0.1.3` (if stdio preferred)
+   - **Pydantic AI native tool**: `tavily_search_tool(api_key)` also available
+   - Verify Pydantic AI auto-discovers Tavily search tools
+   - Verify graceful handling if MCP server unavailable
+   - Then test GitHub/Slack as needed
 
 **Testing**:
 - MCP servers load dynamically from config
@@ -1568,9 +1575,9 @@ tools:
 - MCP server failures don't crash agent
 
 **Deliverable**:
+- **Tavily search** (web search for real-time information - first test)
 - GitHub integration (issue creation, repo search)
 - Slack integration (notifications, alerts)
-- Weather integration (patient travel advice)
 - Extensible framework for custom MCP servers
 
 **Challenges**:
