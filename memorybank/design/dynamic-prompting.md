@@ -91,22 +91,24 @@ prompting:
         priority: 1
 ```
 
-### Backward Compatibility
+### Backward Compatibility Requirements
 
-```python
-async def generate_full_prompt(..., user_query: Optional[str] = None) -> str:
-    base = load_base_prompt(agent_config)
-    directory_docs = await generate_directory_tool_docs(...) if configured else ""
-    
-    # NEW: Optional modules (only if enabled)
-    module_content = ""
-    if agent_config.get("prompting", {}).get("modules", {}).get("enabled") and user_query:
-        module_content = load_and_combine_modules(select_modules(user_query, agent_config))
-    
-    return "\n\n".join(filter(None, [base, directory_docs, module_content]))
-```
+**Existing agent instances** (must continue working unchanged):
+- `wyckoff/wyckoff_info_chat1` - vector_search + directory enabled
+- `windriver/windriver_info_chat1` - config TBD
+- `agrofresh/agro_info_chat1` - config TBD
+- `prepexcellence/prepexcel_info_chat1` - config TBD
+- `acme/acme_chat1` - config TBD
+- `default_account/simple_chat1` - base agent
+- `default_account/simple_chat2` - base agent
 
-Existing agents without `prompting` config work unchanged.
+**Current implementation** (in `simple_chat.py`):
+- Function-based Pydantic AI agent (not BaseAgent class)
+- `tools.directory.enabled` - uses `prompt_generator.py` 
+- `tools.vector_search.enabled` - Pinecone integration
+- Configuration cascade from `config_loader.py`
+
+**Backward compatibility guarantee**: All 7 agent instances work unchanged - they don't have `prompting.modules` config, so new code path never executes.
 
 ---
 
@@ -868,8 +870,14 @@ prompting:
 - Add `prompting.modules` config parsing
 
 **Phase 5** (MCP Integration):
+- Research Python MCP client library (official package TBD - investigate at Phase 5 start)
 - Create `mcp_tool.py`
 - Add MCP discovery to `main.py`
+
+**Note**: MCP client library needs research. Likely candidates:
+- Official Anthropic SDK (if available on PyPI)
+- `@modelcontextprotocol/sdk` (if Python version exists)
+- Custom HTTP+SSE client implementation
 
 ---
 
@@ -1848,32 +1856,43 @@ prompting:
 ### Phase 5: MCP Integration (External Tool Ecosystem)
 
 **Duration**: 5-7 days  
-**Risk**: Medium (depends on MCP server stability)  
+**Risk**: Medium (depends on MCP server stability + Python client library availability)  
 **Value**: Extensibility for GitHub, Slack, weather, custom integrations
+
+**Prerequisites**: 
+- **Research Python MCP client library** - official package needs investigation
+  - Check PyPI for `mcp`, `model-context-protocol`, or similar
+  - Review Anthropic's official documentation
+  - May need custom HTTP+SSE implementation if no official client exists
 
 **Why**: Enable dynamic integration with external services via MCP protocol. Agents can use GitHub for issue tracking, Slack for notifications, weather for patient travel advice, etc.
 
 **Implementation**:
 
-1. **Implement `MCPTool` class** (~150 lines):
+1. **Research & select MCP client library** (Day 1):
+   - Investigate available Python packages
+   - Test connection to sample MCP server
+   - Document installation and usage patterns
+
+2. **Implement `MCPTool` class** (~150 lines):
    - `tool_type = f"mcp:{server_name}"`
    - `generate_documentation()`: Auto-generate from MCP JSON schemas
    - `get_module_hints()`: Suggest MCP-specific modules
    - Redis caching for tool schemas (5 min TTL)
 
-2. **Add MCP server discovery** (`backend/app/main.py`):
+3. **Add MCP server discovery** (`backend/app/main.py`):
    ```python
    async def initialize_mcp_tools():
        """Discover and register MCP servers at startup."""
        mcp_config = load_mcp_config()
        
        for server_name, server_config in mcp_config.items():
-           client = await connect_to_mcp_server(server_name, server_config)
+           client = await connect_to_mcp_server(server_name, server_config)  # Using researched library
            mcp_tool = MCPTool(server_name, client)
            tool_registry.register(mcp_tool)
    ```
 
-3. **Add MCP configuration support**:
+4. **Add MCP configuration support**:
    ```yaml
    # agent_configs/{account}/{instance}/config.yaml
    tools:
@@ -1886,13 +1905,13 @@ prompting:
            connection_string: "sse://slack-mcp-server:3000"
    ```
 
-4. **Create MCP module library**:
+5. **Create MCP module library**:
    - `backend/config/prompt_modules/mcp/`:
      - `github_best_practices.md`: When to create issues vs. PRs
      - `slack_messaging_guidelines.md`: Professional communication
      - `weather_context.md`: How to integrate weather into responses
 
-5. **Add MCP-specific keyword mappings**:
+6. **Add MCP-specific keyword mappings**:
    ```yaml
    prompting:
      modules:
@@ -1905,7 +1924,7 @@ prompting:
            required_tool: "mcp:slack"
    ```
 
-6. **Pilot with 1-2 MCP servers**:
+7. **Pilot with 1-2 MCP servers**:
    - Start with GitHub (issue creation) or Slack (notifications)
    - Test auto-generated tool docs from MCP schemas
    - Verify graceful handling of MCP server unavailability
