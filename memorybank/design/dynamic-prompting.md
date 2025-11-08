@@ -18,7 +18,7 @@ Unauthorized copying of this file is strictly prohibited.
 - Pydantic AI `Agent(model, system_prompt=...)` accepts string at construction
 - Existing dynamic augmentation: `prompt_generator.py` appends directory tool docs
 
-**Location**: `backend/app/agents/simple_chat.py` (lines 150-220)
+**Location**: `backend/app/agents/simple_chat.py`
 
 **Current Behavior (Already Progressive)**:
 ```python
@@ -461,7 +461,7 @@ def select_modules(query: str, agent_config: dict) -> List[str]:
 # resolved_modules = [find_module(m, account_slug) for m in selected_modules]
 ```
 
-**See "Configuration Examples" section (lines 132-173) for config structure.**
+**See "Configuration Examples" section for config structure.**
 
 **Pros**: Builds on existing infrastructure, DRY principle, flexible combinations, no latency penalty, easy maintenance, hybrid system+account model reduces duplication while allowing customization
 
@@ -654,7 +654,7 @@ search_strategy:
 
 #### Code Changes Required
 
-**In `prompt_generator.py` (lines 140-147) - Current (domain-specific)**:
+**In `prompt_generator.py` - Current (domain-specific)**:
 ```python
 # PROBLEM: Hard-coded for medical domain
 strategy_parts.append("\n**Medical Term Mappings (Lay → Formal):**")
@@ -899,7 +899,7 @@ You have access to multiple directories. Choose the appropriate directory based 
 
 #### Code Changes: `prompt_generator.py`
 
-**Current behavior** (lines 94-188):
+**Current behavior**:
 - Iterates through all accessible directories
 - Generates combined documentation
 - No guidance on which directory to use
@@ -1030,7 +1030,7 @@ prompting:
 
 **No system-level defaults** - Each agent explicitly defines its own mappings (clearer, no cascade complexity)
 
-**See "Configuration Examples" section (lines 132-173) for full config structure.**
+**See "Configuration Examples" section for full config structure.**
 
 **Future enhancement**: LLM-based classifier (see [dynamic-prompting-alternatives.md](./dynamic-prompting-alternatives.md)).
 
@@ -1136,7 +1136,6 @@ prompting:
 2. **Add new modules** (Phase 1):
    - `module_loader.py` - Account→System resolution
    - `module_selector.py` - Keyword-based selection
-   - `token_counter.py` - Token counting utilities
 
 3. **Agent initialization** (backward compatible):
 ```python
@@ -1255,11 +1254,11 @@ prompting:
 **Who doesn't need this?**: Simple agents and directory-only agents work fine without it!
 
 **Implementation**: See "Code Organization" section for:
-- File structure (lines 1773-1840)
-- Implementation phases & incremental path (lines 1844-1867)
-- Reusability opportunities (lines 1871-1911)
-- Backward compatibility strategy (lines 1915-1960)
-- Code reuse metrics (lines 1964-1978)
+- File structure and new modules
+- Implementation phases & incremental path
+- Reusability opportunities
+- Backward compatibility strategy
+- Code reuse metrics
 
 **Key deliverables**:
 - Hybrid module structure (system + account levels)
@@ -1702,50 +1701,13 @@ prompting:
 
 ### Optimization Opportunities
 
-**1. Lazy Loading** (Future Optimization)
-```python
-# Don't load modules until needed
-# Don't tokenize until budget enforcement needed
-# Cache module content for reuse across requests
-```
-
-**2. Config Compilation** (Future Optimization)
-```python
-# Pre-compile keyword_mappings into efficient lookup structures
-# Cache resolved module paths
-# Pre-validate all modules on startup
-```
-
-**3. Shared Module Pool** (Future Optimization)
-```python
-# Load system modules once, share across all agents
-# Only load account-specific modules per account
-# Reference counting for memory management
-```
+**Deferred to post-MVP**: Lazy loading (modules on demand), config compilation (pre-compile keyword lookups), shared module pool (memory optimization). See [dynamic-prompting-alternatives.md](./dynamic-prompting-alternatives.md) for details.
 
 ---
 
 ### Testing Strategy
 
-**Unit Tests** (Isolated Component Testing):
-- `test_module_loader.py`: Module resolution logic
-- `test_module_selector.py`: Keyword matching, priority sorting
-- `test_token_counter.py`: Token counting accuracy
-- `test_prompt_generator.py`: Prompt composition
-
-**Integration Tests** (End-to-End):
-- `test_backward_compatibility.py`: Existing agents unchanged
-- `test_phase_0.py`: Schema-driven directory selection
-- `test_phase_1.py`: Module loading and composition
-- `test_phase_2.py`: Dynamic instruction injection
-
-**Backward Compatibility Test Suite**:
-```python
-# For each existing agent in agent_configs/
-# 1. Load config (should not fail)
-# 2. Generate prompt (should work as before)
-# 3. Compare output with baseline (should match)
-```
+**MVP Testing**: Unit tests for module loader/selector, integration tests for backward compatibility with existing agents (wyckoff, windriver, agrofresh, prepexcellence, acme, default_account). Detailed test plan during implementation phase.
 
 ---
 
@@ -1799,133 +1761,3 @@ prompting:
 **Key**: Schemas provide domain knowledge, modules provide context enhancements.
 
 ---
-
-## Design Decision Summary
-
-### Module Storage Architecture: Hybrid (System + Account)
-
-**Decision**: Use **both** system-level and account-level module storage with account-first resolution.
-
-**Rationale**:
-- **System modules** (`prompt_modules/`) = DRY principle for universal content
-- **Account modules** (`agent_configs/{account}/modules/`) = Multi-tenant isolation + customization
-- **Agent config** = Controls which modules each agent uses (not storage location)
-- **system_prompt.md** = Stays at agent instance level (unique identity per agent)
-
-**Resolution Order**: Account → System → Error
-
-**Benefits**:
-1. ✅ Reduces duplication (shared modules used by all accounts)
-2. ✅ Allows customization (accounts can override any module)
-3. ✅ Multi-tenant isolation (account modules private to account)
-4. ✅ Easy maintenance (update system module once, all accounts benefit)
-5. ✅ Flexible control (agents choose modules via config, not file location)
-
-**Example**:
-- `shared/hipaa_compliance.md` → System (federal law, same for all)
-- `medical/emergency_protocols.md` → Account (ER numbers vary per hospital)
-- `system_prompt.md` → Agent instance (each agent has unique personality)
-
-**Key Insight**: **Storage** location (system vs. account) determined by **content scope**, not by who uses it. **Selection** controlled by agent config.
-
----
-
-### Directory Schema Storage Architecture: System-Level Only
-
-**Decision**: Directory schemas remain **system-level only** (`backend/config/directory_schemas/`). No account-level schema overrides.
-
-**Rationale**:
-- **Schemas define data structure** (database JSONB fields, search logic)
-- **Modules define content** (what to say in responses)
-- **Critical difference**: Varying schemas = data fragmentation, varying modules = safe content customization
-
-**Why NOT System + Account for Schemas?**
-
-| Concern | Impact |
-|---------|--------|
-| **Database inconsistency** | Same `directory_entries` table has entries with different JSONB structures |
-| **Search logic complexity** | Code must handle multiple schema versions per entry_type |
-| **Migration nightmare** | Which schema version for each account? How to migrate? |
-| **Cross-account features break** | Can't aggregate/compare data across accounts |
-| **Maintenance burden** | N schemas to maintain instead of 1 |
-| **Breaking changes risk** | Account schema could conflict with core fields |
-
-**Recommended Approach: System-Level + JSONB Extensibility**
-
-```yaml
-# medical_professional.yaml (system-level)
-
-required_fields:
-  - department
-  - specialty
-
-optional_fields:
-  - board_certifications
-  - education
-  # ... standard fields
-
-# CRITICAL: JSONB allows additional fields not in schema
-# Accounts can add custom fields via CSV import
-# System code ignores unknown fields gracefully
-```
-
-**Example: Account adds custom field**
-```csv
-# Wyckoff CSV import
-doctor_name,department,specialty,medical_license_number,npi_number
-Dr. Smith,Cardiology,Interventional Cardiology,NYS-12345,1234567890
-```
-
-**Result**:
-- Entry stored with `entry_data: {department, specialty, medical_license_number, npi_number}`
-- System code works (uses `department`, `specialty` per schema)
-- Account-specific queries can use `medical_license_number` if needed
-- No schema override required! JSONB is inherently extensible
-
-**When Account Needs Different Structure**: Create new `entry_type` with its own system-level schema
-
-**Example**:
-- ✅ Standard: `medical_professional.yaml` (system) - used by Wyckoff, Windriver, etc.
-- ✅ Standard: `phone_directory.yaml` (system) - used by all hospitals
-- ✅ Unique: `produce_inventory.yaml` (system) - used by AgroFresh only
-- ❌ Avoid: `wyckoff_medical_professional.yaml` (account override) - causes fragmentation
-
-**Key Principle**: Use **entry_type** differentiation (system-level schemas), not account-level schema overrides!
-
-**Benefits**:
-1. ✅ **Data consistency** - All accounts use same structure for same entry_type
-2. ✅ **Uniform search logic** - Code doesn't need schema version handling
-3. ✅ **Easy maintenance** - Update schema once, all accounts benefit
-4. ✅ **Cross-account analytics** - Can compare/aggregate data across accounts
-5. ✅ **Simpler migrations** - One schema version to manage
-6. ✅ **Extensibility** - JSONB supports custom fields without schema changes
-
-**Comparison: Schemas vs. Modules**
-
-| Aspect | Directory Schemas | Prompt Modules |
-|--------|-------------------|----------------|
-| **What it is** | Data structure (how data is organized) | Content (what to say) |
-| **Storage** | System-level only | Hybrid (System + Account) |
-| **Varies safely?** | ❌ No (causes data fragmentation) | ✅ Yes (content customization) |
-| **Database impact** | Direct (JSONB structure) | None |
-| **Search impact** | Direct (fields queried) | None |
-| **Migration impact** | High (data structure changes) | None |
-| **Multi-tenant** | Via `account_id`, not schema variance | Via account-level modules |
-
-**Summary**:
-- **Schemas** = Structure (must be consistent) → System-level only
-- **Modules** = Content (can vary) → Hybrid (System + Account)
-- **system_prompt.md** = Identity (unique per agent) → Agent instance level
-
----
-
-**Status**: Proposed (not implemented)
-
-**Complexity**: Medium (builds on existing schema-driven infrastructure)
-
-**Impact**: High (improves response quality across diverse request types)
-
-**Foundation**: Schema standardization (Phase 0) must complete before dynamic prompting
-
-**Module Architecture**: Hybrid system + account level (documented above)
-
