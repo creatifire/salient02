@@ -14,7 +14,7 @@ Unauthorized copying of this file is strictly prohibited.
 **Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase.
 
 **Phases**:
-- Phase 1: Tool abstraction layer → Foundation for extensibility
+- Phase 1: Pydantic AI native toolsets → Foundation for multi-tool support
 - Phase 2: Schema standardization → Multi-directory support
 - Phase 3: Multi-tool + caching → 70% cost savings
 - Phase 4: Modular prompts → 40% quality improvement
@@ -358,7 +358,7 @@ All directory-specific knowledge lives in YAML schemas:
 - Works for any directory type (medical, phone, product, etc.)
 - **Automatic enhancement** - no extra config needed!
 
-**Phase 1: Modular Composition** (OPTIONAL Enhancement - Opt-In)
+**Phase 4: Modular Prompts** (OPTIONAL Enhancement - Opt-In)
 
 Add context-specific prompt modules for complex agents.
 
@@ -366,7 +366,7 @@ Add context-specific prompt modules for complex agents.
 - **Schemas** = Directory domain knowledge (what to search for)
 - **Modules** = Contextual enhancements (how to respond in specific situations)
 
-**Implementation**: See "Code Organization" section for file structure and "Implementation: Backward Compatible" section for code example.
+**Implementation**: See "Code Organization" section for file structure and "Migration Path" section for implementation details.
 
 ---
 
@@ -888,10 +888,9 @@ prompting:
 
 ## Integration Points
 
-**Phase 1** (Tool Abstraction Layer):
-- Create `base_tool.py`, `tool_registry.py`, `directory_tool.py`
-- Update `generate_full_prompt()` to use tool registry
-- Wrap existing directory_tools.py with DirectoryTool
+**Phase 1** (Pydantic AI Native Toolsets):
+- Create `toolsets.py` - wrap existing tools with `FunctionToolset`
+- Update `simple_chat.py` to support multiple toolsets
 - 100% backward compatible (existing behavior unchanged)
 
 **Phase 2** (Schema Standardization):
@@ -930,13 +929,15 @@ prompting:
 - ✅ `@agent.toolset` - dynamic toolset selection
 - ✅ `prepare_tools` - modify tool definitions at runtime
 
-**Old Plan** (custom abstractions):
-- Phase 1: Build `AgentTool` interface, `ToolRegistry`, wrappers
-- Phase 5: Research MCP client, build custom wrapper
+**Old Approach** (if we had built custom abstractions):
+- Build `AgentTool` interface, `ToolRegistry`, custom wrappers for each tool type
+- Research and build custom MCP client wrapper
+- Result: ~500 lines of custom code
 
-**New Plan** (use native features):
-- Phase 2: Wrap tools with `FunctionToolset`, pass to agent
-- Phase 4: Use `MCPServerStdio` directly
+**New Approach** (using Pydantic AI native features):
+- Phase 1: Use `FunctionToolset` to wrap existing tools
+- Phase 5: Use `MCPServerStdio` directly
+- Result: ~60 lines total
 
 **Savings**: Significant reduction in custom abstraction code!
 
@@ -1517,7 +1518,7 @@ tools:
 
 | Phase | Risk | Value | Dependencies |
 |-------|------|-------|--------------|
-| **1: Tool Abstraction** | Low | Foundation for extensibility | None |
+| **1: Pydantic AI Native Toolsets** | Low | Foundation for multi-tool support | None |
 | **2: Schema Standardization** | Low | Multi-directory support | Phase 1 |
 | **3: Multi-Tool + Caching** | Low | Vector search + 70% cost savings | Phase 1-2 |
 | **4: Modular Prompts** | Low | 40% quality improvement | Phase 1-3 |
@@ -1526,7 +1527,7 @@ tools:
 **Expected Results**: 50-60% overall quality gain
 
 **Incremental Value Delivery**:
-- After Phase 1: Tool abstraction foundation (enables multi-tool support)
+- After Phase 1: Multi-tool infrastructure ready (directory + vector + MCP support)
 - After Phase 2: Phone directory ready (schema-driven multi-directory selection)
 - After Phase 3: 70% cost reduction + vector search working
 - After Phase 4: Emergency protocols + billing context working
