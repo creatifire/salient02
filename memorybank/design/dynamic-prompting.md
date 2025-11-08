@@ -151,9 +151,8 @@ tools:
 prompting:
   modules:
     enabled: true  # Must explicitly enable
-    selection_mode: "keyword"  # keyword | llm | manual
     
-    # Keyword → module mappings (config-based, not hardcoded!)
+    # Keyword → module mappings (each agent defines its own)
     keyword_mappings:
       - keywords: ["billing", "insurance", "payment", "medicare", "medicaid"]
         module: "administrative/billing_policies.md"
@@ -207,7 +206,6 @@ tools:
 prompting:
   modules:
     enabled: true
-    selection_mode: "keyword"
     
     # Comprehensive keyword mappings
     keyword_mappings:
@@ -268,7 +266,7 @@ tools:
 prompting:
   modules:
     enabled: true  # ← Explicit opt-in
-    available_modules: [...]
+    keyword_mappings: [...]  # ← Define which modules to load
 ```
 
 **4. No Breaking Changes**
@@ -282,11 +280,7 @@ prompting:
 prompting:
   modules:
     enabled: true
-    # Defaults (read from system config if not specified):
-    # - selection_mode: "keyword" (fast, deterministic)
-    # - token_budget.total_cap: 2000 (total prompt size limit)
-    # - token_budget.max_modules_tokens: 800 (module budget)
-    # - token_budget.enforcement: "prioritize" (strategy)
+    # keyword_mappings: define which modules to load based on query keywords
 ```
 
 ---
@@ -535,16 +529,21 @@ Query: Load "shared/hipaa_compliance.md"
   prompting:
     modules:
       enabled: true
-      available_modules: ["medical/emergency_protocols"]
+      keyword_mappings:
+        - keywords: ["emergency", "urgent"]
+          module: "medical/emergency_protocols.md"
   
-  # hospital_assistant agent - full modules
+  # hospital_assistant agent - more comprehensive
   prompting:
     modules:
       enabled: true
-      available_modules: 
-        - "medical/emergency_protocols"
-        - "administrative/billing_policies"
-        - "shared/hipaa_compliance"
+      keyword_mappings:
+        - keywords: ["emergency", "urgent"]
+          module: "medical/emergency_protocols.md"
+        - keywords: ["billing", "insurance"]
+          module: "administrative/billing_policies.md"
+        - keywords: ["hipaa", "privacy"]
+          module: "shared/hipaa_compliance.md"
   ```
 
 **Key Insight**: **Storage** at system/account level, **selection** at agent level via config!
@@ -1000,9 +999,26 @@ Query: "I need a cardiologist, what's the scheduling number?"
 
 ### Module Selection Strategy
 
-**Config-based keyword detection** (Phase 1 implementation):
+**Config-based keyword detection** (Phase 1 - simple and effective):
 
 **Mechanism**: Read `keyword_mappings` from agent config, match keywords in query, return matching modules.
+
+**Configuration**: Each agent defines its own keyword mappings in `agent_configs/{account}/{instance}/config.yaml`
+
+```yaml
+# Example: agent_configs/wyckoff/wyckoff_info_chat1/config.yaml
+prompting:
+  modules:
+    enabled: true
+    keyword_mappings:
+      - keywords: ["billing", "insurance", "payment"]
+        module: "administrative/billing_policies.md"
+        priority: 1
+      
+      - keywords: ["emergency", "urgent", "er", "911"]
+        module: "medical/emergency_protocols.md"
+        priority: 10  # Higher priority
+```
 
 **Benefits**:
 - ✅ Zero latency (no LLM call)
@@ -1012,13 +1028,11 @@ Query: "I need a cardiologist, what's the scheduling number?"
 - ✅ **No deployment needed** - add/change keywords via config only
 - ⚠️ Simple keyword matching (may miss nuanced queries)
 
-**Config locations**:
-1. **Agent config**: `agent_configs/{account}/{instance}/config.yaml` - agent-specific mappings (primary)
-2. **System defaults** (optional): `backend/config/prompt_modules/keyword_mappings.yaml` - shared defaults
+**No system-level defaults** - Each agent explicitly defines its own mappings (clearer, no cascade complexity)
 
-**See "Configuration Examples" section (lines 132-173) for config structure.**
+**See "Configuration Examples" section (lines 132-173) for full config structure.**
 
-**Future enhancement**: Add LLM-based classifier if keyword approach insufficient (Phase 3).
+**Future enhancement**: LLM-based classifier (see [dynamic-prompting-alternatives.md](./dynamic-prompting-alternatives.md)).
 
 ---
 
@@ -1075,165 +1089,35 @@ Once stabilized, our Cardiology department can provide follow-up care."
 
 ---
 
-### Module Validation Configuration
+### Simplified Configuration
 
-**System-level validation** (`backend/config/prompt_modules/validation.yaml`):
-
-```yaml
-module_validation:
-  max_tokens_per_module: 500      # Hard limit per module
-  warn_above: 400                  # Warning threshold
-  enforce_limit: true              # Reject modules over limit
-  
-  # Optional: Validation on module load
-  validate_on_load: true
-  log_violations: true
-```
-
-**Benefits**:
-- ✅ **Enforced policy** - Not just documentation, system prevents prompt bloat
-- ✅ **Consistent limits** - All accounts follow same module size policy
-- ✅ **Early detection** - Catch oversized modules during development
-- ✅ **Configurable** - Can adjust limits based on model capabilities
-
-**Implementation note**: Module loader should check token count and warn/reject based on config.
-
----
-
-### Prompt Caching Strategy
-
-**Configuration** (`backend/config/app.yaml` - infrastructure config):
+**All prompting configuration in `backend/config/app.yaml`** (infrastructure config):
 
 ```yaml
 # backend/config/app.yaml (add to existing file)
 
-caching:
-  prompt_cache:
-    enabled: true
-    maxsize: 50                # Number of prompts to cache (LRU)
-    ttl_seconds: 300           # Time-to-live: 5 minutes
-    
-    # Cache key components
-    include_base_prompt: true
-    include_modules: true
-    include_directory_config: true
-    
-    # Invalidation triggers
-    invalidate_on_file_change: true
-    invalidate_on_config_update: true
-```
-
-**Implementation**:
-
-```python
-# Read cache config from app.yaml
-from backend.app.config import load_config
-app_config = load_config()
-cache_config = app_config.get("caching", {}).get("prompt_cache", {})
-maxsize = cache_config.get("maxsize", 50)
-ttl = cache_config.get("ttl_seconds", 300)
-
-@lru_cache(maxsize=maxsize)
-def get_cached_prompt(base_hash: str, modules_tuple: tuple, dir_hash: str) -> str:
-    return cached_prompt
-
-# Invalidate on:
-# - Prompt file updates (base or modules)
-# - Directory configuration changes
-# - Agent config updates
-# - TTL expiration
-```
-
-**Benefits**:
-- ✅ **Tunable for scale** - Adjust cache size based on deployment (10 agents vs. 1000)
-- ✅ **TTL control** - Prevent stale prompts from lingering
-- ✅ **Flexible invalidation** - Configure what triggers cache refresh
-- ✅ **Performance monitoring** - Can adjust based on cache hit rate metrics
-
-**Target**: Cache hit rate > 70% for common query patterns.
-
----
-
-### Token Budget Management
-
-**Configuration** (System defaults + per-agent overrides):
-
-**System defaults** (`backend/config/prompt_modules/token_budgets.yaml`):
-```yaml
-default_token_budgets:
-  # Estimated sizes (for planning)
-  base_prompt_estimated: 800
-  directory_docs_estimated: 400
-  per_module_estimated: 300
-  
-  # Hard limits (enforced)
-  max_modules_tokens: 800          # Max tokens for all modules combined
-  total_cap: 2000                  # Total prompt size limit
-  
-  # Enforcement strategy
-  enforcement: "prioritize"        # prioritize | truncate | reject
-  warn_at_percent: 80              # Warn when 80% of budget used
-```
-
-**Per-agent override** (`agent_configs/{account}/{instance}/config.yaml`):
-```yaml
 prompting:
-  token_budget:
-    total_cap: 3000                # Override for agents needing more context
-    max_modules_tokens: 1200       # Allow more module content
-    enforcement: "truncate"        # Different strategy for this agent
+  # Simple size guideline (informational, not enforced)
+  recommended_module_size_tokens: 500  # Keep modules concise for readability
 ```
 
-**Implementation**:
+**Design Philosophy**:
+- ✅ **Trust LLM context windows** - Modern LLMs (128K+ tokens) can handle large prompts
+- ✅ **Focus on correctness** - Get functionality working before optimizing
+- ✅ **Defer premature optimization** - Add complexity only when data shows it's needed
 
-```python
-def enforce_token_budget(agent_config: dict, base: str, directory: str, modules: List[str]) -> str:
-    """Enforce token budget based on config."""
-    
-    # Load budget config (agent override or system default)
-    budget = agent_config.get("prompting", {}).get("token_budget", {})
-    total_cap = budget.get("total_cap", 2000)
-    max_modules = budget.get("max_modules_tokens", 800)
-    enforcement = budget.get("enforcement", "prioritize")
-    
-    # Count tokens
-    base_tokens = count_tokens(base)
-    directory_tokens = count_tokens(directory)
-    available_for_modules = total_cap - base_tokens - directory_tokens
-    
-    # Enforce module budget
-    if enforcement == "prioritize":
-        # Keep highest priority modules that fit
-        modules = select_top_modules_within_budget(modules, min(available_for_modules, max_modules))
-    elif enforcement == "truncate":
-        # Truncate module content to fit
-        modules = truncate_modules_to_budget(modules, min(available_for_modules, max_modules))
-    elif enforcement == "reject":
-        # Reject entire request if over budget
-        if (base_tokens + directory_tokens + sum_tokens(modules)) > total_cap:
-            raise TokenBudgetExceeded()
-    
-    return compose_prompt(base, directory, modules)
-```
+**Increase max_tokens to 32,000** (action item):
+- Current: `llm.max_tokens: 1024` in `backend/config/app.yaml`
+- Current fallback: `512` tokens in `backend/app/config.py` (line 239)
+- Update to: `32000` tokens (leverage modern LLM capabilities)
+- Ensure no other hardcoded limits in codebase
 
-**Benefits**:
-- ✅ **Model flexibility** - Different caps for GPT-4 (128k), Claude (200k), DeepSeek (64k)
-- ✅ **Per-agent tuning** - Complex agents get more tokens, simple ones stay efficient
-- ✅ **Multiple strategies** - Prioritize vs. truncate vs. reject based on use case
-- ✅ **Budget awareness** - Warn before hitting limits, log budget usage
+**Deferred to post-MVP**:
+- Token budget enforcement (prioritize/truncate/reject strategies)
+- Prompt caching (performance optimization)
+- Module size validation (quality can be reviewed manually)
 
-**Typical allocations**:
-- **Small context models** (DeepSeek 64k): total_cap: 2000
-- **Medium context models** (GPT-4 8k): total_cap: 3000
-- **Large context models** (GPT-4 128k, Claude 200k): total_cap: 5000+
-
-**Current prompt sizes** (estimates for default config):
-- Base prompt: ~800 tokens
-- Directory docs: ~400 tokens (auto-generated)
-- Per module: ~300 tokens average
-- Base + directory: 1200 tokens (fixed)
-- Modules: Max 800 tokens (2-3 modules)
-- **Total cap**: 2000 tokens (default)
+**See [dynamic-prompting-alternatives.md](./dynamic-prompting-alternatives.md)** for deferred optimization features
 
 ---
 
@@ -1255,7 +1139,7 @@ def enforce_token_budget(agent_config: dict, base: str, directory: str, modules:
    - `token_counter.py` - Token counting utilities
 
 3. **Agent initialization** (backward compatible):
-   ```python
+```python
    # Phase 0 (existing behavior)
    prompt = await generate_directory_tool_docs(...)
    
@@ -1433,7 +1317,7 @@ prompting:
 
 ---
 
-**Implementation Approach** (domain-agnostic):
+**Implementation Approach** (simplified - keyword-only MVP):
 
 ```python
 # backend/app/agents/simple_chat.py
@@ -1445,35 +1329,20 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
     dynamic_config = agent_config.get("prompting", {}).get("dynamic_instructions", {})
     
     if not dynamic_config.get("enabled"):
-        # Skip if not enabled
         result = await agent.run(message, ...)
         return result
     
-    # Collect applicable instructions
+    # Collect applicable instructions (keyword-based only for MVP)
     instructions = []
     instruction_mappings = dynamic_config.get("instruction_mappings", [])
     
     for mapping in instruction_mappings:
-        condition = mapping.get("condition", "keyword_match")
+        keywords = mapping.get("keywords", [])
         instruction_text = mapping.get("instruction")
         priority = mapping.get("priority", 1)
         
-        # Evaluate condition
-        applies = False
-        
-        if condition == "keyword_match":
-            keywords = mapping.get("keywords", [])
-            applies = any(kw in message.lower() for kw in keywords)
-        
-        elif condition == "is_followup":
-            applies = is_followup_question(message_history)
-        
-        elif condition == "message_count_gt_5":
-            applies = len(message_history) > 5
-        
-        # Add more condition types as needed
-        
-        if applies:
+        # Simple keyword match
+        if any(kw in message.lower() for kw in keywords):
             instructions.append((instruction_text, priority))
     
     # Sort by priority and inject
@@ -1487,19 +1356,17 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ---
 
-**Benefits of Config-Based Approach**:
-- ✅ **Domain-agnostic code** - No hardcoded emergency/pharmacy logic in Python
-- ✅ **Multi-tenant flexibility** - Accounts can customize instructions (Spanish: "urgencia")
+**Simplified Approach Benefits**:
+- ✅ **Keyword-only matching** - Simple, fast, deterministic (same as Phase 1)
+- ✅ **Domain-agnostic code** - No hardcoded emergency/pharmacy logic
+- ✅ **Multi-tenant flexibility** - Accounts customize instructions via config
 - ✅ **No deployment needed** - Add/change instructions via config only
-- ✅ **Consistent with Phase 1** - Same pattern as keyword_mappings for modules
-- ✅ **Extensible conditions** - Easy to add new condition types without code changes
+- ✅ **Consistent with Phase 1** - Same keyword pattern as module selection
 
-**Condition Types**:
-- `keyword_match` - Match keywords in message (default)
-- `is_followup` - Detect follow-up question from conversation history
-- `message_count_gt_N` - Trigger after N messages in conversation
-- `time_based` - Trigger based on time of day (future)
-- `custom` - Custom condition function (future)
+**Deferred to post-MVP** (see [dynamic-prompting-alternatives.md](./dynamic-prompting-alternatives.md)):
+- Complex condition types (is_followup, message_count_gt_N, time_based, custom)
+- Conversation history analysis
+- Time-of-day routing
 
 **Why Optional**: Adds message length overhead and may conflict with base prompt if not carefully designed. Most agents don't need this level of runtime control.
 
@@ -1562,19 +1429,26 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ### Executive Summary
 
-**Code Reuse**: 44% reuse ratio (400 lines of existing infrastructure reused / 900 lines new code)
+**Code Reuse**: 61% reuse ratio (400 lines of existing infrastructure reused / 660 lines new code)
 
-**Incremental Implementation**:
+**Incremental Implementation** (simplified scope):
 - Phase 0: ~150 lines (schema standardization)
-- Phase 1: ~500 lines (module system, opt-in)
-- Phase 2: ~250 lines (dynamic instructions, opt-in)
+- Phase 1: ~330 lines (module system, opt-in, simplified)
+- Phase 2: ~180 lines (dynamic instructions, opt-in, simplified)
 
 **Backward Compatibility**: All existing agents (wyckoff, windriver, agrofresh, prepexcellence, acme, default_account) work unchanged. New features require explicit opt-in via config.
 
 **Key Files**:
-- New: `module_loader.py`, `module_selector.py`, `token_counter.py`, `instruction_injector.py`
+- New: `module_loader.py`, `module_selector.py`, `instruction_injector.py`
 - Enhanced: `prompt_generator.py` (add `generate_full_prompt()`)
 - Reused: `config_loader.py`, `types.py`, existing `prompt_generator.py` functions
+- Removed: `token_counter.py` (not needed - trust LLM context windows)
+
+**Simplifications** (reduced ~240 lines of complexity):
+- ✅ No token budget enforcement (modern LLMs handle large prompts)
+- ✅ No prompt caching (defer to post-MVP)
+- ✅ No system-level config files (each agent defines its own mappings)
+- ✅ Removed unnecessary parameters (selection_mode, available_modules)
 
 ---
 
@@ -1634,42 +1508,30 @@ backend/app/agents/tools/
     - find_module()             # Account→System resolution
     - load_module_content()     # Load markdown modules
     - load_and_combine_modules()  # Multi-module composition
-    - validate_module_token_count()  # Enforce size limits
   
   module_selector.py            # Config-based module selection
     - select_modules()          # Keyword-based selection
     - apply_priority()          # Priority sorting
-    - enforce_token_budget()    # Budget management
   
   # NEW: Dynamic instructions (Phase 2 - Future)
   instruction_injector.py       # Message prepending logic
-    - evaluate_conditions()     # Condition evaluation
+    - evaluate_conditions()     # Keyword-based condition evaluation
     - inject_instructions()     # Apply instruction mappings
-
-  # Shared utilities
-  token_counter.py              # Token counting utilities
-    - count_tokens()            # Consistent token counting
-    - estimate_prompt_size()    # Budget estimation
 
 backend/config/
   # Infrastructure configuration
-  app.yaml                      # System-wide settings (database, caching, logging, LLM)
-                                # ADD: caching.prompt_cache section for prompt caching
+  app.yaml                      # System-wide settings (database, logging, LLM, prompting)
+                                # ADD: prompting.recommended_module_size_tokens
   
   # Domain-specific configurations
-  prompt_modules/
-    validation.yaml             # Module validation rules
-    token_budgets.yaml          # Default token budgets
-    keyword_mappings.yaml       # OPTIONAL: System defaults
-    
-    # System-level modules (shared)
+  prompt_modules/               # System-level modules (shared across accounts)
     shared/
-      hipaa_compliance.md
-      tone_guidelines.md
+      hipaa_compliance.md       # Federal law (universal)
+      tone_guidelines.md        # Best practices (universal)
     medical/
-      clinical_disclaimers.md
+      clinical_disclaimers.md   # Standard disclaimers (universal)
     administrative/
-      insurance_info.md
+      insurance_info.md         # Generic insurance concepts (universal)
   
   directory_schemas/            # Already exists
     medical_professional.yaml   # Phase 0: Add directory_purpose
@@ -1700,20 +1562,27 @@ backend/config/
 - **MVP**: Part A only (synonym mapping standardization)
 
 **Phase 1: Modular Prompts** (OPTIONAL - Opt-In Feature)
-- **New files**: `module_loader.py` (200 lines), `module_selector.py` (150 lines), `token_counter.py` (50 lines)
-- **Modified files**: `prompt_generator.py` (+100 lines for generate_full_prompt)
-- **Total new code**: ~500 lines
+- **New files**: `module_loader.py` (150 lines), `module_selector.py` (100 lines)
+- **Modified files**: `prompt_generator.py` (+80 lines for generate_full_prompt)
+- **Total new code**: ~330 lines (simplified from ~500)
 - **Backward compatible**: ✅ Yes (no-op if prompting.modules.enabled != true)
 - **Blocks**: Requires Phase 0 complete
-- **MVP**: Keyword selection only, skip token budget enforcement initially
+- **MVP scope**: 
+  - Keyword-based module selection only
+  - Simple module loading (account→system resolution)
+  - No token budget enforcement (trust LLM context windows)
+  - No prompt caching (defer to post-MVP optimization)
 
 **Phase 2: Dynamic Instructions** (OPTIONAL - Future Enhancement)
-- **New files**: `instruction_injector.py` (200 lines)
-- **Modified files**: `simple_chat.py` (+50 lines to call injector)
-- **Total new code**: ~250 lines
+- **New files**: `instruction_injector.py` (150 lines, simplified)
+- **Modified files**: `simple_chat.py` (+30 lines to call injector)
+- **Total new code**: ~180 lines (simplified from ~250)
 - **Backward compatible**: ✅ Yes (no-op if prompting.dynamic_instructions.enabled != true)
 - **Blocks**: None (independent of Phase 1)
-- **MVP**: Keyword conditions only, defer complex conditions
+- **MVP scope**:
+  - Keyword-based instruction matching only
+  - Simple priority sorting
+  - Defer complex conditions (is_followup, message_count_gt_N, time_based)
 
 ---
 
@@ -1743,14 +1612,10 @@ def find_module(module_path: str, account_slug: str) -> Path:
     # SAME PATTERN as config parameter cascade!
 ```
 
-**3. Token Budget Management** (Extract for Reuse)
-```python
-# NEW: token_counter.py
-# Extract from prompt_generator.py for reuse across:
-# - Module validation
-# - Budget enforcement
-# - Cache key generation
-```
+**3. Simplified Approach** (No Token Management)
+- Trust LLM context windows (modern models handle 128K+ tokens)
+- No token counting utilities needed
+- Focus on correctness over optimization
 
 **4. Config Validation** (Extend Existing)
 ```python
@@ -1818,13 +1683,20 @@ prompting:
 - `types.py`: AgentConfig Pydantic validation - **~50 lines reused**
 - **Total reused: ~400 lines** (avoid duplicating)
 
-**New Code Required**:
+**New Code Required** (simplified scope):
 - Phase 0: ~150 lines (schema updates + fallback logic)
-- Phase 1: ~500 lines (module system)
-- Phase 2: ~250 lines (dynamic instructions)
-- **Total new: ~900 lines** (incremental, opt-in)
+- Phase 1: ~330 lines (module system, simplified)
+- Phase 2: ~180 lines (dynamic instructions, simplified)
+- **Total new: ~660 lines** (reduced from ~900 via simplifications)
 
-**Reuse Ratio**: 400 lines reused / 900 lines new = **44% reuse** (good leverage of existing infrastructure)
+**Reuse Ratio**: 400 lines reused / 660 lines new = **61% reuse** (excellent leverage of existing infrastructure!)
+
+**Simplifications applied**:
+- ✅ Removed token budget enforcement (trust LLM context windows)
+- ✅ Deferred prompt caching (post-MVP optimization)
+- ✅ No system-level keyword_mappings (each agent defines its own)
+- ✅ Removed selection_mode and available_modules parameters
+- ✅ Simplified Phase 2 to keyword conditions only
 
 ---
 

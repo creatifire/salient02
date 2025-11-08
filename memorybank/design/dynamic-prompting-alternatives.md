@@ -163,3 +163,244 @@ User: I need a cardiologist"
 
 **Related**: [dynamic-prompting.md](./dynamic-prompting.md) (selected approach)
 
+---
+
+## Deferred Optimization Features
+
+These features were considered for the initial implementation but deferred to post-MVP based on the principle of "trust LLM context windows, focus on correctness first, optimize later."
+
+---
+
+### Token Budget Enforcement
+
+**Problem**: Prevent prompts from becoming too large and consuming excessive tokens.
+
+**Deferred Solution**: Complex enforcement strategies
+
+**System defaults** (`backend/config/prompt_modules/token_budgets.yaml`):
+```yaml
+default_token_budgets:
+  max_modules_tokens: 800
+  total_cap: 2000
+  enforcement: "prioritize"  # prioritize | truncate | reject
+```
+
+**Per-agent override**:
+```yaml
+prompting:
+  token_budget:
+    total_cap: 3000
+    max_modules_tokens: 1200
+    enforcement: "truncate"
+```
+
+**Enforcement strategies**:
+1. **Prioritize**: Keep highest priority modules that fit within budget
+2. **Truncate**: Truncate module content to fit
+3. **Reject**: Reject entire request if over budget
+
+**Why deferred**:
+- Modern LLMs have 128K+ token context windows
+- Adds ~150 lines of complexity (counting, enforcement, edge cases)
+- No data showing this is actually needed
+- Can add later if prompts grow problematically large
+
+**When to reconsider**: If prompts consistently exceed 10K tokens or cause performance issues.
+
+---
+
+### Prompt Caching
+
+**Problem**: Regenerating prompts on every request is wasteful if prompts rarely change.
+
+**Deferred Solution**: LRU cache with TTL and invalidation
+
+**Configuration** (`backend/config/app.yaml`):
+```yaml
+caching:
+  prompt_cache:
+    enabled: true
+    maxsize: 50
+    ttl_seconds: 300
+    invalidate_on_file_change: true
+    invalidate_on_config_update: true
+```
+
+**Implementation**:
+```python
+@lru_cache(maxsize=50)
+def get_cached_prompt(base_hash: str, modules_tuple: tuple, dir_hash: str) -> str:
+    return cached_prompt
+```
+
+**Why deferred**:
+- Performance optimization, not core functionality
+- Need real usage data to tune cache settings (maxsize, TTL)
+- Adds complexity (cache invalidation, key generation)
+- ~50 lines of code + testing overhead
+
+**When to reconsider**: If profiling shows prompt generation is a bottleneck (>100ms per request).
+
+---
+
+### System-Level Keyword Mappings
+
+**Problem**: Avoid repeating common keyword mappings across agents.
+
+**Deferred Solution**: System defaults + agent overrides
+
+**System defaults** (`backend/config/prompt_modules/keyword_mappings.yaml`):
+```yaml
+# Shared keyword mappings (optional defaults)
+default_mappings:
+  - keywords: ["emergency", "urgent", "911"]
+    module: "medical/emergency_protocols.md"
+    priority: 10
+  
+  - keywords: ["hipaa", "privacy"]
+    module: "shared/hipaa_compliance.md"
+    priority: 1
+```
+
+**Agent can reference or override**:
+```yaml
+prompting:
+  modules:
+    enabled: true
+    use_system_defaults: true  # Inherit system mappings
+    keyword_mappings:  # Add or override
+      - keywords: ["billing"]  # Agent-specific
+        module: "administrative/billing_policies.md"
+```
+
+**Why deferred**:
+- Adds cascade complexity (system → agent resolution)
+- Multi-tenant agents likely need different keywords anyway (language, domain)
+- DRY can be achieved through config templates/examples, not runtime defaults
+- Each agent defining its own mappings is clearer (no hidden behavior)
+
+**When to reconsider**: If we have 50+ agents with identical keyword mappings and maintaining them becomes burdensome.
+
+---
+
+### Complex Phase 2 Conditions
+
+**Problem**: Keyword matching for dynamic instructions may be insufficient for complex scenarios.
+
+**Deferred Solution**: Multiple condition types beyond keywords
+
+**Condition types proposed**:
+
+1. **is_followup**: Detect follow-up question from conversation history
+   ```yaml
+   - condition: "is_followup"
+     instruction: "[CONTEXT: User following up on previous answer]"
+   ```
+
+2. **message_count_gt_N**: Trigger after N messages in conversation
+   ```yaml
+   - condition: "message_count_gt_5"
+     instruction: "[CONTEXT: Extended conversation, user may need summary]"
+   ```
+
+3. **time_based**: Trigger based on time of day
+   ```yaml
+   - condition: "after_hours"
+     instruction: "[INFO: After hours - direct to emergency contact]"
+   ```
+
+4. **custom**: Custom condition function (Python callable)
+   ```yaml
+   - condition: "custom:check_urgent_symptoms"
+     instruction: "[URGENT: Potential medical emergency]"
+   ```
+
+**Implementation complexity**:
+```python
+# Evaluate condition
+applies = False
+
+if condition == "keyword_match":
+    keywords = mapping.get("keywords", [])
+    applies = any(kw in message.lower() for kw in keywords)
+
+elif condition == "is_followup":
+    applies = is_followup_question(message_history)  # New function needed
+
+elif condition == "message_count_gt_5":
+    applies = len(message_history) > 5  # Simple
+
+elif condition.startswith("time_based"):
+    applies = check_time_condition(condition)  # New function needed
+
+elif condition.startswith("custom:"):
+    func_name = condition.split(":")[1]
+    applies = call_custom_condition(func_name, message, message_history)  # Registry needed
+```
+
+**Why deferred**:
+- Keyword matching covers 80% of use cases (emergency, pharmacy hours)
+- Complex conditions add ~100 lines of code (detection logic, testing, edge cases)
+- Need real usage data to know which conditions are actually useful
+- Can add incrementally based on customer feedback
+
+**When to reconsider**: After Phase 2 MVP deployment, if customers request specific condition types repeatedly.
+
+---
+
+### LLM-Based Module Selection (Phase 3)
+
+**Problem**: Keyword matching may miss nuanced queries or domain-specific intent.
+
+**Deferred Solution**: Use lightweight LLM call to classify query intent
+
+**Implementation**:
+```python
+async def select_modules_llm(query: str, available_modules: List[str]) -> List[str]:
+    """Use LLM to classify query and select relevant modules."""
+    
+    classification_prompt = f"""
+    Available context modules:
+    {format_modules(available_modules)}
+    
+    User query: "{query}"
+    
+    Which modules are relevant? Return JSON array of module names.
+    """
+    
+    result = await classify_llm.run(classification_prompt)
+    return result.output  # ["medical/emergency_protocols.md", ...]
+```
+
+**Configuration**:
+```yaml
+prompting:
+  modules:
+    enabled: true
+    selection_mode: "llm"  # keyword | llm
+    classifier_model: "deepseek/deepseek-chat-v3.1"  # Lightweight model
+```
+
+**Why deferred**:
+- Adds latency (~50-100ms per request)
+- Adds cost (extra LLM call per request)
+- Need data showing keyword approach is insufficient
+- Keyword matching is deterministic and testable
+
+**When to reconsider**: If customers report module selection misses (e.g., "I asked about billing but didn't get billing info").
+
+---
+
+## Summary of Deferred Features
+
+| Feature | Lines of Code | Complexity | When to Reconsider |
+|---------|---------------|------------|---------------------|
+| Token Budget Enforcement | ~150 | Medium | Prompts > 10K tokens consistently |
+| Prompt Caching | ~50 | Low | Prompt generation > 100ms |
+| System Keyword Mappings | ~30 | Low | 50+ agents with identical mappings |
+| Complex Phase 2 Conditions | ~100 | Medium | Customer requests for specific conditions |
+| LLM-Based Module Selection | ~150 | Medium | Keyword selection proves insufficient |
+| **Total Deferred** | **~480 lines** | **- | Based on real usage data** |
+
+**Philosophy**: Build the simplest thing that could work, validate with customers, then add sophistication based on real needs.
+
