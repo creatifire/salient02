@@ -37,28 +37,40 @@ Unauthorized copying of this file is strictly prohibited.
 
 ### Complexity Levels
 
-**Level 1: Simple Agent**
+**Level 1: Simple Agent (Base Prompt Only)**
 - `system_prompt.md` only
 - Use case: Basic chatbot, FAQ bot
+- Config: No tools configured
 
-**Level 2: Directory-Enhanced (Current)**
-- `system_prompt.md` + auto-generated directory docs
-- Use case: Doctor finder, phone directory lookup
-- Config: `tools.directory.enabled: true`
+**Level 2: Single-Tool Agent**
+- Base + ONE tool (directory OR vector search)
+- Use case: Doctor finder, knowledge base search
+- Config: `tools.directory.enabled: true` OR `tools.vector_search.enabled: true`
 
-**Level 3: Module-Enhanced (Phase 4)**
-- Level 2 + context modules (keyword-selected)
-- Use case: Hospital assistant with emergency/billing context
-- Config: `prompting.modules.enabled: true`
+**Level 3: Multi-Tool Agent (Phase 1-3)**
+- Base + MULTIPLE tools (directory + vector + MCP servers)
+- Use case: Comprehensive assistant with multiple data sources
+- Config: Multiple tools enabled + MCP servers configured
+- Examples:
+  - Directory + vector search (Wyckoff, Windriver)
+  - Directory + vector + GitHub/Slack MCP servers
+  - Vector + weather MCP server
 
-**Level 4: Fully Dynamic (Future)**
-- Level 3 + dynamic instructions (message prepending)
+**Level 4: Module-Enhanced (Phase 4)**
+- Level 3 + context modules (keyword-selected)
+- Use case: Hospital assistant with emergency/billing/HIPAA context
+- Config: `prompting.modules.enabled: true` + keyword mappings
+
+**Level 5: Fully Dynamic (Future)**
+- Level 4 + dynamic instructions (message prepending)
 - Use case: Multi-domain with urgent query detection
 - Config: `prompting.dynamic_instructions.enabled: true`
 
+**Key Insight**: Tools (directory, vector, MCP) are **orthogonal** to modules. Any tool combination can use modules!
+
 ### Configuration Examples
 
-**Simple Agent** (Level 1):
+**Level 1: Simple Agent**
 ```yaml
 name: "Simple Chat Bot"
 model_settings:
@@ -66,23 +78,45 @@ model_settings:
 # That's it! Uses system_prompt.md only
 ```
 
-**Directory Agent** (Level 2 - Current):
+**Level 2: Single-Tool Agent**
 ```yaml
 name: "Doctor Finder"
 tools:
   directory:
     enabled: true
     accessible_lists: ["doctors"]
-# Directory docs auto-generated, no prompting config needed
+# Directory docs auto-generated
 ```
 
-**Module-Enhanced** (Level 3 - Phase 4):
+**Level 3: Multi-Tool Agent** (Phase 1-3)
+```yaml
+name: "Comprehensive Assistant"
+tools:
+  directory:
+    enabled: true
+    accessible_lists: ["doctors", "phone_directory"]
+  
+  vector_search:
+    enabled: true
+  
+  mcp:
+    enabled: true
+    servers:
+      - "github"      # Code/issue management
+      - "slack"       # Team notifications
+# All tools work together, no prompting config needed yet
+```
+
+**Level 4: Module-Enhanced** (Phase 4)
 ```yaml
 name: "Hospital Assistant"
 tools:
   directory:
     enabled: true
     accessible_lists: ["doctors", "phone_directory"]
+  
+  vector_search:
+    enabled: true
 
 prompting:
   modules:
@@ -94,6 +128,7 @@ prompting:
       - keywords: ["billing", "insurance", "medicare"]
         module: "administrative/billing_policies.md"
         priority: 1
+# Modules work with ANY tool combination
 ```
 
 ### Backward Compatibility Requirements
