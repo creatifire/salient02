@@ -2343,7 +2343,7 @@ if not modules_config.get("enabled"):  # Default: False
 **Configuration Migration Path**:
 - ✅ **No config changes needed** for existing agents
 - ✅ **Opt-in only**: Add `prompting` section to enable features
-- ✅ **Incremental adoption**: Can enable Phase 0 features without Phase 1
+- ✅ **Incremental adoption**: Each phase independent, can skip phases
 
 **Example - Existing Agent (No Changes)**:
 ```yaml
