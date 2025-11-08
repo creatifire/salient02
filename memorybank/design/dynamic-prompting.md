@@ -22,6 +22,11 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
+**Design Principles**:
+- ✅ **Graceful degradation** - failures logged but user experience remains seamless
+- ✅ **Multi-tenant scalability** - concurrent agent instances without conflicts
+- ✅ **Progressive enhancement** - complexity only when needed
+
 **See Also**: `memorybank/analysis/advanced-agent-strategies.md` for alternative approaches evaluated.
 
 ---
@@ -972,6 +977,146 @@ tools:
 ```
 
 **That's it!** Pydantic AI handles MCP connection, tool discovery, and schema conversion automatically.
+
+---
+
+## Error Handling & Resilience
+
+**Principle**: Failures are logged but user experience remains seamless. The LLM receives guidance to gracefully handle missing/failed tools.
+
+### Directory Search Failures
+
+**When directory search fails** (database unavailable, query error, schema issues):
+
+1. **Logfire captures details**:
+   ```python
+   logfire.error("Directory search failed", 
+       directory=list_name, 
+       error=str(e), 
+       account_id=account_id)
+   ```
+
+2. **LLM receives guidance in prompt**:
+   ```markdown
+   **IMPORTANT - Directory Tool Status**: 
+   The directory search tool is temporarily unavailable. 
+   Apologize to the user and suggest they:
+   - Try again in a few moments
+   - Call the main hospital number: [from base knowledge]
+   - Visit the website: [from base knowledge]
+   
+   Do NOT make up directory information or phone numbers.
+   ```
+
+3. **User experience**: "I apologize, but I'm unable to search our directory right now. You can reach our main line at..."
+
+### MCP Server Failures
+
+**When MCP server is unavailable** (connection timeout, server down, auth failure):
+
+1. **Logfire captures details**:
+   ```python
+   logfire.warning("MCP server unavailable", 
+       server=server_name, 
+       error=str(e),
+       agent=agent_slug)
+   ```
+
+2. **Agent loads without MCP toolset**:
+   ```python
+   # Graceful degradation
+   try:
+       mcp_toolset = MCPServerStdio('github')
+       toolsets.append(mcp_toolset)
+   except Exception as e:
+       logfire.warning(f"MCP server 'github' unavailable: {e}")
+       # Continue without MCP - other tools still work
+   ```
+
+3. **LLM receives guidance in prompt**:
+   ```markdown
+   **NOTE**: External integrations (GitHub/Slack) are temporarily unavailable.
+   If user requests code/repository actions, apologize and suggest:
+   - Check back shortly
+   - Visit GitHub directly at github.com
+   ```
+
+4. **User experience**: Transparent - other tools work, MCP-specific requests get polite explanation.
+
+### Missing Module Files
+
+**When module file is missing** (`emergency_protocols.md` doesn't exist):
+
+1. **Logfire captures details**:
+   ```python
+   logfire.warning("Module not found", 
+       module_path=module_path, 
+       account=account_slug,
+       agent=agent_slug)
+   ```
+
+2. **Module loading fails gracefully**:
+   ```python
+   try:
+       module_content = load_module(module_path, account_slug)
+   except ModuleNotFoundError:
+       logfire.warning(f"Module not found: {module_path}")
+       module_content = None  # Skip this module, continue with others
+   ```
+
+3. **Agent continues with remaining modules** - no prompt modification needed.
+
+4. **User experience**: Seamless - they don't know the module was missing, base prompt + other modules still work.
+
+### Partial Failures
+
+**When some tools work but others fail**:
+
+- ✅ **Directory works, vector search fails** → Directory results provided
+- ✅ **Vector search works, directory fails** → Vector results provided
+- ✅ **2 of 3 modules load** → Agent works with 2 modules
+- ✅ **All tools fail** → Agent operates with base prompt only
+
+**Key Principle**: **Degrade gracefully, never fail completely.** Always give the user *something* useful.
+
+---
+
+## Performance & Scalability
+
+### Concurrent Agent Instances
+
+**Multi-tenant isolation**: Multiple agent instances can run simultaneously without conflict.
+
+**Example scenario**:
+- **10 Wyckoff agents** handling patient queries simultaneously
+- **5 AgroFresh agents** handling farmer questions simultaneously
+- **3 PrepExcellence agents** handling student questions simultaneously
+
+**Each instance**:
+- ✅ Can search directories concurrently (JSONB queries are fast and isolated)
+- ✅ Can search vector databases concurrently (Pinecone handles parallel requests)
+- ✅ Can call MCP servers concurrently (independent HTTP connections)
+- ✅ Shares nothing with other instances (session-isolated)
+
+**Database performance**:
+- Directory searches use JSONB GIN indexes (sub-millisecond queries)
+- Read-only operations (no lock contention)
+- PostgreSQL connection pooling handles concurrency
+
+**Bottlenecks**:
+- ❌ **LLM API rate limits** (OpenRouter, Anthropic quotas)
+- ❌ **Vector database quotas** (Pinecone query limits)
+- ⚠️ **MCP server capacity** (depends on external service)
+
+**Mitigation**:
+- Rate limiting at application level (not in this design - infrastructure concern)
+- Queue-based load leveling for high-volume scenarios (future enhancement)
+- Monitor via Logfire: response times, error rates, concurrent requests
+
+**No conflicts**: Agent instances do NOT share:
+- ❌ Conversation state (each session isolated)
+- ❌ Prompt cache (cache is per-model, not per-agent)
+- ❌ Tool execution context (stateless functions)
 
 ---
 
