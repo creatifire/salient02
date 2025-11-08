@@ -93,13 +93,13 @@ prompting:
 ### Backward Compatibility Requirements
 
 **Existing agent instances** (must continue working unchanged):
-- `wyckoff/wyckoff_info_chat1` - vector_search + directory enabled
-- `windriver/windriver_info_chat1` - config TBD
-- `agrofresh/agro_info_chat1` - config TBD
-- `prepexcellence/prepexcel_info_chat1` - config TBD
-- `acme/acme_chat1` - config TBD
-- `default_account/simple_chat1` - base agent
-- `default_account/simple_chat2` - base agent
+- `wyckoff/wyckoff_info_chat1` - vector_search + directory
+- `windriver/windriver_info_chat1` - vector_search + directory
+- `agrofresh/agro_info_chat1` - vector_search only
+- `prepexcellence/prepexcel_info_chat1` - vector_search only
+- `acme/acme_chat1` - vector_search + web_search
+- `default_account/simple_chat1` - base agent (no tools)
+- `default_account/simple_chat2` - vector_search + web_search
 
 **Current implementation** (in `simple_chat.py`):
 - Function-based Pydantic AI agent (not BaseAgent class)
