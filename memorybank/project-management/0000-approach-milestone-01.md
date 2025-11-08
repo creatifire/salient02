@@ -866,6 +866,10 @@ Execute in this order for optimal results:
 - ✅ Time-ordered (sortable by creation)
 - 🔒 RFC 4122 compliant (no schema changes)
 
+**Improve prompt responses**
+## 0023-009 - FEATURE - Phone Directory for Hospital Departments
+memorybank/architecture/dynamic-prompting.md
+
 **Next**: Priority 6 - Profile Fields Configuration
 
 ### **Priority 6: Profile Fields Configuration & Database Schema** 📋
