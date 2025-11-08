@@ -1797,35 +1797,36 @@ prompting:
 
 ### Migration Path for Tool Extensibility
 
-**Phase 0A: Tool Abstraction** (Foundation - Before Schema Standardization)
-1. Create `AgentTool` base interface
-2. Implement `DirectoryTool` wrapper (uses existing `generate_directory_tool_docs`)
-3. Create `ToolRegistry` singleton
-4. Update `generate_full_prompt()` to use tool registry
-5. **Backward compatible**: Directory tool works exactly as before, just wrapped
+**Aligned with main 5-phase plan** (see Migration Path section above for details)
 
-**Phase 0B: Schema Standardization** (Current Phase 0)
-- Directory schemas updated (synonym_mappings_heading, directory_purpose)
+**Phase 1: Tool Abstraction** (Foundation)
+- Create `AgentTool` interface, `ToolRegistry`, `DirectoryTool` wrapper
+- Update `generate_full_prompt()` to use tool registry
+- **100% backward compatible**: Directory tool works exactly as before
+
+**Phase 2: Schema Standardization**
+- Directory schemas updated (`synonym_mappings_heading`, `directory_purpose`)
+- `prompt_generator.py` becomes domain-agnostic
 - Works through `DirectoryTool` wrapper
 
-**Phase 1A: Multi-Tool Infrastructure** (Before Module System)
-1. Implement `VectorSearchTool` (if vector search ready)
-2. Add tool selection guide generation
-3. Test multi-tool prompt composition
-4. **Backward compatible**: Single-tool agents unchanged
+**Phase 3: Multi-Tool Infrastructure**
+- Implement `VectorSearchTool` (if vector search ready)
+- Add tool selection guide generation
+- Add prompt caching for cost/latency optimization
+- **Backward compatible**: Single-tool agents unchanged
 
-**Phase 1B: Modular Prompts** (Current Phase 1)
+**Phase 4: Modular Prompts**
 - Add `required_tool` parameter to keyword mappings
 - Implement `select_modules_with_tool_hints()`
-- Create initial MCP module library structure
-- **Backward compatible**: Existing modules work, new `required_tool` parameter optional
+- Create initial module library (system + account levels)
+- **Backward compatible**: Modules opt-in via config
 
-**Phase 2: MCP Integration** (After Phase 1 Complete)
-1. Implement `MCPTool` wrapper class
-2. Add MCP server discovery at startup
-3. Create MCP module library (`mcp/github_best_practices.md`, etc.)
-4. Test with 1-2 MCP servers (GitHub, Slack)
-5. **Backward compatible**: MCP optional, non-MCP agents unaffected
+**Phase 5: MCP Integration**
+- Implement `MCPTool` wrapper class
+- Add MCP server discovery at startup
+- Create MCP module library (`mcp/github_best_practices.md`, etc.)
+- Test with 1-2 MCP servers (GitHub, Slack)
+- **Backward compatible**: MCP optional, non-MCP agents unaffected
 
 ---
 
@@ -1912,13 +1913,21 @@ prompting:
 
 ## Migration Path
 
-**UPDATED**: Migration path now includes tool abstraction layer before schema standardization.
+**Simplified**: 5-phase incremental implementation. Each phase delivers value, backward compatible.
+
+**Strategy**: Evolve `simple_chat` incrementally rather than building v2. Minimizes risk, maximizes code reuse (65% reuse ratio), enables continuous value delivery.
 
 ---
 
-**Phase 0A: Tool Abstraction Layer** (NEW - Foundation for Multi-Tool Support)
+### Phase 1: Tool Abstraction Layer (Foundation)
 
-**Why First**: Establishes plugin architecture before implementing any tool-specific features.
+**Duration**: 2-3 days  
+**Risk**: Low (100% backward compatible)  
+**Value**: Foundation for vector search, MCP, custom tools
+
+**Why First**: Establishes plugin architecture before implementing any tool-specific features. Wraps existing code without changing behavior.
+
+**Implementation**:
 
 1. Create `backend/app/agents/tools/base_tool.py`:
    - Define `AgentTool` abstract base class
@@ -1930,13 +1939,13 @@ prompting:
 
 3. Create `backend/app/agents/tools/directory_tool.py`:
    - `DirectoryTool` class implements `AgentTool`
-   - Wraps existing `generate_directory_tool_docs()` (no changes to existing function)
+   - **Wraps existing** `generate_directory_tool_docs()` - NO rewrite
    - Provides directory-specific module hints
 
 4. Update `prompt_generator.py`:
-   - Modify `generate_full_prompt()` to use `tool_registry.get_enabled_tools()`
+   - Add `generate_full_prompt()` function (uses tool registry)
    - Keep existing `generate_directory_tool_docs()` unchanged (called by DirectoryTool)
-   - **Backward compatible**: Same prompt output, just uses registry pattern
+   - **Backward compatible**: Same prompt output, uses registry pattern internally
 
 5. Register tools at startup (`backend/app/main.py`):
    ```python
@@ -1946,74 +1955,330 @@ prompting:
    tool_registry.register(DirectoryTool())
    ```
 
-**Testing**: Verify directory-only agents produce identical prompts before/after refactoring.
+**Testing**: 
+- Verify directory-only agents produce identical prompts before/after
+- All existing tests pass without modification
 
-**Deliverable**: Tool registry infrastructure ready for vector search, MCP, and custom tools.
+**Deliverable**: 
+- Tool registry infrastructure ready
+- Vector search can be added without refactoring
+- MCP integration path clear
+
+**Code Reuse**: 100% of existing `generate_directory_tool_docs()` reused, just wrapped
 
 ---
 
-**Phase 0B**: Schema Standardization (Foundation) - CRITICAL PREREQUISITE
+### Phase 2: Schema Standardization (Domain-Agnostic Prompts)
+
+**Duration**: 1-2 days  
+**Risk**: Low (backward compatible with fallback logic)  
+**Value**: Support for multiple directory types (medical, phone, product, etc.)
+
+**Why**: Make `prompt_generator.py` domain-agnostic so new directory types don't require code changes.
 
 **Part A: Synonym Mapping Standardization**
+
 1. Update `medical_professional.yaml`:
-   - Add `synonym_mappings_heading` field
-   - Rename `medical_specialties` → `formal_terms` (keep old for backward compat)
+   - Add `synonym_mappings_heading` field: "Medical Term Mappings (Lay → Formal)"
+   - Rename `medical_specialties` → `formal_terms` (keep old key for backward compat)
+
 2. Update `prompt_generator.py`:
-   - Read `synonym_mappings_heading` from schema
-   - Use `formal_terms` with fallback to old keys
+   - Read `synonym_mappings_heading` from schema (fallback: "Term Mappings")
+   - Use `formal_terms` with fallback to `medical_specialties` (backward compat)
    - Remove hard-coded "Medical Term Mappings" heading
+
 3. Test with existing medical directory (should work identically)
 
 **Part B: Multi-Directory Selection**
+
 1. Add `directory_purpose` section to ALL schemas:
-   - `medical_professional.yaml`: Add purpose, use_for, example_queries, not_for
-   - `phone_directory.yaml`: Add same fields (when created)
+   - `medical_professional.yaml`: Add `description`, `use_for`, `example_queries`, `not_for`
+   - `phone_directory.yaml`: Add same fields (when created for Feature 0023-009)
+   - Future schemas: Require `directory_purpose` as standard
+
 2. Update `prompt_generator.py`:
-   - Detect multiple accessible directories (if len(lists_metadata) > 1)
+   - Detect multiple accessible directories: `if len(lists_metadata) > 1`
    - Generate "Directory Selection Guide" section
-   - Extract and format directory_purpose from each schema
+   - Extract and format `directory_purpose` from each schema
    - Add multi-directory query guidance
-3. Test with single directory (should skip selection guide)
-4. Test with multiple directories (should show selection guide)
+
+3. Test:
+   - Single directory: Skip selection guide (existing behavior)
+   - Multiple directories: Show selection guide (new feature)
 
 **Part C: Documentation**
-1. Create "Schema Authoring Guide" in architecture docs
+
+1. Create "Schema Authoring Guide" in `memorybank/standards/`
 2. Document `directory_purpose` convention
 3. Document `formal_terms` convention
 4. Update existing schema documentation
 
-**Why Phase 0 is critical**: Dynamic prompting (modules) builds on schema-driven directory selection. If the LLM can't pick the right directory, contextual modules won't help.
+**Why Critical**: Dynamic prompting builds on schema-driven directory selection. If LLM can't pick the right directory, contextual modules won't help.
+
+**Deliverable**: 
+- Phone directory schema ready (Feature 0023-009)
+- Product catalog, pharmaceutical schemas can be added trivially
+- No domain-specific code in `prompt_generator.py`
 
 ---
 
-**Phase 1**: Modular Prompts (OPTIONAL - Opt-In Feature)
+### Phase 3: Multi-Tool Infrastructure + Prompt Caching
 
-**Who needs this?**: Agents requiring context-specific enhancements (emergency handling, billing info, disclaimers)
+**Duration**: 3-4 days  
+**Risk**: Low (single-tool agents unchanged)  
+**Value**: Vector search support + 70% cost reduction + 30% latency improvement
 
-**Who doesn't need this?**: Simple agents and directory-only agents work fine without it!
+**Why**: Enable directory + vector search working together. Add prompt caching for immediate cost/latency wins.
 
-**Implementation**: See "Code Organization" section for:
-- File structure and new modules
-- Implementation phases & incremental path
-- Reusability opportunities
-- Backward compatibility strategy
-- Code reuse metrics
+**Part A: Multi-Tool Support**
 
-**Key deliverables**:
-- Hybrid module structure (system + account levels)
-- Module loader with account→system resolution
-- Enhanced `prompt_generator.py` with `generate_full_prompt()`
-- Config-based keyword mappings in agent config
+1. Implement `VectorSearchTool` (if vector search ready):
+   - `tool_type = "vector_search"`
+   - `generate_documentation()` creates vector search tool docs
+   - `get_module_hints()` suggests research-related modules
 
-**Backward compatibility**: Existing agents continue to work without any changes!
+2. Update `generate_full_prompt()`:
+   - Iterate ALL enabled tools via `tool_registry.get_enabled_tools()`
+   - Generate tool selection guide if multiple tools available
+   - Compose: base + tool_selection_guide + tool_docs (all tools) + modules
+
+3. Add multi-tool selection guide generator:
+   - Similar to multi-directory guide
+   - Explains when to use directory vs. vector vs. MCP
+   - Example queries for each tool type
+
+**Part B: Prompt Caching** (High ROI Enhancement)
+
+1. Structure prompt for caching:
+   - **Static** (cached): Base prompt + directory docs + HIPAA + disclaimers (~8K tokens)
+   - **Dynamic** (per-request): Selected modules + conversation history + user query (~2K tokens)
+
+2. Add cache markers (Anthropic models):
+   ```python
+   messages = [{
+       "role": "user",
+       "content": [
+           {"type": "text", "text": static_prompt, "cache_control": {"type": "ephemeral"}},
+           {"type": "text", "text": dynamic_prompt}
+       ]
+   }]
+   ```
+
+3. Add version hash to cached content:
+   - Invalidate cache on directory updates
+   - Track cache hit rate in Logfire
+
+**Testing**:
+- Single-tool agents work as before
+- Multi-tool agents show selection guide
+- Cache hit rate >80% after warmup
+
+**Deliverable**:
+- Directory + vector search working together
+- 70% cost reduction (cached reads 10x cheaper)
+- 30% latency improvement (cached prompts instant)
+
+**ROI**: For 1000 queries/day, saves ~$650/month in LLM costs.
+
+**See Also**: `memorybank/analysis/advanced-agent-strategies.md` for prompt caching analysis.
+
+---
+
+### Phase 4: Modular Prompts (Context-Specific Enhancements)
+
+**Duration**: 4-5 days  
+**Risk**: Low (opt-in via config, backward compatible)  
+**Value**: 40% quality improvement for complex queries (emergency, billing, HIPAA scenarios)
+
+**Who needs this**: Agents requiring context-specific enhancements (emergency protocols, billing info, disclaimers)
+
+**Who doesn't need this**: Simple agents and directory-only agents work fine without modules!
+
+**Implementation**:
+
+1. **Create module infrastructure** (~150 lines):
+   - `module_loader.py`: Account→System resolution logic
+   - `module_selector.py`: Keyword-based module selection
+   - Reuse `config_loader.py` cascade logic (200 lines reused)
+
+2. **Create initial module library**:
+   - System-level modules (`backend/config/prompt_modules/`):
+     - `shared/hipaa_compliance.md`: Federal law (universal)
+     - `shared/tone_guidelines.md`: Best practices
+     - `medical/clinical_disclaimers.md`: Standard disclaimers
+   - Account-level modules (`backend/config/agent_configs/{account}/modules/`):
+     - `medical/emergency_protocols.md`: Wyckoff ER numbers (account-specific)
+     - `administrative/billing_policies.md`: Wyckoff insurance accepted
+     - `administrative/appointment_scheduling.md`: Wyckoff hours
+
+3. **Update `generate_full_prompt()`**:
+   - Add module selection logic (keyword-based)
+   - Load and compose selected modules
+   - Account-first resolution (account override → system fallback)
+
+4. **Add `prompting.modules` config section**:
+   ```yaml
+   prompting:
+     modules:
+       enabled: true  # Explicit opt-in
+       keyword_mappings:
+         - keywords: ["emergency", "urgent", "911"]
+           module: "medical/emergency_protocols.md"
+           priority: 10
+         - keywords: ["billing", "insurance", "payment"]
+           module: "administrative/billing_policies.md"
+           priority: 1
+   ```
+
+5. **Pilot with Wyckoff**:
+   - Enable for wyckoff_info_chat1
+   - Test emergency query handling
+   - Measure quality improvement (thumbs up/down)
+
+**Testing**:
+- Agents without `prompting.modules.enabled` work as before
+- Module selection matches keywords correctly
+- Account modules override system modules
+- Emergency queries get appropriate protocols
+
+**Deliverable**:
+- Context-aware emergency handling
+- Billing/insurance information injection
+- HIPAA compliance disclaimers
+- 40% quality improvement for complex queries
+
+**Code Reuse**: Leverage `config_loader.py` cascade logic (200 lines), reuse prompt composition patterns (100 lines)
+
+**See Also**: "Code Organization" section (lines 1427-1712) for detailed file structure and implementation strategy
+
+**Backward compatibility**: Existing agents work unchanged. Modules are 100% opt-in.
+
+---
+
+### Phase 5: MCP Integration (External Tool Ecosystem)
+
+**Duration**: 5-7 days  
+**Risk**: Medium (depends on MCP server stability)  
+**Value**: Extensibility for GitHub, Slack, weather, custom integrations
+
+**Why**: Enable dynamic integration with external services via MCP protocol. Agents can use GitHub for issue tracking, Slack for notifications, weather for patient travel advice, etc.
+
+**Implementation**:
+
+1. **Implement `MCPTool` class** (~150 lines):
+   - `tool_type = f"mcp:{server_name}"`
+   - `generate_documentation()`: Auto-generate from MCP JSON schemas
+   - `get_module_hints()`: Suggest MCP-specific modules
+   - Redis caching for tool schemas (5 min TTL)
+
+2. **Add MCP server discovery** (`backend/app/main.py`):
+   ```python
+   async def initialize_mcp_tools():
+       """Discover and register MCP servers at startup."""
+       mcp_config = load_mcp_config()
+       
+       for server_name, server_config in mcp_config.items():
+           client = await connect_to_mcp_server(server_name, server_config)
+           mcp_tool = MCPTool(server_name, client)
+           tool_registry.register(mcp_tool)
+   ```
+
+3. **Add MCP configuration support**:
+   ```yaml
+   # agent_configs/{account}/{instance}/config.yaml
+   tools:
+     mcp:
+       enabled: true
+       servers:
+         - name: "github"
+           connection_string: "stdio://github-mcp-server"
+         - name: "slack"
+           connection_string: "sse://slack-mcp-server:3000"
+   ```
+
+4. **Create MCP module library**:
+   - `backend/config/prompt_modules/mcp/`:
+     - `github_best_practices.md`: When to create issues vs. PRs
+     - `slack_messaging_guidelines.md`: Professional communication
+     - `weather_context.md`: How to integrate weather into responses
+
+5. **Add MCP-specific keyword mappings**:
+   ```yaml
+   prompting:
+     modules:
+       keyword_mappings:
+         - keywords: ["code", "repository", "issue", "bug"]
+           module: "mcp/github_best_practices.md"
+           required_tool: "mcp:github"
+         - keywords: ["notify", "alert", "message"]
+           module: "mcp/slack_messaging_guidelines.md"
+           required_tool: "mcp:slack"
+   ```
+
+6. **Pilot with 1-2 MCP servers**:
+   - Start with GitHub (issue creation) or Slack (notifications)
+   - Test auto-generated tool docs from MCP schemas
+   - Verify graceful handling of MCP server unavailability
+
+**Testing**:
+- MCP servers register dynamically at startup
+- Tool docs auto-generated from JSON schemas
+- Agents without MCP config unchanged
+- MCP server failures don't crash agent
+
+**Deliverable**:
+- GitHub integration (issue creation, repo search)
+- Slack integration (notifications, alerts)
+- Weather integration (patient travel advice)
+- Extensible framework for custom MCP servers
+
+**Challenges**:
+- MCP server reliability (external dependencies)
+- Tool documentation quality (depends on MCP schema quality)
+- Latency overhead (external API calls)
+
+**Mitigation**:
+- Graceful degradation (agent works if MCP unavailable)
+- Cache MCP tool schemas (reduce discovery overhead)
+- Monitor MCP call latency/success rates in Logfire
+
+**See Also**: "MCP Integration Strategy" section (lines 1602-1705) for detailed implementation
+
+**Backward compatibility**: MCP optional. Non-MCP agents work as before.
+
+---
+
+## Timeline Summary
+
+| Phase | Duration | Risk | Value | Dependencies |
+|-------|----------|------|-------|--------------|
+| **1: Tool Abstraction** | 2-3 days | Low | Foundation for extensibility | None |
+| **2: Schema Standardization** | 1-2 days | Low | Multi-directory support | Phase 1 |
+| **3: Multi-Tool + Caching** | 3-4 days | Low | Vector search + 70% cost savings | Phase 1-2 |
+| **4: Modular Prompts** | 4-5 days | Low | 40% quality improvement | Phase 1-3 |
+| **5: MCP Integration** | 5-7 days | Medium | External tool ecosystem | Phase 1 |
+| **TOTAL** | **15-21 days** | - | **50-60% overall quality gain** | - |
+
+**Incremental Value Delivery**:
+- After Phase 1: Vector search ready
+- After Phase 2: Phone directory ready
+- After Phase 3: 70% cost reduction + vector search working
+- After Phase 4: Emergency protocols + billing context working
+- After Phase 5: GitHub/Slack integrations working
+
+**Strategy Validation**: See `memorybank/analysis/advanced-agent-strategies.md` for alternative approaches evaluated (agent chaining, few-shot learning, query preprocessing) and why incremental evolution of `simple_chat` is recommended over building v2.
 
 ---
 
 ## Future Enhancements
 
-### Phase 2: Dynamic Instructions (Message Prepending)
+**Note**: These enhancements are deferred post-MVP (after Phase 1-5). Implement only if data shows keyword-based approaches are insufficient.
 
-**Status**: Proposed enhancement for handling time-critical context
+---
+
+### Dynamic Instructions (Message Prepending)
+
+**Status**: Deferred - Evaluate after Phase 4 (Modular Prompts) deployed
 
 **Problem**: Some context cannot be predetermined at agent creation time and needs runtime injection. Examples:
 - Emergency/urgent queries requiring immediate priority handling
@@ -2110,15 +2375,15 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 **When to Reconsider**: If agents frequently miss critical context cues or need runtime priority adjustments based on query urgency.
 
-**Key Difference from Phase 1**:
-- **Phase 1 (Modules)**: Adds content to system prompt (loaded once at agent creation)
-- **Phase 2 (Instructions)**: Injects directives into user message (applied per request, runtime context)
+**Key Difference from Modular Prompts (Phase 4)**:
+- **Modular Prompts**: Adds content to system prompt (loaded once at agent creation)
+- **Dynamic Instructions**: Injects directives into user message (applied per request, runtime context)
 
 ---
 
-### Phase 3: Advanced Module Selection
+### Advanced Module Selection
 
-**Status**: Future refinement if keyword-based approach proves insufficient
+**Status**: Deferred - Evaluate after Phase 4 if keyword matching insufficient
 
 **Problem**: Simple keyword matching may miss nuanced queries or context that requires more sophisticated intent classification.
 
@@ -2292,35 +2557,43 @@ backend/config/
 
 ### Implementation Phases & Incremental Path
 
-**Phase 0: Schema Standardization** (Foundation - REQUIRED FIRST)
-- **Files to modify**: `prompt_generator.py`, `medical_professional.yaml`
-- **New code**: 100-150 lines (schema updates + code changes)
-- **Backward compatible**: ✅ Yes (fallback logic for old keys)
+**Aligned with 5-phase migration plan** (see Migration Path section above for detailed breakdown)
+
+**Phase 1: Tool Abstraction** (Foundation - 2-3 days)
+- **Files**: `base_tool.py`, `tool_registry.py`, `directory_tool.py`
+- **New code**: ~200 lines (simple interfaces + wrappers)
+- **Backward compatible**: ✅ Yes (100% - just wraps existing code)
 - **Blocks**: Nothing (can start immediately)
-- **MVP**: Part A only (synonym mapping standardization)
 
-**Phase 1: Modular Prompts** (OPTIONAL - Opt-In Feature)
+**Phase 2: Schema Standardization** (1-2 days)
+- **Files to modify**: `prompt_generator.py`, `medical_professional.yaml`
+- **New code**: ~150 lines (schema updates + domain-agnostic code)
+- **Backward compatible**: ✅ Yes (fallback logic for old keys)
+- **Blocks**: Nothing (can run parallel with Phase 1)
+
+**Phase 3: Multi-Tool + Caching** (3-4 days)
+- **New files**: `vector_search_tool.py` (100 lines), caching logic (~50 lines)
+- **Modified files**: `prompt_generator.py` (+100 lines for multi-tool)
+- **Total new code**: ~250 lines
+- **Backward compatible**: ✅ Yes (single-tool agents unchanged)
+- **Blocks**: Requires Phase 1 complete
+- **High ROI**: 70% cost reduction + 30% latency improvement
+
+**Phase 4: Modular Prompts** (4-5 days)
 - **New files**: `module_loader.py` (150 lines), `module_selector.py` (100 lines)
-- **Modified files**: `prompt_generator.py` (+80 lines for generate_full_prompt)
-- **Total new code**: ~330 lines (simplified from ~500)
-- **Backward compatible**: ✅ Yes (no-op if prompting.modules.enabled != true)
-- **Blocks**: Requires Phase 0 complete
-- **MVP scope**: 
-  - Keyword-based module selection only
-  - Simple module loading (account→system resolution)
-  - No token budget enforcement (trust LLM context windows)
-  - No prompt caching (defer to post-MVP optimization)
+- **Modified files**: `prompt_generator.py` (+80 lines)
+- **Total new code**: ~330 lines
+- **Backward compatible**: ✅ Yes (opt-in via config)
+- **Blocks**: Requires Phase 1-3 complete
+- **MVP scope**: Keyword-based selection only
 
-**Phase 2: Dynamic Instructions** (OPTIONAL - Future Enhancement)
-- **New files**: `instruction_injector.py` (150 lines, simplified)
-- **Modified files**: `simple_chat.py` (+30 lines to call injector)
-- **Total new code**: ~180 lines (simplified from ~250)
-- **Backward compatible**: ✅ Yes (no-op if prompting.dynamic_instructions.enabled != true)
-- **Blocks**: None (independent of Phase 1)
-- **MVP scope**:
-  - Keyword-based instruction matching only
-  - Simple priority sorting
-  - Defer complex conditions (is_followup, message_count_gt_N, time_based)
+**Phase 5: MCP Integration** (5-7 days)
+- **New files**: `mcp_tool.py` (150 lines), MCP discovery logic (~100 lines)
+- **Modified files**: `main.py` (+50 lines for startup registration)
+- **Total new code**: ~300 lines
+- **Backward compatible**: ✅ Yes (MCP optional)
+- **Blocks**: Requires Phase 1 complete (tool registry)
+- **Risk**: Medium (external dependencies)
 
 ---
 
