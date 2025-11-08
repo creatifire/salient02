@@ -282,10 +282,11 @@ prompting:
 prompting:
   modules:
     enabled: true
-    # Defaults:
+    # Defaults (read from system config if not specified):
     # - selection_mode: "keyword" (fast, deterministic)
-    # - available_modules: "auto" (discover from account folder)
-    # - token_budget: 2000 (total prompt size limit)
+    # - token_budget.total_cap: 2000 (total prompt size limit)
+    # - token_budget.max_modules_tokens: 800 (module budget)
+    # - token_budget.enforcement: "prioritize" (strategy)
 ```
 
 ---
@@ -1186,16 +1187,63 @@ Our Emergency Department is also available 24/7 at 718-963-7272 (Main Building, 
 Once stabilized, our Cardiology department can provide follow-up care."
 ```
 
-**Module size**: Keep under 500 tokens each to avoid prompt bloat.
+---
+
+### Module Validation Configuration
+
+**System-level validation** (`backend/config/prompt_modules/validation.yaml`):
+
+```yaml
+module_validation:
+  max_tokens_per_module: 500      # Hard limit per module
+  warn_above: 400                  # Warning threshold
+  enforce_limit: true              # Reject modules over limit
+  
+  # Optional: Validation on module load
+  validate_on_load: true
+  log_violations: true
+```
+
+**Benefits**:
+- ✅ **Enforced policy** - Not just documentation, system prevents prompt bloat
+- ✅ **Consistent limits** - All accounts follow same module size policy
+- ✅ **Early detection** - Catch oversized modules during development
+- ✅ **Configurable** - Can adjust limits based on model capabilities
+
+**Implementation note**: Module loader should check token count and warn/reject based on config.
 
 ---
 
 ### Prompt Caching Strategy
 
-**Cache key**: `(base_prompt_hash, modules_hash, directory_config_hash)`
+**Configuration** (`backend/config/system_config.yaml` or similar):
+
+```yaml
+caching:
+  prompt_cache:
+    enabled: true
+    maxsize: 50                # Number of prompts to cache (LRU)
+    ttl_seconds: 300           # Time-to-live: 5 minutes
+    
+    # Cache key components
+    include_base_prompt: true
+    include_modules: true
+    include_directory_config: true
+    
+    # Invalidation triggers
+    invalidate_on_file_change: true
+    invalidate_on_config_update: true
+```
+
+**Implementation**:
 
 ```python
-@lru_cache(maxsize=50)
+# Read cache config from system config
+cache_config = load_system_config().get("caching", {}).get("prompt_cache", {})
+maxsize = cache_config.get("maxsize", 50)
+ttl = cache_config.get("ttl_seconds", 300)
+
+@lru_cache(maxsize=maxsize)
 def get_cached_prompt(base_hash: str, modules_tuple: tuple, dir_hash: str) -> str:
     return cached_prompt
 
@@ -1203,7 +1251,14 @@ def get_cached_prompt(base_hash: str, modules_tuple: tuple, dir_hash: str) -> st
 # - Prompt file updates (base or modules)
 # - Directory configuration changes
 # - Agent config updates
+# - TTL expiration
 ```
+
+**Benefits**:
+- ✅ **Tunable for scale** - Adjust cache size based on deployment (10 agents vs. 1000)
+- ✅ **TTL control** - Prevent stale prompts from lingering
+- ✅ **Flexible invalidation** - Configure what triggers cache refresh
+- ✅ **Performance monitoring** - Can adjust based on cache hit rate metrics
 
 **Target**: Cache hit rate > 70% for common query patterns.
 
@@ -1211,17 +1266,84 @@ def get_cached_prompt(base_hash: str, modules_tuple: tuple, dir_hash: str) -> st
 
 ### Token Budget Management
 
-**Current prompt sizes**:
+**Configuration** (System defaults + per-agent overrides):
+
+**System defaults** (`backend/config/prompt_modules/token_budgets.yaml`):
+```yaml
+default_token_budgets:
+  # Estimated sizes (for planning)
+  base_prompt_estimated: 800
+  directory_docs_estimated: 400
+  per_module_estimated: 300
+  
+  # Hard limits (enforced)
+  max_modules_tokens: 800          # Max tokens for all modules combined
+  total_cap: 2000                  # Total prompt size limit
+  
+  # Enforcement strategy
+  enforcement: "prioritize"        # prioritize | truncate | reject
+  warn_at_percent: 80              # Warn when 80% of budget used
+```
+
+**Per-agent override** (`agent_configs/{account}/{instance}/config.yaml`):
+```yaml
+prompting:
+  token_budget:
+    total_cap: 3000                # Override for agents needing more context
+    max_modules_tokens: 1200       # Allow more module content
+    enforcement: "truncate"        # Different strategy for this agent
+```
+
+**Implementation**:
+
+```python
+def enforce_token_budget(agent_config: dict, base: str, directory: str, modules: List[str]) -> str:
+    """Enforce token budget based on config."""
+    
+    # Load budget config (agent override or system default)
+    budget = agent_config.get("prompting", {}).get("token_budget", {})
+    total_cap = budget.get("total_cap", 2000)
+    max_modules = budget.get("max_modules_tokens", 800)
+    enforcement = budget.get("enforcement", "prioritize")
+    
+    # Count tokens
+    base_tokens = count_tokens(base)
+    directory_tokens = count_tokens(directory)
+    available_for_modules = total_cap - base_tokens - directory_tokens
+    
+    # Enforce module budget
+    if enforcement == "prioritize":
+        # Keep highest priority modules that fit
+        modules = select_top_modules_within_budget(modules, min(available_for_modules, max_modules))
+    elif enforcement == "truncate":
+        # Truncate module content to fit
+        modules = truncate_modules_to_budget(modules, min(available_for_modules, max_modules))
+    elif enforcement == "reject":
+        # Reject entire request if over budget
+        if (base_tokens + directory_tokens + sum_tokens(modules)) > total_cap:
+            raise TokenBudgetExceeded()
+    
+    return compose_prompt(base, directory, modules)
+```
+
+**Benefits**:
+- ✅ **Model flexibility** - Different caps for GPT-4 (128k), Claude (200k), DeepSeek (64k)
+- ✅ **Per-agent tuning** - Complex agents get more tokens, simple ones stay efficient
+- ✅ **Multiple strategies** - Prioritize vs. truncate vs. reject based on use case
+- ✅ **Budget awareness** - Warn before hitting limits, log budget usage
+
+**Typical allocations**:
+- **Small context models** (DeepSeek 64k): total_cap: 2000
+- **Medium context models** (GPT-4 8k): total_cap: 3000
+- **Large context models** (GPT-4 128k, Claude 200k): total_cap: 5000+
+
+**Current prompt sizes** (estimates for default config):
 - Base prompt: ~800 tokens
 - Directory docs: ~400 tokens (auto-generated)
 - Per module: ~300 tokens average
-
-**Budget allocation**:
 - Base + directory: 1200 tokens (fixed)
 - Modules: Max 800 tokens (2-3 modules)
-- **Total cap**: 2000 tokens
-
-**Enforcement**: Module selector prioritizes most relevant modules if multiple match.
+- **Total cap**: 2000 tokens (default)
 
 ---
 
@@ -1467,43 +1589,116 @@ backend/app/agents/tools/
 - Follow-up questions needing conversation history awareness
 - Time-sensitive instructions (e.g., "Pharmacy closes in 30 minutes")
 
-**Solution**: Inject context-specific instructions directly into the user message before agent processing.
+**Solution**: Inject context-specific instructions directly into the user message before agent processing, using **config-based approach** (same pattern as keyword_mappings).
 
-**Implementation Approach**:
-```python
-# backend/app/agents/simple_chat.py
-
-async def simple_chat_stream(message: str, message_history: list, ...):
-    # Detect critical context patterns
-    instructions = []
-    
-    # Emergency detection
-    if has_emergency_keywords(message):
-        instructions.append("[URGENT: Provide emergency contact first (911 + ER direct line)]")
-    
-    # Follow-up detection
-    if is_followup_question(message_history):
-        instructions.append("[CONTEXT: User following up on previous answer]")
-    
-    # Inject instructions before message
-    if instructions:
-        message = "\n".join(instructions) + f"\n\n{message}"
-    
-    result = await agent.run(message, ...)
-```
+---
 
 **Configuration** (opt-in via agent config):
+
 ```yaml
 prompting:
   dynamic_instructions:
     enabled: true
-    emergency_detection: true      # Detect emergency keywords
-    followup_context: true          # Add context for follow-ups
+    
+    # Config-based instruction mappings (NOT hardcoded in Python!)
+    instruction_mappings:
+      - keywords: ["emergency", "urgent", "911", "chest pain", "bleeding", "unconscious"]
+        instruction: "[URGENT: Provide emergency contact first (911 + ER direct line)]"
+        priority: 10
+        condition: "keyword_match"
+      
+      - keywords: ["pharmacy", "medication", "prescription"]
+        instruction: "[INFO: Check pharmacy hours before responding]"
+        priority: 5
+        condition: "keyword_match"
+      
+      # Special condition types (not keyword-based)
+      - condition: "is_followup"        # Detects follow-up from history
+        instruction: "[CONTEXT: User following up on previous answer]"
+        priority: 1
+      
+      - condition: "message_count_gt_5" # Long conversation
+        instruction: "[CONTEXT: Extended conversation, user may need summary]"
+        priority: 1
 ```
+
+---
+
+**Implementation Approach** (domain-agnostic):
+
+```python
+# backend/app/agents/simple_chat.py
+
+async def simple_chat_stream(message: str, message_history: list, agent_config: dict, ...):
+    """Apply dynamic instructions based on config."""
+    
+    # Read instruction mappings from config (not hardcoded!)
+    dynamic_config = agent_config.get("prompting", {}).get("dynamic_instructions", {})
+    
+    if not dynamic_config.get("enabled"):
+        # Skip if not enabled
+        result = await agent.run(message, ...)
+        return result
+    
+    # Collect applicable instructions
+    instructions = []
+    instruction_mappings = dynamic_config.get("instruction_mappings", [])
+    
+    for mapping in instruction_mappings:
+        condition = mapping.get("condition", "keyword_match")
+        instruction_text = mapping.get("instruction")
+        priority = mapping.get("priority", 1)
+        
+        # Evaluate condition
+        applies = False
+        
+        if condition == "keyword_match":
+            keywords = mapping.get("keywords", [])
+            applies = any(kw in message.lower() for kw in keywords)
+        
+        elif condition == "is_followup":
+            applies = is_followup_question(message_history)
+        
+        elif condition == "message_count_gt_5":
+            applies = len(message_history) > 5
+        
+        # Add more condition types as needed
+        
+        if applies:
+            instructions.append((instruction_text, priority))
+    
+    # Sort by priority and inject
+    if instructions:
+        instructions.sort(key=lambda x: x[1], reverse=True)
+        instruction_text = "\n".join([inst[0] for inst in instructions])
+        message = f"{instruction_text}\n\n{message}"
+    
+    result = await agent.run(message, ...)
+```
+
+---
+
+**Benefits of Config-Based Approach**:
+- ✅ **Domain-agnostic code** - No hardcoded emergency/pharmacy logic in Python
+- ✅ **Multi-tenant flexibility** - Accounts can customize instructions (Spanish: "urgencia")
+- ✅ **No deployment needed** - Add/change instructions via config only
+- ✅ **Consistent with Phase 1** - Same pattern as keyword_mappings for modules
+- ✅ **Extensible conditions** - Easy to add new condition types without code changes
+
+**Condition Types**:
+- `keyword_match` - Match keywords in message (default)
+- `is_followup` - Detect follow-up question from conversation history
+- `message_count_gt_N` - Trigger after N messages in conversation
+- `time_based` - Trigger based on time of day (future)
+- `custom` - Custom condition function (future)
 
 **Why Optional**: Adds message length overhead and may conflict with base prompt if not carefully designed. Most agents don't need this level of runtime control.
 
 **When to Reconsider**: If agents frequently miss critical context cues or need runtime priority adjustments based on query urgency.
+
+**Key Difference from Phase 1**:
+- **Phase 1 (Modules)**: Adds content to system prompt (loaded once at agent creation)
+- **Phase 2 (Instructions)**: Injects directives into user message (applied per request, runtime context)
 
 ---
 
