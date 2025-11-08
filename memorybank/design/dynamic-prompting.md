@@ -1150,6 +1150,705 @@ prompting:
 
 ---
 
+## Tool Extensibility & MCP Integration
+
+### Problem: Current Architecture is Directory-Tool-Centric
+
+**Current State**:
+- Prompt composition hardcoded: `base + directory_docs + modules`
+- `generate_full_prompt()` assumes only directory tools exist
+- Module selection doesn't consider which tools are available
+- No strategy for MCP server integration (dynamic tool discovery)
+
+**Risks**:
+- Adding vector search requires refactoring `prompt_generator.py`
+- Each new tool type increases technical debt
+- MCP integration would require significant architectural changes
+- No guidance for LLM on tool selection (directory vs. vector vs. MCP)
+
+**Solution**: Generalize to a tool-agnostic architecture with plugin-style tool registration.
+
+---
+
+### Tool Registry Pattern
+
+**Core Principle**: All tools (directory, vector search, MCP servers, custom) register via a common interface.
+
+**Tool Interface** (abstract base):
+
+```python
+# backend/app/agents/tools/base_tool.py
+
+from abc import ABC, abstractmethod
+from typing import Optional, Dict, Any
+
+class AgentTool(ABC):
+    """Base interface for all agent tools (directory, vector, MCP, custom)."""
+    
+    @property
+    @abstractmethod
+    def tool_type(self) -> str:
+        """Unique identifier for tool type (e.g., 'directory', 'vector_search', 'mcp:github')."""
+        pass
+    
+    @abstractmethod
+    async def generate_documentation(
+        self,
+        agent_config: dict,
+        account_id: UUID,
+        db_session: AsyncSession,
+        user_query: Optional[str] = None
+    ) -> str:
+        """
+        Generate prompt documentation for this tool.
+        
+        Returns markdown-formatted documentation that teaches the LLM:
+        - When to use this tool
+        - How to use this tool
+        - Tool-specific guidance (e.g., synonym mappings, search strategies)
+        """
+        pass
+    
+    @abstractmethod
+    def is_enabled(self, agent_config: dict) -> bool:
+        """Check if this tool is enabled in agent config."""
+        pass
+    
+    @abstractmethod
+    def get_module_hints(self, user_query: str) -> list[str]:
+        """
+        Suggest modules relevant to this tool's usage.
+        
+        Example: Directory tool might suggest "directory/search_tips.md"
+        when query contains doctor/specialist keywords.
+        """
+        pass
+```
+
+---
+
+### Tool Implementations
+
+**1. Directory Tool** (existing functionality, refactored):
+
+```python
+# backend/app/agents/tools/directory_tool.py
+
+class DirectoryTool(AgentTool):
+    """Directory search tool implementation."""
+    
+    @property
+    def tool_type(self) -> str:
+        return "directory"
+    
+    async def generate_documentation(self, agent_config, account_id, db_session, user_query=None):
+        """Delegates to existing generate_directory_tool_docs()."""
+        return await generate_directory_tool_docs(
+            agent_config, account_id, db_session, user_query
+        )
+    
+    def is_enabled(self, agent_config: dict) -> bool:
+        return agent_config.get("tools", {}).get("directory", {}).get("enabled", False)
+    
+    def get_module_hints(self, user_query: str) -> list[str]:
+        """Suggest directory-specific modules."""
+        hints = []
+        q_lower = user_query.lower()
+        
+        # Directory search tips if query suggests directory usage
+        if any(kw in q_lower for kw in ["find", "search", "who", "list", "doctor", "specialist"]):
+            hints.append("directory/search_tips.md")
+        
+        return hints
+```
+
+---
+
+**2. Vector Search Tool** (future):
+
+```python
+# backend/app/agents/tools/vector_search_tool.py
+
+class VectorSearchTool(AgentTool):
+    """Vector/semantic search tool implementation."""
+    
+    @property
+    def tool_type(self) -> str:
+        return "vector_search"
+    
+    async def generate_documentation(self, agent_config, account_id, db_session, user_query=None):
+        """Generate vector search tool documentation."""
+        docs = [
+            "## Vector Search Tool",
+            "",
+            "Use `search_knowledge_base()` for semantic/conceptual queries:",
+            "",
+            "**When to use**:",
+            "- Research questions requiring document retrieval",
+            "- Conceptual queries (e.g., 'What are best practices for...')",
+            "- When exact keyword matching isn't sufficient",
+            "",
+            "**Example queries**: 'What are treatment options for diabetes?', 'Explain cardiac catheterization procedure'",
+            "",
+            "**How it works**: Semantic search across hospital knowledge base (policies, procedures, clinical guidelines)",
+        ]
+        
+        return "\n".join(docs)
+    
+    def is_enabled(self, agent_config: dict) -> bool:
+        return agent_config.get("tools", {}).get("vector_search", {}).get("enabled", False)
+    
+    def get_module_hints(self, user_query: str) -> list[str]:
+        """Suggest vector-search-specific modules."""
+        hints = []
+        q_lower = user_query.lower()
+        
+        # Research/knowledge guidance
+        if any(kw in q_lower for kw in ["research", "study", "evidence", "guideline", "protocol"]):
+            hints.append("vector_search/research_guidance.md")
+        
+        return hints
+```
+
+---
+
+**3. MCP Server Tool** (future):
+
+```python
+# backend/app/agents/tools/mcp_tool.py
+
+class MCPTool(AgentTool):
+    """MCP server tool wrapper (GitHub, Slack, weather, etc.)."""
+    
+    def __init__(self, mcp_server_name: str, mcp_client: MCPClient):
+        self.mcp_server_name = mcp_server_name
+        self.mcp_client = mcp_client
+    
+    @property
+    def tool_type(self) -> str:
+        return f"mcp:{self.mcp_server_name}"
+    
+    async def generate_documentation(self, agent_config, account_id, db_session, user_query=None):
+        """
+        Auto-generate documentation from MCP server's tool schemas.
+        
+        MCP servers expose JSON schemas for their tools.
+        Convert these into LLM-readable prompt documentation.
+        """
+        # Query MCP server for available tools
+        tools = await self.mcp_client.list_tools()
+        
+        docs = [
+            f"## {self.mcp_server_name.title()} Tools (MCP Server)",
+            "",
+            f"Available tools from {self.mcp_server_name} server:",
+            "",
+        ]
+        
+        for tool in tools:
+            docs.append(f"### `{tool.name}()`")
+            docs.append(f"**Description**: {tool.description}")
+            
+            if tool.parameters:
+                docs.append("**Parameters**:")
+                for param_name, param_schema in tool.parameters.items():
+                    required = "required" if param_schema.get("required") else "optional"
+                    docs.append(f"- `{param_name}` ({param_schema.get('type')}, {required}): {param_schema.get('description')}")
+            
+            docs.append("")
+        
+        return "\n".join(docs)
+    
+    def is_enabled(self, agent_config: dict) -> bool:
+        mcp_config = agent_config.get("tools", {}).get("mcp", {})
+        enabled_servers = mcp_config.get("servers", [])
+        return self.mcp_server_name in enabled_servers
+    
+    def get_module_hints(self, user_query: str) -> list[str]:
+        """Suggest MCP-server-specific modules."""
+        hints = []
+        q_lower = user_query.lower()
+        
+        # Server-specific hints
+        if self.mcp_server_name == "github":
+            if any(kw in q_lower for kw in ["repo", "repository", "code", "issue", "pr", "pull request"]):
+                hints.append("mcp/github_best_practices.md")
+        
+        elif self.mcp_server_name == "slack":
+            if any(kw in q_lower for kw in ["message", "channel", "notify", "alert"]):
+                hints.append("mcp/slack_messaging_guidelines.md")
+        
+        return hints
+```
+
+---
+
+### Tool Registry & Discovery
+
+**Tool Registry** (singleton pattern):
+
+```python
+# backend/app/agents/tools/tool_registry.py
+
+class ToolRegistry:
+    """Central registry for all agent tools."""
+    
+    def __init__(self):
+        self._tools: Dict[str, AgentTool] = {}
+    
+    def register(self, tool: AgentTool):
+        """Register a tool implementation."""
+        self._tools[tool.tool_type] = tool
+    
+    def get_tool(self, tool_type: str) -> Optional[AgentTool]:
+        """Get registered tool by type."""
+        return self._tools.get(tool_type)
+    
+    def get_enabled_tools(self, agent_config: dict) -> list[AgentTool]:
+        """Get all tools enabled for this agent."""
+        return [
+            tool for tool in self._tools.values()
+            if tool.is_enabled(agent_config)
+        ]
+    
+    async def discover_mcp_tools(self, mcp_config: dict) -> None:
+        """
+        Dynamically discover and register MCP server tools.
+        
+        Called at startup or when MCP config changes.
+        """
+        for server_name in mcp_config.get("servers", []):
+            mcp_client = await connect_to_mcp_server(server_name)
+            mcp_tool = MCPTool(server_name, mcp_client)
+            self.register(mcp_tool)
+
+# Global registry instance
+tool_registry = ToolRegistry()
+
+# Register built-in tools at startup
+tool_registry.register(DirectoryTool())
+tool_registry.register(VectorSearchTool())
+```
+
+---
+
+### Generalized Prompt Composition
+
+**Updated `generate_full_prompt()` - Tool-Agnostic**:
+
+```python
+# backend/app/agents/tools/prompt_generator.py
+
+async def generate_full_prompt(
+    agent_config: dict,
+    account_id: UUID,
+    db_session: AsyncSession,
+    user_query: Optional[str] = None
+) -> str:
+    """
+    Generate complete prompt with all enabled tools and modules.
+    
+    Tool-agnostic: Works with directory, vector search, MCP, custom tools.
+    """
+    components = []
+    
+    # 1. Base prompt (always present)
+    base_prompt = load_base_prompt(agent_config)
+    components.append(base_prompt)
+    
+    # 2. Generate documentation for ALL enabled tools (tool-agnostic!)
+    enabled_tools = tool_registry.get_enabled_tools(agent_config)
+    
+    if enabled_tools:
+        tool_docs = []
+        for tool in enabled_tools:
+            docs = await tool.generate_documentation(
+                agent_config, account_id, db_session, user_query
+            )
+            tool_docs.append(docs)
+        
+        # Add tool selection guidance if multiple tools available
+        if len(enabled_tools) > 1:
+            tool_selection_guide = generate_tool_selection_guide(enabled_tools)
+            components.append(tool_selection_guide)
+        
+        components.extend(tool_docs)
+    
+    # 3. Optionally load context modules (if enabled)
+    prompting_config = agent_config.get("prompting", {})
+    modules_config = prompting_config.get("modules", {})
+    
+    if modules_config.get("enabled") and user_query:
+        # Select modules based on keywords + tool hints
+        selected_modules = select_modules_with_tool_hints(
+            user_query, agent_config, enabled_tools
+        )
+        
+        # Load and combine modules
+        if selected_modules:
+            account_slug = get_account_slug(account_id)
+            module_content = load_and_combine_modules(selected_modules, account_slug)
+            components.append(module_content)
+    
+    # 4. Compose final prompt
+    return "\n\n---\n\n".join(filter(None, components))
+```
+
+---
+
+### Tool-Aware Module Selection
+
+**Enhanced module selection considers tool availability**:
+
+```python
+# backend/app/agents/tools/module_selector.py
+
+def select_modules_with_tool_hints(
+    user_query: str,
+    agent_config: dict,
+    enabled_tools: list[AgentTool]
+) -> list[str]:
+    """
+    Select modules based on:
+    1. Keyword mappings (from config)
+    2. Tool hints (tools suggest relevant modules)
+    """
+    selected = set()
+    
+    # 1. Keyword-based selection (existing logic)
+    keyword_modules = select_modules(user_query, agent_config)
+    selected.update(keyword_modules)
+    
+    # 2. Tool-suggested modules (NEW)
+    for tool in enabled_tools:
+        tool_hints = tool.get_module_hints(user_query)
+        selected.update(tool_hints)
+    
+    return list(selected)
+```
+
+**Example behavior**:
+
+```python
+# Query: "Find a cardiologist and search for heart disease research"
+
+# 1. Directory tool detects "find" + "cardiologist"
+#    → Suggests: "directory/search_tips.md"
+
+# 2. Vector tool detects "search" + "research"
+#    → Suggests: "vector_search/research_guidance.md"
+
+# 3. Keyword mappings detect "heart"
+#    → Adds: "medical/cardiology_context.md"
+
+# Final modules loaded:
+# - directory/search_tips.md
+# - vector_search/research_guidance.md
+# - medical/cardiology_context.md
+```
+
+---
+
+### Multi-Tool Selection Guidance
+
+**When multiple tools are available, guide the LLM on tool choice**:
+
+```python
+def generate_tool_selection_guide(enabled_tools: list[AgentTool]) -> str:
+    """
+    Generate guidance for choosing between multiple tools.
+    
+    Similar to multi-directory selection guide, but for tools.
+    """
+    guide = [
+        "## Available Tools",
+        "",
+        "You have access to multiple tools. Choose the appropriate tool(s) based on the query:",
+        "",
+    ]
+    
+    for tool in enabled_tools:
+        # Tools provide their own "use_for" guidance
+        tool_info = tool.get_selection_info()
+        
+        guide.append(f"### {tool_info['name']}")
+        guide.append(f"**Type**: `{tool.tool_type}`")
+        guide.append(f"**Use for**: {tool_info['use_for']}")
+        guide.append(f"**Example queries**: {', '.join(tool_info['example_queries'])}")
+        
+        if tool_info.get('not_for'):
+            guide.append(f"**Don't use for**: {tool_info['not_for']}")
+        
+        guide.append("")
+    
+    guide.extend([
+        "### Multi-Tool Queries",
+        "",
+        "**If a query requires multiple tools**:",
+        "1. Use the most specific tool first",
+        "2. Combine results if relevant",
+        "3. Example: 'Find a cardiologist and explain heart disease'",
+        "   - First: Use directory tool → Find cardiologists",
+        "   - Then: Use vector_search tool → Retrieve heart disease info",
+        "   - Combine: Provide doctor list + educational context",
+        "",
+    ])
+    
+    return "\n".join(guide)
+```
+
+---
+
+### MCP Integration Strategy
+
+**MCP-Specific Considerations**:
+
+**1. Dynamic Tool Discovery**:
+```python
+# At application startup or when MCP config changes
+async def initialize_mcp_tools():
+    """Discover and register all configured MCP servers."""
+    mcp_config = load_mcp_config()
+    
+    for server_name, server_config in mcp_config.items():
+        try:
+            # Connect to MCP server
+            client = await connect_to_mcp_server(server_name, server_config)
+            
+            # Create tool wrapper
+            mcp_tool = MCPTool(server_name, client)
+            
+            # Register with tool registry
+            tool_registry.register(mcp_tool)
+            
+            logfire.info(f"Registered MCP tool: {server_name}")
+        
+        except Exception as e:
+            logfire.error(f"Failed to register MCP tool {server_name}: {e}")
+```
+
+**2. MCP Configuration Example**:
+```yaml
+# agent_configs/wyckoff/wyckoff_full_assistant/config.yaml
+
+tools:
+  directory:
+    enabled: true
+    accessible_lists:
+      - "doctors"
+      - "phone_directory"
+  
+  vector_search:
+    enabled: true
+    knowledge_base: "wyckoff_policies_procedures"
+  
+  mcp:
+    enabled: true
+    servers:
+      - "github"      # Code/issue management
+      - "slack"       # Internal notifications
+      - "weather"     # Weather info for patient travel
+
+prompting:
+  modules:
+    enabled: true
+    keyword_mappings:
+      # Directory-specific
+      - keywords: ["doctor", "specialist", "find"]
+        module: "directory/search_tips.md"
+        priority: 1
+      
+      # Vector search-specific
+      - keywords: ["research", "study", "evidence", "guideline"]
+        module: "vector_search/research_guidance.md"
+        priority: 1
+      
+      # MCP GitHub-specific
+      - keywords: ["code", "repository", "issue", "bug"]
+        module: "mcp/github_best_practices.md"
+        priority: 1
+      
+      # MCP Slack-specific
+      - keywords: ["notify", "alert", "message", "team"]
+        module: "mcp/slack_messaging_guidelines.md"
+        priority: 1
+```
+
+**3. MCP Module Library**:
+```
+backend/config/
+  prompt_modules/
+    mcp/
+      github_best_practices.md      # When to create issues vs. PRs
+      slack_messaging_guidelines.md # Professional communication standards
+      weather_context.md            # How to integrate weather into responses
+```
+
+**4. MCP Tool Versioning**:
+```python
+class MCPTool(AgentTool):
+    """Handle MCP tool schema changes gracefully."""
+    
+    async def generate_documentation(self, ...):
+        # Cache tool schemas with TTL
+        cache_key = f"mcp_tools:{self.mcp_server_name}"
+        
+        cached = await redis.get(cache_key)
+        if cached:
+            return cached
+        
+        # Regenerate if cache miss or expired
+        docs = await self._generate_fresh_docs()
+        await redis.setex(cache_key, ttl=300, value=docs)  # 5 min cache
+        
+        return docs
+```
+
+---
+
+### Configuration Schema Updates
+
+**Agent config structure for multi-tool support**:
+
+```yaml
+# agent_configs/{account}/{instance}/config.yaml
+
+name: "Multi-Tool Assistant"
+model_settings:
+  model: "deepseek/deepseek-chat-v3.1"
+
+# All tools use same structure
+tools:
+  # Built-in tools
+  directory:
+    enabled: true
+    accessible_lists: ["doctors", "phone_directory"]
+  
+  vector_search:
+    enabled: true
+    knowledge_base: "hospital_knowledge_base"
+    similarity_threshold: 0.7
+  
+  # MCP tools
+  mcp:
+    enabled: true
+    servers:
+      - name: "github"
+        connection_string: "stdio://github-mcp-server"
+      
+      - name: "slack"
+        connection_string: "sse://slack-mcp-server:3000"
+
+# Prompting works across all tool types
+prompting:
+  modules:
+    enabled: true
+    
+    # Each keyword mapping can specify required_tool (optional)
+    keyword_mappings:
+      - keywords: ["find", "search", "who"]
+        module: "directory/search_tips.md"
+        required_tool: "directory"  # Only load if directory tool enabled
+      
+      - keywords: ["research", "study"]
+        module: "vector_search/research_guidance.md"
+        required_tool: "vector_search"
+      
+      - keywords: ["code", "repo", "issue"]
+        module: "mcp/github_best_practices.md"
+        required_tool: "mcp:github"
+      
+      - keywords: ["emergency", "urgent"]
+        module: "medical/emergency_protocols.md"
+        # No required_tool = loaded regardless of tools
+```
+
+---
+
+### Benefits of Tool-Agnostic Architecture
+
+**1. Extensibility**:
+- ✅ Add new tool → Implement `AgentTool` interface, register with registry
+- ✅ No changes to `generate_full_prompt()` or core prompt composition logic
+- ✅ MCP servers auto-register when configured
+
+**2. Multi-Tool Support**:
+- ✅ Agents can use directory + vector search + MCP servers simultaneously
+- ✅ Tool selection guidance auto-generated for multi-tool scenarios
+- ✅ Modules can be tool-specific (only loaded when tool is enabled)
+
+**3. Progressive Enhancement**:
+- ✅ Simple agents: No tools configured → Just base prompt
+- ✅ Single-tool agents: Directory only → Base + directory docs
+- ✅ Multi-tool agents: Directory + vector + MCP → Base + all tool docs + selection guide
+
+**4. Configuration Flexibility**:
+- ✅ Enable/disable tools per agent instance
+- ✅ Modules can require specific tools via `required_tool` parameter
+- ✅ Tool hints augment keyword-based module selection
+
+**5. MCP-Ready**:
+- ✅ MCP servers register dynamically at startup
+- ✅ MCP tool schemas auto-converted to prompt documentation
+- ✅ MCP-specific module libraries supported
+- ✅ Graceful handling of MCP server version changes
+
+---
+
+### Migration Path for Tool Extensibility
+
+**Phase 0A: Tool Abstraction** (Foundation - Before Schema Standardization)
+1. Create `AgentTool` base interface
+2. Implement `DirectoryTool` wrapper (uses existing `generate_directory_tool_docs`)
+3. Create `ToolRegistry` singleton
+4. Update `generate_full_prompt()` to use tool registry
+5. **Backward compatible**: Directory tool works exactly as before, just wrapped
+
+**Phase 0B: Schema Standardization** (Current Phase 0)
+- Directory schemas updated (synonym_mappings_heading, directory_purpose)
+- Works through `DirectoryTool` wrapper
+
+**Phase 1A: Multi-Tool Infrastructure** (Before Module System)
+1. Implement `VectorSearchTool` (if vector search ready)
+2. Add tool selection guide generation
+3. Test multi-tool prompt composition
+4. **Backward compatible**: Single-tool agents unchanged
+
+**Phase 1B: Modular Prompts** (Current Phase 1)
+- Add `required_tool` parameter to keyword mappings
+- Implement `select_modules_with_tool_hints()`
+- Create initial MCP module library structure
+- **Backward compatible**: Existing modules work, new `required_tool` parameter optional
+
+**Phase 2: MCP Integration** (After Phase 1 Complete)
+1. Implement `MCPTool` wrapper class
+2. Add MCP server discovery at startup
+3. Create MCP module library (`mcp/github_best_practices.md`, etc.)
+4. Test with 1-2 MCP servers (GitHub, Slack)
+5. **Backward compatible**: MCP optional, non-MCP agents unaffected
+
+---
+
+### Testing Strategy for Multi-Tool Support
+
+**Unit Tests**:
+- `test_tool_interface.py`: Each tool implementation (directory, vector, MCP)
+- `test_tool_registry.py`: Registration, discovery, filtering
+- `test_multi_tool_composition.py`: Prompt generation with multiple tools
+
+**Integration Tests**:
+- `test_single_tool_agent.py`: Directory-only (existing behavior)
+- `test_multi_tool_agent.py`: Directory + vector + MCP
+- `test_mcp_discovery.py`: MCP server connection and registration
+- `test_tool_selection_guide.py`: Multi-tool guidance generation
+
+**Backward Compatibility Tests**:
+- All existing agents work with `DirectoryTool` wrapper
+- Prompt output identical for directory-only agents
+- Module selection unchanged when `required_tool` not specified
+
+---
+
 ## Schema Creation Tasks
 
 **Directory Schemas Needed** (create in `backend/config/directory_schemas/`):
@@ -1213,7 +1912,47 @@ prompting:
 
 ## Migration Path
 
-**Phase 0**: Schema Standardization (Foundation) - CRITICAL PREREQUISITE
+**UPDATED**: Migration path now includes tool abstraction layer before schema standardization.
+
+---
+
+**Phase 0A: Tool Abstraction Layer** (NEW - Foundation for Multi-Tool Support)
+
+**Why First**: Establishes plugin architecture before implementing any tool-specific features.
+
+1. Create `backend/app/agents/tools/base_tool.py`:
+   - Define `AgentTool` abstract base class
+   - Methods: `tool_type`, `generate_documentation()`, `is_enabled()`, `get_module_hints()`
+
+2. Create `backend/app/agents/tools/tool_registry.py`:
+   - `ToolRegistry` singleton class
+   - Methods: `register()`, `get_tool()`, `get_enabled_tools()`, `discover_mcp_tools()`
+
+3. Create `backend/app/agents/tools/directory_tool.py`:
+   - `DirectoryTool` class implements `AgentTool`
+   - Wraps existing `generate_directory_tool_docs()` (no changes to existing function)
+   - Provides directory-specific module hints
+
+4. Update `prompt_generator.py`:
+   - Modify `generate_full_prompt()` to use `tool_registry.get_enabled_tools()`
+   - Keep existing `generate_directory_tool_docs()` unchanged (called by DirectoryTool)
+   - **Backward compatible**: Same prompt output, just uses registry pattern
+
+5. Register tools at startup (`backend/app/main.py`):
+   ```python
+   from backend.app.agents.tools.tool_registry import tool_registry
+   from backend.app.agents.tools.directory_tool import DirectoryTool
+   
+   tool_registry.register(DirectoryTool())
+   ```
+
+**Testing**: Verify directory-only agents produce identical prompts before/after refactoring.
+
+**Deliverable**: Tool registry infrastructure ready for vector search, MCP, and custom tools.
+
+---
+
+**Phase 0B**: Schema Standardization (Foundation) - CRITICAL PREREQUISITE
 
 **Part A: Synonym Mapping Standardization**
 1. Update `medical_professional.yaml`:
@@ -1730,34 +2469,51 @@ prompting:
 ## Summary: Architecture Layers
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ User Query: "I need a kidney doctor"                        │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Dynamic Prompting (Proposed)                                │
-│ • Base prompt (static)                                      │
-│ • Context modules (keyword-detected: billing, emergency)    │
-│ • Dynamic instructions (message prepending if urgent)       │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Schema-Driven Directory Tools (Existing)                    │
-│ • Reads medical_professional.yaml                           │
-│ • Generates tool docs: "kidney doctor" → "Nephrology"       │
-│ • LLM learns synonym mappings from schema                   │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ LLM Agent: Calls search_directory(filters={"specialty":    │
-│            "Nephrology"}) based on schema-provided mappings │
-└─────────────────────────────────────────────────────────────┘
-                          ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Directory Service: Searches JSONB for matching specialists  │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│ User Query: "Find a kidney doctor and research heart disease"        │
+└───────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│ Dynamic Prompting (Proposed - Tool-Agnostic)                         │
+│ • Base prompt (static)                                                │
+│ • Tool documentation (ALL enabled tools via ToolRegistry)            │
+│   - Directory tool docs (schema-driven)                              │
+│   - Vector search docs (semantic search guidance)                    │
+│   - MCP tool docs (GitHub, Slack, etc. - auto-generated)            │
+│ • Tool selection guide (if multiple tools available)                 │
+│ • Context modules (keyword + tool hints: billing, emergency, etc.)   │
+│ • Dynamic instructions (optional - message prepending if urgent)     │
+└───────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│ Tool Registry (NEW - Plugin Architecture)                            │
+│ • DirectoryTool: Wraps schema-driven directory search                │
+│ • VectorSearchTool: Semantic search over knowledge base              │
+│ • MCPTool: Dynamic wrapper for MCP servers (GitHub, Slack, etc.)    │
+│ • Custom tools: Extensible via AgentTool interface                   │
+└───────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│ LLM Agent: Multi-Tool Execution                                      │
+│ 1. Calls search_directory(filters={"specialty": "Nephrology"})      │
+│    → Uses synonym mappings from medical_professional.yaml            │
+│ 2. Calls search_knowledge_base(query="heart disease treatment")     │
+│    → Vector search over hospital policies/procedures                 │
+│ 3. Combines results with emergency protocols module (if detected)    │
+└───────────────────────────────────────────────────────────────────────┘
+                                  ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│ Service Layer: Tool Execution                                        │
+│ • Directory Service: JSONB search for specialists                    │
+│ • Vector Service: Semantic retrieval from embeddings                 │
+│ • MCP Clients: External tool calls (GitHub API, Slack API, etc.)    │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key**: Schemas provide domain knowledge, modules provide context enhancements.
+**Key Principles**:
+- **Schemas** = Domain knowledge for specific tool types (directory, vector, MCP)
+- **Modules** = Context enhancements that work across tools
+- **Tool Registry** = Plugin architecture for extensibility (directory, vector, MCP, custom)
+- **Progressive Enhancement** = Simple → Directory → Multi-Tool → Dynamic
 
 ---
