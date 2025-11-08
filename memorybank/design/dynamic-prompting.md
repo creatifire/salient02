@@ -13,12 +13,11 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase, ship value every 2-3 days.
 
-**Timeline**: 15-21 days total
-- Phase 1: Tool abstraction (2-3 days) → Vector search ready
-- Phase 2: Schema standardization (1-2 days) → Multi-directory support
-- Phase 3: Multi-tool + caching (3-4 days) → 70% cost savings
-- Phase 4: Modular prompts (4-5 days) → 40% quality improvement
-- Phase 5: MCP integration (5-7 days) → External tool ecosystem
+**Timeline**: 8-12 days total (using Pydantic AI native features)
+- Phase 1: Schema standardization (1-2 days) → Multi-directory support
+- Phase 2: Multi-tool + caching (2-3 days) → 70% cost savings
+- Phase 3: Modular prompts (4-5 days) → 40% quality improvement
+- Phase 4: MCP integration (1-2 days) → External tool ecosystem (native support!)
 
 **Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
@@ -851,60 +850,60 @@ prompting:
 
 ## Integration Points
 
-**Phase 1** (Tool Abstraction):
-- Create `base_tool.py`, `tool_registry.py`
-- Create `directory_tool.py` - wraps EXISTING `directory_tools.py` (already implemented)
-- Create `vector_tool.py` - wraps EXISTING `vector_tools.py` (already implemented)
-- Add `generate_full_prompt()` to `prompt_generator.py`
-
-**Phase 2** (Schema Standardization):
+**Phase 1** (Schema Standardization):
 - Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas
 - Update `medical_professional.yaml`, create `phone_directory.yaml`
+- No new files needed - just enhance existing schema system
 
-**Phase 3** (Multi-Tool + Caching):
-- Update `generate_full_prompt()` to iterate all enabled tools (directory + vector)
-- Add prompt caching markers to `generate_full_prompt()`
+**Phase 2** (Multi-Tool + Caching):
+- Wrap existing tools using Pydantic AI's `FunctionToolset`
+- Update `simple_chat.py` to pass multiple toolsets: `toolsets=[directory_toolset, vector_toolset]`
+- Add prompt caching markers to system prompt composition
+- ~50 lines of new code (toolset wrappers)
 
-**Phase 4** (Modular Prompts):
+**Phase 3** (Modular Prompts):
 - Create `module_loader.py`, `module_selector.py`
 - Create module library structure
 - Add `prompting.modules` config parsing
+- Use Pydantic AI's `prepare_tools` for dynamic module injection
 
-**Phase 5** (MCP Integration):
-- Research Python MCP client library (official package TBD - investigate at Phase 5 start)
-- Create `mcp_tool.py`
-- Add MCP discovery to `main.py`
+**Phase 4** (MCP Integration):
+- **Use native Pydantic AI support**: `from pydantic_ai.mcp import MCPServerStdio`
+- Configure MCP servers in agent config
+- ~10 lines of code to add MCP toolsets!
 
-**Note**: MCP client library needs research. Likely candidates:
-- Official Anthropic SDK (if available on PyPI)
-- `@modelcontextprotocol/sdk` (if Python version exists)
-- Custom HTTP+SSE client implementation
+**Key Simplification**: Leveraging Pydantic AI's native `FunctionToolset`, `toolsets=[...]`, and `MCPServerStdio` eliminates ~400 lines of custom abstraction code.
 
 ---
 
 ## Tool Extensibility & MCP Integration
 
-### Problem: Current Architecture is Directory-Tool-Centric
+### Simplified Approach: Use Pydantic AI Native Features
 
-**Current State**:
-- Prompt composition hardcoded: `base + directory_docs + modules`
-- `generate_full_prompt()` assumes only directory tools exist
-- Module selection doesn't consider which tools are available
-- No strategy for MCP server integration (dynamic tool discovery)
+**Discovery**: Pydantic AI already provides:
+- ✅ `FunctionToolset` - group related tools
+- ✅ `toolsets=[...]` parameter - pass multiple toolsets to agent
+- ✅ `MCPServerStdio` - native MCP integration (no custom client needed!)
+- ✅ `@agent.toolset` - dynamic toolset selection
+- ✅ `prepare_tools` - modify tool definitions at runtime
 
-**Risks**:
-- Adding vector search requires refactoring `prompt_generator.py`
-- Each new tool type increases technical debt
-- MCP integration would require significant architectural changes
-- No guidance for LLM on tool selection (directory vs. vector vs. MCP)
+**Old Plan** (custom abstractions):
+- Phase 1: Build `AgentTool` interface, `ToolRegistry`, wrappers (~200 lines, 2-3 days)
+- Phase 5: Research MCP client, build custom wrapper (~300 lines, 5-7 days)
+- **Total**: ~500 lines, ~7-10 days
 
-**Solution**: Generalize to a tool-agnostic architecture with plugin-style tool registration.
+**New Plan** (use native features):
+- Phase 2: Wrap tools with `FunctionToolset`, pass to agent (~50 lines, 0.5 days)
+- Phase 4: Use `MCPServerStdio` directly (~10 lines, 0.5 days)
+- **Total**: ~60 lines, ~1 day
+
+**Savings**: ~440 lines eliminated, ~6-9 days saved!
 
 ---
 
-### Tool Registry Pattern
+### Using Pydantic AI's Native FunctionToolset
 
-**Core Principle**: All tools (directory, vector search, MCP servers, custom) register via a common interface.
+**Core Principle**: Wrap existing tool functions using Pydantic AI's built-in `FunctionToolset` class.
 
 **Tool Interface** (abstract base):
 
