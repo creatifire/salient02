@@ -11,13 +11,13 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Solution**: 5-phase incremental enhancement of `simple_chat.py` to support tool-agnostic prompt composition, schema-driven directory selection, multi-tool support with caching, context modules, and MCP integration.
 
-**Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase, ship value every 2-3 days.
+**Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase.
 
-**Timeline**: 8-12 days total (using Pydantic AI native features)
-- Phase 1: Schema standardization (1-2 days) → Multi-directory support
-- Phase 2: Multi-tool + caching (2-3 days) → 70% cost savings
-- Phase 3: Modular prompts (4-5 days) → 40% quality improvement
-- Phase 4: MCP integration (1-2 days) → External tool ecosystem (native support!)
+**Phases**:
+- Phase 1: Schema standardization → Multi-directory support
+- Phase 2: Multi-tool + caching → 70% cost savings
+- Phase 3: Modular prompts → 40% quality improvement
+- Phase 4: MCP integration → External tool ecosystem (native support!)
 
 **Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
@@ -857,7 +857,6 @@ prompting:
 - Wrap existing tools using Pydantic AI's `FunctionToolset`
 - Update `simple_chat.py` to pass multiple toolsets: `toolsets=[directory_toolset, vector_toolset]`
 - Add prompt caching markers to system prompt composition
-- ~50 lines of new code (toolset wrappers)
 
 **Phase 3** (Modular Prompts):
 - Create `module_loader.py`, `module_selector.py`
@@ -868,9 +867,8 @@ prompting:
 **Phase 4** (MCP Integration):
 - **Use native Pydantic AI support**: `from pydantic_ai.mcp import MCPServerStdio`
 - Configure MCP servers in agent config
-- ~10 lines of code to add MCP toolsets!
 
-**Key Simplification**: Leveraging Pydantic AI's native `FunctionToolset`, `toolsets=[...]`, and `MCPServerStdio` eliminates ~400 lines of custom abstraction code.
+**Key Simplification**: Leveraging Pydantic AI's native `FunctionToolset`, `toolsets=[...]`, and `MCPServerStdio` eliminates custom abstraction code.
 
 ---
 
@@ -886,16 +884,14 @@ prompting:
 - ✅ `prepare_tools` - modify tool definitions at runtime
 
 **Old Plan** (custom abstractions):
-- Phase 1: Build `AgentTool` interface, `ToolRegistry`, wrappers (~200 lines, 2-3 days)
-- Phase 5: Research MCP client, build custom wrapper (~300 lines, 5-7 days)
-- **Total**: ~500 lines, ~7-10 days
+- Phase 1: Build `AgentTool` interface, `ToolRegistry`, wrappers
+- Phase 5: Research MCP client, build custom wrapper
 
 **New Plan** (use native features):
-- Phase 2: Wrap tools with `FunctionToolset`, pass to agent (~50 lines, 0.5 days)
-- Phase 4: Use `MCPServerStdio` directly (~10 lines, 0.5 days)
-- **Total**: ~60 lines, ~1 day
+- Phase 2: Wrap tools with `FunctionToolset`, pass to agent
+- Phase 4: Use `MCPServerStdio` directly
 
-**Savings**: ~440 lines eliminated, ~6-9 days saved!
+**Savings**: Significant reduction in custom abstraction code!
 
 ---
 
@@ -1394,7 +1390,7 @@ class MCPTool(AgentTool):
         
         # Regenerate if cache miss or expired
         docs = await self._generate_fresh_docs()
-        await redis.setex(cache_key, ttl=300, value=docs)  # 5 min cache
+        await redis.setex(cache_key, ttl=300, value=docs)
         
         return docs
 ```
@@ -1583,7 +1579,6 @@ prompting:
 
 ### Phase 1: Tool Abstraction Layer (Foundation)
 
-**Duration**: 2-3 days  
 **Risk**: Low (100% backward compatible)  
 **Value**: Foundation for vector search, MCP, custom tools
 
@@ -1632,7 +1627,6 @@ prompting:
 
 ### Phase 2: Schema Standardization (Domain-Agnostic Prompts)
 
-**Duration**: 1-2 days  
 **Risk**: Low (clean schema updates, nothing in production)  
 **Value**: Support for multiple directory types (medical, phone, product, etc.)
 
@@ -1686,7 +1680,6 @@ prompting:
 
 ### Phase 3: Multi-Tool Infrastructure + Prompt Caching
 
-**Duration**: 3-4 days  
 **Risk**: Low (single-tool agents unchanged)  
 **Value**: Vector search support + 70% cost reduction + 30% latency improvement
 
@@ -1748,7 +1741,6 @@ prompting:
 
 ### Phase 4: Modular Prompts (Context-Specific Enhancements)
 
-**Duration**: 4-5 days  
 **Risk**: Low (opt-in via config, backward compatible)  
 **Value**: 40% quality improvement for complex queries (emergency, billing, HIPAA scenarios)
 
@@ -1819,7 +1811,6 @@ prompting:
 
 ### Phase 5: MCP Integration (External Tool Ecosystem)
 
-**Duration**: 5-7 days  
 **Risk**: Medium (depends on MCP server stability + Python client library availability)  
 **Value**: Extensibility for GitHub, Slack, weather, custom integrations
 
@@ -1833,16 +1824,16 @@ prompting:
 
 **Implementation**:
 
-1. **Research & select MCP client library** (Day 1):
+1. **Research & select MCP client library**:
    - Investigate available Python packages
    - Test connection to sample MCP server
    - Document installation and usage patterns
 
-2. **Implement `MCPTool` class** (~150 lines):
+2. **Implement `MCPTool` class**:
    - `tool_type = f"mcp:{server_name}"`
    - `generate_documentation()`: Auto-generate from MCP JSON schemas
    - `get_module_hints()`: Suggest MCP-specific modules
-   - Redis caching for tool schemas (5 min TTL)
+   - Redis caching for tool schemas
 
 3. **Add MCP server discovery** (`backend/app/main.py`):
    ```python
@@ -1921,16 +1912,17 @@ prompting:
 
 ---
 
-## Timeline Summary
+## Implementation Summary
 
-| Phase | Duration | Risk | Value | Dependencies |
-|-------|----------|------|-------|--------------|
-| **1: Tool Abstraction** | 2-3 days | Low | Foundation for extensibility | None |
-| **2: Schema Standardization** | 1-2 days | Low | Multi-directory support | Phase 1 |
-| **3: Multi-Tool + Caching** | 3-4 days | Low | Vector search + 70% cost savings | Phase 1-2 |
-| **4: Modular Prompts** | 4-5 days | Low | 40% quality improvement | Phase 1-3 |
-| **5: MCP Integration** | 5-7 days | Medium | External tool ecosystem | Phase 1 |
-| **TOTAL** | **15-21 days** | - | **50-60% overall quality gain** | - |
+| Phase | Risk | Value | Dependencies |
+|-------|------|-------|--------------|
+| **1: Tool Abstraction** | Low | Foundation for extensibility | None |
+| **2: Schema Standardization** | Low | Multi-directory support | Phase 1 |
+| **3: Multi-Tool + Caching** | Low | Vector search + 70% cost savings | Phase 1-2 |
+| **4: Modular Prompts** | Low | 40% quality improvement | Phase 1-3 |
+| **5: MCP Integration** | Medium | External tool ecosystem | Phase 1 |
+
+**Expected Results**: 50-60% overall quality gain
 
 **Incremental Value Delivery**:
 - After Phase 1: Vector search ready
@@ -2065,7 +2057,7 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 1. **LLM-Based Intent Classifier**:
    - Use lightweight LLM call to classify query intent before module selection
    - More accurate than keyword matching for complex queries
-   - Trade-off: Added latency (~50-100ms) and cost per request
+   - Trade-off: Added latency and cost per request
 
 2. **Conversation History Analysis**:
    - Load modules based on conversation context, not just current query
@@ -2106,35 +2098,33 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 ### New Files by Phase
 
 **Phase 1** (Tool Abstraction):
-- `base_tool.py`: `AgentTool` interface (~50 lines)
-- `tool_registry.py`: Tool registration and discovery (~80 lines)
-- `directory_tool.py`: DirectoryTool wrapper (~60 lines)
+- `base_tool.py`: `AgentTool` interface
+- `tool_registry.py`: Tool registration and discovery
+- `directory_tool.py`: DirectoryTool wrapper
 
 **Phase 2** (Schema Standardization):
-- Update `prompt_generator.py`: Domain-agnostic logic (~50 lines modified)
+- Update `prompt_generator.py`: Domain-agnostic logic
 - Update schemas: `medical_professional.yaml`, create `phone_directory.yaml`
 
 **Phase 3** (Multi-Tool + Caching):
-- `vector_tool.py`: Wrapper for existing `vector_tools.py` (~50 lines)
-- Update `prompt_generator.py`: Multi-tool composition + caching markers (~100 lines)
+- `vector_tool.py`: Wrapper for existing `vector_tools.py`
+- Update `prompt_generator.py`: Multi-tool composition + caching markers
 
 **Phase 4** (Modular Prompts):
-- `module_loader.py`: Account→System resolution (~150 lines)
-- `module_selector.py`: Keyword-based selection (~100 lines)
+- `module_loader.py`: Account→System resolution
+- `module_selector.py`: Keyword-based selection
 - Create module library: `prompt_modules/` structure
 
 **Phase 5** (MCP Integration):
-- `mcp_tool.py`: MCP server wrapper (~150 lines)
-- Update `main.py`: MCP discovery at startup (~50 lines)
+- `mcp_tool.py`: MCP server wrapper
+- Update `main.py`: MCP discovery at startup
 
 ### Code Reuse
 
-**Existing infrastructure leveraged** (~400 lines):
+**Existing infrastructure leveraged**:
 - `config_loader.py`: Parameter cascade logic
 - `prompt_generator.py`: Base prompt loading, directory docs generation
 - `types.py`: Pydantic validation
-
-**New code required** (~900 lines total across 5 phases)
 
 **Backward Compatibility**: All existing agents work unchanged. Each phase is 100% opt-in via config.
 
@@ -2193,13 +2183,13 @@ backend/app/agents/tools/
     - generate_directory_tool_docs()    # Update (Phase 1): make domain-agnostic
   
   # NEW: Simple wrapper file using Pydantic AI native features
-  toolsets.py                   # NEW (Phase 2): ~20 lines
+  toolsets.py                   # NEW (Phase 2)
     - directory_toolset = FunctionToolset(tools=[search_directory])
     - vector_toolset = FunctionToolset(tools=[vector_search])
   
   # NEW: Module system for context-aware prompts
-  module_loader.py              # NEW (Phase 3): Account→System resolution (~150 lines)
-  module_selector.py            # NEW (Phase 3): Keyword-based selection (~100 lines)
+  module_loader.py              # NEW (Phase 3): Account→System resolution
+  module_selector.py            # NEW (Phase 3): Keyword-based selection
 
 backend/config/
   app.yaml                      # Add prompting.recommended_module_size_tokens
@@ -2229,7 +2219,7 @@ backend/config/
 - ❌ NO base_tool.py, tool_registry.py (use Pydantic AI's native FunctionToolset)
 - ❌ NO custom DirectoryTool, VectorTool wrappers (FunctionToolset does this)
 - ❌ NO mcp_tool.py (use Pydantic AI's native MCPServerStdio)
-- ✅ ONE simple toolsets.py file (~20 lines) wraps existing tools
+- ✅ ONE simple toolsets.py file wraps existing tools
 - ✅ Underlying directory_tools.py and vector_tools.py unchanged
 
 ---
@@ -2238,38 +2228,33 @@ backend/config/
 
 **Aligned with 5-phase migration plan** (see Migration Path section above for detailed breakdown)
 
-**Phase 1: Tool Abstraction** (Foundation - 2-3 days)
+**Phase 1: Tool Abstraction** (Foundation)
 - **Files**: `base_tool.py`, `tool_registry.py`, `directory_tool.py`
-- **New code**: ~200 lines (simple interfaces + wrappers)
 - **Backward compatible**: ✅ Yes (100% - just wraps existing code)
 - **Blocks**: Nothing (can start immediately)
 
-**Phase 2: Schema Standardization** (1-2 days)
+**Phase 2: Schema Standardization**
 - **Files to modify**: `prompt_generator.py`, `medical_professional.yaml`
-- **New code**: ~150 lines (schema updates + domain-agnostic code)
 - **Clean migration**: ✅ Nothing in production, no fallback logic needed
 - **Blocks**: Nothing (can run parallel with Phase 1)
 
-**Phase 3: Multi-Tool + Caching** (3-4 days)
-- **New files**: `vector_tool.py` (50 lines - wrapper only)
-- **Modified files**: `prompt_generator.py` (+100 lines for multi-tool + caching)
-- **Total new code**: ~150 lines
+**Phase 3: Multi-Tool + Caching**
+- **New files**: `vector_tool.py` (wrapper only)
+- **Modified files**: `prompt_generator.py` (multi-tool + caching)
 - **Backward compatible**: ✅ Yes (single-tool agents unchanged)
 - **Blocks**: Requires Phase 1 complete
 - **High ROI**: 70% cost reduction + 30% latency improvement
 
-**Phase 4: Modular Prompts** (4-5 days)
-- **New files**: `module_loader.py` (150 lines), `module_selector.py` (100 lines)
-- **Modified files**: `prompt_generator.py` (+80 lines)
-- **Total new code**: ~330 lines
+**Phase 4: Modular Prompts**
+- **New files**: `module_loader.py`, `module_selector.py`
+- **Modified files**: `prompt_generator.py`
 - **Backward compatible**: ✅ Yes (opt-in via config)
 - **Blocks**: Requires Phase 1-3 complete
 - **MVP scope**: Keyword-based selection only
 
-**Phase 5: MCP Integration** (5-7 days)
-- **New files**: `mcp_tool.py` (150 lines), MCP discovery logic (~100 lines)
-- **Modified files**: `main.py` (+50 lines for startup registration)
-- **Total new code**: ~300 lines
+**Phase 5: MCP Integration**
+- **New files**: `mcp_tool.py`, MCP discovery logic
+- **Modified files**: `main.py` (startup registration)
 - **Backward compatible**: ✅ Yes (MCP optional)
 - **Blocks**: Requires Phase 1 complete (tool registry)
 - **Risk**: Medium (external dependencies)
