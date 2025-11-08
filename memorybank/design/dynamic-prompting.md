@@ -293,60 +293,35 @@ prompting:
 
 ### Implementation: Backward Compatible
 
-**In `prompt_generator.py`**:
+**Key principle**: Existing agents work unchanged. New features are opt-in via config.
 
 ```python
 async def generate_full_prompt(
     agent_config: dict,
     account_id: UUID,
     db_session: AsyncSession,
-    user_query: Optional[str] = None  # New optional param
+    user_query: Optional[str] = None  # Optional - backward compatible
 ) -> str:
     """Generate complete prompt with optional dynamic modules."""
     
-    # 1. Always load base prompt
+    # 1. Always load base prompt (existing)
     base = load_base_prompt(agent_config)
     
-    # 2. Auto-generate directory docs if tools configured
-    directory_docs = ""
-    if agent_config.get("tools", {}).get("directory", {}).get("enabled"):
-        directory_docs = await generate_directory_tool_docs(
-            agent_config, account_id, db_session
-        )
+    # 2. Auto-generate directory docs if configured (existing)
+    directory_docs = await generate_directory_tool_docs(...) if configured else ""
     
     # 3. Optionally load context modules (NEW - opt-in only)
     module_content = ""
-    prompting_config = agent_config.get("prompting", {})
-    modules_config = prompting_config.get("modules", {})
-    
-    if modules_config.get("enabled") and user_query:  # Must opt-in + have query
-        selection_mode = modules_config.get("selection_mode", "keyword")
-        available_modules = modules_config.get("available_modules", [])
-        
-        selected = select_modules(user_query, available_modules, selection_mode)
-        module_content = load_and_combine_modules(selected)
+    if agent_config.get("prompting", {}).get("modules", {}).get("enabled") and user_query:
+        module_content = load_and_combine_modules(select_modules(user_query, agent_config))
     
     # 4. Compose final prompt
-    parts = [base]
-    if directory_docs:
-        parts.append(directory_docs)
-    if module_content:
-        parts.append(module_content)
-    
-    return "\n\n".join(parts)
+    return "\n\n".join(filter(None, [base, directory_docs, module_content]))
 ```
 
-**Agent creation code** (backward compatible):
+**Backward compatible**: If `user_query` not provided or `modules.enabled` not true → Same behavior as before.
 
-```python
-# OLD: Works without user_query (existing behavior)
-prompt = await generate_full_prompt(agent_config, account_id, db_session)
-
-# NEW: Optionally pass user_query for dynamic modules
-prompt = await generate_full_prompt(agent_config, account_id, db_session, user_query)
-```
-
-**Key**: If `user_query` not provided or modules not enabled → Same behavior as before!
+**See "Code Organization" section for complete implementation details.**
 
 ---
 
@@ -412,12 +387,12 @@ prompting:
 ```
 backend/config/
   prompt_modules/                      # SYSTEM-LEVEL (shared across all accounts)
-    ├── medical/
+  ├── medical/
     │   ├── clinical_disclaimers.md    # Standard medical disclaimers
     │   └── symptom_guidance.md        # General symptom guidance
-    ├── administrative/
+  ├── administrative/
     │   └── insurance_info.md          # Generic insurance information
-    └── shared/
+  └── shared/
         ├── hipaa_compliance.md        # Federal law (same for all)
         └── tone_guidelines.md         # General best practices
   
@@ -492,38 +467,13 @@ def select_modules(query: str, agent_config: dict) -> List[str]:
 # resolved_modules = [find_module(m, account_slug) for m in selected_modules]
 ```
 
-**Config example** (from agent config.yaml):
-```yaml
-prompting:
-  modules:
-    enabled: true
-    keyword_mappings:
-      - keywords: ["billing", "insurance", "payment"]
-        module: "administrative/billing_policies.md"
-        priority: 1
-      
-      - keywords: ["emergency", "urgent", "er", "911"]
-        module: "medical/emergency_protocols.md"
-        priority: 10  # Higher priority
-      
-      - keywords: ["symptom", "pain", "sick"]
-        module: "medical/clinical_disclaimers.md"
-        priority: 1
-```
-
-**Composition**:
-```python
-async def generate_full_prompt(agent_config, account_id, db_session, user_query) -> str:
-    base = load_base_prompt(agent_config)
-    directory_docs = await generate_directory_tool_docs(...)  # Existing
-    modules = load_modules(select_modules(user_query, agent_config))
-    
-    return f"{base}\n\n{directory_docs}\n\n{modules}"
-```
+**See "Configuration Examples" section (lines 132-173) for config structure.**
 
 **Pros**: Builds on existing infrastructure, DRY principle, flexible combinations, no latency penalty, easy maintenance, hybrid system+account model reduces duplication while allowing customization
 
 **Cons**: Prompt length increases, need logic for module selection and resolution, potential instruction conflicts
+
+**See "Code Organization" section for implementation details.**
 
 ---
 
@@ -624,36 +574,13 @@ All directory-specific knowledge lives in YAML schemas:
 
 **Phase 1: Modular Composition** (OPTIONAL Enhancement - Opt-In)
 
-Add context-specific prompt modules for complex agents:
-
-```python
-# backend/app/agents/tools/prompt_generator.py (enhanced)
-
-async def generate_context_aware_prompt(
-    agent_config: dict,
-    account_id: UUID,
-    db_session: AsyncSession,
-    user_query: str
-) -> str:
-    # Load base prompt
-    base = load_base_prompt(agent_config)
-    
-    # Generate directory docs from schemas (EXISTING - schema-driven)
-    directory_docs = await generate_directory_tool_docs(
-        agent_config, account_id, db_session
-    )
-    
-    # Load context modules based on query (NEW - context-driven)
-    modules = select_modules(user_query, agent_config)
-    module_content = load_and_combine_modules(modules)
-    
-    # Final composition: base + schema-driven + context-driven
-    return f"{base}\n\n{directory_docs}\n\n{module_content}"
-```
+Add context-specific prompt modules for complex agents.
 
 **Key Design**: 
 - **Schemas** = Directory domain knowledge (what to search for)
 - **Modules** = Contextual enhancements (how to respond in specific situations)
+
+**Implementation**: See "Code Organization" section for file structure and "Implementation: Backward Compatible" section for code example.
 
 ---
 
@@ -1073,66 +1000,25 @@ Query: "I need a cardiologist, what's the scheduling number?"
 
 ### Module Selection Strategy
 
-**Config-based keyword detection** (fast, deterministic, domain-agnostic):
+**Config-based keyword detection** (Phase 1 implementation):
 
-**Configuration** (in agent config.yaml):
-```yaml
-prompting:
-  modules:
-    enabled: true
-    selection_mode: "keyword"
-    
-    # Keyword → module mappings (account/agent-specific)
-    keyword_mappings:
-      - keywords: ["billing", "insurance", "payment", "cost", "charge"]
-        module: "administrative/billing_policies.md"
-        priority: 1
-      
-      - keywords: ["emergency", "urgent", "er", "911", "chest pain"]
-        module: "medical/emergency_protocols.md"
-        priority: 10  # Higher priority for emergencies
-      
-      - keywords: ["symptom", "pain", "sick", "hurt", "fever"]
-        module: "medical/clinical_disclaimers.md"
-        priority: 1
-```
-
-**Generic code** (domain-agnostic):
-```python
-def select_modules(query: str, agent_config: dict) -> List[str]:
-    """Domain-agnostic module selection based on config."""
-    modules = []
-    q_lower = query.lower()
-    
-    # Read keyword mappings from config (not hardcoded!)
-    prompting_config = agent_config.get("prompting", {}).get("modules", {})
-    keyword_mappings = prompting_config.get("keyword_mappings", [])
-    
-    # Match keywords from config
-    for mapping in keyword_mappings:
-        keywords = mapping.get("keywords", [])
-        module_path = mapping.get("module")
-        
-        if any(kw in q_lower for kw in keywords):
-            modules.append(module_path)
-    
-    return modules
-```
+**Mechanism**: Read `keyword_mappings` from agent config, match keywords in query, return matching modules.
 
 **Benefits**:
 - ✅ Zero latency (no LLM call)
 - ✅ Deterministic (testable)
-- ✅ **Domain-agnostic code** - no medical/billing/emergency logic in Python
-- ✅ **Multi-tenant flexibility** - accounts can customize keywords (e.g., Spanish: "urgencia", "emergencia")
+- ✅ **Domain-agnostic code** - module selection logic reads config, no hardcoded keywords
+- ✅ **Multi-tenant flexibility** - accounts customize keywords (e.g., Spanish: "urgencia")
 - ✅ **No deployment needed** - add/change keywords via config only
-- ✅ **Consistent with schemas** - follows "Configuration Over Code" principle
 - ⚠️ Simple keyword matching (may miss nuanced queries)
 
-**Configuration Override Levels**:
-1. **System defaults** (optional): `backend/config/prompt_modules/keyword_mappings.yaml` - shared defaults
-2. **Agent config**: `agent_configs/{account}/{instance}/config.yaml` - agent-specific mappings
+**Config locations**:
+1. **Agent config**: `agent_configs/{account}/{instance}/config.yaml` - agent-specific mappings (primary)
+2. **System defaults** (optional): `backend/config/prompt_modules/keyword_mappings.yaml` - shared defaults
 
-**Future enhancement**: Add lightweight LLM-based classifier if keyword approach proves insufficient (Phase 3).
+**See "Configuration Examples" section (lines 132-173) for config structure.**
+
+**Future enhancement**: Add LLM-based classifier if keyword approach insufficient (Phase 3).
 
 ---
 
@@ -1216,9 +1102,11 @@ module_validation:
 
 ### Prompt Caching Strategy
 
-**Configuration** (`backend/config/system_config.yaml` or similar):
+**Configuration** (`backend/config/app.yaml` - infrastructure config):
 
 ```yaml
+# backend/config/app.yaml (add to existing file)
+
 caching:
   prompt_cache:
     enabled: true
@@ -1238,8 +1126,10 @@ caching:
 **Implementation**:
 
 ```python
-# Read cache config from system config
-cache_config = load_system_config().get("caching", {}).get("prompt_cache", {})
+# Read cache config from app.yaml
+from backend.app.config import load_config
+app_config = load_config()
+cache_config = app_config.get("caching", {}).get("prompt_cache", {})
 maxsize = cache_config.get("maxsize", 50)
 ttl = cache_config.get("ttl_seconds", 300)
 
@@ -1349,74 +1239,31 @@ def enforce_token_budget(agent_config: dict, base: str, directory: str, modules:
 
 ## Integration Points
 
-### File Locations
-
-```
-backend/config/
-  # SCHEMAS: Directory domain knowledge (existing)
-  directory_schemas/
-    medical_professional.yaml    # Medical directory schema
-    phone_directory.yaml         # Phone directory schema
-    product_catalog.yaml         # Product catalog schema
-  
-  # MODULES: System-level (shared, reusable)
-  prompt_modules/
-    keyword_mappings.yaml        # OPTIONAL: System-level default keyword mappings
-    medical/
-      clinical_disclaimers.md    # Standard medical disclaimers (shared)
-      symptom_guidance.md        # General symptom guidance (shared)
-    administrative/
-      insurance_info.md          # Generic insurance info (shared)
-    shared/
-      hipaa_compliance.md        # Federal law (same for all)
-      tone_guidelines.md         # General best practices (shared)
-  
-  # AGENTS: Account + Instance configuration
-  agent_configs/
-    {account}/
-      modules/                   # Account-level modules (overrides system)
-        medical/
-          emergency_protocols.md # Wyckoff ER: 718-963-7272
-        administrative/
-          billing_policies.md    # Wyckoff insurance policies
-          appointment_scheduling.md # Wyckoff hours
-      
-      {instance}/
-        system_prompt.md         # Agent's unique identity (stays here!)
-        config.yaml              # Agent config (keyword_mappings + module selection)
-
-backend/app/agents/tools/
-  prompt_generator.py            # DOMAIN-AGNOSTIC - Reads schemas + modules + keyword_mappings
-  module_loader.py               # NEW - Handles account→system resolution
-```
-
-**Key Architecture Points**:
-- **Schemas** = Directory domain knowledge (auto-generates tool docs)
-- **Keyword Mappings** = Module selection rules (config-based, not hardcoded!)
-- **System Modules** = Shared, reusable content (DRY principle)
-- **Account Modules** = Customizations & overrides (multi-tenant isolation)
-- **system_prompt.md** = Agent's unique identity (per-instance)
-- **Code** = Generic logic only (no domain assumptions, reads from config)
-
-**Module Resolution**:
-1. Agent config lists modules: `["medical/emergency_protocols", "shared/hipaa_compliance"]`
-2. For each module, check account folder first, then system folder
-3. Compose: `system_prompt.md` + directory docs + resolved modules
+**See "Code Organization" section above** for complete file structure and implementation details.
 
 ### API Changes
 
 **Minimal changes required**:
 
-1. `generate_directory_tool_docs()` → `generate_context_aware_prompt()`
-   - Add `user_query` parameter
-   - Add module selection logic
-   - Compose final prompt
+1. **Enhance `prompt_generator.py`**:
+   - Keep: `load_base_prompt()`, `generate_directory_tool_docs()` (existing)
+   - Add: `generate_full_prompt()` - orchestrates base + directory + modules (Phase 1)
 
-2. `create_simple_chat_agent()` or agent initialization
-   - Pass `user_query` to prompt generator
-   - Create agent with composed prompt
+2. **Add new modules** (Phase 1):
+   - `module_loader.py` - Account→System resolution
+   - `module_selector.py` - Keyword-based selection
+   - `token_counter.py` - Token counting utilities
 
-**Backward compatible**: If `user_query` not provided, falls back to current behavior.
+3. **Agent initialization** (backward compatible):
+   ```python
+   # Phase 0 (existing behavior)
+   prompt = await generate_directory_tool_docs(...)
+   
+   # Phase 1 (opt-in, if prompting.modules.enabled)
+   prompt = await generate_full_prompt(..., user_query=message)
+   ```
+
+**Backward compatible**: All changes are opt-in via config. Existing agents work unchanged.
 
 ---
 
@@ -1519,60 +1366,22 @@ backend/app/agents/tools/
 
 **Phase 1**: Modular Prompts (OPTIONAL - Opt-In Feature)
 
-**Who needs this?**: Agents that require context-specific enhancements (emergency handling, billing info, disclaimers)
+**Who needs this?**: Agents requiring context-specific enhancements (emergency handling, billing info, disclaimers)
 
 **Who doesn't need this?**: Simple agents and directory-only agents work fine without it!
 
-**Implementation**:
-1. **Create hybrid module structure**:
-   - System-level: `backend/config/prompt_modules/` (shared modules)
-   - Account-level: `backend/config/agent_configs/{account}/modules/` (overrides)
-   
-2. **Create initial system-level modules** (shared across all accounts):
-   - `shared/hipaa_compliance.md` - Federal law (universal)
-   - `shared/tone_guidelines.md` - Best practices (universal)
-   - `medical/clinical_disclaimers.md` - Standard disclaimers (universal)
-   
-3. **Create Wyckoff account-level modules** (Wyckoff-specific):
-   - `wyckoff/modules/medical/emergency_protocols.md` - Wyckoff ER: 718-963-7272
-   - `wyckoff/modules/administrative/billing_policies.md` - Wyckoff insurance
-   - `wyckoff/modules/administrative/appointment_scheduling.md` - Wyckoff hours
+**Implementation**: See "Code Organization" section for:
+- File structure (lines 1773-1840)
+- Implementation phases & incremental path (lines 1844-1867)
+- Reusability opportunities (lines 1871-1911)
+- Backward compatibility strategy (lines 1915-1960)
+- Code reuse metrics (lines 1964-1978)
 
-4. **Implement module loader** (`backend/app/agents/tools/module_loader.py`):
-   - `find_module()` - Account-first resolution (account → system → error)
-   - `load_module_content()` - Read and return module markdown
-   - `load_and_combine_modules()` - Load multiple modules, concatenate
-
-5. **Enhance `prompt_generator.py`**:
-   - Add `user_query` parameter (optional, backward compatible)
-   - Add module selection logic (config-based, reads keyword_mappings from agent config)
-   - Use `module_loader` for account→system resolution
-   - Compose: base + directory + resolved modules
-
-6. **Add `prompting.modules` config section** to agent config schema:
-   ```yaml
-   prompting:
-     modules:
-       enabled: true
-       selection_mode: "keyword"
-       
-       # Config-based keyword mappings (domain-agnostic code!)
-       keyword_mappings:
-         - keywords: ["billing", "insurance", "payment"]
-           module: "administrative/billing_policies.md"
-           priority: 1
-         
-         - keywords: ["emergency", "urgent", "er", "911"]
-           module: "medical/emergency_protocols.md"
-           priority: 10
-   ```
-
-7. **Update agent creation** to optionally pass `user_query`
-
-8. **Test with Wyckoff agent**:
-   - Enable modules via config
-   - Test emergency query (loads Wyckoff ER number)
-   - Test HIPAA query (loads system compliance module)
+**Key deliverables**:
+- Hybrid module structure (system + account levels)
+- Module loader with account→system resolution
+- Enhanced `prompt_generator.py` with `generate_full_prompt()`
+- Config-based keyword mappings in agent config
 
 **Backward compatibility**: Existing agents continue to work without any changes!
 
@@ -1749,6 +1558,325 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ---
 
+## Code Organization
+
+### Executive Summary
+
+**Code Reuse**: 44% reuse ratio (400 lines of existing infrastructure reused / 900 lines new code)
+
+**Incremental Implementation**:
+- Phase 0: ~150 lines (schema standardization)
+- Phase 1: ~500 lines (module system, opt-in)
+- Phase 2: ~250 lines (dynamic instructions, opt-in)
+
+**Backward Compatibility**: All existing agents (wyckoff, windriver, agrofresh, prepexcellence, acme, default_account) work unchanged. New features require explicit opt-in via config.
+
+**Key Files**:
+- New: `module_loader.py`, `module_selector.py`, `token_counter.py`, `instruction_injector.py`
+- Enhanced: `prompt_generator.py` (add `generate_full_prompt()`)
+- Reused: `config_loader.py`, `types.py`, existing `prompt_generator.py` functions
+
+---
+
+### Design Principles
+
+**1. Reusability Through Layered Architecture**
+- Core utilities work across all agent types
+- Configuration-driven behavior (no hardcoded domain logic)
+- Shared components with progressive enhancement
+
+**2. Incremental Implementation**
+- Each phase builds on previous without breaking changes
+- Minimal viable implementation first, optimizations later
+- Feature flags for opt-in complexity
+
+**3. Backward Compatibility**
+- Existing agents in `agent_configs/` (wyckoff, windriver, agrofresh, prepexcellence, acme, default_account) work unchanged
+- New features require explicit opt-in via config
+- Graceful degradation when features not configured
+
+---
+
+### Configuration Organization Principle
+
+**Infrastructure config** (how the app runs) → `app.yaml`:
+- Database, Redis, sessions, logging, caching
+- LLM provider defaults, embeddings
+- Cross-cutting concerns (performance, monitoring)
+
+**Domain-specific config** (how features work) → Separate YAML files:
+- `directory_schemas/` - Directory type definitions
+- `prompt_modules/` - Prompting rules (validation, token budgets, keyword mappings)
+
+**Instance config** (per-agent settings) → `agent_configs/{account}/{instance}/config.yaml`:
+- Agent-specific overrides (model, temperature, tools)
+- Prompting config (keyword_mappings, module selection)
+
+**Why separate?**
+- Keeps `app.yaml` focused on infrastructure (easier operations)
+- Makes domain features portable/modular (can extract prompting system)
+- Follows same pattern as `directory_schemas/` (domain rules in separate files)
+
+---
+
+### File Structure
+
+```
+backend/app/agents/tools/
+  # Core prompt generation (already exists, enhance)
+  prompt_generator.py           # Domain-agnostic prompt composition
+    - load_base_prompt()        # Load system_prompt.md (existing)
+    - generate_directory_tool_docs()  # Schema-driven docs (existing, Phase 0)
+    - generate_full_prompt()    # NEW: Orchestrates all components (Phase 1)
+  
+  # NEW: Module system (Phase 1)
+  module_loader.py              # Module resolution and loading
+    - find_module()             # Account→System resolution
+    - load_module_content()     # Load markdown modules
+    - load_and_combine_modules()  # Multi-module composition
+    - validate_module_token_count()  # Enforce size limits
+  
+  module_selector.py            # Config-based module selection
+    - select_modules()          # Keyword-based selection
+    - apply_priority()          # Priority sorting
+    - enforce_token_budget()    # Budget management
+  
+  # NEW: Dynamic instructions (Phase 2 - Future)
+  instruction_injector.py       # Message prepending logic
+    - evaluate_conditions()     # Condition evaluation
+    - inject_instructions()     # Apply instruction mappings
+
+  # Shared utilities
+  token_counter.py              # Token counting utilities
+    - count_tokens()            # Consistent token counting
+    - estimate_prompt_size()    # Budget estimation
+
+backend/config/
+  # Infrastructure configuration
+  app.yaml                      # System-wide settings (database, caching, logging, LLM)
+                                # ADD: caching.prompt_cache section for prompt caching
+  
+  # Domain-specific configurations
+  prompt_modules/
+    validation.yaml             # Module validation rules
+    token_budgets.yaml          # Default token budgets
+    keyword_mappings.yaml       # OPTIONAL: System defaults
+    
+    # System-level modules (shared)
+    shared/
+      hipaa_compliance.md
+      tone_guidelines.md
+    medical/
+      clinical_disclaimers.md
+    administrative/
+      insurance_info.md
+  
+  directory_schemas/            # Already exists
+    medical_professional.yaml   # Phase 0: Add directory_purpose
+    phone_directory.yaml        # Phase 0: Create with purpose
+  
+    agent_configs/
+    {account}/
+      modules/                  # Account-level module overrides
+        medical/
+          emergency_protocols.md
+        administrative/
+          billing_policies.md
+      
+      {instance}/
+        system_prompt.md        # Base prompt (existing)
+        config.yaml             # Agent config (enhance with prompting section)
+```
+
+---
+
+### Implementation Phases & Incremental Path
+
+**Phase 0: Schema Standardization** (Foundation - REQUIRED FIRST)
+- **Files to modify**: `prompt_generator.py`, `medical_professional.yaml`
+- **New code**: 100-150 lines (schema updates + code changes)
+- **Backward compatible**: ✅ Yes (fallback logic for old keys)
+- **Blocks**: Nothing (can start immediately)
+- **MVP**: Part A only (synonym mapping standardization)
+
+**Phase 1: Modular Prompts** (OPTIONAL - Opt-In Feature)
+- **New files**: `module_loader.py` (200 lines), `module_selector.py` (150 lines), `token_counter.py` (50 lines)
+- **Modified files**: `prompt_generator.py` (+100 lines for generate_full_prompt)
+- **Total new code**: ~500 lines
+- **Backward compatible**: ✅ Yes (no-op if prompting.modules.enabled != true)
+- **Blocks**: Requires Phase 0 complete
+- **MVP**: Keyword selection only, skip token budget enforcement initially
+
+**Phase 2: Dynamic Instructions** (OPTIONAL - Future Enhancement)
+- **New files**: `instruction_injector.py` (200 lines)
+- **Modified files**: `simple_chat.py` (+50 lines to call injector)
+- **Total new code**: ~250 lines
+- **Backward compatible**: ✅ Yes (no-op if prompting.dynamic_instructions.enabled != true)
+- **Blocks**: None (independent of Phase 1)
+- **MVP**: Keyword conditions only, defer complex conditions
+
+---
+
+### Reusability Opportunities
+
+**1. Configuration Loading** (Reuse Existing)
+```python
+# REUSE: backend/app/agents/config_loader.py
+from backend.app.agents.config_loader import get_agent_parameter
+
+# Already handles:
+# - Agent→Global→Fallback cascade
+# - Multi-tenant paths (account/instance)
+# - Legacy flat structure
+# - Config caching
+```
+
+**2. Module Resolution Pattern** (Reuse Cascade Logic)
+```python
+# NEW: module_loader.py
+# REUSES: Same pattern as config_loader.py cascade logic
+
+def find_module(module_path: str, account_slug: str) -> Path:
+    # 1. Check account-specific (agent_configs/{account}/modules/{path})
+    # 2. Check system-level (prompt_modules/{path})
+    # 3. Raise ModuleNotFoundError
+    # SAME PATTERN as config parameter cascade!
+```
+
+**3. Token Budget Management** (Extract for Reuse)
+```python
+# NEW: token_counter.py
+# Extract from prompt_generator.py for reuse across:
+# - Module validation
+# - Budget enforcement
+# - Cache key generation
+```
+
+**4. Config Validation** (Extend Existing)
+```python
+# ENHANCE: backend/app/agents/base/types.py
+# Add prompting config to AgentConfig Pydantic model
+# Validation happens automatically via Pydantic
+```
+
+---
+
+### Backward Compatibility Strategy
+
+**Existing Agents Work Unchanged**:
+```python
+# Backend code checks for prompting config existence
+prompting_config = agent_config.get("prompting", {})
+modules_config = prompting_config.get("modules", {})
+
+if not modules_config.get("enabled"):  # Default: False
+    # Skip module loading entirely
+    # Existing behavior: load_base_prompt() + generate_directory_tool_docs()
+    return compose_prompt_legacy(base, directory_docs)
+
+# Only run new code if explicitly enabled
+```
+
+**Configuration Migration Path**:
+- ✅ **No config changes needed** for existing agents
+- ✅ **Opt-in only**: Add `prompting` section to enable features
+- ✅ **Incremental adoption**: Can enable Phase 0 features without Phase 1
+
+**Example - Existing Agent (No Changes)**:
+```yaml
+# agent_configs/agrofresh/agrofresh_chat1/config.yaml
+name: "AgroFresh Assistant"
+model_settings:
+  model: "deepseek/deepseek-chat-v3.1"
+# No prompting section = works exactly as before
+```
+
+**Example - Wyckoff Enhanced (Opt-In)**:
+```yaml
+# agent_configs/wyckoff/wyckoff_info_chat1/config.yaml
+name: "Wyckoff Hospital Assistant"
+model_settings:
+  model: "deepseek/deepseek-chat-v3.1"
+
+# NEW: Opt-in to dynamic prompting
+prompting:
+  modules:
+    enabled: true
+    keyword_mappings:
+      - keywords: ["emergency", "urgent"]
+        module: "medical/emergency_protocols.md"
+        priority: 10
+```
+
+---
+
+### Code Reuse Metrics
+
+**Existing Infrastructure Reused**:
+- `config_loader.py`: get_agent_parameter(), resolve_config_path() - **~200 lines reused**
+- `prompt_generator.py`: load_base_prompt(), generate_directory_tool_docs() - **~150 lines reused**
+- `types.py`: AgentConfig Pydantic validation - **~50 lines reused**
+- **Total reused: ~400 lines** (avoid duplicating)
+
+**New Code Required**:
+- Phase 0: ~150 lines (schema updates + fallback logic)
+- Phase 1: ~500 lines (module system)
+- Phase 2: ~250 lines (dynamic instructions)
+- **Total new: ~900 lines** (incremental, opt-in)
+
+**Reuse Ratio**: 400 lines reused / 900 lines new = **44% reuse** (good leverage of existing infrastructure)
+
+---
+
+### Optimization Opportunities
+
+**1. Lazy Loading** (Future Optimization)
+```python
+# Don't load modules until needed
+# Don't tokenize until budget enforcement needed
+# Cache module content for reuse across requests
+```
+
+**2. Config Compilation** (Future Optimization)
+```python
+# Pre-compile keyword_mappings into efficient lookup structures
+# Cache resolved module paths
+# Pre-validate all modules on startup
+```
+
+**3. Shared Module Pool** (Future Optimization)
+```python
+# Load system modules once, share across all agents
+# Only load account-specific modules per account
+# Reference counting for memory management
+```
+
+---
+
+### Testing Strategy
+
+**Unit Tests** (Isolated Component Testing):
+- `test_module_loader.py`: Module resolution logic
+- `test_module_selector.py`: Keyword matching, priority sorting
+- `test_token_counter.py`: Token counting accuracy
+- `test_prompt_generator.py`: Prompt composition
+
+**Integration Tests** (End-to-End):
+- `test_backward_compatibility.py`: Existing agents unchanged
+- `test_phase_0.py`: Schema-driven directory selection
+- `test_phase_1.py`: Module loading and composition
+- `test_phase_2.py`: Dynamic instruction injection
+
+**Backward Compatibility Test Suite**:
+```python
+# For each existing agent in agent_configs/
+# 1. Load config (should not fail)
+# 2. Generate prompt (should work as before)
+# 3. Compare output with baseline (should match)
+```
+
+---
+
 ## Related Architecture
 
 **Schema-Driven Directory System** (Foundation):
@@ -1759,7 +1887,7 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 **Agent Infrastructure**:
 - `agent_base.py` - Agent creation and initialization
 - `simple_chat.py` - Agent execution and message handling
-- `configuration-reference.md` - Agent config structure
+- `config_loader.py` - Configuration cascade and parameter resolution (reused for modules)
 
 **Key Principle**: All domain knowledge lives in YAML files, never in Python code.
 
