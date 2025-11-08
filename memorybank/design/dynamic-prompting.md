@@ -1465,6 +1465,11 @@ tools:
            url: "https://mcp.tavily.com/mcp/?tavilyApiKey=tvly-YOUR_KEY"
            tool_prefix: "tavily"
          
+         # Wikidata (experimental - knowledge graph/structured data)
+         wikidata:
+           url: "https://wd-vectordb.wmcloud.org/mcp"  # API: /docs
+           tool_prefix: "wikidata"
+         
          # GitHub (stdio-based)
          github:
            command: "uvx"
@@ -1566,6 +1571,11 @@ tools:
    - **Pydantic AI native tool**: `tavily_search_tool(api_key)` also available
    - Verify Pydantic AI auto-discovers Tavily search tools
    - Verify graceful handling if MCP server unavailable
+
+8. **Second test: Wikidata Vector DB** (experimental - structured knowledge):
+   - **Why Wikidata**: [30M+ entities](https://www.wikidata.org/wiki/Wikidata:Vector_Database), semantic search, RAG for knowledge graphs, alpha stage
+   - **Remote server**: `https://wd-vectordb.wmcloud.org/mcp` (docs at `/docs`)
+   - Use cases: Named entity disambiguation, zero-shot classification, structured Q&A
    - Then test GitHub/Slack as needed
 
 **Testing**:
@@ -1576,6 +1586,7 @@ tools:
 
 **Deliverable**:
 - **Tavily search** (web search for real-time information - first test)
+- **Wikidata Vector DB** (structured knowledge graph search - experimental)
 - GitHub integration (issue creation, repo search)
 - Slack integration (notifications, alerts)
 - Extensible framework for custom MCP servers
