@@ -413,15 +413,12 @@ medical = ', '.join(f'"{spec}"' for spec in mapping.get('medical_specialties', [
 heading = strategy.get('synonym_mappings_heading', 'Term Mappings')
 strategy_parts.append(f"\n**{heading}:**")
 
-# Use standardized key with backward compatibility
-formal_terms = (
-    mapping.get('formal_terms') or           # New standard
-    mapping.get('medical_specialties') or    # Backward compat
-    mapping.get('department_names') or       # Backward compat
-    []
-)
+# Use standardized key (update all schemas to use 'formal_terms')
+formal_terms = mapping.get('formal_terms', [])
 formal = ', '.join(f'"{term}"' for term in formal_terms)
 ```
+
+**Note**: Update `medical_professional.yaml` to use `formal_terms` instead of `medical_specialties`.
 
 ---
 
@@ -851,9 +848,10 @@ prompting:
 ## Integration Points
 
 **Phase 1** (Schema Standardization):
-- Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas
-- Update `medical_professional.yaml`, create `phone_directory.yaml`
-- No new files needed - just enhance existing schema system
+- Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas (domain-agnostic)
+- Update `medical_professional.yaml`: rename `medical_specialties` → `formal_terms`, add `directory_purpose`
+- Create `phone_directory.yaml` with standardized structure
+- No backward compatibility code needed (nothing in production)
 
 **Phase 2** (Multi-Tool + Caching):
 - Wrap existing tools using Pydantic AI's `FunctionToolset`
@@ -1551,9 +1549,9 @@ prompting:
 
 **Schemas needed in `backend/config/directory_schemas/`**:
 
-- [x] **medical_professional.yaml** - Update in Phase 2
+- [ ] **medical_professional.yaml** - Update in Phase 1
   - Add `synonym_mappings_heading` and `directory_purpose`
-  - Rename `medical_specialties` → `formal_terms` (keep old key for backward compat)
+  - Rename `medical_specialties` → `formal_terms` (no backward compat needed)
 
 - [ ] **phone_directory.yaml** - Create in Phase 2
   - For hospital departments (ER, billing, appointments)
@@ -1635,7 +1633,7 @@ prompting:
 ### Phase 2: Schema Standardization (Domain-Agnostic Prompts)
 
 **Duration**: 1-2 days  
-**Risk**: Low (backward compatible with fallback logic)  
+**Risk**: Low (clean schema updates, nothing in production)  
 **Value**: Support for multiple directory types (medical, phone, product, etc.)
 
 **Why**: Make `prompt_generator.py` domain-agnostic so new directory types don't require code changes.
@@ -1644,14 +1642,14 @@ prompting:
 
 1. Update `medical_professional.yaml`:
    - Add `synonym_mappings_heading` field: "Medical Term Mappings (Lay → Formal)"
-   - Rename `medical_specialties` → `formal_terms` (keep old key for backward compat)
+   - Rename `medical_specialties` → `formal_terms` (clean migration)
 
 2. Update `prompt_generator.py`:
    - Read `synonym_mappings_heading` from schema (fallback: "Term Mappings")
-   - Use `formal_terms` with fallback to `medical_specialties` (backward compat)
+   - Use `formal_terms` key (standardized)
    - Remove hard-coded "Medical Term Mappings" heading
 
-3. Test with existing medical directory (should work identically)
+3. Test with existing medical directory
 
 **Part B: Multi-Directory Selection**
 
@@ -2240,7 +2238,7 @@ backend/config/
 **Phase 2: Schema Standardization** (1-2 days)
 - **Files to modify**: `prompt_generator.py`, `medical_professional.yaml`
 - **New code**: ~150 lines (schema updates + domain-agnostic code)
-- **Backward compatible**: ✅ Yes (fallback logic for old keys)
+- **Clean migration**: ✅ Nothing in production, no fallback logic needed
 - **Blocks**: Nothing (can run parallel with Phase 1)
 
 **Phase 3: Multi-Tool + Caching** (3-4 days)
