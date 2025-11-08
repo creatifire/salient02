@@ -152,24 +152,36 @@ prompting:
   modules:
     enabled: true  # Must explicitly enable
     selection_mode: "keyword"  # keyword | llm | manual
-    available_modules:
-      - "medical/emergency_protocols"
-      - "administrative/billing_policies"
-      - "shared/hipaa_compliance"
-    # Or use "auto" to discover all modules in account folder
-    # available_modules: "auto"
+    
+    # Keyword → module mappings (config-based, not hardcoded!)
+    keyword_mappings:
+      - keywords: ["billing", "insurance", "payment", "medicare", "medicaid"]
+        module: "administrative/billing_policies.md"
+        priority: 1
+      
+      - keywords: ["emergency", "urgent", "er", "911", "chest pain"]
+        module: "medical/emergency_protocols.md"
+        priority: 10  # Higher priority for emergencies
+      
+      - keywords: ["symptom", "pain", "sick", "hurt"]
+        module: "medical/clinical_disclaimers.md"
+        priority: 1
+      
+      - keywords: ["hipaa", "privacy", "confidential"]
+        module: "shared/hipaa_compliance.md"
+        priority: 1
 ```
 
 **Prompt composition**:
 ```
 Final prompt = system_prompt.md 
              + auto-generated directory tool docs
-             + dynamically selected modules (based on user query keywords)
+             + dynamically selected modules (based on keyword_mappings config)
 ```
 
-**Module selection** (keyword-based):
-- Query: "What's the ER number?" → Loads `medical/emergency_protocols.md`
-- Query: "Do you take Medicare?" → Loads `administrative/billing_policies.md`
+**Module selection** (config-based):
+- Query: "What's the ER number?" → Loads `medical/emergency_protocols.md` (matches "er")
+- Query: "Do you take Medicare?" → Loads `administrative/billing_policies.md` (matches "medicare")
 - Query: "General question" → No modules loaded (just base + directory)
 
 ---
@@ -196,7 +208,24 @@ prompting:
   modules:
     enabled: true
     selection_mode: "keyword"
-    available_modules: "auto"  # Discover all modules
+    
+    # Comprehensive keyword mappings
+    keyword_mappings:
+      - keywords: ["billing", "insurance", "payment", "medicare", "medicaid", "cost"]
+        module: "administrative/billing_policies.md"
+        priority: 1
+      
+      - keywords: ["emergency", "urgent", "er", "911", "chest pain", "bleeding"]
+        module: "medical/emergency_protocols.md"
+        priority: 10
+      
+      - keywords: ["symptom", "pain", "sick", "hurt", "fever"]
+        module: "medical/clinical_disclaimers.md"
+        priority: 1
+      
+      - keywords: ["appointment", "schedule", "book", "visit"]
+        module: "administrative/appointment_scheduling.md"
+        priority: 1
   
   dynamic_instructions:
     enabled: true  # Opt-in to message prepending
@@ -353,7 +382,10 @@ tools:
 prompting:
   modules:
     enabled: true  # ← Explicit opt-in
-    available_modules: ["medical/emergency_protocols"]
+    keyword_mappings:
+      - keywords: ["emergency", "urgent", "er"]
+        module: "medical/emergency_protocols.md"
+        priority: 10
 ```
 
 **Progressive enhancement is automatic**:
@@ -431,32 +463,51 @@ def find_module(module_path: str, account_slug: str) -> Path:
 # → Returns: prompt_modules/shared/hipaa_compliance.md (system-level, same for all)
 ```
 
-**Module Selection Logic** (keyword-based, no LLM call):
+**Module Selection Logic** (config-based, domain-agnostic):
 ```python
 def select_modules(query: str, agent_config: dict) -> List[str]:
-    """Select which modules to load based on query keywords."""
+    """Domain-agnostic module selection based on config."""
     modules = []
+    q_lower = query.lower()
     
-    # Billing context → Account-specific or system fallback
-    if any(word in query.lower() for word in ["billing", "insurance", "payment"]):
-        modules.append("administrative/billing_policies.md")
+    # Read keyword mappings from config (not hardcoded!)
+    prompting_config = agent_config.get("prompting", {}).get("modules", {})
+    keyword_mappings = prompting_config.get("keyword_mappings", [])
     
-    # Emergency context → Account-specific (ER numbers vary!)
-    if any(word in query.lower() for word in ["emergency", "urgent", "er", "911"]):
-        modules.append("medical/emergency_protocols.md")
+    # Match keywords from config
+    for mapping in keyword_mappings:
+        keywords = mapping.get("keywords", [])
+        module_path = mapping.get("module")
+        priority = mapping.get("priority", 1)
+        
+        if any(kw in q_lower for kw in keywords):
+            modules.append((module_path, priority))
     
-    # Medical symptoms → System-level (standard disclaimers)
-    if any(word in query.lower() for word in ["symptom", "pain", "sick", "hurt"]):
-        modules.append("medical/clinical_disclaimers.md")
-    
-    # Compliance → System-level (federal law)
-    if agent_config.get("requires_hipaa_compliance"):
-        modules.append("shared/hipaa_compliance.md")
-    
-    return modules  # Returns list of module paths (not resolved yet)
+    # Sort by priority (higher first), then return module paths
+    modules.sort(key=lambda x: x[1], reverse=True)
+    return [m[0] for m in modules]  # Returns list of module paths (not resolved yet)
 
 # Then resolve each module path:
 # resolved_modules = [find_module(m, account_slug) for m in selected_modules]
+```
+
+**Config example** (from agent config.yaml):
+```yaml
+prompting:
+  modules:
+    enabled: true
+    keyword_mappings:
+      - keywords: ["billing", "insurance", "payment"]
+        module: "administrative/billing_policies.md"
+        priority: 1
+      
+      - keywords: ["emergency", "urgent", "er", "911"]
+        module: "medical/emergency_protocols.md"
+        priority: 10  # Higher priority
+      
+      - keywords: ["symptom", "pain", "sick"]
+        module: "medical/clinical_disclaimers.md"
+        priority: 1
 ```
 
 **Composition**:
@@ -1021,36 +1072,66 @@ Query: "I need a cardiologist, what's the scheduling number?"
 
 ### Module Selection Strategy
 
-**Keyword-based detection** (fast, deterministic):
+**Config-based keyword detection** (fast, deterministic, domain-agnostic):
 
+**Configuration** (in agent config.yaml):
+```yaml
+prompting:
+  modules:
+    enabled: true
+    selection_mode: "keyword"
+    
+    # Keyword → module mappings (account/agent-specific)
+    keyword_mappings:
+      - keywords: ["billing", "insurance", "payment", "cost", "charge"]
+        module: "administrative/billing_policies.md"
+        priority: 1
+      
+      - keywords: ["emergency", "urgent", "er", "911", "chest pain"]
+        module: "medical/emergency_protocols.md"
+        priority: 10  # Higher priority for emergencies
+      
+      - keywords: ["symptom", "pain", "sick", "hurt", "fever"]
+        module: "medical/clinical_disclaimers.md"
+        priority: 1
+```
+
+**Generic code** (domain-agnostic):
 ```python
-BILLING_KEYWORDS = ["billing", "insurance", "payment", "cost", "price", "charge"]
-EMERGENCY_KEYWORDS = ["emergency", "urgent", "er", "911", "chest pain", "bleeding"]
-SYMPTOM_KEYWORDS = ["symptom", "pain", "sick", "hurt", "fever", "nausea"]
-DIRECTORY_KEYWORDS = ["doctor", "find", "who", "specialist", "physician"]
-
 def select_modules(query: str, agent_config: dict) -> List[str]:
-    q_lower = query.lower()
+    """Domain-agnostic module selection based on config."""
     modules = []
+    q_lower = query.lower()
     
-    if any(kw in q_lower for kw in BILLING_KEYWORDS):
-        modules.append("administrative/billing_policies.md")
+    # Read keyword mappings from config (not hardcoded!)
+    prompting_config = agent_config.get("prompting", {}).get("modules", {})
+    keyword_mappings = prompting_config.get("keyword_mappings", [])
     
-    if any(kw in q_lower for kw in EMERGENCY_KEYWORDS):
-        modules.append("medical/emergency_protocols.md")
-    
-    if any(kw in q_lower for kw in SYMPTOM_KEYWORDS):
-        modules.append("medical/clinical_disclaimers.md")
+    # Match keywords from config
+    for mapping in keyword_mappings:
+        keywords = mapping.get("keywords", [])
+        module_path = mapping.get("module")
+        
+        if any(kw in q_lower for kw in keywords):
+            modules.append(module_path)
     
     return modules
 ```
 
-**Trade-offs**:
+**Benefits**:
 - ✅ Zero latency (no LLM call)
 - ✅ Deterministic (testable)
+- ✅ **Domain-agnostic code** - no medical/billing/emergency logic in Python
+- ✅ **Multi-tenant flexibility** - accounts can customize keywords (e.g., Spanish: "urgencia", "emergencia")
+- ✅ **No deployment needed** - add/change keywords via config only
+- ✅ **Consistent with schemas** - follows "Configuration Over Code" principle
 - ⚠️ Simple keyword matching (may miss nuanced queries)
 
-**Future enhancement**: Add lightweight LLM-based classifier if keyword approach proves insufficient.
+**Configuration Override Levels**:
+1. **System defaults** (optional): `backend/config/prompt_modules/keyword_mappings.yaml` - shared defaults
+2. **Agent config**: `agent_configs/{account}/{instance}/config.yaml` - agent-specific mappings
+
+**Future enhancement**: Add lightweight LLM-based classifier if keyword approach proves insufficient (Phase 3).
 
 ---
 
@@ -1158,6 +1239,7 @@ backend/config/
   
   # MODULES: System-level (shared, reusable)
   prompt_modules/
+    keyword_mappings.yaml        # OPTIONAL: System-level default keyword mappings
     medical/
       clinical_disclaimers.md    # Standard medical disclaimers (shared)
       symptom_guidance.md        # General symptom guidance (shared)
@@ -1179,19 +1261,20 @@ backend/config/
       
       {instance}/
         system_prompt.md         # Agent's unique identity (stays here!)
-        config.yaml              # Agent config (which modules to use)
+        config.yaml              # Agent config (keyword_mappings + module selection)
 
 backend/app/agents/tools/
-  prompt_generator.py            # DOMAIN-AGNOSTIC - Reads schemas + modules
+  prompt_generator.py            # DOMAIN-AGNOSTIC - Reads schemas + modules + keyword_mappings
   module_loader.py               # NEW - Handles account→system resolution
 ```
 
 **Key Architecture Points**:
 - **Schemas** = Directory domain knowledge (auto-generates tool docs)
+- **Keyword Mappings** = Module selection rules (config-based, not hardcoded!)
 - **System Modules** = Shared, reusable content (DRY principle)
 - **Account Modules** = Customizations & overrides (multi-tenant isolation)
 - **system_prompt.md** = Agent's unique identity (per-instance)
-- **Code** = Generic logic only (no domain assumptions)
+- **Code** = Generic logic only (no domain assumptions, reads from config)
 
 **Module Resolution**:
 1. Agent config lists modules: `["medical/emergency_protocols", "shared/hipaa_compliance"]`
@@ -1340,7 +1423,7 @@ backend/app/agents/tools/
 
 5. **Enhance `prompt_generator.py`**:
    - Add `user_query` parameter (optional, backward compatible)
-   - Add module selection logic (keyword-based)
+   - Add module selection logic (config-based, reads keyword_mappings from agent config)
    - Use `module_loader` for account→system resolution
    - Compose: base + directory + resolved modules
 
@@ -1350,7 +1433,16 @@ backend/app/agents/tools/
      modules:
        enabled: true
        selection_mode: "keyword"
-       available_modules: [...]
+       
+       # Config-based keyword mappings (domain-agnostic code!)
+       keyword_mappings:
+         - keywords: ["billing", "insurance", "payment"]
+           module: "administrative/billing_policies.md"
+           priority: 1
+         
+         - keywords: ["emergency", "urgent", "er", "911"]
+           module: "medical/emergency_protocols.md"
+           priority: 10
    ```
 
 7. **Update agent creation** to optionally pass `user_query`
