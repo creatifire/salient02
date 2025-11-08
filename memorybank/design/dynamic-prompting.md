@@ -1661,38 +1661,217 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ## Code Organization
 
-### New Files by Phase
+### Pythonic Design Principles
 
-**Phase 1** (Tool Abstraction):
-- `base_tool.py`: `AgentTool` interface
-- `tool_registry.py`: Tool registration and discovery
-- `directory_tool.py`: DirectoryTool wrapper
+**1. Leverage Pydantic AI Native Features**:
+```python
+# ❌ DON'T: Custom abstractions
+class DirectoryTool(AgentTool): ...
+tool_registry.register(DirectoryTool())
 
-**Phase 2** (Schema Standardization):
-- Update `prompt_generator.py`: Domain-agnostic logic
-- Update schemas: `medical_professional.yaml`, create `phone_directory.yaml`
+# ✅ DO: Use FunctionToolset
+from pydantic_ai import FunctionToolset
+directory_toolset = FunctionToolset(tools=[search_directory])
+```
 
-**Phase 3** (Multi-Tool + Caching):
-- `vector_tool.py`: Wrapper for existing `vector_tools.py`
-- Update `prompt_generator.py`: Multi-tool composition + caching markers
+**2. Functional Composition Over Classes**:
+```python
+# ❌ DON'T: Stateful classes for simple operations
+class ModuleSelector:
+    def __init__(self, config):
+        self.config = config
+    def select(self, query):
+        ...
 
-**Phase 4** (Modular Prompts):
-- `module_loader.py`: Account→System resolution
-- `module_selector.py`: Keyword-based selection
-- Create module library: `prompt_modules/` structure
+# ✅ DO: Pure functions
+def select_modules(query: str, config: dict) -> list[str]:
+    return [m for m in config["modules"] if matches(query, m)]
+```
 
-**Phase 5** (MCP Integration):
-- `mcp_tool.py`: MCP server wrapper
-- Update `main.py`: MCP discovery at startup
+**3. Use Dataclasses for Structured Data**:
+```python
+from dataclasses import dataclass
 
-### Code Reuse
+@dataclass
+class ModuleConfig:
+    enabled: bool
+    keyword_mappings: list[dict]
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ModuleConfig':
+        return cls(**data)  # Automatic validation
+```
 
-**Existing infrastructure leveraged**:
-- `config_loader.py`: Parameter cascade logic
-- `prompt_generator.py`: Base prompt loading, directory docs generation
-- `types.py`: Pydantic validation
+**4. Error Handling with Context Managers**:
+```python
+# ✅ Graceful degradation pattern
+async def load_toolset_safe(name: str, factory) -> FunctionToolset | None:
+    try:
+        return factory()
+    except Exception as e:
+        logfire.warning(f"Toolset '{name}' unavailable: {e}")
+        return None  # Continue without this tool
 
-**Backward Compatibility**: All existing agents work unchanged. Each phase is 100% opt-in via config.
+# Usage
+toolsets = [
+    t for t in [
+        load_toolset_safe("directory", lambda: FunctionToolset([search_directory])),
+        load_toolset_safe("vector", lambda: FunctionToolset([vector_search])),
+        load_toolset_safe("mcp", lambda: MCPServerStdio('github')),
+    ] if t is not None
+]
+```
+
+**5. Config-Driven Behavior (Zero Hardcoding)**:
+```python
+# ✅ Generic, reusable
+def load_modules_for_query(query: str, module_config: dict) -> list[str]:
+    """Works for ANY domain - medical, legal, financial, etc."""
+    q_lower = query.lower()
+    mappings = module_config.get("keyword_mappings", [])
+    
+    return [
+        m["module"] 
+        for m in mappings 
+        if any(kw in q_lower for kw in m.get("keywords", []))
+    ]
+```
+
+---
+
+### Files by Phase (Simplified Approach)
+
+**Phase 1: Pydantic AI Native Toolsets**
+- ✅ NEW: `backend/app/agents/tools/toolsets.py` (~20 lines)
+  - Wraps existing `search_directory()` and `vector_search()`
+- ✅ MODIFY: `backend/app/agents/simple_chat.py`
+  - Add toolset loading logic based on config
+
+**Phase 2: Schema Standardization**
+- ✅ MODIFY: `backend/app/agents/tools/prompt_generator.py`
+  - Domain-agnostic schema reading
+- ✅ MODIFY: `backend/config/directory_schemas/medical_professional.yaml`
+  - Add `directory_purpose`, rename keys
+- ✅ NEW: `backend/config/directory_schemas/phone_directory.yaml`
+
+**Phase 3: Multi-Tool + Caching**
+- ✅ MODIFY: `backend/app/agents/simple_chat.py`
+  - Add cache markers to prompt composition
+- ⚠️ NO new files (Phase 1 toolsets already support multi-tool)
+
+**Phase 4: Modular Prompts**
+- ✅ NEW: `backend/app/agents/tools/module_loader.py` (~80 lines)
+  - `load_module(path, account)` with account→system fallback
+- ✅ NEW: `backend/app/agents/tools/module_selector.py` (~50 lines)
+  - `select_modules(query, config)` - pure function, no state
+- ✅ NEW: `backend/config/prompt_modules/` directory structure
+- ✅ NEW: `backend/config/agent_configs/{account}/modules/` structure
+
+**Phase 5: MCP Integration**
+- ✅ MODIFY: `backend/app/agents/simple_chat.py`
+  - Add `MCPServerStdio` to toolsets list
+- ⚠️ NO new files (Pydantic AI handles everything)
+
+**Total New Code**: ~150 lines (vs. ~900 with custom approach)
+
+---
+
+### Code Reuse Strategies
+
+**1. Leverage Existing Infrastructure**:
+- ✅ `config_loader.py` - parameter cascade (200 lines reused)
+- ✅ `prompt_generator.py` - base prompt, directory docs (300 lines reused)
+- ✅ `types.py` - Pydantic validation (100 lines reused)
+
+**2. Functional Utilities**:
+```python
+# backend/app/agents/tools/utils.py
+
+def safe_get(d: dict, *keys, default=None):
+    """Safely traverse nested dicts."""
+    for key in keys:
+        if isinstance(d, dict):
+            d = d.get(key, {})
+        else:
+            return default
+    return d if d != {} else default
+
+# Usage: No more try/except KeyError!
+enabled = safe_get(config, "tools", "directory", "enabled", default=False)
+```
+
+**3. Decorator Pattern for Observability**:
+```python
+from functools import wraps
+
+def observe_tool_call(func):
+    """Auto-log tool executions to Logfire."""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        with logfire.span(f"tool.{func.__name__}"):
+            try:
+                result = await func(*args, **kwargs)
+                logfire.info(f"{func.__name__} succeeded", result_count=len(result))
+                return result
+            except Exception as e:
+                logfire.error(f"{func.__name__} failed", error=str(e))
+                raise
+    return wrapper
+
+# Apply to tools
+@observe_tool_call
+async def search_directory(...): ...
+```
+
+---
+
+### Error-Prone Patterns to Avoid
+
+**❌ DON'T: Mutate config dictionaries**:
+```python
+config["tools"]["directory"]["enabled"] = True  # BAD: Side effects!
+```
+
+**✅ DO: Treat configs as immutable**:
+```python
+from copy import deepcopy
+new_config = deepcopy(config)
+new_config["tools"]["directory"]["enabled"] = True
+```
+
+**❌ DON'T: String concatenation for prompts**:
+```python
+prompt = base + "\n" + tools + "\n" + modules  # BAD: Error-prone
+```
+
+**✅ DO: Use structured composition**:
+```python
+components = [base, tools, modules]
+prompt = "\n\n---\n\n".join(filter(None, components))  # Filters out None/empty
+```
+
+**❌ DON'T: Silent failures**:
+```python
+try:
+    module = load_module(path)
+except:
+    pass  # BAD: Hides errors!
+```
+
+**✅ DO: Log and degrade gracefully**:
+```python
+try:
+    module = load_module(path)
+except ModuleNotFoundError as e:
+    logfire.warning("Module not found", path=path, error=str(e))
+    module = None  # Explicit None, continue
+```
+
+---
+
+### Backward Compatibility
+
+All existing agents work unchanged. Each phase is 100% opt-in via config.
 
 ---
 
@@ -1749,18 +1928,18 @@ backend/app/agents/tools/
     - generate_directory_tool_docs()    # Update (Phase 1): make domain-agnostic
   
   # NEW: Simple wrapper file using Pydantic AI native features
-  toolsets.py                   # NEW (Phase 2)
+  toolsets.py                   # NEW (Phase 1)
     - directory_toolset = FunctionToolset(tools=[search_directory])
     - vector_toolset = FunctionToolset(tools=[vector_search])
   
   # NEW: Module system for context-aware prompts
-  module_loader.py              # NEW (Phase 3): Account→System resolution
-  module_selector.py            # NEW (Phase 3): Keyword-based selection
+  module_loader.py              # NEW (Phase 4): Account→System resolution
+  module_selector.py            # NEW (Phase 4): Keyword-based selection
 
 backend/config/
   app.yaml                      # Add prompting.recommended_module_size_tokens
   
-  prompt_modules/               # NEW (Phase 3): System-level modules
+  prompt_modules/               # NEW (Phase 4): System-level modules
     shared/
       hipaa_compliance.md
       tone_guidelines.md
@@ -1768,17 +1947,17 @@ backend/config/
       clinical_disclaimers.md
   
   directory_schemas/
-    medical_professional.yaml   # Update (Phase 1): Add directory_purpose, rename to formal_terms
-    phone_directory.yaml        # NEW (Phase 1): Hospital departments
+    medical_professional.yaml   # Update (Phase 2): Add directory_purpose, rename to formal_terms
+    phone_directory.yaml        # NEW (Phase 2): Hospital departments
   
   agent_configs/{account}/
-    modules/                    # NEW (Phase 3): Account-specific modules
+    modules/                    # NEW (Phase 4): Account-specific modules
       medical/emergency_protocols.md
       administrative/billing_policies.md
     
     {instance}/
       system_prompt.md          # Existing
-      config.yaml               # Update (Phase 3): Add prompting.modules section
+      config.yaml               # Update (Phase 4): Add prompting.modules section
 ```
 
 **Key Simplifications**:
@@ -1788,138 +1967,7 @@ backend/config/
 - ✅ ONE simple toolsets.py file wraps existing tools
 - ✅ Underlying directory_tools.py and vector_tools.py unchanged
 
----
-
-### Implementation Phases & Incremental Path
-
-**Aligned with 5-phase migration plan** (see Migration Path section above for detailed breakdown)
-
-**Phase 1: Pydantic AI Native Toolsets**
-- **New files**: `toolsets.py` (wraps existing tools)
-- **Modified files**: `simple_chat.py` (multi-toolset support)
-- **Backward compatible**: ✅ Yes (100% - existing behavior unchanged)
-- **Blocks**: Nothing (can start immediately)
-
-**Phase 2: Schema Standardization**
-- **Files to modify**: `prompt_generator.py`, `medical_professional.yaml`
-- **Clean migration**: ✅ Nothing in production, no fallback logic needed
-- **Blocks**: Nothing (can run parallel with Phase 1)
-
-**Phase 3: Multi-Tool + Caching**
-- **Use existing toolsets from Phase 1** (no new wrappers)
-- **Modified files**: `prompt_generator.py` (caching markers)
-- **Backward compatible**: ✅ Yes (single-tool agents unchanged)
-- **Blocks**: Requires Phase 1 complete
-- **High ROI**: 70% cost reduction + 30% latency improvement
-
-**Phase 4: Modular Prompts**
-- **New files**: `module_loader.py`, `module_selector.py`
-- **Modified files**: `prompt_generator.py`
-- **Backward compatible**: ✅ Yes (opt-in via config)
-- **Blocks**: Requires Phase 1-3 complete
-- **MVP scope**: Keyword-based selection only
-
-**Phase 5: MCP Integration**
-- **Use Pydantic AI's native `MCPServerStdio`** (no custom wrapper)
-- **Modified files**: `simple_chat.py` (add MCP to toolsets)
-- **Backward compatible**: ✅ Yes (MCP optional)
-- **Blocks**: Requires Phase 1 complete
-- **Risk**: Medium (external dependencies)
-
----
-
-### Reusability Opportunities
-
-**1. Configuration Loading** (Reuse Existing)
-```python
-# REUSE: backend/app/agents/config_loader.py
-from backend.app.agents.config_loader import get_agent_parameter
-
-# Already handles:
-# - Agent→Global→Fallback cascade
-# - Multi-tenant paths (account/instance)
-# - Legacy flat structure
-# - Config caching
-```
-
-**2. Module Resolution Pattern** (Reuse Cascade Logic)
-```python
-# NEW: module_loader.py
-# REUSES: Same pattern as config_loader.py cascade logic
-
-def find_module(module_path: str, account_slug: str) -> Path:
-    # 1. Check account-specific (agent_configs/{account}/modules/{path})
-    # 2. Check system-level (prompt_modules/{path})
-    # 3. Raise ModuleNotFoundError
-    # SAME PATTERN as config parameter cascade!
-```
-
-**3. Simplified Approach** (No Token Management)
-- Trust LLM context windows (modern models handle 128K+ tokens)
-- No token counting utilities needed
-- Focus on correctness over optimization
-
-**4. Config Validation** (Extend Existing)
-```python
-# ENHANCE: backend/app/agents/base/types.py
-# Add prompting config to AgentConfig Pydantic model
-# Validation happens automatically via Pydantic
-```
-
----
-
-### Backward Compatibility Strategy
-
-**Existing Agents Work Unchanged**:
-```python
-# Backend code checks for prompting config existence
-prompting_config = agent_config.get("prompting", {})
-modules_config = prompting_config.get("modules", {})
-
-if not modules_config.get("enabled"):  # Default: False
-    # Skip module loading entirely
-    # Existing behavior: load_base_prompt() + generate_directory_tool_docs()
-    return compose_prompt_legacy(base, directory_docs)
-
-# Only run new code if explicitly enabled
-```
-
-**Configuration Migration Path**:
-- ✅ **No config changes needed** for existing agents
-- ✅ **Opt-in only**: Add `prompting` section to enable features
-- ✅ **Incremental adoption**: Each phase independent, can skip phases
-
-**Example - Existing Agent (No Changes)**:
-```yaml
-# agent_configs/agrofresh/agrofresh_chat1/config.yaml
-name: "AgroFresh Assistant"
-model_settings:
-  model: "deepseek/deepseek-chat-v3.1"
-# No prompting section = works exactly as before
-```
-
-**Example - Wyckoff Enhanced (Opt-In)**:
-```yaml
-# agent_configs/wyckoff/wyckoff_info_chat1/config.yaml
-name: "Wyckoff Hospital Assistant"
-model_settings:
-  model: "deepseek/deepseek-chat-v3.1"
-
-# NEW: Opt-in to dynamic prompting
-prompting:
-  modules:
-    enabled: true
-    keyword_mappings:
-      - keywords: ["emergency", "urgent"]
-        module: "medical/emergency_protocols.md"
-        priority: 10
-```
-
----
-
-### Testing Strategy
-
-Unit tests for each new module (tool registry, module loader, module selector). Integration tests verify backward compatibility with all existing agents. Detailed test plan created during implementation.
+**See "Migration Path" section (lines 1138-1405) for detailed phase-by-phase implementation plan.**
 
 ---
 
