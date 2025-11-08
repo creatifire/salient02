@@ -102,8 +102,14 @@ tools:
   mcp:
     enabled: true
     servers:
-      - "github"      # Code/issue management
-      - "slack"       # Team notifications
+      github:
+        command: "uvx"
+        args: ["mcp-server-github"]
+        tool_prefix: "gh"
+      
+      slack:
+        url: "http://localhost:3001/sse"
+        tool_prefix: "slack"
 # All tools work together, no prompting config needed yet
 ```
 
@@ -986,7 +992,21 @@ agent = Agent(
 ```python
 # backend/app/agents/simple_chat.py
 
-from pydantic_ai.mcp import MCPServerStdio
+from pydantic_ai.mcp import MCPServerStdio, MCPServerSSE
+
+# Stdio-based MCP server (local process)
+github_server = MCPServerStdio(
+    'uvx',  # command
+    args=['mcp-server-github'],  # args
+    timeout=10,  # optional timeout
+    tool_prefix='gh'  # optional prefix to avoid naming conflicts
+)
+
+# SSE-based MCP server (HTTP)
+slack_server = MCPServerSSE(
+    'http://localhost:3001/sse',  # SSE endpoint
+    tool_prefix='slack'
+)
 
 # Use native MCP support
 agent = Agent(
@@ -994,7 +1014,8 @@ agent = Agent(
     toolsets=[
         directory_toolset,  # Existing directory tools
         vector_toolset,     # Existing vector tools
-        MCPServerStdio('github'),  # MCP server - built-in!
+        github_server,      # MCP server - built-in!
+        slack_server,       # Another MCP server!
     ]
 )
 ```
@@ -1008,8 +1029,15 @@ tools:
   mcp:
     enabled: true
     servers:
-      - "github"
-      - "slack"
+      github:
+        command: "uvx"
+        args: ["mcp-server-github"]
+        timeout: 10
+        tool_prefix: "gh"  # Optional: avoid naming conflicts
+      
+      slack:
+        url: "http://localhost:3001/sse"  # SSE-based server
+        tool_prefix: "slack"
 ```
 
 **That's it!** Pydantic AI handles MCP connection, tool discovery, and schema conversion automatically.
@@ -1413,82 +1441,129 @@ tools:
 
 ### Phase 5: MCP Integration (External Tool Ecosystem)
 
-**Risk**: Medium (depends on MCP server stability + Python client library availability)  
+**Risk**: Medium (depends on MCP server stability + availability)  
 **Value**: Extensibility for GitHub, Slack, weather, custom integrations
-
-**Prerequisites**: 
-- **Research Python MCP client library** - official package needs investigation
-  - Check PyPI for `mcp`, `model-context-protocol`, or similar
-  - Review Anthropic's official documentation
-  - May need custom HTTP+SSE implementation if no official client exists
 
 **Why**: Enable dynamic integration with external services via MCP protocol. Agents can use GitHub for issue tracking, Slack for notifications, weather for patient travel advice, etc.
 
 **Implementation**:
 
-1. **Research & select MCP client library**:
-   - Investigate available Python packages
-   - Test connection to sample MCP server
-   - Document installation and usage patterns
-
-2. **Implement `MCPTool` class**:
-   - `tool_type = f"mcp:{server_name}"`
-   - `generate_documentation()`: Auto-generate from MCP JSON schemas
-   - `get_module_hints()`: Suggest MCP-specific modules
-   - Redis caching for tool schemas
-
-3. **Add MCP server discovery** (`backend/app/main.py`):
-   ```python
-   async def initialize_mcp_tools():
-       """Discover and register MCP servers at startup."""
-       mcp_config = load_mcp_config()
-       
-       for server_name, server_config in mcp_config.items():
-           client = await connect_to_mcp_server(server_name, server_config)  # Using researched library
-           mcp_tool = MCPTool(server_name, client)
-           tool_registry.register(mcp_tool)
+1. **Install Pydantic AI with MCP support**:
+   ```bash
+   pip install "pydantic-ai-slim[mcp]"
    ```
 
-4. **Add MCP configuration support**:
+2. **Add MCP configuration support**:
    ```yaml
    # agent_configs/{account}/{instance}/config.yaml
    tools:
      mcp:
        enabled: true
        servers:
-         - name: "github"
-           connection_string: "stdio://github-mcp-server"
-         - name: "slack"
-           connection_string: "sse://slack-mcp-server:3000"
+         github:
+           command: "uvx"
+           args: ["mcp-server-github"]
+           timeout: 10
+           tool_prefix: "gh"  # Optional: prefix tools to avoid conflicts
+         
+         slack:
+           url: "http://localhost:3001/sse"  # SSE-based server
+           tool_prefix: "slack"
+         
+         filesystem:
+           command: "uvx"
+           args: ["mcp-server-filesystem", "/path/to/data"]
    ```
 
-5. **Create MCP module library**:
+3. **Load MCP servers dynamically** (`backend/app/agents/simple_chat.py`):
+   ```python
+   from pydantic_ai.mcp import MCPServerStdio, MCPServerSSE
+   
+   def load_mcp_toolsets(config: dict) -> list:
+       """Load MCP servers from config."""
+       mcp_toolsets = []
+       
+       if not config.get('tools', {}).get('mcp', {}).get('enabled'):
+           return mcp_toolsets
+       
+       for name, server_config in config['tools']['mcp']['servers'].items():
+           try:
+               if 'command' in server_config:
+                   # Stdio-based MCP server
+                   server = MCPServerStdio(
+                       server_config['command'],
+                       args=server_config.get('args', []),
+                       timeout=server_config.get('timeout', 10),
+                       tool_prefix=server_config.get('tool_prefix')
+                   )
+               elif 'url' in server_config:
+                   # SSE-based MCP server
+                   server = MCPServerSSE(
+                       server_config['url'],
+                       tool_prefix=server_config.get('tool_prefix')
+                   )
+               else:
+                   logfire.warning(f"MCP server '{name}' missing 'command' or 'url'")
+                   continue
+               
+               mcp_toolsets.append(server)
+               logfire.info(f"MCP server '{name}' loaded")
+           
+           except Exception as e:
+               logfire.warning(f"Failed to load MCP server '{name}': {e}")
+               # Continue without this server (graceful degradation)
+       
+       return mcp_toolsets
+   ```
+
+4. **Integrate with agent**:
+   ```python
+   # Combine all toolsets
+   toolsets = []
+   
+   if directory_enabled:
+       toolsets.append(directory_toolset)
+   
+   if vector_enabled:
+       toolsets.append(vector_toolset)
+   
+   toolsets.extend(load_mcp_toolsets(config))
+   
+   agent = Agent(
+       model_name,
+       toolsets=toolsets,
+       system_prompt=system_prompt
+   )
+   ```
+
+5. **Create MCP module library** (Phase 4 feature):
    - `backend/config/prompt_modules/mcp/`:
      - `github_best_practices.md`: When to create issues vs. PRs
      - `slack_messaging_guidelines.md`: Professional communication
      - `weather_context.md`: How to integrate weather into responses
 
-6. **Add MCP-specific keyword mappings**:
+6. **Add MCP-specific keyword mappings** (Phase 4 feature):
    ```yaml
+   # agent_configs/{account}/{instance}/keyword_mappings.yaml
    prompting:
      modules:
        keyword_mappings:
          - keywords: ["code", "repository", "issue", "bug"]
            module: "mcp/github_best_practices.md"
-           required_tool: "mcp:github"
+           required_tool: "gh"  # Matches tool_prefix
          - keywords: ["notify", "alert", "message"]
            module: "mcp/slack_messaging_guidelines.md"
-           required_tool: "mcp:slack"
+           required_tool: "slack"
    ```
 
 7. **Pilot with 1-2 MCP servers**:
    - Start with GitHub (issue creation) or Slack (notifications)
-   - Test auto-generated tool docs from MCP schemas
+   - Verify Pydantic AI auto-discovers tools from MCP server
    - Verify graceful handling of MCP server unavailability
 
 **Testing**:
-- MCP servers register dynamically at startup
-- Tool docs auto-generated from JSON schemas
+- MCP servers load dynamically from config
+- Pydantic AI auto-discovers tools and schemas
 - Agents without MCP config unchanged
 - MCP server failures don't crash agent
 
@@ -1500,15 +1575,13 @@ tools:
 
 **Challenges**:
 - MCP server reliability (external dependencies)
-- Tool documentation quality (depends on MCP schema quality)
+- MCP server installation (users must install MCP servers separately)
 - Latency overhead (external API calls)
 
 **Mitigation**:
 - Graceful degradation (agent works if MCP unavailable)
-- Cache MCP tool schemas (reduce discovery overhead)
 - Monitor MCP call latency/success rates in Logfire
-
-**See Also**: "MCP Integration Strategy" section (lines 1602-1705) for detailed implementation
+- Document MCP server installation in deployment guide
 
 **Backward compatibility**: MCP optional. Non-MCP agents work as before.
 
