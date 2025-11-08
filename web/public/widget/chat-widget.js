@@ -33,6 +33,13 @@
   const headerColor = globalConfig.headerColor || (script && script.getAttribute('data-header-color')) || '#169CB5';
   const fontFamilyUrl = globalConfig.fontFamilyUrl || (script && script.getAttribute('data-font-family-url')) || null;
   
+  // Color configuration for chat bubbles and background
+  const userBubbleColor = globalConfig.userBubbleColor || (script && script.getAttribute('data-user-bubble-color')) || '#eef6ff';
+  const botBubbleColor = globalConfig.botBubbleColor || (script && script.getAttribute('data-bot-bubble-color')) || '#fffbe6';
+  const chatBackgroundColor = globalConfig.chatBackgroundColor || (script && script.getAttribute('data-chat-background-color')) || '#fff';
+  // FAB button color: fallback to headerColor if not provided
+  const fabColor = globalConfig.fabColor || (script && script.getAttribute('data-fab-color')) || headerColor || '#108D43';
+  
   // Debug mode - enable verbose console logging
   const debugMode = globalConfig.debug !== undefined ? globalConfig.debug : false;
   console.log('🔍 WIDGET LOADED - debugMode:', debugMode, 'globalConfig:', globalConfig);
@@ -101,7 +108,7 @@
       *, *::before, *::after { box-sizing: border-box; font-family: ${fontFamily}; font-size: ${fontSize}; }
       #overlay{ position: fixed; inset: 0; background: rgba(0,0,0,.2); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 2147483630; }
       :host([data-open="1"]) #overlay{ opacity: 1; pointer-events: auto; }
-      #fab{ position: fixed; right: 16px; bottom: 16px; z-index: 2147483646; border: 0; border-radius: 9999px; padding: .65rem .9rem; background: #108D43; color: #fff; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,.2); font: 600 ${fontSize}/1 ${fontFamily}; }
+      #fab{ position: fixed; right: 16px; bottom: 16px; z-index: 2147483646; border: 0; border-radius: 9999px; padding: .65rem .9rem; background: ${fabColor}; color: #fff; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,.2); font: 600 ${fontSize}/1 ${fontFamily}; }
       #pane{ position: fixed; right: 16px; bottom: 72px; width: min(92vw, 380px); height: 480px; background: #fff; color: #111; border-radius: 12px; box-shadow: 0 12px 28px rgba(0,0,0,.25); transform: translateX(120%); transition: transform .25s ease, width .5s cubic-bezier(0.4, 0, 0.2, 1), height .5s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; z-index: 2147483645; display: flex; flex-direction: column; }
       :host([data-open="1"]) #pane{ transform: translateX(0); }
       #pane.maximized{ width: calc(100vw - 66px); height: calc(100vh - 97px); }
@@ -112,12 +119,12 @@
       .header-btn img{ width:18px; height:18px; display:block; }
       @media (max-width: 767px){ #maximize-btn{ display:none !important; } #pane.maximized{ top:auto; left:auto; right:16px; bottom:72px; width:min(92vw, 380px); max-height:72vh; } }
       .body{ padding: .75rem; overflow: auto; display:flex; flex-direction:column; gap:.5rem; }
-      .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 240px; overflow:auto; display:flex; flex-direction:column; gap:.4rem; background:#fff; }
+      .chat{ border:1px solid #eee; border-radius:8px; padding:.5rem; height: 240px; overflow:auto; display:flex; flex-direction:column; gap:.4rem; background:${chatBackgroundColor}; }
       #pane.maximized .body{ flex: 1; overflow: hidden; }
       #pane.maximized .chat{ flex: 1; height: auto; }
       .msg{ position: relative; padding:.6rem .8rem; border-radius:6px; max-width:85%; word-wrap:break-word; }
-      .msg.user{ background:#eef6ff; align-self:flex-end; margin-left:auto; }
-      .msg.bot{ background:#fffbe6; align-self:flex-start; margin-right:auto; }
+      .msg.user{ background:${userBubbleColor}; align-self:flex-end; margin-left:auto; }
+      .msg.bot{ background:${botBubbleColor}; align-self:flex-start; margin-right:auto; }
       .msg.user .content{ white-space:pre-wrap; }
       
       /* Table styles for markdown tables */

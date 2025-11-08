@@ -1,0 +1,89 @@
+---
+import WindriverLayout from '../../../layouts/WindriverLayout.astro';
+import SuggestedQuestions from '../../../components/windriver/SuggestedQuestions.astro';
+
+const suggestedQuestions = [
+  "Tell me about your cardiology department",
+  "What services does neurology offer?",
+  "Do you have pediatric specialists?"
+];
+---
+<WindriverLayout title="Medical Departments - Windriver Hospital">
+  <section style="padding:2rem 0;">
+    <h1 style="font-size:2.5rem;margin:0 0 1rem;color:#1B5E20;">Medical Departments</h1>
+    <p style="font-size:1.1rem;margin:0 0 2rem;color:#555;line-height:1.6;">
+      Windriver Hospital brings together expert medical teams across multiple specialties to provide comprehensive, 
+      coordinated care for all your health needs.
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:2rem;margin:3rem 0;">
+      <!-- Cardiology -->
+      <a href="/windriver/departments/cardiology" style="text-decoration:none;color:inherit;display:block;padding:1.5rem;background:white;border:2px solid #E8F5E9;border-radius:12px;transition:all 0.3s;">
+        <div style="font-size:3rem;margin-bottom:1rem;">❤️</div>
+        <h2 style="font-size:1.5rem;margin:0 0 0.75rem;color:#2E7D32;">Cardiology</h2>
+        <p style="margin:0;color:#666;line-height:1.6;">
+          Comprehensive heart and vascular care with state-of-the-art diagnostic tools and treatment options.
+        </p>
+        <div style="margin-top:1rem;color:#2E7D32;font-weight:600;">Learn more →</div>
+      </a>
+
+      <!-- Neurology -->
+      <a href="/windriver/departments/neurology" style="text-decoration:none;color:inherit;display:block;padding:1.5rem;background:white;border:2px solid #E8F5E9;border-radius:12px;transition:all 0.3s;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🧠</div>
+        <h2 style="font-size:1.5rem;margin:0 0 0.75rem;color:#2E7D32;">Neurology</h2>
+        <p style="margin:0;color:#666;line-height:1.6;">
+          Expert diagnosis and treatment of neurological conditions including stroke, epilepsy, and movement disorders.
+        </p>
+        <div style="margin-top:1rem;color:#2E7D32;font-weight:600;">Learn more →</div>
+      </a>
+
+      <!-- Emergency -->
+      <a href="/windriver/departments/emergency" style="text-decoration:none;color:inherit;display:block;padding:1.5rem;background:white;border:2px solid #E8F5E9;border-radius:12px;transition:all 0.3s;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🚑</div>
+        <h2 style="font-size:1.5rem;margin:0 0 0.75rem;color:#2E7D32;">Emergency Services</h2>
+        <p style="margin:0;color:#666;line-height:1.6;">
+          24/7 emergency care with rapid response teams, trauma specialists, and critical care facilities.
+        </p>
+        <div style="margin-top:1rem;color:#2E7D32;font-weight:600;">Learn more →</div>
+      </a>
+
+      <!-- Orthopedics -->
+      <div style="padding:1.5rem;background:#f5f5f5;border:2px solid #e0e0e0;border-radius:12px;opacity:0.7;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🦴</div>
+        <h2 style="font-size:1.5rem;margin:0 0 0.75rem;color:#555;">Orthopedics</h2>
+        <p style="margin:0;color:#666;line-height:1.6;">
+          Advanced care for bones, joints, and muscles. (Demo page coming soon)
+        </p>
+      </div>
+
+      <!-- Pediatrics -->
+      <div style="padding:1.5rem;background:#f5f5f5;border:2px solid #e0e0e0;border-radius:12px;opacity:0.7;">
+        <div style="font-size:3rem;margin-bottom:1rem;">👶</div>
+        <h2 style="font-size:1.5rem;margin:0 0 0.75rem;color:#555;">Pediatrics</h2>
+        <p style="margin:0;color:#666;line-height:1.6;">
+          Specialized care for infants, children, and adolescents. (Demo page coming soon)
+        </p>
+      </div>
+
+      <!-- Oncology -->
+      <div style="padding:1.5rem;background:#f5f5f5;border:2px solid #e0e0e0;border-radius:12px;opacity:0.7;">
+        <div style="font-size:3rem;margin-bottom:1rem;">🎗️</div>
+        <h2 style="font-size:1.5rem;margin:0 0 0.75rem;color:#555;">Oncology</h2>
+        <p style="margin:0;color:#666;line-height:1.6;">
+          Comprehensive cancer care and support services. (Demo page coming soon)
+        </p>
+      </div>
+    </div>
+
+    <SuggestedQuestions questions={suggestedQuestions} />
+  </section>
+</WindriverLayout>
+
+<style>
+  a[href^="/windriver/departments/"]:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 16px rgba(0, 119, 189, 0.2);
+    border-color: #00695C;
+  }
+</style>
+

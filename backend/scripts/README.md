@@ -184,3 +184,168 @@ python backend/scripts/seed_directory.py \
 
 Result: 124 doctors loaded into `directory_entries` table, accessible via `search_directory` agent tool.
 
+---
+
+## generate_windriver_data.py
+
+Generates diverse test data for hospital directory entries. Creates realistic CSV files with healthcare professionals including physicians, nurse practitioners, therapists, and allied health staff.
+
+### Quick Start
+
+```bash
+cd /path/to/salient02
+
+# Generate 500 entries for Windriver Hospital (default)
+python backend/scripts/generate_windriver_data.py \
+    --count 500 \
+    --output backend/data/windriver/windriver_doctors_profiles.csv
+
+# Generate 200 entries for a new hospital
+python backend/scripts/generate_windriver_data.py \
+    --count 200 \
+    --output backend/data/newhospital/staff_profiles.csv
+
+# Generate 1000 entries with custom starting ID
+python backend/scripts/generate_windriver_data.py \
+    --count 1000 \
+    --output backend/data/largehospital/staff.csv \
+    --start-id 9400000
+```
+
+### Arguments
+
+| Argument | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `--count` | No | Total number of entries to generate (default: 500) | `500`, `200`, `1000` |
+| `--output` | Yes | Output CSV file path | `backend/data/windriver/staff.csv` |
+| `--start-id` | No | Starting ID number for entries (default: 9300000) | `9300000`, `9400000` |
+
+### What It Generates
+
+The script creates healthcare professional entries with a fixed distribution:
+
+- **60% Physicians (MD/DO)** - Medical and surgical specialists
+  - Medical specialties: Cardiology, Neurology, Gastroenterology, Endocrinology, Nephrology, Pulmonology, Infectious Disease, Hematology/Oncology, Psychiatry, etc.
+  - Surgical specialties: General Surgery, Orthopedic Surgery, Neurosurgery, Plastic Surgery, Vascular Surgery, Cardiothoracic Surgery, Urology, Ophthalmology, etc.
+  - Emergency & Critical Care, Pediatrics, OB/GYN, Radiology, Pathology, Anesthesiology, Podiatry, Dental Medicine
+
+- **10% Advanced Practice Providers**
+  - Nurse Practitioners (NP) - Family, Adult Health, Pediatric, Psychiatric-Mental Health, Acute Care
+  - Physician Assistants (PA) - Emergency Medicine, Surgery, Cardiology, Internal Medicine, Pediatrics
+  - Certified Nurse Midwives (CNM)
+
+- **15% Therapists**
+  - Physical Therapists (PT) - Orthopedic, Neurologic, Cardiopulmonary, Geriatric, Pediatric, Sports
+  - Occupational Therapists (OT) - Hand Therapy, Pediatric, Geriatric, Neurologic
+  - Speech-Language Pathologists (SLP) - Pediatric, Adult, Swallowing Disorders, Voice Disorders
+  - Respiratory Therapists (RT) - Critical Care, Pediatric, Neonatal, Pulmonary Rehabilitation
+
+- **15% Other Allied Health**
+  - Clinical Nurse Specialists (CNS)
+  - Surgical Technologists (CST)
+  - Registered Dietitians (RD)
+  - Pharmacists (PharmD)
+  - Medical Trainers/Educators (MEd)
+  - Radiologic Technologists (RT(R))
+  - Medical Technologists (MT(ASCP))
+  - Perioperative Nurses (RN)
+
+### Features
+
+**Diversity**:
+- Realistic names across diverse ethnicities and backgrounds
+- Gender diversity (male/female)
+- 13 supported languages: English (required), Spanish, French, Hindi, Urdu, Mandarin, Cantonese, Arabic, Swahili, Japanese, Korean, Cambodian, Telugu
+- 50% of entries speak 1-3 additional languages beyond English
+
+**Realistic Data**:
+- Real US and international medical schools
+- Realistic residency and fellowship programs at major hospitals
+- Appropriate board certifications with years
+- Realistic education and training timelines
+- Hospital-appropriate specialty terminology
+
+**CSV Format**:
+- Matches structure of `wyckoff_doctors_profiles.csv`
+- Compatible with `seed_directory.py` for direct import
+- All fields properly quoted and formatted
+
+### Output Format
+
+The generated CSV includes these columns:
+
+- `id` - Sequential ID number (starting from `--start-id`)
+- `doctor_name` - Full name with credentials (e.g., "Maria Diaz, MD", "John Smith, NP")
+- `department` - Primary department (e.g., "Emergency Medicine", "Surgery")
+- `speciality` - Medical specialty or subspecialty
+- `facility` - Hospital/facility name (empty by default)
+- `phone` - Contact phone (empty by default)
+- `location` - Office location (empty by default)
+- `board_certifications` - Board certifications with years
+- `education` - Medical school or training program
+- `residencies` - Residency programs with institution and years
+- `fellowships` - Fellowship programs (if applicable)
+- `gender` - Gender (male/female)
+- `language` - Comma-separated languages spoken
+- `insurance` - Insurance information (empty by default)
+- `internship` - Internship details (if applicable)
+- `badge` - Badge information (empty by default)
+- `profile_pic` - Profile picture URL (empty by default)
+- `is_active` - Active status (always "1")
+- `created_on` - Creation timestamp (default format)
+
+### Behavior
+
+**Automatic Directory Creation**: If the output directory doesn't exist, it will be created automatically.
+
+**Idempotent**: Safe to run multiple times - generates new data each run (uses random seed for variety).
+
+**Distribution**: Maintains fixed percentages (60/10/15/15) with rounding handled automatically.
+
+### Prerequisites
+
+1. Python 3.7+ with standard library (no external dependencies)
+2. Output directory must be writable (or will be created if missing)
+
+### Example: Generate Windriver Hospital Data
+
+```bash
+python backend/scripts/generate_windriver_data.py \
+    --count 500 \
+    --output backend/data/windriver/windriver_doctors_profiles.csv
+```
+
+Result: 500 entries (300 physicians, 50 advanced practice, 75 therapists, 75 other) saved to CSV file.
+
+### Example: Generate Test Data for New Hospital
+
+```bash
+# Create data for a smaller hospital
+python backend/scripts/generate_windriver_data.py \
+    --count 150 \
+    --output backend/data/smallhospital/staff_profiles.csv \
+    --start-id 9500000
+```
+
+Result: 150 entries (90 physicians, 15 advanced practice, 22 therapists, 23 other) with IDs starting at 9500000.
+
+### Integration with seed_directory.py
+
+After generating the CSV, load it into the database:
+
+```bash
+# Step 1: Generate CSV
+python backend/scripts/generate_windriver_data.py \
+    --count 500 \
+    --output backend/data/windriver/windriver_doctors_profiles.csv
+
+# Step 2: Load into database
+python backend/scripts/seed_directory.py \
+    --account windriver \
+    --list doctors \
+    --entry-type medical_professional \
+    --csv backend/data/windriver/windriver_doctors_profiles.csv \
+    --mapper medical_professional \
+    --description "Windriver Hospital - Medical Professionals"
+```
+

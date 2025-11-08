@@ -51,8 +51,8 @@ class LLMRequest(Base):
     
     __tablename__ = "llm_requests"
     
-    # Primary key - GUID
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Primary key - UUID v7 (time-ordered)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     
     # Foreign key to sessions table
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"), nullable=False, index=True)

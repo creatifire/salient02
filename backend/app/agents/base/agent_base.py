@@ -100,7 +100,7 @@ class BaseAgent:
         self.agent = Agent(
             model_name,
             deps_type=deps_type,
-            result_type=AgentResponse,
+            output_type=AgentResponse,
             system_prompt=prompt,
         )
         

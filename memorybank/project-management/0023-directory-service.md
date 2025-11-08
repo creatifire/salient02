@@ -2564,3 +2564,474 @@ session_deps.db_session = db_session  # From async context manager
 - ✅ Multi-tenant isolation verified at session/agent/account levels
 
 **STATUS**: Complete ✅
+
+---
+
+## 0023-009 - FEATURE - Phone Directory for Hospital Departments
+
+**Use Case**: Wyckoff Hospital - Track department phone numbers (appointments, ER, billing, information desk, etc.)
+
+**Business Value**:
+- Reduce call misdirection (users get correct number first time)
+- 24/7 automated phone number lookups via chatbot
+- Reduce load on main switchboard
+- Better patient/visitor experience
+
+**Technical Approach**:
+- Reuses existing directory infrastructure (JSONB, GIN indexes, FTS)
+- Schema-driven design (no core service changes required)
+- Automatic prompt generation via `prompt_generator.py`
+- Multi-tenant isolation (per-account phone directories)
+
+**Status**: 📝 Proposed (not started)
+
+---
+
+### 0023-009-001 - TASK - Schema and Mapper Development
+
+**Objective**: Create schema definition and CSV-to-database mapper for phone directory entries
+
+#### 0023-009-001-001 - CHUNK - Create phone_directory.yaml schema
+
+```yaml
+entry_type: phone_directory
+schema_version: "1.0"
+description: "Schema for hospital department phone numbers and contact information"
+
+required_fields:
+  - department_name
+  - phone_number
+  - service_type
+
+optional_fields:
+  - hours_of_operation
+  - building_location
+  - fax_number
+  - email
+  - description
+  - alternate_phone
+
+fields:
+  department_name:
+    type: string
+    description: "Name of the department or service"
+    examples:
+      - "Emergency Department"
+      - "Appointments"
+      - "Billing"
+  
+  service_type:
+    type: string
+    description: "Type of service or category"
+    examples:
+      - "Emergency Services"
+      - "Patient Services"
+      - "Administrative"
+      - "Clinical Departments"
+  
+  phone_number:
+    type: string
+    description: "Primary contact phone number"
+    examples:
+      - "718-963-7272"
+      - "718-963-1234 x5678"
+  
+  hours_of_operation:
+    type: string
+    description: "When the service is available"
+    examples:
+      - "24/7"
+      - "Mon-Fri 8am-8pm"
+
+tags_usage:
+  description: "Service categories for filtering"
+  source_column: "service_type"
+
+contact_info_fields:
+  phone:
+    description: "Primary contact phone number"
+  fax:
+    description: "Fax number"
+  email:
+    description: "Email address"
+  location:
+    description: "Building and floor location"
+
+searchable_fields:
+  department_name:
+    type: string
+    description: "Department name (searchable)"
+  
+  service_type:
+    type: string
+    description: "Category of service"
+  
+  hours_of_operation:
+    type: string
+    description: "When the service is available"
+
+search_strategy:
+  guidance: |
+    **When users ask about contacting departments:**
+    1. Search by department name if specific
+    2. Search by service_type for general queries
+    3. Always include hours_of_operation in response
+  
+  synonym_mappings:
+    - lay_terms: ["ER", "emergency room", "emergency"]
+      department_names: ["Emergency Department"]
+    - lay_terms: ["appointments", "schedule", "booking"]
+      department_names: ["Appointments"]
+    - lay_terms: ["billing", "bill", "payment", "insurance"]
+      department_names: ["Billing Department"]
+  
+  examples:
+    - user_query: "What's the emergency room number?"
+      tool_calls:
+        - 'search_directory(list_name="phone_directory", filters={"department_name": "Emergency Department"})'
+    - user_query: "How do I schedule an appointment?"
+      tool_calls:
+        - 'search_directory(list_name="phone_directory", filters={"department_name": "Appointments"})'
+```
+
+**MANUAL-TESTS**:
+1. Validate YAML syntax: `python -c "import yaml; yaml.safe_load(open('backend/config/directory_schemas/phone_directory.yaml'))"`
+2. Review schema structure matches `medical_professional.yaml` pattern
+3. Verify all required fields defined: `department_name`, `phone_number`, `service_type`
+4. Verify search_strategy includes synonym mappings for common queries
+
+**AUTOMATED-TESTS**: Schema validation script (test_schema_validation.py)
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-001-002 - CHUNK - Implement phone_directory_mapper() function
+
+```python
+@staticmethod
+def phone_directory_mapper(row: Dict) -> Dict:
+    """Map phone directory CSV to DirectoryEntry fields."""
+    service_type = row.get('service_type', '').strip()
+    tags = [service_type] if service_type else []
+    
+    contact_info = {}
+    if row.get('phone_number', '').strip():
+        contact_info['phone'] = row['phone_number'].strip()
+    if row.get('fax_number', '').strip():
+        contact_info['fax'] = row['fax_number'].strip()
+    if row.get('email', '').strip():
+        contact_info['email'] = row['email'].strip()
+    if row.get('building_location', '').strip():
+        contact_info['location'] = row['building_location'].strip()
+    
+    entry_data = {}
+    if service_type:
+        entry_data['service_type'] = service_type
+    
+    optional_fields = ['hours_of_operation', 'description', 'alternate_phone', 'extension']
+    for field in optional_fields:
+        value = row.get(field, '').strip()
+        if value:
+            entry_data[field] = value
+    
+    return {
+        'name': row.get('department_name', '').strip(),
+        'tags': tags,
+        'contact_info': contact_info,
+        'entry_data': entry_data
+    }
+```
+
+**MANUAL-TESTS**:
+1. Test mapper with sample row:
+```python
+row = {
+    'department_name': 'Emergency Department',
+    'phone_number': '718-963-7272',
+    'service_type': 'Emergency Services',
+    'hours_of_operation': '24/7'
+}
+result = DirectoryImporter.phone_directory_mapper(row)
+assert result['name'] == 'Emergency Department'
+assert 'Emergency Services' in result['tags']
+assert result['contact_info']['phone'] == '718-963-7272'
+```
+2. Verify JSONB structure matches schema requirements
+3. Verify required fields are extracted correctly
+
+**AUTOMATED-TESTS**: Unit test in `test_directory_importer.py`
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-001-003 - CHUNK - Update mapper registry
+
+**Location**: `backend/scripts/seed_directory.py`
+
+**Change**:
+```python
+MAPPERS = {
+    'medical_professional': DirectoryImporter.medical_professional_mapper,
+    'pharmaceutical': DirectoryImporter.pharmaceutical_mapper,
+    'product': DirectoryImporter.product_mapper,
+    'phone_directory': DirectoryImporter.phone_directory_mapper,  # ← ADD
+}
+```
+
+**MANUAL-TESTS**:
+1. Verify mapper key matches schema `entry_type`: "phone_directory"
+2. Run `python backend/scripts/seed_directory.py --help` to verify new mapper in choices
+3. Test dry-run: `python backend/scripts/seed_directory.py --mapper phone_directory --csv /dev/null --account test --list test` (should fail gracefully)
+
+**AUTOMATED-TESTS**: None (simple registry update)
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-009-002 - TASK - Data Preparation and Seeding
+
+**Objective**: Create CSV data file and seed phone directory into database
+
+#### 0023-009-002-001 - CHUNK - Create wyckoff_phone_directory.csv
+
+**Location**: `backend/data/wyckoff_phone_directory.csv`
+
+**CSV Structure**:
+```csv
+department_name,phone_number,service_type,hours_of_operation,building_location,description,fax_number,email
+Emergency Department,718-963-7272,Emergency Services,24/7,Main Building - Ground Floor,Emergency care and trauma services,718-963-7273,
+Main Information,718-963-7000,Administrative,Mon-Fri 8am-8pm,Main Lobby,General hospital information,718-963-7001,info@wyckoffhospital.org
+Appointments,718-963-1234,Patient Services,Mon-Fri 7am-7pm,Building A - 2nd Floor,Schedule appointments with specialists,718-963-1235,appointments@wyckoffhospital.org
+Billing Department,718-963-5555,Administrative,Mon-Fri 9am-5pm,Building B - 1st Floor,Patient billing inquiries,718-963-5556,billing@wyckoffhospital.org
+Cardiology,718-963-2000,Clinical Departments,Mon-Fri 8am-6pm,Building A - 3rd Floor,Cardiology department direct line,718-963-2001,cardiology@wyckoffhospital.org
+Laboratory,718-963-3000,Clinical Departments,Mon-Sat 7am-7pm,Main Building - Basement,Lab results and test scheduling,718-963-3001,lab@wyckoffhospital.org
+Radiology,718-963-3100,Clinical Departments,Mon-Fri 7am-9pm,Building C,Imaging and radiology services,718-963-3101,radiology@wyckoffhospital.org
+Patient Relations,718-963-6000,Patient Services,Mon-Fri 9am-5pm,Main Building - 1st Floor,Patient feedback and concerns,718-963-6001,patientrelations@wyckoffhospital.org
+Pharmacy,718-963-4000,Clinical Departments,Mon-Sun 7am-11pm,Main Building - 1st Floor,Prescription refills and inquiries,718-963-4001,pharmacy@wyckoffhospital.org
+Surgery Scheduling,718-963-8000,Patient Services,Mon-Fri 8am-6pm,Building A - 4th Floor,Schedule surgical procedures,718-963-8001,surgerysched@wyckoffhospital.org
+```
+
+**MANUAL-TESTS**:
+1. Verify CSV has header row matching mapper expectations
+2. Verify all rows have required fields: `department_name`, `phone_number`, `service_type`
+3. Verify 10 department entries created
+4. Check for CSV formatting issues (quotes, commas in fields)
+
+**AUTOMATED-TESTS**: CSV validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-002-002 - CHUNK - Run seeding script
+
+```bash
+python backend/scripts/seed_directory.py \
+  --csv backend/data/wyckoff_phone_directory.csv \
+  --mapper phone_directory \
+  --list-name "phone_directory" \
+  --account wyckoff \
+  --schema backend/config/directory_schemas/phone_directory.yaml
+```
+
+**MANUAL-TESTS**:
+1. Verify seeding script completes without errors
+2. Check database for DirectoryList: `SELECT * FROM directory_lists WHERE list_name='phone_directory' AND account_id=(SELECT id FROM accounts WHERE slug='wyckoff')`
+3. Check entries count: `SELECT COUNT(*) FROM directory_entries WHERE directory_list_id IN (SELECT id FROM directory_lists WHERE list_name='phone_directory')` (should be 10)
+4. Sample entry query: `SELECT name, entry_data->>'service_type', tags, contact_info FROM directory_entries LIMIT 3`
+5. Verify tags populated correctly (service_type values)
+
+**AUTOMATED-TESTS**: Database verification script
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-002-003 - CHUNK - Verify data integrity
+
+**Verification queries**:
+
+```sql
+-- Check DirectoryList created
+SELECT id, list_name, entry_type, account_id FROM directory_lists 
+WHERE list_name='phone_directory' AND account_id=(SELECT id FROM accounts WHERE slug='wyckoff');
+
+-- Check all 10 entries loaded
+SELECT COUNT(*) FROM directory_entries 
+WHERE directory_list_id IN (SELECT id FROM directory_lists WHERE list_name='phone_directory');
+
+-- Sample entries with all fields
+SELECT 
+  name, 
+  entry_data->>'service_type' as service_type,
+  entry_data->>'hours_of_operation' as hours,
+  contact_info->>'phone' as phone,
+  contact_info->>'location' as location,
+  tags
+FROM directory_entries 
+WHERE directory_list_id IN (SELECT id FROM directory_lists WHERE list_name='phone_directory')
+LIMIT 5;
+
+-- Verify Emergency Department specifically
+SELECT * FROM directory_entries 
+WHERE name='Emergency Department' 
+  AND directory_list_id IN (SELECT id FROM directory_lists WHERE list_name='phone_directory');
+```
+
+**MANUAL-TESTS**:
+1. Run each verification query
+2. Verify Emergency Department has phone: 718-963-7272, hours: 24/7
+3. Verify all service_type tags populated: "Emergency Services", "Administrative", "Patient Services", "Clinical Departments"
+4. Verify contact_info contains phone, location, email, fax where provided
+
+**AUTOMATED-TESTS**: Data integrity test script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-009-003 - TASK - Agent Configuration and Testing
+
+**Objective**: Configure Wyckoff agent to access phone directory and verify end-to-end functionality
+
+#### 0023-009-003-001 - CHUNK - Update Wyckoff agent config
+
+**Location**: `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml`
+
+**Change** (add to `tools.directory.accessible_lists`):
+```yaml
+tools:
+  directory:
+    enabled: true
+    accessible_lists:
+      - "doctors"           # Existing
+      - "phone_directory"   # ← ADD THIS
+```
+
+**MANUAL-TESTS**:
+1. Verify YAML syntax valid after edit
+2. Restart backend to load new config
+3. Check logs for config loading: `grep "directory" backend_logs.txt`
+
+**AUTOMATED-TESTS**: Config validation test
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-003-002 - CHUNK - Verify prompt generation
+
+**Objective**: Confirm `prompt_generator.py` auto-generates phone directory documentation
+
+**Test**:
+```python
+# Test script: backend/tests/manual/test_phone_directory_prompt.py
+from app.agents.tools.prompt_generator import generate_directory_tool_docs
+from app.database import get_database_service
+
+async def test_prompt_generation():
+    db_service = get_database_service()
+    async with db_service.get_session() as session:
+        # Load wyckoff agent config
+        agent_config = load_config("wyckoff/wyckoff_info_chat1")
+        wyckoff_account_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
+        
+        # Generate docs
+        docs = await generate_directory_tool_docs(agent_config, wyckoff_account_id, session)
+        
+        # Verify
+        assert "phone_directory" in docs.lower()
+        assert "emergency" in docs.lower()
+        assert "appointments" in docs.lower()
+        print(docs)  # Review generated prompt
+```
+
+**MANUAL-TESTS**:
+1. Run test script above
+2. Review generated prompt includes phone directory guidance
+3. Verify search strategy synonym mappings included
+4. Verify entry count displayed (10 departments)
+
+**AUTOMATED-TESTS**: Prompt generation integration test
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-003-003 - CHUNK - Manual E2E testing with 6 test queries
+
+**Test Queries**:
+
+| # | Query | Expected Tool Call | Expected Response Elements |
+|---|-------|-------------------|---------------------------|
+| 1 | "What's the emergency room number?" | `search_directory(list_name="phone_directory", filters={"department_name": "Emergency Department"})` | Phone: 718-963-7272, Hours: 24/7, Location: Main Building |
+| 2 | "How do I schedule an appointment?" | `search_directory(list_name="phone_directory", filters={"department_name": "Appointments"})` | Phone: 718-963-1234, Hours: Mon-Fri 7am-7pm |
+| 3 | "Who can I call about my bill?" | `search_directory(list_name="phone_directory", name_query="Billing")` | Phone: 718-963-5555, Hours: Mon-Fri 9am-5pm |
+| 4 | "What's the lab phone number?" | `search_directory(list_name="phone_directory", filters={"department_name": "Laboratory"})` | Phone: 718-963-3000, Hours: Mon-Sat 7am-7pm |
+| 5 | "How do I reach cardiology?" | `search_directory(list_name="phone_directory", filters={"department_name": "Cardiology"})` | Phone: 718-963-2000, Hours: Mon-Fri 8am-6pm |
+| 6 | "Main hospital number?" | `search_directory(list_name="phone_directory", filters={"department_name": "Main Information"})` | Phone: 718-963-7000, Hours: Mon-Fri 8am-8pm |
+
+**MANUAL-TESTS**:
+1. Chat with Wyckoff agent (http://localhost:8000/a/wyckoff/ai/wyckoff_info_chat1/chat)
+2. Test each query above
+3. Verify agent uses `search_directory` tool
+4. Verify phone number, hours, and location included in response
+5. Check Logfire for tool calls and responses
+
+**AUTOMATED-TESTS**: E2E test script with assertions
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-009-003-004 - CHUNK - Multi-tenant isolation verification
+
+**Objective**: Verify other accounts cannot access Wyckoff phone directory
+
+**Test**:
+```python
+# Test that default_account agent cannot access wyckoff phone_directory
+# Expected: Empty results or error
+
+agent_config = {"tools": {"directory": {"accessible_lists": ["phone_directory"]}}}
+default_account_id = UUID("b401b3bb-c006-463a-98d3-b06527bb47c9")
+
+# Try to search wyckoff phone directory from default_account
+result = await DirectoryService.search(
+    session,
+    accessible_list_ids=[wyckoff_phone_directory_list_id],  # Wrong account!
+    name_query="Emergency"
+)
+assert len(result) == 0  # Should be empty due to multi-tenant filtering
+```
+
+**MANUAL-TESTS**:
+1. Create test directory list for default_account (different from wyckoff)
+2. Attempt to search wyckoff phone_directory from default_account agent
+3. Verify no results returned (multi-tenant isolation working)
+
+**AUTOMATED-TESTS**: Multi-tenant isolation test
+
+**STATUS**: 📝 Not started
+
+---
+
+## Future Extensibility
+
+**Additional Directory Types** (using same pattern):
+- **Services Directory**: Clinical services, procedures, treatments offered
+- **Facilities Directory**: Buildings, rooms, parking, amenities
+- **Equipment Directory**: Medical equipment available, rental options
+- **FAQ Directory**: Common questions and answers
+- **Forms Directory**: Patient forms, insurance forms, documents
+
+**Implementation Pattern**: Schema → Mapper → CSV → Seed → Config → Auto-prompt ✅
+
+**Benefits**:
+- Data-driven architecture (no core service changes)
+- Multi-tenant isolation (per-account directories)
+- Automatic prompt generation (no manual updates)
+- Reusable infrastructure (JSONB, GIN indexes, FTS)

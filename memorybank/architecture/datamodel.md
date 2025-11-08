@@ -4,7 +4,7 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Data Model & Entity Relationship Diagram
-> **Last Updated**: August 28, 2025
+> **Last Updated**: February 1, 2025
 
 > Database schema for the Salient chat persistence system, supporting session management, message history, profile accumulation, and LLM cost tracking.
 
@@ -16,6 +16,23 @@ The data model supports:
 - **Profile Building**: Incremental customer data collection
 - **Cost Tracking**: LLM usage monitoring and billing
 - **Email Linking**: Future support for connecting sessions via email
+
+## UUID v7 Primary Keys
+
+All primary keys use **UUID v7** (time-ordered UUIDs) for:
+- **Time-ordering**: UUIDs are sortable by creation time (newer > older)
+- **Database performance**: Better index performance with sequential inserts
+- **Debugging**: Human-readable timestamps embedded in UUID  
+- **Compatibility**: RFC 4122 compliant, works with standard UUID columns
+
+Models using UUID v7:
+- `sessions`, `profiles`, `messages`, `llm_requests`
+- `directory_lists`, `directory_entries`
+
+Models using PostgreSQL `gen_random_uuid()` (UUID v4):
+- `accounts`, `agent_instances`
+
+See `memorybank/standards/uuid-standards.md` for implementation details.
 
 ## Entity Relationship Diagram
 

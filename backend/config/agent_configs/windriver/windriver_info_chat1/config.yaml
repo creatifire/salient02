@@ -1,19 +1,19 @@
-# Wyckoff Hospital Info Chat - Healthcare Information Assistant
-# Demo agent for Wyckoff Hospital website
+# Windriver Hospital Info Chat - Healthcare Information Assistant
+# Demo agent for Windriver Hospital website
 # Focus: Medical services, doctor search, healthcare information
 
 agent_type: "simple_chat"
-account: "wyckoff"
-instance_name: "wyckoff_info_chat1"
-name: "Wyckoff Hospital Assistant"
-description: "Healthcare information and doctor search assistant for Wyckoff Hospital"
+account: "windriver"
+instance_name: "windriver_info_chat1"
+name: "Wind River Hospital"
+description: "Healthcare information and doctor search assistant for Windriver Hospital"
 
 # System prompt configuration
 prompts:
   system_prompt_file: "./system_prompt.md"
 
 model_settings:
-  model: "google/gemini-2.5-flash"  # Fast, reliable OpenAI model with excellent tool support
+  model: "openai/gpt-4o-mini"  # Fast, reliable OpenAI model with excellent tool support
   temperature: 0.3
   max_tokens: 2000
 
@@ -23,9 +23,9 @@ tools:
     max_results: 10
     similarity_threshold: 0.4  # Lower threshold for better recall on medical content
     pinecone:
-      index_name: "wyckoff-poc-01"  # Wyckoff WordPress site content
+      index_name: "wyckoff-poc-01"  # Windriver WordPress site content (update with actual index name)
       # index_host will be auto-discovered via Pinecone API if not specified
-      # index_host: "https://wyckoff-poc-01-xyz.svc.region.pinecone.io"  # Optional: explicit host
+      # index_host: "https://windriver-poc-01-xyz.svc.region.pinecone.io"  # Optional: explicit host
       namespace: "__default__"  # Pinecone default namespace
       api_key_env: "PINECONE_API_KEY_OPENTHOUGHT"  # openthought-dev project API key
     embedding:
@@ -33,7 +33,7 @@ tools:
       dimensions: 1536
   
   directory:
-    enabled: true  # ENABLED - Wyckoff doctor profiles from directory_lists
+    enabled: true  # ENABLED - Windriver doctor profiles from directory_lists
     accessible_lists: ["doctors"]  # Lists this agent can search
     max_results: 10  # Maximum entries to return per search
     search_mode: "fts"  # Search mode: exact | substring | fts (full-text search with ranking)

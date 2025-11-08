@@ -32,6 +32,8 @@ from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
+from .chat_helpers import build_request_messages, build_response_body, extract_session_account_info, save_message_pair
+from .cost_calculator import calculate_streaming_costs, track_chat_request
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -368,25 +370,8 @@ async def simple_chat(
     # CRITICAL: Ensure account_id is a Python primitive (not SQLAlchemy expression)
     # This prevents Logfire serialization errors when Pydantic AI instruments tool calls
     if account_id is not None:
-        # Safely convert to Python UUID primitive
-        try:
-            if isinstance(account_id, UUID):
-                # Already a Python UUID - safe to use
-                session_deps.account_id = account_id
-            else:
-                # Convert to UUID - this will fail if account_id is a SQLAlchemy expression
-                session_deps.account_id = UUID(str(account_id))
-        except (TypeError, ValueError) as e:
-            # If conversion fails, account_id might be a SQLAlchemy expression
-            # Log warning and use None to prevent Logfire serialization errors
-            logfire.warn(
-                'agent.session_deps.account_id_conversion_failed',
-                session_id=session_id,
-                error_type=type(e).__name__,
-                error_message=str(e),
-                account_id_type=type(account_id).__name__ if account_id is not None else None
-            )
-            session_deps.account_id = None
+        # Convert to Python UUID (simplified)
+        session_deps.account_id = UUID(str(account_id)) if account_id and not isinstance(account_id, UUID) else account_id
     else:
         session_deps.account_id = None
     
@@ -529,64 +514,28 @@ async def simple_chat(
                         tracking_model=tracking_model
                     )
             
-                # Build full request body with actual messages sent to LLM
-                request_messages = []
-                # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
-                if message_history:
-                    for msg in message_history:
-                        # Determine role and extract content from Pydantic AI message objects
-                        if isinstance(msg, ModelRequest):
-                            role = "user"
-                            content = msg.parts[0].content if msg.parts else ""
-                        elif isinstance(msg, ModelResponse):
-                            role = "assistant"
-                            content = msg.parts[0].content if msg.parts else ""
-                        else:
-                            continue
-                    
-                        request_messages.append({
-                            "role": role,
-                            "content": content
-                        })
-                # Add current user message
-                request_messages.append({
-                    "role": "user",
-                    "content": message
-                })
+                # Build full request body with actual messages sent to LLM (using helper)
+                request_messages = build_request_messages(message_history or [], message)
             
-                # Build full response body with actual LLM response
-                response_body_full = {
-                    "content": response_text,
-                    "usage": {
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "total_tokens": total_tokens
-                    },
-                    "model": requested_model
-                }
+                # Build full response body with actual LLM response (using helper)
+                response_body_full = build_response_body(
+                    response_text=response_text,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    requested_model=requested_model,
+                    result=result
+                )
             
-                # Add provider details if available
-                new_messages = result.new_messages()
-                if new_messages:
-                    latest_message = new_messages[-1]
-                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                        response_body_full["provider_details"] = latest_message.provider_details
-            
-                # Load session to extract denormalized fields for cost attribution
-                # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
-                from ..database import get_database_service
-                from ..services.session_extractor import get_session_account_fields
+                # Load session to extract denormalized fields for cost attribution (using helper)
+                account_id, account_slug = await extract_session_account_info(UUID(session_id))
                 
-                db_service = get_database_service()
-                async with db_service.get_session() as db_session:
-                    account_id, account_slug = await get_session_account_fields(
-                        db_session, UUID(session_id)
-                    )
-                    
-                    # Validate session exists (account_id/account_slug will be None if session not found)
-                    if account_id is None and account_slug is None:
-                        # Check if session exists at all
-                        from ..models.session import Session
+                # Validate session exists (account_id/account_slug will be None if session not found)
+                if account_id is None and account_slug is None:
+                    from ..database import get_database_service
+                    from ..models.session import Session
+                    db_service = get_database_service()
+                    async with db_service.get_session() as db_session:
                         session_record = await db_session.get(Session, UUID(session_id))
                         if not session_record:
                             logfire.error(
@@ -611,46 +560,16 @@ async def simple_chat(
             
                 # Diagnostic logging: Log values BEFORE calling track_llm_request to identify SQLAlchemy expressions
                 # Safe logging: Wrap ALL operations in try/except to avoid triggering SQLAlchemy expression evaluation
-                def safe_type_name(value):
-                    """Safely get type name, handling SQLAlchemy expressions"""
-                    if value is None:
-                        return 'None'
-                    try:
-                        return type(value).__name__
-                    except Exception as e:
-                        return f"<type check failed: {str(e)}>"
-                
-                def safe_repr(value):
-                    """Safely get repr() of value, handling SQLAlchemy expressions"""
-                    if value is None:
-                        return None
-                    try:
-                        return repr(value)
-                    except Exception as e:
-                        return f"<repr failed: {str(e)}>"
-                
-                # Wrap entire logging call in try/except in case logging itself triggers the error
-                try:
-                    logfire.debug(
-                        'agent.cost_tracking.before_track_call',
-                        session_id=session_id,
-                        agent_instance_id_type=safe_type_name(agent_instance_id),
-                        agent_instance_id_repr=safe_repr(agent_instance_id),
-                        account_id_type=safe_type_name(account_id),
-                        account_id_repr=safe_repr(account_id),
-                        account_slug_type=safe_type_name(account_slug),
-                        account_slug_repr=safe_repr(account_slug),
-                        agent_instance_slug=agent_instance_slug,
-                        agent_type=agent_type
-                    )
-                except Exception as log_error:
-                    # If logging itself fails, log that fact
-                    logfire.warn(
-                        'agent.cost_tracking.before_track_call_failed',
-                        session_id=session_id,
-                        logging_error=str(log_error),
-                        logging_error_type=type(log_error).__name__
-                    )
+                # Debug logging for cost tracking (simplified - removed defensive wrappers)
+                logfire.debug(
+                    'agent.cost_tracking.before_track_call',
+                    session_id=session_id,
+                    agent_instance_id=str(agent_instance_id) if agent_instance_id else None,
+                    account_id=str(account_id) if account_id else None,
+                    account_slug=account_slug,
+                    agent_instance_slug=agent_instance_slug,
+                    agent_type=agent_type
+                )
             
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
@@ -720,37 +639,18 @@ async def simple_chat(
                 
         except Exception as e:
             # Log tracking errors but don't break the response
-            # Use safe Logfire wrapper to handle any SQLAlchemy expressions defensively
+            # Log cost tracking failure (simplified - removed defensive wrappers)
             import traceback
-            from ..utils.logfire_safe import safe_logfire_error
-            
-            # Safe string conversions - handle SQLAlchemy expressions gracefully
-            try:
-                agent_instance_id_str = str(agent_instance_id) if agent_instance_id is not None else None
-            except Exception:
-                agent_instance_id_str = None
-            
-            try:
-                session_id_str = str(session_id) if session_id else None
-            except Exception:
-                session_id_str = None
-            
-            try:
-                requested_model_str = str(requested_model) if 'requested_model' in locals() else 'unknown'
-            except Exception:
-                requested_model_str = 'unknown'
-            
-            # Use safe wrapper to prevent SQLAlchemy expression serialization errors
-            safe_logfire_error(
+            logfire.error(
                 'cost_tracking_failed',
                 error_type=type(e).__name__,
                 error_message=str(e),
                 traceback_details=traceback.format_exc(),
-                requested_model=requested_model_str,
+                requested_model=str(requested_model) if 'requested_model' in locals() else 'unknown',
                 result_type=type(result).__name__ if 'result' in locals() else 'not_available',
                 has_usage=hasattr(result, 'usage') if 'result' in locals() else False,
-                session_id=session_id_str,
-                agent_instance_id=agent_instance_id_str
+                session_id=str(session_id) if session_id else None,
+                agent_instance_id=str(agent_instance_id) if agent_instance_id else None
             )
             llm_request_id = None
             prompt_cost = 0.0
@@ -1095,67 +995,29 @@ async def simple_chat_stream(
                         session_id=session_id
                     )
                 
-                # Build full request body with actual messages sent to LLM
-                request_messages = []
-                # Add history messages (Pydantic AI ModelRequest/ModelResponse objects)
-                if message_history:
-                    for msg in message_history:
-                        # Determine role and extract content from Pydantic AI message objects
-                        if isinstance(msg, ModelRequest):
-                            role = "user"
-                            content = msg.parts[0].content if msg.parts else ""
-                        elif isinstance(msg, ModelResponse):
-                            role = "assistant"
-                            content = msg.parts[0].content if msg.parts else ""
-                        else:
-                            continue
-                        
-                        request_messages.append({
-                            "role": role,
-                            "content": content
-                        })
-                # Add current user message
-                request_messages.append({
-                    "role": "user",
-                    "content": message
-                })
+                # Build full request body with actual messages sent to LLM (using helper)
+                request_messages = build_request_messages(message_history or [], message)
                 
-                # Build full response body with actual LLM response
-                response_body_full = {
-                    "content": response_text,
-                    "usage": {
-                        "prompt_tokens": prompt_tokens,
-                        "completion_tokens": completion_tokens,
-                        "total_tokens": total_tokens
-                    },
-                    "model": requested_model,
-                    "streaming": {
-                        "chunks_sent": len(chunks)
-                    }
-                }
+                # Build full response body with actual LLM response (using helper)
+                response_body_full = build_response_body(
+                    response_text=response_text,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    requested_model=requested_model,
+                    result=result,
+                    streaming_chunks=len(chunks)
+                )
                 
-                # Add provider details if available
-                new_messages = result.new_messages()
-                if new_messages:
-                    latest_message = new_messages[-1]
-                    if hasattr(latest_message, 'provider_details') and latest_message.provider_details:
-                        response_body_full["provider_details"] = latest_message.provider_details
+                # Load session to extract denormalized fields for cost attribution (using helper)
+                account_id, account_slug = await extract_session_account_info(UUID(session_id))
                 
-                # Load session to extract denormalized fields for cost attribution
-                # Use direct column query to guarantee Python primitives (not SQLAlchemy expressions)
-                from ..database import get_database_service
-                from ..services.session_extractor import get_session_account_fields
-                
-                db_service = get_database_service()
-                async with db_service.get_session() as db_session:
-                    account_id, account_slug = await get_session_account_fields(
-                        db_session, UUID(session_id)
-                    )
-                    
-                    # Validate session exists (account_id/account_slug will be None if session not found)
-                    if account_id is None and account_slug is None:
-                        # Check if session exists at all
-                        from ..models.session import Session
+                # Validate session exists (account_id/account_slug will be None if session not found)
+                if account_id is None and account_slug is None:
+                    from ..database import get_database_service
+                    from ..models.session import Session
+                    db_service = get_database_service()
+                    async with db_service.get_session() as db_session:
                         session_record = await db_session.get(Session, UUID(session_id))
                         if not session_record:
                             logfire.error(
@@ -1163,9 +1025,9 @@ async def simple_chat_stream(
                                 session_id=session_id
                             )
                             raise ValueError(f"Session not found: {session_id}")
-                    
-                    agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
-                    agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
+                
+                agent_instance_slug = instance_config.get("instance_name", "unknown") if instance_config else "simple_chat"
+                agent_type = instance_config.get("agent_type", "simple_chat") if instance_config else "simple_chat"
                 
                 # Log tracking attempt for debugging
                 # All values are now Python primitives (no SQLAlchemy expressions)

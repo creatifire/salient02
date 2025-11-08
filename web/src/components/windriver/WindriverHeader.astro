@@ -1,0 +1,14 @@
+---
+const current = Astro.url.pathname;
+const baseLinkCls = 'font-semibold opacity-80 hover:opacity-100 transition-colors';
+---
+<nav class="navbar-bg" style="padding:.5rem 1rem;">
+  <div style="max-width:960px;margin:0 auto;display:flex;gap:1rem;align-items:center;">
+    <a href="/windriver" class={`${baseLinkCls} ${current === '/windriver' || current === '/windriver/' ? 'opacity-100' : ''}`} aria-current={current === '/windriver' || current === '/windriver/' ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;font-weight:700;">Windriver Hospital</a>
+    <a href="/windriver/departments" class={`${baseLinkCls} ${current.startsWith('/windriver/departments') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/windriver/departments') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Departments</a>
+    <a href="/windriver/find-a-doctor" class={`${baseLinkCls} ${current.startsWith('/windriver/find-a-doctor') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/windriver/find-a-doctor') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Find a Doctor</a>
+    <a href="/windriver/services" class={`${baseLinkCls} ${current.startsWith('/windriver/services') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/windriver/services') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Services</a>
+    <a href="/windriver/contact" class={`${baseLinkCls} ${current.startsWith('/windriver/contact') ? 'opacity-100' : ''}`} aria-current={current.startsWith('/windriver/contact') ? 'page' : undefined} style="color:var(--color-secondary-foreground);text-decoration:none;">Contact</a>
+  </div>
+</nav>
+
