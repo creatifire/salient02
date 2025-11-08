@@ -2185,24 +2185,26 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ```
 backend/app/agents/tools/
-  prompt_generator.py
-    - load_base_prompt()                # Existing
-    - generate_directory_tool_docs()    # Existing (Phase 2: make domain-agnostic)
-    - generate_full_prompt()            # NEW (Phase 1: orchestrates all tools)
+  # Existing files (no changes to underlying implementations)
+  directory_tools.py            # Existing - search_directory() function
+  vector_tools.py               # Existing - vector_search() function
+  prompt_generator.py           # Existing
+    - load_base_prompt()        
+    - generate_directory_tool_docs()    # Update (Phase 1): make domain-agnostic
   
-  base_tool.py                  # NEW (Phase 1): AgentTool interface
-  tool_registry.py              # NEW (Phase 1): Tool registration
-  directory_tool.py             # NEW (Phase 1): Wraps EXISTING directory_tools.py
-  vector_tool.py                # NEW (Phase 3): Wraps EXISTING vector_tools.py
-  mcp_tool.py                   # NEW (Phase 5): MCP server wrapper
+  # NEW: Simple wrapper file using Pydantic AI native features
+  toolsets.py                   # NEW (Phase 2): ~20 lines
+    - directory_toolset = FunctionToolset(tools=[search_directory])
+    - vector_toolset = FunctionToolset(tools=[vector_search])
   
-  module_loader.py              # NEW (Phase 4): Account→System resolution
-  module_selector.py            # NEW (Phase 4): Keyword-based selection
+  # NEW: Module system for context-aware prompts
+  module_loader.py              # NEW (Phase 3): Account→System resolution (~150 lines)
+  module_selector.py            # NEW (Phase 3): Keyword-based selection (~100 lines)
 
 backend/config/
   app.yaml                      # Add prompting.recommended_module_size_tokens
   
-  prompt_modules/               # NEW (Phase 4): System-level modules
+  prompt_modules/               # NEW (Phase 3): System-level modules
     shared/
       hipaa_compliance.md
       tone_guidelines.md
@@ -2210,18 +2212,25 @@ backend/config/
       clinical_disclaimers.md
   
   directory_schemas/
-    medical_professional.yaml   # Update (Phase 2): Add directory_purpose
-    phone_directory.yaml        # NEW (Phase 2): Hospital departments
+    medical_professional.yaml   # Update (Phase 1): Add directory_purpose, rename to formal_terms
+    phone_directory.yaml        # NEW (Phase 1): Hospital departments
   
   agent_configs/{account}/
-    modules/                    # NEW (Phase 4): Account-specific modules
+    modules/                    # NEW (Phase 3): Account-specific modules
       medical/emergency_protocols.md
       administrative/billing_policies.md
     
     {instance}/
       system_prompt.md          # Existing
-      config.yaml               # Update (Phase 4): Add prompting section
+      config.yaml               # Update (Phase 3): Add prompting.modules section
 ```
+
+**Key Simplifications**:
+- ❌ NO base_tool.py, tool_registry.py (use Pydantic AI's native FunctionToolset)
+- ❌ NO custom DirectoryTool, VectorTool wrappers (FunctionToolset does this)
+- ❌ NO mcp_tool.py (use Pydantic AI's native MCPServerStdio)
+- ✅ ONE simple toolsets.py file (~20 lines) wraps existing tools
+- ✅ Underlying directory_tools.py and vector_tools.py unchanged
 
 ---
 
