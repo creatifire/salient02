@@ -67,5 +67,9 @@ web/backstop_data/json_report/
 web/backstop_data/engine_scripts/backstop/.DS_Store
 web/backstop_data/.DS_Store
 
+# Backup files
+*_bak.*
+*.bak
+
 # Misc
 Thumbs.db
