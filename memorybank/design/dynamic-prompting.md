@@ -905,62 +905,39 @@ prompting:
 
 **Core Principle**: Wrap existing tool functions using Pydantic AI's built-in `FunctionToolset` class.
 
-**Tool Interface** (abstract base):
+**Example: Wrapping Existing Tools**:
 
 ```python
-# backend/app/agents/tools/base_tool.py
+# backend/app/agents/tools/toolsets.py
 
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from pydantic_ai import FunctionToolset
+from .directory_tools import search_directory
+from .vector_tools import vector_search
 
-class AgentTool(ABC):
-    """Base interface for all agent tools (directory, vector, MCP, custom)."""
-    
-    @property
-    @abstractmethod
-    def tool_type(self) -> str:
-        """Unique identifier for tool type (e.g., 'directory', 'vector_search', 'mcp:github')."""
-        pass
-    
-    @abstractmethod
-    async def generate_documentation(
-        self,
-        agent_config: dict,
-        account_id: UUID,
-        db_session: AsyncSession,
-        user_query: Optional[str] = None
-    ) -> str:
-        """
-        Generate prompt documentation for this tool.
-        
-        Returns markdown-formatted documentation that teaches the LLM:
-        - When to use this tool
-        - How to use this tool
-        - Tool-specific guidance (e.g., synonym mappings, search strategies)
-        """
-        pass
-    
-    @abstractmethod
-    def is_enabled(self, agent_config: dict) -> bool:
-        """Check if this tool is enabled in agent config."""
-        pass
-    
-    @abstractmethod
-    def get_module_hints(self, user_query: str) -> list[str]:
-        """
-        Suggest modules relevant to this tool's usage.
-        
-        Example: Directory tool might suggest "directory/search_tips.md"
-        when query contains doctor/specialist keywords.
-        """
-        pass
+# Wrap existing directory search function
+directory_toolset = FunctionToolset(tools=[search_directory])
+
+# Wrap existing vector search function  
+vector_toolset = FunctionToolset(tools=[vector_search])
+
+# Use in agent:
+agent = Agent(
+    'openai:gpt-5',
+    toolsets=[directory_toolset, vector_toolset]  # That's it!
+)
 ```
+
+**Key Benefits**:
+- ✅ No custom abstractions needed
+- ✅ Wraps existing `directory_tools.py` and `vector_tools.py` unchanged
+- ✅ Pydantic AI automatically generates tool schemas from docstrings
+- ✅ Tool documentation comes from function docstrings (already written!)
 
 ---
 
-### Tool Implementations
+### MCP Integration (Native Support!)
 
-**1. Directory Tool** (existing functionality, refactored):
+**Pydantic AI has built-in MCP support**:
 
 ```python
 # backend/app/agents/tools/directory_tool.py
