@@ -852,16 +852,17 @@ prompting:
 ## Integration Points
 
 **Phase 1** (Tool Abstraction):
-- Create `base_tool.py`, `tool_registry.py`, `directory_tool.py`
+- Create `base_tool.py`, `tool_registry.py`
+- Create `directory_tool.py` - wraps EXISTING `directory_tools.py` (already implemented)
+- Create `vector_tool.py` - wraps EXISTING `vector_tools.py` (already implemented)
 - Add `generate_full_prompt()` to `prompt_generator.py`
-- Wrap existing `generate_directory_tool_docs()` (no changes to existing function)
 
 **Phase 2** (Schema Standardization):
 - Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas
 - Update `medical_professional.yaml`, create `phone_directory.yaml`
 
 **Phase 3** (Multi-Tool + Caching):
-- Create `vector_search_tool.py` (if vector search ready)
+- Update `generate_full_prompt()` to iterate all enabled tools (directory + vector)
 - Add prompt caching markers to `generate_full_prompt()`
 
 **Phase 4** (Modular Prompts):
@@ -998,10 +999,12 @@ class DirectoryTool(AgentTool):
 **2. Vector Search Tool** (future):
 
 ```python
-# backend/app/agents/tools/vector_search_tool.py
+# backend/app/agents/tools/vector_tool.py
+# Wraps EXISTING vector_tools.py (backend/app/agents/tools/vector_tools.py)
+# The actual vector_search() function already exists - this is just a wrapper for the tool registry
 
-class VectorSearchTool(AgentTool):
-    """Vector/semantic search tool implementation."""
+class VectorTool(AgentTool):
+    """Wrapper for existing vector_search() function in vector_tools.py."""
     
     @property
     def tool_type(self) -> str:
@@ -1009,22 +1012,9 @@ class VectorSearchTool(AgentTool):
     
     async def generate_documentation(self, agent_config, account_id, db_session, user_query=None):
         """Generate vector search tool documentation."""
-        docs = [
-            "## Vector Search Tool",
-            "",
-            "Use `search_knowledge_base()` for semantic/conceptual queries:",
-            "",
-            "**When to use**:",
-            "- Research questions requiring document retrieval",
-            "- Conceptual queries (e.g., 'What are best practices for...')",
-            "- When exact keyword matching isn't sufficient",
-            "",
-            "**Example queries**: 'What are treatment options for diabetes?', 'Explain cardiac catheterization procedure'",
-            "",
-            "**How it works**: Semantic search across hospital knowledge base (policies, procedures, clinical guidelines)",
-        ]
-        
-        return "\n".join(docs)
+        # Extract from existing vector_search() docstring in vector_tools.py
+        from backend.app.agents.tools.vector_tools import vector_search
+        return vector_search.__doc__ or "Vector search tool"
     
     def is_enabled(self, agent_config: dict) -> bool:
         return agent_config.get("tools", {}).get("vector_search", {}).get("enabled", False)
@@ -1156,9 +1146,9 @@ class ToolRegistry:
 # Global registry instance
 tool_registry = ToolRegistry()
 
-# Register built-in tools at startup
-tool_registry.register(DirectoryTool())
-tool_registry.register(VectorSearchTool())
+# Register built-in tools at startup (wrapping existing tools)
+tool_registry.register(DirectoryTool())  # Wraps directory_tools.py
+tool_registry.register(VectorTool())      # Wraps vector_tools.py
 ```
 
 ---
@@ -1541,8 +1531,8 @@ prompting:
 - Works through `DirectoryTool` wrapper
 
 **Phase 3: Multi-Tool Infrastructure**
-- Implement `VectorSearchTool` (if vector search ready)
-- Add tool selection guide generation
+- `VectorTool` wrapper (wraps EXISTING `vector_tools.py`)
+- Add tool selection guide generation (if multiple tools enabled)
 - Add prompt caching for cost/latency optimization
 - **Backward compatible**: Single-tool agents unchanged
 
@@ -1730,9 +1720,9 @@ prompting:
 
 **Part A: Multi-Tool Support**
 
-1. Implement `VectorSearchTool` (if vector search ready):
+1. Implement `VectorTool` wrapper (wraps EXISTING `vector_tools.py`):
    - `tool_type = "vector_search"`
-   - `generate_documentation()` creates vector search tool docs
+   - `generate_documentation()` extracts docs from existing `vector_search()` function
    - `get_module_hints()` suggests research-related modules
 
 2. Update `generate_full_prompt()`:
@@ -2151,7 +2141,7 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 - Update schemas: `medical_professional.yaml`, create `phone_directory.yaml`
 
 **Phase 3** (Multi-Tool + Caching):
-- `vector_search_tool.py`: VectorSearchTool implementation (~100 lines)
+- `vector_tool.py`: Wrapper for existing `vector_tools.py` (~50 lines)
 - Update `prompt_generator.py`: Multi-tool composition + caching markers (~100 lines)
 
 **Phase 4** (Modular Prompts):
@@ -2228,8 +2218,8 @@ backend/app/agents/tools/
   
   base_tool.py                  # NEW (Phase 1): AgentTool interface
   tool_registry.py              # NEW (Phase 1): Tool registration
-  directory_tool.py             # NEW (Phase 1): Wraps existing directory logic
-  vector_search_tool.py         # NEW (Phase 3): Vector search support
+  directory_tool.py             # NEW (Phase 1): Wraps EXISTING directory_tools.py
+  vector_tool.py                # NEW (Phase 3): Wraps EXISTING vector_tools.py
   mcp_tool.py                   # NEW (Phase 5): MCP server wrapper
   
   module_loader.py              # NEW (Phase 4): Account→System resolution
@@ -2278,9 +2268,9 @@ backend/config/
 - **Blocks**: Nothing (can run parallel with Phase 1)
 
 **Phase 3: Multi-Tool + Caching** (3-4 days)
-- **New files**: `vector_search_tool.py` (100 lines), caching logic (~50 lines)
-- **Modified files**: `prompt_generator.py` (+100 lines for multi-tool)
-- **Total new code**: ~250 lines
+- **New files**: `vector_tool.py` (50 lines - wrapper only)
+- **Modified files**: `prompt_generator.py` (+100 lines for multi-tool + caching)
+- **Total new code**: ~150 lines
 - **Backward compatible**: ✅ Yes (single-tool agents unchanged)
 - **Blocks**: Requires Phase 1 complete
 - **High ROI**: 70% cost reduction + 30% latency improvement
@@ -2435,8 +2425,8 @@ Unit tests for each new module (tool registry, module loader, module selector). 
                                   ↓
 ┌───────────────────────────────────────────────────────────────────────┐
 │ Tool Registry (NEW - Plugin Architecture)                            │
-│ • DirectoryTool: Wraps schema-driven directory search                │
-│ • VectorSearchTool: Semantic search over knowledge base              │
+│ • DirectoryTool: Wraps EXISTING directory_tools.py                   │
+│ • VectorTool: Wraps EXISTING vector_tools.py                         │
 │ • MCPTool: Dynamic wrapper for MCP servers (GitHub, Slack, etc.)    │
 │ • Custom tools: Extensible via AgentTool interface                   │
 └───────────────────────────────────────────────────────────────────────┘
