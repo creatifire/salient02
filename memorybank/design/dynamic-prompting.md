@@ -9,16 +9,17 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Problem**: Static system prompts can't adapt to query context (emergency vs. billing vs. directory search).
 
-**Solution**: 5-phase incremental enhancement of `simple_chat.py` to support tool-agnostic prompt composition, schema-driven directory selection, multi-tool support with caching, context modules, and MCP integration.
+**Solution**: 6-phase incremental enhancement of `simple_chat.py` to support tool-agnostic prompt composition, schema-driven directory selection, multi-tool support with caching, context modules, and MCP integration.
 
 **Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase.
 
 **Phases**:
 - Phase 1: Pydantic AI native toolsets → Foundation for multi-tool support
-- Phase 2: Schema standardization → Multi-directory support
-- Phase 3: Multi-tool + caching → 70% cost savings
-- Phase 4: Modular prompts → 40% quality improvement
-- Phase 5: MCP integration → External tool ecosystem (native support!)
+- Phase 2: Prerequisites (Feature 0023-009) → Phone directory implementation
+- Phase 3: Schema standardization → Multi-directory support
+- Phase 4: Multi-tool + caching → 70% cost savings
+- Phase 5: Modular prompts → 40% quality improvement
+- Phase 6: MCP integration → External tool ecosystem (native support!)
 
 **Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
@@ -47,16 +48,16 @@ Unauthorized copying of this file is strictly prohibited.
 - Use case: Doctor finder, knowledge base search
 - Config: `tools.directory.enabled: true` OR `tools.vector_search.enabled: true`
 
-**Level 3: Multi-Tool Agent (Phase 1-3)**
+**Level 3: Multi-Tool Agent (Phase 1-4)**
 - Base + MULTIPLE tools (directory + vector + MCP servers)
 - Use case: Comprehensive assistant with multiple data sources
 - Config: Multiple tools enabled + MCP servers configured
 - Examples:
-  - Directory + vector search (Wyckoff, Windriver)
+  - Directory + vector search (Wyckoff: 124 doctors, 10 phone directory entries; Windriver)
   - Directory + vector + GitHub/Slack MCP servers
   - Vector + weather MCP server
 
-**Level 4: Module-Enhanced (Phase 4)**
+**Level 4: Module-Enhanced (Phase 5)**
 - Level 3 + context modules (keyword-selected)
 - Use case: Hospital assistant with emergency/billing/HIPAA context
 - Config: `prompting.modules.enabled: true` + keyword mappings
@@ -88,13 +89,13 @@ tools:
 # Directory docs auto-generated
 ```
 
-**Level 3: Multi-Tool Agent** (Phase 1-3)
+**Level 3: Multi-Tool Agent** (Phase 1-4)
 ```yaml
-name: "Comprehensive Assistant"
+name: "Wyckoff Hospital Assistant"
 tools:
   directory:
     enabled: true
-    accessible_lists: ["doctors", "phone_directory"]
+    accessible_lists: ["doctors", "phone_directory"]  # Real multi-directory (Phase 2)
   
   vector_search:
     enabled: true
@@ -113,7 +114,7 @@ tools:
 # All tools work together, no prompting config needed yet
 ```
 
-**Level 4: Module-Enhanced** (Phase 4)
+**Level 4: Module-Enhanced** (Phase 5)
 ```yaml
 name: "Hospital Assistant"
 tools:
@@ -140,7 +141,7 @@ prompting:
 ### Backward Compatibility Requirements
 
 **Existing agent instances** (must continue working unchanged):
-- `wyckoff/wyckoff_info_chat1` - vector_search + directory
+- `wyckoff/wyckoff_info_chat1` - vector_search + directory (single: doctors → transitions to multi-directory after Phase 2)
 - `windriver/windriver_info_chat1` - vector_search + directory
 - `agrofresh/agro_info_chat1` - vector_search only
 - `prepexcellence/prepexcel_info_chat1` - vector_search only
@@ -364,7 +365,7 @@ All directory-specific knowledge lives in YAML schemas:
 - Works for any directory type (medical, phone, product, etc.)
 - **Automatic enhancement** - no extra config needed!
 
-**Phase 4: Modular Prompts** (OPTIONAL Enhancement - Opt-In)
+**Phase 5: Modular Prompts** (OPTIONAL Enhancement - Opt-In)
 
 Add context-specific prompt modules for complex agents.
 
@@ -378,7 +379,7 @@ Add context-specific prompt modules for complex agents.
 
 ## Implementation Details
 
-### Schema-Driven Prompt Generation (Foundation)
+### Schema-Driven Prompt Generation (Phase 3 - Foundation)
 
 **Core Principle**: `prompt_generator.py` must remain domain-agnostic. All domain-specific content lives in schema files.
 
@@ -388,6 +389,8 @@ Add context-specific prompt modules for complex agents.
 - Result: Works for medical directories, breaks for phone directories, product catalogs, etc.
 
 **Solution**: Schema defines its own presentation metadata using standardized conventions.
+
+**Implementation Order**: This convention must be established BEFORE creating `phone_directory.yaml` (Phase 2 prerequisite).
 
 ---
 
@@ -508,23 +511,25 @@ This makes the system truly extensible for any domain.
 
 ---
 
-### Multi-Directory Selection (Schema-Driven)
+### Multi-Directory Selection (Phase 3 - Schema-Driven)
+
+⚠️ **Requires Phase 2 completion** (Feature 0023-009: phone directory schema + data) for real-world validation.
 
 **Problem**: When an agent has access to multiple directories, how does the LLM know which directory to search?
 
-**Example scenario**:
+**Real-World Scenario** (Wyckoff after Phase 2):
 ```yaml
 # Wyckoff agent config.yaml
 tools:
   directory:
     accessible_lists:
-      - "doctors"          # Medical professionals
-      - "phone_directory"  # Department phone numbers
+      - "doctors"          # Medical professionals (124 entries)
+      - "phone_directory"  # Department phone numbers (10 entries)
 ```
 
-**Query ambiguity**:
-- "I need a cardiologist" → Should search `doctors` only
-- "What's the ER number?" → Should search `phone_directory` only
+**Real-World Query Examples**:
+- "Find me a Spanish-speaking cardiologist" → Should search `doctors` only
+- "What's the emergency room number?" → Should search `phone_directory` only
 - "I need a cardiologist, what's the phone number?" → Should search `doctors`, maybe `phone_directory`
 
 ---
@@ -898,25 +903,35 @@ prompting:
 - Create `toolsets.py` - wrap existing tools with `FunctionToolset`
 - Update `simple_chat.py` to support multiple toolsets
 - 100% backward compatible (existing behavior unchanged)
+- Can be tested with current single-directory setup (wyckoff doctors only)
 
-**Phase 2** (Schema Standardization):
+**Phase 2** (Prerequisites - Feature 0023-009):
+- See `memorybank/project-management/0023-directory-service.md` Feature 0023-009
+- Implements phone directory for Wyckoff (10 department entries)
+- Creates `phone_directory.yaml` schema
+- Seeds wyckoff phone directory data
+- Updates wyckoff agent config: `accessible_lists: ["doctors", "phone_directory"]`
+- **Real-World Validation**: Tests multi-directory architecture decisions before Phase 3
+
+**Phase 3** (Schema Standardization):
 - Update `prompt_generator.py` to read `synonym_mappings_heading` and `formal_terms` from schemas (domain-agnostic)
 - Update `medical_professional.yaml`: rename `medical_specialties` → `formal_terms`, add `directory_purpose`
-- Create `phone_directory.yaml` with standardized structure
-- No backward compatibility code needed (nothing in production)
+- `phone_directory.yaml` already created in Phase 2, follows standardized conventions
+- Implement multi-directory selection guide generation
+- ⚠️ **Requires Phase 2**: Multi-directory testing uses real wyckoff data (doctors + phone_directory)
 
-**Phase 3** (Multi-Tool + Caching):
-- Wrap existing tools using Pydantic AI's `FunctionToolset`
+**Phase 4** (Multi-Tool + Caching):
+- Wrap existing tools using Pydantic AI's `FunctionToolset` (already done in Phase 1)
 - Update `simple_chat.py` to pass multiple toolsets: `toolsets=[directory_toolset, vector_toolset]`
 - Add prompt caching markers to system prompt composition
 
-**Phase 4** (Modular Prompts):
+**Phase 5** (Modular Prompts):
 - Create `module_loader.py`, `module_selector.py`
 - Create module library structure
 - Add `prompting.modules` config parsing
 - Use Pydantic AI's `prepare_tools` for dynamic module injection
 
-**Phase 5** (MCP Integration):
+**Phase 6** (MCP Integration):
 - **Use native Pydantic AI support**: `from pydantic_ai.mcp import MCPServerStdio`
 - Configure MCP servers in agent config
 
@@ -1184,17 +1199,19 @@ tools:
 
 ---
 
-## Schema Creation Tasks (Phase 2)
+## Schema Creation Tasks (Phase 2-3)
 
 **Schemas needed in `backend/config/directory_schemas/`**:
-
-- [ ] **medical_professional.yaml** - Update in Phase 1
-  - Add `synonym_mappings_heading` and `directory_purpose`
-  - Rename `medical_specialties` → `formal_terms` (no backward compat needed)
 
 - [ ] **phone_directory.yaml** - Create in Phase 2
   - For hospital departments (ER, billing, appointments)
   - Include: `directory_purpose`, `formal_terms`, search strategy
+  - Establishes conventions for Phase 3
+
+- [ ] **medical_professional.yaml** - Update in Phase 3
+  - Add `synonym_mappings_heading` and `directory_purpose`
+  - Rename `medical_specialties` → `formal_terms` (no backward compat needed)
+  - Align with conventions established in phone_directory.yaml
 
 - [ ] **pharmaceutical.yaml** - Future
   - Mapper exists, needs schema
@@ -1214,9 +1231,11 @@ tools:
 
 ## Migration Path
 
-**Simplified**: 5-phase incremental implementation. Each phase delivers value, backward compatible.
+**Simplified**: 6-phase incremental implementation. Each phase delivers value, backward compatible.
 
 **Strategy**: Evolve `simple_chat` incrementally rather than building v2. Minimizes risk, maximizes code reuse (65% reuse ratio), enables continuous value delivery.
+
+**Recommended Sequence**: Phase 1 (independent) → Phase 2 (prerequisites) → Phase 3 (validates with real data) → Phase 4-6 (enhancements)
 
 ---
 
@@ -1261,15 +1280,69 @@ tools:
 - Multi-tool infrastructure ready using Pydantic AI native features
 - No custom abstractions needed
 - ~20 lines of code (vs. ~200 with custom approach)
+- **Can test immediately**: Works with existing single-directory setup (wyckoff doctors only)
 
 ---
 
-### Phase 2: Schema Standardization (Domain-Agnostic Prompts)
+### Phase 2: Prerequisites - Phone Directory Implementation (Feature 0023-009)
 
-**Risk**: Low (clean schema updates, nothing in production)  
-**Value**: Support for multiple directory types (medical, phone, product, etc.)
+**Risk**: Low (extends proven architecture)  
+**Value**: Real-world multi-directory validation + immediate business value
+
+**Why**: Creates concrete multi-directory scenario (doctors + phone_directory) to validate architectural decisions before investing in Phases 3-6.
+
+**Reference**: See `memorybank/project-management/0023-directory-service.md` Feature 0023-009 for complete implementation plan.
+
+**Implementation Summary**:
+
+1. **Create `phone_directory.yaml` schema** following conventions:
+   - Add `directory_purpose` section (description, use_for, example_queries, not_for)
+   - Use `formal_terms` (not domain-specific keys)
+   - Include `searchable_fields` with examples
+
+2. **Implement phone_directory_mapper()** function:
+   - CSV → DirectoryEntry transformation
+   - Tags from service_type field
+   - Contact info extraction (phone, fax, email, location)
+
+3. **Seed Wyckoff phone directory** (10 departments):
+   - Emergency Department (718-963-7272, 24/7)
+   - Main Information, Appointments, Billing, etc.
+   - Run: `python backend/scripts/seed_directory.py --mapper phone_directory --list phone_directory --account wyckoff`
+
+4. **Update Wyckoff agent config**:
+   ```yaml
+   tools:
+     directory:
+       accessible_lists:
+         - "doctors"           # Existing (124 entries)
+         - "phone_directory"   # New (10 entries)
+   ```
+
+5. **Manual E2E testing** with real queries:
+   - "What's the emergency room number?" → 718-963-7272
+   - "How do I schedule an appointment?" → 718-963-1234
+   - "Find me a Spanish-speaking cardiologist" → searches doctors
+   - "What's the ER number?" → searches phone_directory
+
+**Deliverable**:
+- Wyckoff agent now handles TWO directory types
+- Real-world validation of multi-directory selection challenges
+- Proves schema standardization requirements
+- Phone directory provides immediate business value (patient convenience)
+
+**Why Critical**: Phase 3 architectural decisions validated against real multi-directory data, not hypothetical scenarios.
+
+---
+
+### Phase 3: Schema Standardization (Domain-Agnostic Prompts)
+
+**Risk**: Low (clean schema updates)  
+**Value**: Support for unlimited directory types via standardized conventions
 
 **Why**: Make `prompt_generator.py` domain-agnostic so new directory types don't require code changes.
+
+⚠️ **Requires Phase 2 completion**: Multi-directory testing uses wyckoff doctors + phone_directory data.
 
 **Part A: Synonym Mapping Standardization**
 
@@ -1288,7 +1361,7 @@ tools:
 
 1. Add `directory_purpose` section to ALL schemas:
    - `medical_professional.yaml`: Add `description`, `use_for`, `example_queries`, `not_for`
-   - `phone_directory.yaml`: Add same fields (when created for Feature 0023-009)
+   - `phone_directory.yaml`: Already created in Phase 2 with standardized structure
    - Future schemas: Require `directory_purpose` as standard
 
 2. Update `prompt_generator.py`:
@@ -1311,13 +1384,14 @@ tools:
 **Why Critical**: Dynamic prompting builds on schema-driven directory selection. If LLM can't pick the right directory, contextual modules won't help.
 
 **Deliverable**: 
-- Phone directory schema ready (Feature 0023-009)
+- Multi-directory selection working with real Wyckoff data (doctors + phone_directory)
 - Product catalog, pharmaceutical schemas can be added trivially
 - No domain-specific code in `prompt_generator.py`
+- LLM correctly routes queries to appropriate directory
 
 ---
 
-### Phase 3: Multi-Tool Support + Prompt Caching
+### Phase 4: Multi-Tool Support + Prompt Caching
 
 **Risk**: Low (single-tool agents unchanged)  
 **Value**: Vector search support + 70% cost reduction + 30% latency improvement
@@ -1369,7 +1443,7 @@ tools:
 
 ---
 
-### Phase 4: Modular Prompts (Context-Specific Enhancements)
+### Phase 5: Modular Prompts (Context-Specific Enhancements)
 
 **Risk**: Low (opt-in via config, backward compatible)  
 **Value**: 40% quality improvement for complex queries (emergency, billing, HIPAA scenarios)
@@ -1433,13 +1507,13 @@ tools:
 
 **Code Reuse**: Leverage `config_loader.py` cascade logic (200 lines), reuse prompt composition patterns (100 lines)
 
-**See Also**: "Code Organization" section (lines 1427-1712) for detailed file structure and implementation strategy
+**See Also**: "Code Organization" section for detailed file structure and implementation strategy
 
 **Backward compatibility**: Existing agents work unchanged. Modules are 100% opt-in.
 
 ---
 
-### Phase 5: MCP Integration (External Tool Ecosystem)
+### Phase 6: MCP Integration (External Tool Ecosystem)
 
 **Risk**: Medium (depends on MCP server stability + availability)  
 **Value**: Extensibility for GitHub, Slack, weather, custom integrations
@@ -1607,36 +1681,81 @@ tools:
 
 ## Implementation Summary
 
-| Phase | Risk | Value | Dependencies |
-|-------|------|-------|--------------|
-| **1: Pydantic AI Native Toolsets** | Low | Foundation for multi-tool support | None |
-| **2: Schema Standardization** | Low | Multi-directory support | Phase 1 |
-| **3: Multi-Tool + Caching** | Low | Vector search + 70% cost savings | Phase 1-2 |
-| **4: Modular Prompts** | Low | 40% quality improvement | Phase 1-3 |
-| **5: MCP Integration** | Medium | External tool ecosystem | Phase 1 |
+| Phase | Risk | Value | Prerequisites | Deliverable |
+|-------|------|-------|---------------|-------------|
+| **1: Pydantic AI Native Toolsets** | Low | Foundation for multi-tool support | None | Multi-tool infrastructure (testable immediately) |
+| **2: Prerequisites (Feature 0023-009)** | Low | Real-world validation + business value | Phase 1 | Wyckoff phone directory (10 entries) |
+| **3: Schema Standardization** | Low | Multi-directory support | Phase 1-2 | LLM routes to correct directory |
+| **4: Multi-Tool + Caching** | Low | 70% cost savings | Phase 1-3 | Prompt caching + vector integration |
+| **5: Modular Prompts** | Low | 40% quality improvement | Phase 1-4 | Context-aware emergency/billing handling |
+| **6: MCP Integration** | Medium | External tool ecosystem | Phase 1 | GitHub/Slack/Tavily/Wikidata tools |
 
 **Expected Results**: 50-60% overall quality gain
 
+**Recommended Sequence**: 
+1. **Phase 1** → Test multi-tool with existing single-directory setup
+2. **Phase 2** → Create real multi-directory scenario (wyckoff doctors + phone_directory)
+3. **Phase 3** → Validate schema standardization with real data (not hypothetical)
+4. **Phase 4-6** → Add cost optimization and advanced features
+
 **Incremental Value Delivery**:
-- After Phase 1: Multi-tool infrastructure ready (directory + vector + MCP support)
-- After Phase 2: Phone directory ready (schema-driven multi-directory selection)
-- After Phase 3: 70% cost reduction + vector search working
-- After Phase 4: Emergency protocols + billing context working
-- After Phase 5: GitHub/Slack integrations working
+- After Phase 1: Multi-tool infrastructure ready, testable with current setup
+- After Phase 2: Wyckoff handles phone inquiries + doctor searches (immediate business value)
+- After Phase 3: Schema conventions validated, unlimited directory types supported
+- After Phase 4: 70% cost reduction via prompt caching
+- After Phase 5: Emergency protocols + billing context working
+- After Phase 6: GitHub/Slack integrations working
 
 **Strategy Validation**: See `memorybank/analysis/advanced-agent-strategies.md` for alternative approaches evaluated (agent chaining, few-shot learning, query preprocessing) and why incremental evolution of `simple_chat` is recommended over building v2.
 
 ---
 
+## Real-World Validation (Phase 2 Impact)
+
+**Why Phase 2 is Critical**: Feature 0023-009 (phone directory) provides concrete validation of architectural decisions BEFORE investing in Phases 3-6.
+
+**What Phase 2 Validates**:
+
+1. **Multi-Directory Selection Challenge** - Real scenario:
+   - User: "Find me a Spanish-speaking cardiologist" → Must search `doctors`
+   - User: "What's the ER number?" → Must search `phone_directory`
+   - Tests whether LLM can correctly distinguish between directory types
+
+2. **Schema Convention Design** - Real validation:
+   - `phone_directory.yaml` must follow same conventions as `medical_professional.yaml`
+   - Proves `directory_purpose` fields provide adequate guidance
+   - Validates `formal_terms` standardization across domains
+
+3. **Prompt Generator Flexibility** - Real test:
+   - Can `prompt_generator.py` generate docs for TWO different directory types?
+   - Tests domain-agnostic architecture assumptions
+   - Identifies hard-coded medical domain assumptions
+
+4. **Business Value First** - Real impact:
+   - Wyckoff gets phone directory functionality (patient convenience)
+   - Value delivered BEFORE large Phase 3-6 investments
+   - Early user feedback on multi-directory UX
+
+**Risk Mitigation**:
+- If multi-directory selection proves problematic in Phase 2, pivot design BEFORE Phase 3 investment
+- If schema conventions need refinement, fix once for two directories vs. fixing after five directories
+- Real data reveals edge cases hypothetical examples miss
+
+**Alternative (Higher Risk)**: Skip Phase 2 → Build Phase 3 based on theory → Discover multi-directory issues → Rework Phase 3 with real requirements
+
+**Recommendation**: Phase 2 is small investment (~2-3 days) that de-risks Phases 3-6 (~2-3 weeks).
+
+---
+
 ## Future Enhancements
 
-**Note**: These enhancements are deferred post-MVP (after Phase 1-5). Implement only if data shows keyword-based approaches are insufficient.
+**Note**: These enhancements are deferred post-MVP (after Phase 1-6). Implement only if data shows keyword-based approaches are insufficient.
 
 ---
 
 ### Dynamic Instructions (Message Prepending)
 
-**Status**: Deferred - Evaluate after Phase 4 (Modular Prompts) deployed
+**Status**: Deferred - Evaluate after Phase 5 (Modular Prompts) deployed
 
 **Problem**: Some context cannot be predetermined at agent creation time and needs runtime injection. Examples:
 - Emergency/urgent queries requiring immediate priority handling
@@ -1733,7 +1852,7 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 **When to Reconsider**: If agents frequently miss critical context cues or need runtime priority adjustments based on query urgency.
 
-**Key Difference from Modular Prompts (Phase 4)**:
+**Key Difference from Modular Prompts (Phase 5)**:
 - **Modular Prompts**: Adds content to system prompt (loaded once at agent creation)
 - **Dynamic Instructions**: Injects directives into user message (applied per request, runtime context)
 
@@ -1741,7 +1860,7 @@ async def simple_chat_stream(message: str, message_history: list, agent_config: 
 
 ### Advanced Module Selection
 
-**Status**: Deferred - Evaluate after Phase 4 if keyword matching insufficient
+**Status**: Deferred - Evaluate after Phase 5 if keyword matching insufficient
 
 **Problem**: Simple keyword matching may miss nuanced queries or context that requires more sophisticated intent classification.
 
@@ -1874,19 +1993,30 @@ def load_modules_for_query(query: str, module_config: dict) -> list[str]:
 - ✅ MODIFY: `backend/app/agents/simple_chat.py`
   - Add toolset loading logic based on config
 
-**Phase 2: Schema Standardization**
+**Phase 2: Prerequisites (Feature 0023-009)**
+- ✅ NEW: `backend/config/directory_schemas/phone_directory.yaml`
+  - Schema for hospital department phone numbers
+- ✅ NEW: `backend/data/wyckoff_phone_directory.csv` (10 departments)
+- ✅ MODIFY: `backend/app/services/directory_importer.py`
+  - Add `phone_directory_mapper()` function
+- ✅ MODIFY: `backend/scripts/seed_directory.py`
+  - Register phone_directory mapper
+- ✅ MODIFY: `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml`
+  - Add "phone_directory" to accessible_lists
+
+**Phase 3: Schema Standardization**
 - ✅ MODIFY: `backend/app/agents/tools/prompt_generator.py`
   - Domain-agnostic schema reading
+  - Multi-directory selection guide generation
 - ✅ MODIFY: `backend/config/directory_schemas/medical_professional.yaml`
-  - Add `directory_purpose`, rename keys
-- ✅ NEW: `backend/config/directory_schemas/phone_directory.yaml`
+  - Add `directory_purpose`, rename keys to `formal_terms`
 
-**Phase 3: Multi-Tool + Caching**
+**Phase 4: Multi-Tool + Caching**
 - ✅ MODIFY: `backend/app/agents/simple_chat.py`
   - Add cache markers to prompt composition
 - ⚠️ NO new files (Phase 1 toolsets already support multi-tool)
 
-**Phase 4: Modular Prompts**
+**Phase 5: Modular Prompts**
 - ✅ NEW: `backend/app/agents/tools/module_loader.py` (~80 lines)
   - `load_module(path, account)` with account→system fallback
 - ✅ NEW: `backend/app/agents/tools/module_selector.py` (~50 lines)
@@ -1894,12 +2024,12 @@ def load_modules_for_query(query: str, module_config: dict) -> list[str]:
 - ✅ NEW: `backend/config/prompt_modules/` directory structure
 - ✅ NEW: `backend/config/agent_configs/{account}/modules/` structure
 
-**Phase 5: MCP Integration**
+**Phase 6: MCP Integration**
 - ✅ MODIFY: `backend/app/agents/simple_chat.py`
   - Add `MCPServerStdio` to toolsets list
 - ⚠️ NO new files (Pydantic AI handles everything)
 
-**Total New Code**: ~150 lines (vs. ~900 with custom approach)
+**Total New Code**: ~150 lines (vs. ~900 with custom approach) + Phase 2 schema/data work
 
 ---
 
@@ -2094,7 +2224,7 @@ backend/config/
 - ✅ ONE simple toolsets.py file wraps existing tools
 - ✅ Underlying directory_tools.py and vector_tools.py unchanged
 
-**See "Migration Path" section (lines 1138-1405) for detailed phase-by-phase implementation plan.**
+**See "Migration Path" section for detailed phase-by-phase implementation plan.**
 
 ---
 
