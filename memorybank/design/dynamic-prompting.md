@@ -9,7 +9,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 **Problem**: Static system prompts can't adapt to query context (emergency vs. billing vs. directory search).
 
-**Solution**: 6-phase incremental enhancement of `simple_chat.py` to support tool-agnostic prompt composition, schema-driven directory selection, multi-tool support with caching, context modules, and MCP integration.
+**Solution**: 7-phase incremental enhancement of `simple_chat.py` to support tool-agnostic prompt composition, schema-driven directory selection, multi-tool support with caching, context modules, and MCP integration.
 
 **Strategy**: Evolve existing `simple_chat` incrementally (not build v2). 65% code reuse, 100% backward compatible at each phase.
 
@@ -17,7 +17,8 @@ Unauthorized copying of this file is strictly prohibited.
 - Phase 1: Pydantic AI native toolsets → Foundation for multi-tool support
 - Phase 2: Prerequisites (Feature 0023-009) → Phone directory implementation
 - Phase 3: Schema standardization → Multi-directory support
-- Phase 4: Multi-tool + caching → 70% cost savings
+- Phase 4A: Multi-tool testing → Validate multiple toolsets working together
+- Phase 4B: Prompt caching → 70% cost savings
 - Phase 5: Modular prompts → 40% quality improvement
 - Phase 6: MCP integration → External tool ecosystem (native support!)
 
@@ -48,7 +49,7 @@ Unauthorized copying of this file is strictly prohibited.
 - Use case: Doctor finder, knowledge base search
 - Config: `tools.directory.enabled: true` OR `tools.vector_search.enabled: true`
 
-**Level 3: Multi-Tool Agent (Phase 1-4)**
+**Level 3: Multi-Tool Agent (Phase 1-4B)**
 - Base + MULTIPLE tools (directory + vector + MCP servers)
 - Use case: Comprehensive assistant with multiple data sources
 - Config: Multiple tools enabled + MCP servers configured
@@ -920,10 +921,15 @@ prompting:
 - Implement multi-directory selection guide generation
 - ⚠️ **Requires Phase 2**: Multi-directory testing uses real wyckoff data (doctors + phone_directory)
 
-**Phase 4** (Multi-Tool + Caching):
+**Phase 4A** (Multi-Tool Testing):
 - Wrap existing tools using Pydantic AI's `FunctionToolset` (already done in Phase 1)
 - Update `simple_chat.py` to pass multiple toolsets: `toolsets=[directory_toolset, vector_toolset]`
+- Create test scenarios for directory + vector search combinations
+
+**Phase 4B** (Prompt Caching):
 - Add prompt caching markers to system prompt composition
+- Split prompt into static (cached) and dynamic (per-request) components
+- Monitor cache hit rates and cost savings
 
 **Phase 5** (Modular Prompts):
 - Create `module_loader.py`, `module_selector.py`
@@ -1231,11 +1237,11 @@ tools:
 
 ## Migration Path
 
-**Simplified**: 6-phase incremental implementation. Each phase delivers value, backward compatible.
+**Simplified**: 7-phase incremental implementation. Each phase delivers value, backward compatible.
 
 **Strategy**: Evolve `simple_chat` incrementally rather than building v2. Minimizes risk, maximizes code reuse (65% reuse ratio), enables continuous value delivery.
 
-**Recommended Sequence**: Phase 1 (independent) → Phase 2 (prerequisites) → Phase 3 (validates with real data) → Phase 4-6 (enhancements)
+**Recommended Sequence**: Phase 1 (independent) → Phase 2 (prerequisites) → Phase 3 (validates with real data) → Phase 4A (multi-tool testing) → Phase 4B (caching) → Phase 5-6 (enhancements)
 
 ---
 
@@ -1391,12 +1397,14 @@ tools:
 
 ---
 
-### Phase 4: Multi-Tool Support + Prompt Caching
+### Phase 4A: Multi-Tool Testing (Functional Validation)
 
-**Risk**: Low (single-tool agents unchanged)  
-**Value**: Vector search support + 70% cost reduction + 30% latency improvement
+**Risk**: Low (tests existing Phase 1 infrastructure)  
+**Value**: Confidence that multiple toolsets work together correctly
 
-**Why**: Enable directory + vector search working together (using Phase 1 toolsets). Add prompt caching for immediate cost/latency wins.
+**Why**: Validate that directory + vector + MCP servers can work together in same conversation without conflicts.
+
+**Independent of**: Phase 4B (prompt caching) - pure functionality validation
 
 **Implementation**:
 
@@ -1406,13 +1414,53 @@ tools:
    agent = Agent(model, toolsets=[directory_toolset, vector_toolset])
    ```
 
-2. **Add prompt caching** (High ROI Enhancement):
+2. **Create test scenarios**:
+   - **Directory + Vector**: "Find a cardiologist and tell me about heart disease" → search doctors, then search knowledge base
+   - **Sequential tool calls**: Directory search for doctor info, then vector search for related medical info
+   - **Tool selection**: LLM chooses correct tool based on query type
 
-1. Structure prompt for caching:
+3. **Test configurations**:
+   ```yaml
+   # Wyckoff multi-tool agent
+   tools:
+     directory:
+       enabled: true
+       accessible_lists: ["doctors", "phone_directory"]
+     vector_search:
+       enabled: true
+   ```
+
+**Testing**:
+- Single-tool agents work as before (backward compatibility)
+- Multi-tool agents correctly select appropriate tool
+- Sequential tool calls work (directory → vector)
+- No tool conflicts or errors
+
+**Deliverable**:
+- Validated multi-tool infrastructure
+- Test suite for multi-tool scenarios
+- Documentation of tool selection patterns
+
+**See Also**: `memorybank/project-management/0025-dynamic-prompting-plan.md` Phase 1 for toolsets implementation.
+
+---
+
+### Phase 4B: Prompt Caching (Performance Optimization)
+
+**Risk**: Low (doesn't change functionality)  
+**Value**: 70% cost reduction + 30% latency improvement
+
+**Why**: Optimize cost and latency via prompt caching without changing agent behavior.
+
+**Independent of**: Phase 4A (multi-tool testing) - pure performance optimization
+
+**Implementation**:
+
+1. **Structure prompt for caching**:
    - **Static** (cached): Base prompt + directory docs + HIPAA + disclaimers (~8K tokens)
-   - **Dynamic** (per-request): Selected modules + conversation history + user query (~2K tokens)
+   - **Dynamic** (per-request): Conversation history + user query (~2K tokens)
 
-2. Add cache markers (Anthropic models):
+2. **Add cache markers** (Anthropic models):
    ```python
    messages = [{
        "role": "user",
@@ -1423,19 +1471,28 @@ tools:
    }]
    ```
 
-3. Add version hash to cached content:
+3. **Add version hash to cached content**:
    - Invalidate cache on directory updates
+   - Invalidate cache on schema changes
    - Track cache hit rate in Logfire
 
+4. **Monitor cache effectiveness**:
+   ```python
+   logger.info(f"Cache hit rate: {cache_hits/(cache_hits + cache_misses)*100:.1f}%")
+   logger.info(f"Cost savings: ${original_cost - cached_cost:.2f}")
+   ```
+
 **Testing**:
-- Single-tool agents work as before
-- Multi-tool agents show selection guide
+- Verify cached responses identical to non-cached
 - Cache hit rate >80% after warmup
+- Measure cost reduction (target: 70%)
+- Measure latency improvement (target: 30%)
 
 **Deliverable**:
-- Directory + vector search working together
+- Prompt caching implemented
 - 70% cost reduction (cached reads 10x cheaper)
 - 30% latency improvement (cached prompts instant)
+- Cache monitoring in Logfire
 
 **ROI**: For 1000 queries/day, saves ~$650/month in LLM costs.
 
@@ -1618,13 +1675,13 @@ tools:
    )
    ```
 
-5. **Create MCP module library** (Phase 4 feature):
+5. **Create MCP module library** (Phase 5 feature):
    - `backend/config/prompt_modules/mcp/`:
      - `github_best_practices.md`: When to create issues vs. PRs
      - `slack_messaging_guidelines.md`: Professional communication
      - `weather_context.md`: How to integrate weather into responses
 
-6. **Add MCP-specific keyword mappings** (Phase 4 feature):
+6. **Add MCP-specific keyword mappings** (Phase 5 feature):
    ```yaml
    # agent_configs/{account}/{instance}/keyword_mappings.yaml
    prompting:
@@ -1686,8 +1743,9 @@ tools:
 | **1: Pydantic AI Native Toolsets** | Low | Foundation for multi-tool support | None | Multi-tool infrastructure (testable immediately) |
 | **2: Prerequisites (Feature 0023-009)** | Low | Real-world validation + business value | Phase 1 | Wyckoff phone directory (10 entries) |
 | **3: Schema Standardization** | Low | Multi-directory support | Phase 1-2 | LLM routes to correct directory |
-| **4: Multi-Tool + Caching** | Low | 70% cost savings | Phase 1-3 | Prompt caching + vector integration |
-| **5: Modular Prompts** | Low | 40% quality improvement | Phase 1-4 | Context-aware emergency/billing handling |
+| **4A: Multi-Tool Testing** | Low | Functional validation | Phase 1 | Multi-tool scenarios validated |
+| **4B: Prompt Caching** | Low | 70% cost savings | Phase 3 | Cached prompts (cost/latency optimization) |
+| **5: Modular Prompts** | Low | 40% quality improvement | Phase 1-3 | Context-aware emergency/billing handling |
 | **6: MCP Integration** | Medium | External tool ecosystem | Phase 1 | GitHub/Slack/Tavily/Wikidata tools |
 
 **Expected Results**: 50-60% overall quality gain
@@ -1696,13 +1754,16 @@ tools:
 1. **Phase 1** → Test multi-tool with existing single-directory setup
 2. **Phase 2** → Create real multi-directory scenario (wyckoff doctors + phone_directory)
 3. **Phase 3** → Validate schema standardization with real data (not hypothetical)
-4. **Phase 4-6** → Add cost optimization and advanced features
+4. **Phase 4A** → Validate multi-tool scenarios (directory + vector)
+5. **Phase 4B** → Add prompt caching for cost optimization
+6. **Phase 5-6** → Add modular prompts and MCP integration
 
 **Incremental Value Delivery**:
 - After Phase 1: Multi-tool infrastructure ready, testable with current setup
 - After Phase 2: Wyckoff handles phone inquiries + doctor searches (immediate business value)
 - After Phase 3: Schema conventions validated, unlimited directory types supported
-- After Phase 4: 70% cost reduction via prompt caching
+- After Phase 4A: Multi-tool scenarios validated (directory + vector working together)
+- After Phase 4B: 70% cost reduction via prompt caching
 - After Phase 5: Emergency protocols + billing context working
 - After Phase 6: GitHub/Slack integrations working
 
@@ -2011,10 +2072,15 @@ def load_modules_for_query(query: str, module_config: dict) -> list[str]:
 - ✅ MODIFY: `backend/config/directory_schemas/medical_professional.yaml`
   - Add `directory_purpose`, rename keys to `formal_terms`
 
-**Phase 4: Multi-Tool + Caching**
+**Phase 4A: Multi-Tool Testing**
+- ⚠️ NO new files (Phase 1 toolsets already support multi-tool)
+- ✅ NEW: Test scenarios for directory + vector combinations
+- ✅ MODIFY: `backend/tests/manual/test_multi_tool_scenarios.py`
+
+**Phase 4B: Prompt Caching**
 - ✅ MODIFY: `backend/app/agents/simple_chat.py`
   - Add cache markers to prompt composition
-- ⚠️ NO new files (Phase 1 toolsets already support multi-tool)
+  - Split static and dynamic prompt components
 
 **Phase 5: Modular Prompts**
 - ✅ NEW: `backend/app/agents/tools/module_loader.py` (~80 lines)
@@ -2190,13 +2256,13 @@ backend/app/agents/tools/
     - vector_toolset = FunctionToolset(tools=[vector_search])
   
   # NEW: Module system for context-aware prompts
-  module_loader.py              # NEW (Phase 4): Account→System resolution
-  module_selector.py            # NEW (Phase 4): Keyword-based selection
+  module_loader.py              # NEW (Phase 5): Account→System resolution
+  module_selector.py            # NEW (Phase 5): Keyword-based selection
 
 backend/config/
   app.yaml                      # Add prompting.recommended_module_size_tokens
   
-  prompt_modules/               # NEW (Phase 4): System-level modules
+  prompt_modules/               # NEW (Phase 5): System-level modules
     shared/
       hipaa_compliance.md
       tone_guidelines.md
@@ -2204,17 +2270,17 @@ backend/config/
       clinical_disclaimers.md
   
   directory_schemas/
-    medical_professional.yaml   # Update (Phase 2): Add directory_purpose, rename to formal_terms
+    medical_professional.yaml   # Update (Phase 3): Add directory_purpose, rename to formal_terms
     phone_directory.yaml        # NEW (Phase 2): Hospital departments
   
   agent_configs/{account}/
-    modules/                    # NEW (Phase 4): Account-specific modules
+    modules/                    # NEW (Phase 5): Account-specific modules
       medical/emergency_protocols.md
       administrative/billing_policies.md
     
     {instance}/
       system_prompt.md          # Existing
-      config.yaml               # Update (Phase 4): Add prompting.modules section
+      config.yaml               # Update (Phase 5): Add prompting.modules section
 ```
 
 **Key Simplifications**:
