@@ -878,8 +878,9 @@ Execute in this order for optimal results:
 
 **In Progress**:
 - 📋 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
-**>> You are here <<**
 - 📋 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
+**>> You are here <<**
+  - 0025-004-004 - TASK - Implement Tool Calling Improvements (via Modular Prompts)
   - Includes lightweight modular prompts (Phase 5 Lite) for tool calling enhancements
   - Keyword hints, few-shot examples, Chain-of-Thought, structured docs
   - Validates modular approach before full Phase 5 investment
