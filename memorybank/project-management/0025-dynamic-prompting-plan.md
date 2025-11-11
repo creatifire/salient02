@@ -2214,14 +2214,24 @@ if __name__ == "__main__":
 
 After successful completion of Phases 1-4A:
 
-**Phase 4B: Prompt Caching** (Future):
-- **Objective**: Optimize cost and latency via prompt caching
-- **Implementation**:
+**Phase 4B: Prompt Caching** (⚠️ DEFERRED - Low ROI):
+- **Status**: Deferred indefinitely
+- **Reason**: Limited provider support across our model portfolio
+- **Research Findings** (January 2025):
+  - ✅ **Supported**: OpenAI GPT-4, Anthropic Claude, AWS Bedrock (select models)
+  - ❌ **Not Supported**: Google Gemini, DeepSeek, most other providers
+  - **Impact on our stack**: 
+    - Default model: `deepseek/deepseek-chat` (NO caching support)
+    - Most agents use models without caching support
+    - Would require model-specific code paths
+    - Benefit limited to specific models/providers
+- **Original objective**: Optimize cost and latency via prompt caching
+- **Original implementation plan**:
   - Cache static prompt components (base prompt + directory docs)
   - Dynamic components remain uncached (user query, history)
-  - 70% cost reduction, 30% latency improvement expected
-- **Independent of**: Multi-tool testing (4A)
-- **Why separate**: Performance optimization, doesn't change functionality
+  - 70% cost reduction, 30% latency improvement (only for supported models)
+- **Decision**: Low value-add given limited provider support. Focus on Phase 5-6 instead.
+- **Reconsider if**: We standardize on Anthropic Claude or OpenAI GPT-4 for all agents
 
 **Phase 5: Modular Prompts** (Future):
 - Context-specific prompt modules (emergency protocols, billing info)
