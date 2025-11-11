@@ -867,8 +867,39 @@ Execute in this order for optimal results:
 - 🔒 RFC 4122 compliant (no schema changes)
 
 **Improve prompt responses**
+## 0025-001 - FEATURE - Pydantic AI Native Toolsets (Phase 1)
+**Epic**: 0025 Dynamic Prompting Implementation  
+**Reference**: `memorybank/project-management/0025-dynamic-prompting-plan.md`  
+**Design**: `memorybank/design/dynamic-prompting.md`
+
+**Status**: ✅ Completed (Phase 1 of 7)
+
+**Objective**: Implement multi-tool support using Pydantic AI's native `FunctionToolset`, enabling agents to use multiple tools simultaneously (directory + vector search).
+
+**Completed Tasks**:
+1. ✅ Created `toolsets.py`: FunctionToolset wrappers for existing tools
+2. ✅ Created `test_toolsets.py`: Unit tests for toolset module
+3. ✅ Updated `simple_chat.py`: Use toolsets parameter instead of individual tool registration
+4. ✅ Fixed `vector_tools.py`: Converted to relative imports for consistency
+5. ✅ Manual verification: All agents working correctly
+
+**Results**:
+- Multi-tool infrastructure ready (directory + vector + future MCP servers)
+- 100% backward compatible (all 7 existing agents work unchanged)
+- Foundation ready for Phase 2 (phone directory) and Phase 3 (schema-driven prompts)
+
+**Benefits Achieved**:
+- 🔧 Cleaner architecture using Pydantic AI patterns
+- 🎯 Foundation for multi-tool agents
+- 🔄 Ready for multi-directory selection (Phase 3)
+- 📦 Modular toolset management
+
+**Next Phase**: 0025-002 - Phone Directory Prerequisites (Phase 2)
+
+---
+
 ## 0023-009 - FEATURE - Phone Directory for Hospital Departments
-memorybank/architecture/dynamic-prompting.md
+**Status**: 📋 Planned (Prerequisite for Dynamic Prompting Phase 2)
 
 **Next**: Priority 6 - Profile Fields Configuration
 
