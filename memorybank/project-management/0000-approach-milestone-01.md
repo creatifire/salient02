@@ -870,10 +870,28 @@ Execute in this order for optimal results:
 ## Epic 0025 - Dynamic Prompting Implementation
 **Reference**: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 
+**Current Status**: Implementing Phase 4A with lightweight modular prompts to improve LLM tool selection accuracy.
+
+**Completed**:
 - ✅ 0025-001 - Pydantic AI Native Toolsets (Phase 1)
 - ✅ 0025-002 - Phone Directory Prerequisites (Phase 2)
+
+**In Progress**:
 - 📋 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
-- 📋 0025-004 - Multi-Tool Testing (Phase 4A)
+- 📋 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
+  - Includes lightweight modular prompts (Phase 5 Lite) for tool calling enhancements
+  - Keyword hints, few-shot examples, Chain-of-Thought, structured docs
+  - Validates modular approach before full Phase 5 investment
+
+**Deferred**:
+- ⚠️ Phase 4B - Prompt Caching (limited LLM provider support)
+- ⚠️ Phase 6 - MCP Server Integration (future consideration)
+
+**Under Strong Consideration**:
+- 🔍 Phase 5 - Full Modular Prompts (context-specific enhancements)
+  - Emergency protocols, billing policies, HIPAA compliance
+  - Builds on Phase 4A lightweight infrastructure
+  - Decision pending Phase 4A validation results
 
 **Next**: Priority 6 - Profile Fields Configuration
 
