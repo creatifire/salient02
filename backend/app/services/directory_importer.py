@@ -327,4 +327,49 @@ class DirectoryImporter:
             } if row.get('url') or row.get('support_email') else {},
             'entry_data': entry_data
         }
+    
+    @staticmethod
+    def phone_directory_mapper(row: Dict) -> Dict:
+        """Map phone directory CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - department_name (required)
+        - phone_number (required)
+        - service_type (required, for tags)
+        - hours_of_operation
+        - building_location, fax_number, email (contact_info)
+        - description, alternate_phone, extension (optional)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        service_type = row.get('service_type', '').strip()
+        tags = [service_type] if service_type else []
+        
+        contact_info = {}
+        if row.get('phone_number', '').strip():
+            contact_info['phone'] = row['phone_number'].strip()
+        if row.get('fax_number', '').strip():
+            contact_info['fax'] = row['fax_number'].strip()
+        if row.get('email', '').strip():
+            contact_info['email'] = row['email'].strip()
+        if row.get('building_location', '').strip():
+            contact_info['location'] = row['building_location'].strip()
+        
+        entry_data = {}
+        if service_type:
+            entry_data['service_type'] = service_type
+        
+        optional_fields = ['hours_of_operation', 'description', 'alternate_phone', 'extension']
+        for field in optional_fields:
+            value = row.get(field, '').strip()
+            if value:
+                entry_data[field] = value
+        
+        return {
+            'name': row.get('department_name', '').strip(),
+            'tags': tags,
+            'contact_info': contact_info,
+            'entry_data': entry_data
+        }
 

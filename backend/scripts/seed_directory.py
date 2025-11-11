@@ -44,6 +44,7 @@ MAPPERS = {
     'medical_professional': DirectoryImporter.medical_professional_mapper,
     'pharmaceutical': DirectoryImporter.pharmaceutical_mapper,
     'product': DirectoryImporter.product_mapper,
+    'phone_directory': DirectoryImporter.phone_directory_mapper,
 }
 
 

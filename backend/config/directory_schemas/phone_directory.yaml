@@ -1,0 +1,97 @@
+entry_type: phone_directory
+schema_version: "1.0"
+description: "Schema for hospital department phone numbers and contact information"
+
+required_fields:
+  - service_type
+
+optional_fields:
+  - hours_of_operation
+  - building_location
+  - fax_number
+  - email
+  - description
+  - alternate_phone
+
+fields:
+  department_name:
+    type: string
+    description: "Name of the department or service"
+    examples:
+      - "Emergency Department"
+      - "Appointments"
+      - "Billing"
+  
+  service_type:
+    type: string
+    description: "Type of service or category"
+    examples:
+      - "Emergency Services"
+      - "Patient Services"
+      - "Administrative"
+      - "Clinical Departments"
+  
+  phone_number:
+    type: string
+    description: "Primary contact phone number"
+    examples:
+      - "718-963-7272"
+      - "718-963-1234 x5678"
+  
+  hours_of_operation:
+    type: string
+    description: "When the service is available"
+    examples:
+      - "24/7"
+      - "Mon-Fri 8am-8pm"
+
+tags_usage:
+  description: "Service categories for filtering"
+  source_column: "service_type"
+
+contact_info_fields:
+  phone:
+    description: "Primary contact phone number"
+  fax:
+    description: "Fax number"
+  email:
+    description: "Email address"
+  location:
+    description: "Building and floor location"
+
+searchable_fields:
+  department_name:
+    type: string
+    description: "Department name (searchable)"
+  
+  service_type:
+    type: string
+    description: "Category of service"
+  
+  hours_of_operation:
+    type: string
+    description: "When the service is available"
+
+search_strategy:
+  guidance: |
+    **When users ask about contacting departments:**
+    1. Search by department name if specific
+    2. Search by service_type for general queries
+    3. Always include hours_of_operation in response
+  
+  synonym_mappings:
+    - lay_terms: ["ER", "emergency room", "emergency"]
+      department_names: ["Emergency Department"]
+    - lay_terms: ["appointments", "schedule", "booking"]
+      department_names: ["Appointments"]
+    - lay_terms: ["billing", "bill", "payment", "insurance"]
+      department_names: ["Billing Department"]
+  
+  examples:
+    - user_query: "What's the emergency room number?"
+      tool_calls:
+        - 'search_directory(list_name="phone_directory", filters={"department_name": "Emergency Department"})'
+    - user_query: "How do I schedule an appointment?"
+      tool_calls:
+        - 'search_directory(list_name="phone_directory", filters={"department_name": "Appointments"})'
+
