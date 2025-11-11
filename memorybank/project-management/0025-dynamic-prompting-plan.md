@@ -2040,11 +2040,879 @@ async def test_multi_tool_latency(db_session, wyckoff_instance):
 
 ---
 
-#### 0025-004-004 - TASK - Regression Testing
+#### 0025-004-004 - TASK - Implement Tool Calling Improvements (via Modular Prompts)
+
+**Objective**: Apply research-backed strategies to improve LLM tool selection accuracy via **configurable prompt modules**.
+
+**Reference**: `memorybank/analysis/improving-tool-calling.md`
+
+**Approach**: 
+1. **Immediate** (12 min): Diagnose and fix current Gemini misclassification issue
+2. **Strategic** (3.5 hours): Implement modular prompt infrastructure for long-term scalability
+
+**Key Design Principles**:
+- ✅ **Configurable** (not hardcoded in Python)
+- ✅ **Modular** (separate files per enhancement)
+- ✅ **Selectable** (enable/disable per agent via config.yaml)
+- ✅ **Account-agnostic** (system-level modules, reusable)
+
+**Implementation Sequence** (6 chunks, ~4 hours total):
+1. Diagnostic test with Claude (2 min)
+2. Quick fix: Keyword hints module (10 min)
+3. Module infrastructure (1 hour)
+4. Create 3 core modules (30 min)
+5. Integrate into simple_chat (1 hour)
+6. Measure and validate (2 hours)
+
+---
+
+##### 0025-004-004-001 - CHUNK - Diagnostic Test with Alternative Model
+
+**Objective**: Determine if misclassification is Gemini-specific or prompt design issue.
+
+**Time**: 2 minutes
+
+**Location**: `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml`
+
+**Current Model**: `google/gemini-2.5-flash`
+
+**Test Strategy**: Temporarily switch to Claude and test same queries.
+
+**Implementation**:
+
+1. Update Wyckoff config:
+```yaml
+model_settings:
+  model: "anthropic/claude-3.5-sonnet"  # Changed from google/gemini-2.5-flash
+  temperature: 0.3
+  max_tokens: 2000
+```
+
+2. Test 3 queries that currently fail with Gemini:
+   - "What's the pediatrics department phone number?"
+   - "How do I reach the emergency department?"
+   - "Give me the billing department number"
+
+3. Check Logfire for tool calls:
+   - Expected: `search_directory(list_name="phone_directory", ...)`
+   - Current Gemini behavior: `search_directory(list_name="doctors", ...)`
+
+**Decision Tree**:
+```
+IF Claude selects correct directory (phone_directory):
+  → Problem: Gemini-specific (prompt interpretation difference)
+  → Solution: Keep Claude OR implement stronger prompt guidance
+ELSE Claude also fails:
+  → Problem: Prompt design (not clear enough)
+  → Solution: Must implement stronger prompt guidance
+```
+
+**MANUAL-TESTS**:
+```bash
+# Test 1: Pediatrics phone
+curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is the pediatrics department phone number?"}'
+
+# Test 2: Emergency dept
+curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "How do I reach the emergency department?"}'
+
+# Test 3: Billing
+curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Give me the billing department number"}'
+```
+
+**ACCEPTANCE**:
+- ✅ Config updated to Claude
+- ✅ 3 test queries executed
+- ✅ Tool calls logged in Logfire
+- ✅ Decision documented: Gemini-specific vs prompt design
+- ✅ Config reverted to original model (or kept if Claude works better)
+
+**EFFORT**: 2 minutes
+
+**STATUS**: 📝 Not started
+
+**OUTCOME**: ⚠️ To be filled after testing
+
+---
+
+##### 0025-004-004-002 - CHUNK - Quick Fix - Keyword Hints Module
+
+**Objective**: Add explicit guidance for department phone queries to fix immediate misclassification.
+
+**Time**: 10 minutes
+
+**Location**: `backend/config/prompt_modules/system/directory_keyword_hints.md` (new file)
+
+**Strategy**: Create lightweight module with explicit rules for common query patterns.
+
+**Implementation**:
+
+Create module file:
+```markdown
+## Directory Selection Hints
+
+**Pattern: Department/Service + Phone/Number**
+
+When the query mentions BOTH a department/service name AND phone/number/contact:
+- ✅ Use `phone_directory` (contains department contact information)
+- ❌ Don't use `doctors` (contains individual medical professionals)
+
+Examples:
+- "pediatrics department phone" → search `phone_directory` for "Pediatrics"
+- "emergency department number" → search `phone_directory` for "Emergency Department"
+- "billing department contact" → search `phone_directory` for "Billing"
+
+**Pattern: Doctor/Specialty Name**
+
+When the query mentions a doctor's name OR medical specialty:
+- ✅ Use `doctors` (contains medical professional info)
+- ❌ Don't use `phone_directory`
+
+Examples:
+- "find a cardiologist" → search `doctors` for specialty
+- "Dr. Smith" → search `doctors` for name
+
+**Pattern: Doctor's Contact Info**
+
+When the query asks for a specific doctor's phone/contact:
+- ✅ Use `doctors` (doctor records include contact_info)
+- ❌ Don't search `phone_directory` (doesn't list individual doctors)
+
+Example:
+- "cardiologist phone number" → search `doctors` for cardiology, return contact_info
+```
+
+**Enable in Wyckoff Config**:
+```yaml
+# backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml
+
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - directory_keyword_hints  # NEW - tactical fix
+```
+
+**MANUAL-TESTS**:
+1. Create module file with content above
+2. Update Wyckoff config to enable module
+3. Restart backend
+4. Test same 3 queries from Chunk 001
+5. Verify Logfire shows:
+   - System prompt includes keyword hints
+   - Tool calls use correct directory
+
+**ACCEPTANCE**:
+- ✅ Module file created
+- ✅ Wyckoff config updated
+- ✅ 3 test queries work correctly
+- ✅ Logfire shows module loaded
+- ✅ Phone queries use `phone_directory`
+- ✅ Doctor queries still use `doctors`
+
+**EFFORT**: 10 minutes
+
+**STATUS**: 📝 Not started
+
+**OUTCOME**: ⚠️ To be filled after testing
+
+**NOTE**: This module provides immediate fix. If effective, it validates the modular approach before investing 3.5 hours in full infrastructure.
+
+---
+
+##### 0025-004-004-003 - CHUNK - Create Prompt Module Infrastructure
+
+**Objective**: Build generic module loading system (foundation for Phase 5).
+
+**Time**: 1 hour
+
+**Location**: `backend/app/agents/tools/prompt_modules.py` (new file)
+
+**Strategy**: Build module loading system that reads markdown files and injects them into prompts based on config.
+
+**Prerequisites**: Chunks 001-002 completed (validates modular approach works)
+
+**Implementation**:
+
+```python
+"""
+Prompt module system for configurable prompt enhancements.
+
+Modules are markdown files stored in:
+- System-level: backend/config/prompt_modules/system/
+- Account-level: backend/config/prompt_modules/accounts/{account_slug}/
+
+Modules are selected based on agent config and injected into system prompt.
+"""
+
+from pathlib import Path
+from typing import List, Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Module directories
+SYSTEM_MODULES_DIR = Path(__file__).parent.parent.parent / "config" / "prompt_modules" / "system"
+ACCOUNT_MODULES_DIR = Path(__file__).parent.parent.parent / "config" / "prompt_modules" / "accounts"
+
+
+def load_prompt_module(module_name: str, account_slug: Optional[str] = None) -> Optional[str]:
+    """
+    Load a prompt module from markdown file.
+    
+    Args:
+        module_name: Name of module (e.g., "tool_calling_few_shot")
+        account_slug: Optional account slug for account-specific modules
+        
+    Returns:
+        Module content as string, or None if not found
+        
+    Example:
+        content = load_prompt_module("tool_calling_few_shot")
+        # Loads: backend/config/prompt_modules/system/tool_calling_few_shot.md
+    """
+    # Try account-level first (if specified)
+    if account_slug:
+        account_path = ACCOUNT_MODULES_DIR / account_slug / f"{module_name}.md"
+        if account_path.exists():
+            logger.info(f"Loading account module: {account_slug}/{module_name}")
+            return account_path.read_text()
+    
+    # Fall back to system-level
+    system_path = SYSTEM_MODULES_DIR / f"{module_name}.md"
+    if system_path.exists():
+        logger.info(f"Loading system module: {module_name}")
+        return system_path.read_text()
+    
+    logger.warning(f"Module not found: {module_name} (account: {account_slug})")
+    return None
+
+
+def load_modules_for_agent(agent_config: dict, account_slug: Optional[str] = None) -> str:
+    """
+    Load all enabled prompt modules for an agent based on config.
+    
+    Args:
+        agent_config: Agent configuration from config.yaml
+        account_slug: Optional account slug for account-specific modules
+        
+    Returns:
+        Combined module content as string
+        
+    Example config.yaml:
+        prompting:
+          modules:
+            enabled: true
+            selected:
+              - tool_calling_few_shot
+              - tool_calling_cot
+              - tool_calling_structured
+    """
+    modules_config = agent_config.get("prompting", {}).get("modules", {})
+    
+    if not modules_config.get("enabled", False):
+        logger.info("Prompt modules disabled")
+        return ""
+    
+    selected_modules = modules_config.get("selected", [])
+    
+    if not selected_modules:
+        logger.info("No modules selected")
+        return ""
+    
+    logger.info(f"Loading {len(selected_modules)} modules for agent")
+    
+    # Load each module
+    module_contents = []
+    for module_name in selected_modules:
+        content = load_prompt_module(module_name, account_slug)
+        if content:
+            module_contents.append(content)
+    
+    if not module_contents:
+        return ""
+    
+    # Combine with separators
+    combined = "\n\n---\n\n".join(module_contents)
+    logger.info(f"Loaded {len(module_contents)} modules ({len(combined)} chars)")
+    
+    return combined
+```
+
+**MANUAL-TESTS**:
+1. Test module loading:
+   ```python
+   from app.agents.tools.prompt_modules import load_prompt_module, load_modules_for_agent
+   
+   # Test single module load
+   content = load_prompt_module("tool_calling_few_shot")
+   assert content is not None
+   print(f"Module length: {len(content)} chars")
+   
+   # Test agent config
+   config = {
+       "prompting": {
+           "modules": {
+               "enabled": true,
+               "selected": ["tool_calling_few_shot", "tool_calling_cot"]
+           }
+       }
+   }
+   combined = load_modules_for_agent(config)
+   assert "Tool Selection Examples" in combined
+   assert "think step-by-step" in combined.lower()
+   ```
+
+2. Test with missing module (graceful degradation):
+   ```python
+   content = load_prompt_module("nonexistent_module")
+   assert content is None  # Should return None, not crash
+   ```
+
+**AUTOMATED-TESTS**: `backend/tests/unit/test_prompt_modules.py`
+```python
+import pytest
+from app.agents.tools.prompt_modules import (
+    load_prompt_module,
+    load_modules_for_agent
+)
+
+
+def test_load_system_module():
+    """Test loading system-level module."""
+    content = load_prompt_module("tool_calling_few_shot")
+    assert content is not None
+    assert len(content) > 0
+
+
+def test_load_nonexistent_module():
+    """Test graceful handling of missing module."""
+    content = load_prompt_module("does_not_exist")
+    assert content is None
+
+
+def test_load_modules_for_agent_enabled():
+    """Test loading multiple modules via agent config."""
+    config = {
+        "prompting": {
+            "modules": {
+                "enabled": True,
+                "selected": ["tool_calling_few_shot", "tool_calling_cot"]
+            }
+        }
+    }
+    combined = load_modules_for_agent(config)
+    assert combined != ""
+    assert "---" in combined  # Module separator
+
+
+def test_load_modules_for_agent_disabled():
+    """Test that disabled modules return empty string."""
+    config = {
+        "prompting": {
+            "modules": {
+                "enabled": False,
+                "selected": ["tool_calling_few_shot"]
+            }
+        }
+    }
+    combined = load_modules_for_agent(config)
+    assert combined == ""
+```
+
+**ACCEPTANCE**:
+- ✅ Module loading infrastructure created
+- ✅ System-level and account-level support
+- ✅ Graceful handling of missing modules
+- ✅ Config-driven module selection
+- ✅ Unit tests pass
+
+**EFFORT**: ~1 hour
+
+**STATUS**: 📝 Not started
+
+---
+
+##### 0025-004-004-004 - CHUNK - Create Research-Backed Module Files
+
+**Objective**: Create 3 modules based on tool calling research (few-shot, CoT, structured docs).
+
+**Time**: 30 minutes
+
+**Location**: `backend/config/prompt_modules/system/` (create directory and 3 module files)
+
+**Strategy**: Create markdown files for each enhancement strategy (Few-Shot, CoT, Structured Docs).
+
+**Prerequisites**: Chunk 003 completed (infrastructure exists)
+
+**Module 1**: `tool_calling_few_shot.md`
+```markdown
+## Tool Selection Examples
+
+When multiple directories are available, use these examples to guide your selection:
+
+**Example 1**: "What's the emergency room number?"
+  → **Think**: User asking for phone number, not doctor info
+  → **Call**: `search_directory(list_name="phone_directory", filters={"department_name": "Emergency Department"})`
+
+**Example 2**: "Find me a cardiologist"
+  → **Think**: User looking for medical professional by specialty
+  → **Call**: `search_directory(list_name="doctors", filters={"specialty": "Cardiology"})`
+
+**Example 3**: "I need a cardiologist, what's the phone number?"
+  → **Think**: User needs doctor info (contact is in doctor record)
+  → **Call**: `search_directory(list_name="doctors", filters={"specialty": "Cardiology"})`
+  → **Result**: Return doctor's phone number from their contact info
+```
+
+**Module 2**: `tool_calling_cot.md`
+```markdown
+## Tool Selection Process
+
+Before selecting a directory, think step-by-step:
+
+1. What is the user asking for? (phone number, doctor info, department info, etc.)
+2. Which directory contains this information?
+3. What search parameters should I use?
+4. If multiple directories seem relevant, which is most specific?
+```
+
+**Module 3**: `tool_calling_structured.md`
+```markdown
+## Tool Signature Reference
+
+```python
+search_directory(
+    list_name: str,  # REQUIRED: Must match one of the available directories
+    query: Optional[str] = None,  # General search query
+    filters: Optional[Dict[str, str]] = None  # Specific field filters
+)
+```
+
+**Input Guidelines**:
+- `list_name`: Must exactly match one of the available directories above
+- `query`: Use for general/fuzzy searches (e.g., "heart doctor")
+- `filters`: Use for exact field matches (e.g., `{"specialty": "Cardiology"}`)
+- **Prefer `filters` over `query`** when you know the exact field and value
+
+**Output Format**:
+- Returns list of matching entries with all fields
+- Each entry includes: name, contact_info, tags, entry_data
+- Empty list if no matches found
+```
+
+**MANUAL-TESTS**:
+1. Create directory structure:
+   ```bash
+   mkdir -p backend/config/prompt_modules/system
+   mkdir -p backend/config/prompt_modules/accounts
+   ```
+
+2. Create the 3 module files with content above
+
+3. Verify file contents:
+   ```bash
+   cat backend/config/prompt_modules/system/tool_calling_few_shot.md
+   cat backend/config/prompt_modules/system/tool_calling_cot.md
+   cat backend/config/prompt_modules/system/tool_calling_structured.md
+   ```
+
+**ACCEPTANCE**:
+- ✅ Directory structure created
+- ✅ 3 module files created with correct content
+- ✅ Files are valid markdown
+- ✅ Content follows research-backed strategies
+
+**EFFORT**: ~30 minutes
+
+**STATUS**: 📝 Not started
+
+---
+
+##### 0025-004-004-005 - CHUNK - Integrate Module Loading into simple_chat
+
+**Objective**: Wire up module system to actually load and inject modules into prompts.
+
+**Time**: 1 hour
+
+**Location**: `backend/app/agents/simple_chat.py`
+
+**Strategy**: Load and inject prompt modules during agent creation.
+
+**Prerequisites**: Chunks 003-004 completed (infrastructure + modules exist)
+
+**Implementation**:
+
+```python
+# backend/app/agents/simple_chat.py
+
+from app.agents.tools.prompt_generator import (
+    load_base_prompt,
+    generate_directory_tool_docs
+)
+from app.agents.tools.prompt_modules import load_modules_for_agent  # NEW
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+async def simple_chat(
+    message: str,
+    message_history: Optional[List] = None,
+    session_id: Optional[str] = None,
+    db_session: Optional[AsyncSession] = None,
+    instance_config: Optional[dict] = None,
+    instance: Optional[Any] = None
+) -> dict:
+    """
+    Simple chat agent with dynamic prompt generation and modular enhancements.
+    """
+    # 1. Load base system prompt
+    system_prompt = load_base_prompt(instance_config)
+    
+    # 2. Generate directory tool documentation if directory enabled
+    directory_config = instance_config.get("tools", {}).get("directory", {})
+    if directory_config.get("enabled", False):
+        logger.info("Generating directory tool documentation")
+        
+        directory_docs = await generate_directory_tool_docs(
+            agent_config=instance_config,
+            account_id=instance.account_id,
+            db_session=db_session
+        )
+        
+        if directory_docs:
+            system_prompt = system_prompt + "\n\n" + directory_docs
+            logger.info(f"Appended {len(directory_docs)} chars of directory docs")
+    
+    # 3. Load prompt modules (NEW)
+    account_slug = instance.account.slug if instance and instance.account else None
+    module_content = load_modules_for_agent(instance_config, account_slug)
+    
+    if module_content:
+        system_prompt = system_prompt + "\n\n" + module_content
+        logger.info(f"Appended {len(module_content)} chars from {instance_config.get('prompting', {}).get('modules', {}).get('selected', [])} modules")
+    
+    # 4. Get enabled toolsets
+    toolsets = get_enabled_toolsets(instance_config)
+    
+    # 5. Create agent with enhanced system prompt
+    agent = Agent(
+        instance_config.get("model_settings", {}).get("model", "deepseek/deepseek-chat"),
+        deps_type=SessionDependencies,
+        system_prompt=system_prompt,  # Enhanced with directory docs + modules
+        toolsets=toolsets
+    )
+    
+    # ... rest of implementation (session deps, message history, agent.run) ...
+```
+
+**Config Example**: `wyckoff/wyckoff_info_chat1/config.yaml`
+```yaml
+# Existing config...
+tools:
+  directory:
+    enabled: true
+    accessible_lists: ["doctors", "phone_directory"]
+
+# NEW: Enable prompt modules
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - tool_calling_few_shot
+      - tool_calling_cot
+      - tool_calling_structured
+```
+
+**MANUAL-TESTS**:
+1. Update Wyckoff config with modules enabled
+2. Test agent and check logs:
+   ```bash
+   curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/chat \
+     -H "Content-Type: application/json" \
+     -d '{"message": "What is the ER number?"}'
+   ```
+3. Verify logs show:
+   - "Loading 3 modules for agent"
+   - "Appended X chars from ['tool_calling_few_shot', 'tool_calling_cot', 'tool_calling_structured'] modules"
+
+4. Check Logfire for system prompt content (should include module text)
+
+5. Test with modules disabled:
+   ```yaml
+   prompting:
+     modules:
+       enabled: false
+   ```
+   Verify agent works without modules
+
+**AUTOMATED-TESTS**: `backend/tests/integration/test_simple_chat_modules.py`
+```python
+import pytest
+from app.agents.simple_chat import simple_chat
+from uuid import UUID
+
+
+@pytest.mark.asyncio
+async def test_simple_chat_with_modules_enabled(db_session, wyckoff_instance):
+    """Test agent with prompt modules enabled."""
+    config = {
+        "tools": {"directory": {"enabled": True, "accessible_lists": ["doctors"]}},
+        "prompting": {
+            "modules": {
+                "enabled": True,
+                "selected": ["tool_calling_few_shot", "tool_calling_cot"]
+            }
+        },
+        "model_settings": {"model": "test-model"}
+    }
+    
+    wyckoff_instance.account_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
+    
+    result = await simple_chat(
+        message="Find a cardiologist",
+        instance_config=config,
+        instance=wyckoff_instance,
+        db_session=db_session
+    )
+    
+    assert "response" in result
+
+
+@pytest.mark.asyncio
+async def test_simple_chat_with_modules_disabled(db_session, wyckoff_instance):
+    """Test agent with prompt modules disabled."""
+    config = {
+        "tools": {"directory": {"enabled": True, "accessible_lists": ["doctors"]}},
+        "prompting": {"modules": {"enabled": False}},
+        "model_settings": {"model": "test-model"}
+    }
+    
+    wyckoff_instance.account_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
+    
+    result = await simple_chat(
+        message="Find a cardiologist",
+        instance_config=config,
+        instance=wyckoff_instance,
+        db_session=db_session
+    )
+    
+    assert "response" in result
+```
+
+**ACCEPTANCE**:
+- ✅ Module loading integrated into simple_chat.py
+- ✅ Modules appended to system prompt after directory docs
+- ✅ Config-driven module selection works
+- ✅ Logs show module loading
+- ✅ Works with modules enabled and disabled
+- ✅ Unit tests pass
+
+**EFFORT**: ~1 hour
+
+**STATUS**: 📝 Not started
+
+---
+
+##### 0025-004-004-006 - CHUNK - Measure and Validate Improvements
+
+**Objective**: Quantify impact of all tool calling improvements (diagnostic + modules).
+
+**Time**: 2 hours
+
+**Prerequisites**: Chunks 001-005 completed (all modules deployed)
+
+**Test Strategy**: Compare baseline (no modules) vs improved (with modules).
+
+**Test Script**: `backend/tests/manual/test_tool_calling_improvements.py`
+
+```python
+"""
+Measure tool calling accuracy before/after improvements.
+
+Baseline (Phase 3): ~80% accuracy on multi-directory queries
+Target (Phase 4A): >90% accuracy with improvements
+"""
+
+import asyncio
+from typing import List, Dict
+
+
+# Same test queries as Phase 3 multi-directory testing
+TEST_QUERIES = [
+    {"query": "What's the emergency room number?", "expected_directory": "phone_directory"},
+    {"query": "How do I schedule an appointment?", "expected_directory": "phone_directory"},
+    {"query": "Who can I call about my bill?", "expected_directory": "phone_directory"},
+    {"query": "What's the main hospital number?", "expected_directory": "phone_directory"},
+    {"query": "Find me a cardiologist", "expected_directory": "doctors"},
+    {"query": "Who are the Spanish-speaking doctors?", "expected_directory": "doctors"},
+    {"query": "I need a surgeon", "expected_directory": "doctors"},
+    {"query": "Do you have kidney specialists?", "expected_directory": "doctors"},
+    {"query": "I need a cardiologist, what's the phone number?", "expected_directory": "doctors"},
+]
+
+
+async def measure_accuracy(test_name: str) -> Dict:
+    """
+    Run test queries and measure accuracy.
+    
+    Returns:
+        Dict with accuracy metrics and per-query results
+    """
+    print(f"\n{'='*80}")
+    print(f"TEST: {test_name}")
+    print(f"{'='*80}\n")
+    
+    results = []
+    
+    for test_case in TEST_QUERIES:
+        query = test_case['query']
+        expected = test_case['expected_directory']
+        
+        # Make API call
+        # actual_directory = extract_from_response(...)
+        actual_directory = "phone_directory"  # Placeholder
+        
+        correct = (actual_directory == expected)
+        results.append({
+            "query": query,
+            "expected": expected,
+            "actual": actual_directory,
+            "correct": correct
+        })
+        
+        status = "✅" if correct else "❌"
+        print(f"{status} {query[:50]:<50} | Expected: {expected:<15} | Actual: {actual_directory}")
+    
+    # Calculate metrics
+    accuracy = sum(1 for r in results if r['correct']) / len(results)
+    
+    print(f"\n{'='*80}")
+    print(f"Accuracy: {accuracy*100:.1f}% ({sum(1 for r in results if r['correct'])}/{len(results)})")
+    print(f"{'='*80}\n")
+    
+    return {
+        "test_name": test_name,
+        "accuracy": accuracy,
+        "correct": sum(1 for r in results if r['correct']),
+        "total": len(results),
+        "results": results
+    }
+
+
+async def main():
+    """
+    Compare baseline vs improved accuracy.
+    """
+    # Note: Run this test twice:
+    # 1. Before implementing improvements (baseline)
+    # 2. After implementing all 4 strategies (improved)
+    
+    result = await measure_accuracy("Tool Calling with Improvements")
+    
+    print("\n" + "="*80)
+    print("COMPARISON TO BASELINE")
+    print("="*80)
+    print(f"Baseline (Phase 3):  ~80% accuracy")
+    print(f"Improved (Phase 4A): {result['accuracy']*100:.1f}% accuracy")
+    
+    improvement = result['accuracy'] - 0.80
+    print(f"Improvement: {improvement*100:+.1f} percentage points")
+    
+    if result['accuracy'] >= 0.90:
+        print("\n✅ TARGET ACHIEVED: >90% accuracy")
+    else:
+        print(f"\n⚠️ TARGET MISSED: {result['accuracy']*100:.1f}% < 90%")
+        print("   Review failed queries and refine strategies")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**MANUAL-TESTS**:
+1. Run baseline test (before improvements):
+   ```bash
+   python backend/tests/manual/test_tool_calling_improvements.py > baseline_results.txt
+   ```
+
+2. Implement all 4 improvements (chunks 001-003)
+
+3. Run improved test:
+   ```bash
+   python backend/tests/manual/test_tool_calling_improvements.py > improved_results.txt
+   ```
+
+4. Compare results:
+   ```bash
+   diff baseline_results.txt improved_results.txt
+   ```
+
+5. Analyze failures:
+   - Check Logfire for failed queries
+   - Review LLM reasoning
+   - Identify prompt refinements if needed
+
+**ACCEPTANCE**:
+- ✅ Baseline accuracy measured (Phase 3 result)
+- ✅ Improved accuracy measured (>90% target)
+- ✅ Improvements documented with before/after metrics
+- ✅ Per-query results logged for analysis
+- ✅ Logfire shows improved tool selection traces
+
+**EFFORT**: ~2 hours (testing + analysis)
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0025-004-004 - TASK SUMMARY
+
+**Deliverables** (6 chunks, implementation order):
+1. ✅ Model diagnostic test (Claude vs Gemini) - 2 min
+2. ✅ Quick fix: Keyword hints module - 10 min
+3. ✅ Prompt module infrastructure (`prompt_modules.py`) - 1 hour
+4. ✅ 3 research-backed modules (few-shot, CoT, structured docs) - 30 min
+5. ✅ Module loading integrated into `simple_chat.py` - 1 hour
+6. ✅ Accuracy measurement and validation - 2 hours
+
+**Expected Impact**:
+- **Baseline**: ~80% tool selection accuracy (Phase 3)
+- **Quick fix** (Chunks 1-2): Fix immediate Gemini misclassification (~12 min)
+- **Full solution** (Chunks 1-6): >90% tool selection accuracy (~4 hours)
+- **Improvement**: +10-15 percentage points
+- **Total Effort**: ~4 hours (12 min immediate + 3.5 hours infrastructure)
+
+**Architecture Benefits**:
+- ✅ **Configurable** (not hardcoded) - modules live in markdown files
+- ✅ **Reusable** - same modules work for any multi-tool agent
+- ✅ **Opt-in** - agents can enable/disable modules via config.yaml
+- ✅ **Account-customizable** - accounts can override system modules
+- ✅ **Foundation for Phase 5** - implements core module loading system
+
+**Testing**:
+- ✅ Unit tests for module loading infrastructure
+- ✅ Integration tests for module injection
+- ✅ Manual testing with before/after comparison
+- ✅ Logfire validation of improved behavior
+
+**Result**: Modular, config-driven tool calling improvements that serve as **Phase 5 Lite** foundation. Research-backed strategies significantly improve LLM tool selection accuracy with zero hardcoded logic.
+
+**Relationship to Phase 5**: This task implements the core module system (loading, account overrides, config selection) but only creates tool-calling-specific modules. Full Phase 5 expands module library to include domain-specific content (emergency protocols, billing info, etc.).
+
+---
+
+#### 0025-004-005 - TASK - Regression Testing
 
 **Objective**: Verify existing single-tool agents still work correctly with Phase 4A changes.
 
-##### 0025-004-004-001 - CHUNK - Test all agent configurations
+##### 0025-004-005-001 - CHUNK - Test all agent configurations
 
 **Test all agent types**:
 
@@ -2132,16 +3000,24 @@ if __name__ == "__main__":
 - ✅ Multi-tool test configuration (Wyckoff agent)
 - ✅ Comprehensive test suite (10 scenarios)
 - ✅ Tool selection validation (>80% accuracy)
+- ✅ **Modular prompt system** (Phase 5 Lite) - configurable, not hardcoded
+- ✅ Tool calling improvements (Few-shot, CoT, Structured docs as modules)
+- ✅ Accuracy improvements measured (target: >90%)
 - ✅ Performance benchmarks
 - ✅ Regression testing (all agent types)
 
 **Testing**:
 - ✅ Unit tests for config loading
+- ✅ Unit tests for prompt module infrastructure
 - ✅ Integration tests for multi-tool scenarios
+- ✅ Integration tests for module loading
 - ✅ Performance tests for latency
+- ✅ Before/after accuracy measurements
 - ✅ Regression tests for all agents
 
-**Result**: Multi-tool infrastructure validated. Directory + vector tools work together correctly without conflicts.
+**Result**: Multi-tool infrastructure validated with **configurable prompt modules** (Phase 5 Lite). Tool calling improvements achieve >90% accuracy via modular, opt-in enhancements. Directory + vector tools work together correctly without conflicts.
+
+**Phase 5 Foundation**: Implements core module loading system (markdown files, config selection, account overrides) used for tool calling improvements. Full Phase 5 expands this to include domain-specific prompt modules.
 
 ---
 
@@ -2175,10 +3051,14 @@ if __name__ == "__main__":
 ### Phase 4A
 - ✅ Wyckoff agent configured with directory + vector tools
 - ✅ 10 multi-tool test scenarios created
-- ✅ >80% tool selection accuracy validated
+- ✅ Few-shot examples implemented in prompt generator
+- ✅ Chain-of-Thought instructions integrated
+- ✅ Structured tool documentation added
+- ✅ >90% tool selection accuracy validated (improved from ~80% baseline)
 - ✅ Sequential tool calls work correctly
 - ✅ Multi-tool latency < 2x single-tool latency
-- ✅ All unit tests pass
+- ✅ Before/after accuracy metrics documented
+- ✅ All unit tests pass (including tool improvement tests)
 - ✅ All integration tests pass
 - ✅ Regression tests pass (all agent types work)
 - ✅ Logfire shows correct multi-tool execution traces
@@ -2202,11 +3082,13 @@ if __name__ == "__main__":
 - ✅ No regressions in existing functionality
 
 **Phase 4A**:
-- ✅ >80% tool selection accuracy on multi-tool queries
+- ✅ >90% tool selection accuracy with improvements (baseline: ~80%)
+- ✅ Few-shot examples, CoT, and structured docs implemented
 - ✅ Sequential tool calls work correctly
 - ✅ Multi-tool latency acceptable (< 2x single-tool)
 - ✅ No tool conflicts or errors
 - ✅ All agent types continue to work correctly
+- ✅ Before/after metrics documented
 
 ---
 
