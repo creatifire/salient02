@@ -2232,6 +2232,37 @@ prompting:
 
 **NOTE**: This module provides immediate fix. If effective, it validates the modular approach before investing 3.5 hours in full infrastructure.
 
+**ARCHITECTURAL CLARIFICATION - Schemas vs Modules**:
+
+**Why not put this in `directory_schemas/*.yaml`?**
+- ✅ **Schemas** contain **within-directory** guidance (how to search once directory is chosen)
+  - Location: `search_strategy.guidance` field in each schema
+  - Example: "When searching phone_directory, prefer department_name over service_type"
+  - Scope: Single directory, domain-specific
+  
+- ✅ **Modules** contain **multi-directory** selection guidance (which directory to choose)
+  - Location: `prompt_modules/system/*.md` files
+  - Example: "When query has 'department + phone', choose phone_directory not doctors"
+  - Scope: Cross-directory, Wyckoff-specific pattern
+
+**Key Distinction**:
+- Schema guidance: "How to search within this directory" (per-directory, already exists)
+- Module guidance: "When to choose this directory vs others" (cross-directory, new)
+
+**Why separate?**:
+1. **Architectural correctness**: Multi-directory rules don't belong in per-directory schemas
+2. **Modularity**: Can enable/disable per agent via config.yaml
+3. **No coupling**: Adding new directory doesn't require updating all schemas
+4. **Scalability**: 10 directories = 1 module, not 10 schema updates
+5. **Phase consistency**: Aligns with Phase 5 modular prompt design
+
+**Both work together**:
+```
+System Prompt = Base + Schema Docs (Phase 3) + Modules (Phase 4A)
+                        ↓                           ↓
+                 Per-directory guidance    Multi-directory selection
+```
+
 ---
 
 ##### 0025-004-004-003 - CHUNK - Create Prompt Module Infrastructure
