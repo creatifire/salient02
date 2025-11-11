@@ -19,8 +19,8 @@ Unauthorized copying of this file is strictly prohibited.
 - Phase 3: Schema standardization → Multi-directory support
 - Phase 4A: Multi-tool testing → Validate multiple toolsets working together
 - Phase 4B: Prompt caching → 70% cost savings
-- Phase 5: Modular prompts → 40% quality improvement
-- Phase 6: MCP integration → External tool ecosystem (native support!)
+- Phase 5: Modular prompts → 40% quality improvement (context-aware enhancements, works with any tools)
+- Phase 6: MCP integration → External tool ecosystem (builds on Phase 5 for MCP-specific guidance)
 
 **Expected Results**: 50-60% quality improvement for complex queries, 70% cost reduction via prompt caching.
 
@@ -1509,6 +1509,8 @@ tools:
 
 **Who doesn't need this**: Simple agents and directory-only agents work fine without modules!
 
+**Scope**: Pure modular prompt infrastructure - works with ANY tool combination (directory, vector, or future MCP servers)
+
 **Implementation**:
 
 1. **Create module infrastructure**:
@@ -1548,6 +1550,7 @@ tools:
 5. **Pilot with Wyckoff**:
    - Enable for wyckoff_info_chat1
    - Test emergency query handling
+   - Test with existing tools (directory + vector)
    - Measure quality improvement (thumbs up/down)
 
 **Testing**:
@@ -1573,9 +1576,11 @@ tools:
 ### Phase 6: MCP Integration (External Tool Ecosystem)
 
 **Risk**: Medium (depends on MCP server stability + availability)  
-**Value**: Extensibility for GitHub, Slack, weather, custom integrations
+**Value**: Extensibility for GitHub, Slack, Tavily web search, Wikidata, custom integrations
 
-**Why**: Enable dynamic integration with external services via MCP protocol. Agents can use GitHub for issue tracking, Slack for notifications, weather for patient travel advice, etc.
+**Why**: Enable dynamic integration with external services via MCP protocol. Agents can use GitHub for issue tracking, Slack for notifications, Tavily for web search, Wikidata for knowledge graphs, etc.
+
+**Builds on Phase 5**: MCP servers work with existing modular prompt infrastructure - keyword mappings can trigger MCP-specific guidance modules.
 
 **Implementation**:
 
@@ -1675,24 +1680,36 @@ tools:
    )
    ```
 
-5. **Create MCP module library** (Phase 5 feature):
+5. **Create MCP-specific module library** (leverages Phase 5 infrastructure):
    - `backend/config/prompt_modules/mcp/`:
-     - `github_best_practices.md`: When to create issues vs. PRs
-     - `slack_messaging_guidelines.md`: Professional communication
-     - `weather_context.md`: How to integrate weather into responses
+     - `github_best_practices.md`: When to create issues vs. PRs, coding guidelines
+     - `slack_messaging_guidelines.md`: Professional communication standards
+     - `tavily_search_guidelines.md`: How to use web search effectively
+     - `wikidata_query_patterns.md`: Knowledge graph query best practices
 
-6. **Add MCP-specific keyword mappings** (Phase 5 feature):
+6. **Add MCP-specific keyword mappings** (extends Phase 5 config pattern):
    ```yaml
-   # agent_configs/{account}/{instance}/keyword_mappings.yaml
+   # agent_configs/{account}/{instance}/config.yaml
    prompting:
      modules:
+       enabled: true  # Phase 5 infrastructure
        keyword_mappings:
-         - keywords: ["code", "repository", "issue", "bug"]
+         # MCP-specific modules
+         - keywords: ["code", "repository", "issue", "bug", "pr", "pull request"]
            module: "mcp/github_best_practices.md"
-           required_tool: "gh"  # Matches tool_prefix
-         - keywords: ["notify", "alert", "message"]
+           priority: 5
+         
+         - keywords: ["notify", "alert", "message", "slack", "team"]
            module: "mcp/slack_messaging_guidelines.md"
-           required_tool: "slack"
+           priority: 5
+         
+         - keywords: ["search", "web", "current", "latest", "news"]
+           module: "mcp/tavily_search_guidelines.md"
+           priority: 5
+         
+         - keywords: ["facts", "entity", "knowledge", "wikidata"]
+           module: "mcp/wikidata_query_patterns.md"
+           priority: 5
    ```
 
 7. **Pilot with Tavily MCP** (recommended first test):
@@ -1709,18 +1726,28 @@ tools:
    - Use cases: Named entity disambiguation, zero-shot classification, structured Q&A
    - Then test GitHub/Slack as needed
 
+9. **Validate Phase 5 integration**:
+   - Test MCP servers with modular prompts enabled
+   - Verify keyword mappings trigger MCP-specific modules
+   - Test combined directory + vector + MCP scenarios
+   - Measure module effectiveness for MCP guidance
+
 **Testing**:
 - MCP servers load dynamically from config
 - Pydantic AI auto-discovers tools and schemas
 - Agents without MCP config unchanged
 - MCP server failures don't crash agent
+- **Phase 5 modules work with MCP servers** (keyword-triggered guidance)
+- MCP-specific modules enhance tool usage (GitHub best practices, Tavily search patterns)
 
 **Deliverable**:
 - **Tavily search** (web search for real-time information - first test)
 - **Wikidata Vector DB** (structured knowledge graph search - experimental)
 - GitHub integration (issue creation, repo search)
 - Slack integration (notifications, alerts)
+- **MCP-specific module library** (4 modules leveraging Phase 5 infrastructure)
 - Extensible framework for custom MCP servers
+- **Validated Phase 5+6 integration** (modular prompts enhance MCP tool usage)
 
 **Challenges**:
 - MCP server reliability (external dependencies)
@@ -1732,7 +1759,12 @@ tools:
 - Monitor MCP call latency/success rates in Logfire
 - Document MCP server installation in deployment guide
 
-**Backward compatibility**: MCP optional. Non-MCP agents work as before.
+**Backward compatibility**: 
+- MCP servers are optional (non-MCP agents work as before)
+- Phase 5 modules work with or without MCP servers
+- Agents can use Phase 5 without Phase 6, or both together
+
+**Key Insight**: Phase 6 extends Phase 5's keyword mapping pattern to MCP-specific guidance, creating a consistent experience across all tool types.
 
 ---
 
@@ -1745,8 +1777,8 @@ tools:
 | **3: Schema Standardization** | Low | Multi-directory support | Phase 1-2 | LLM routes to correct directory |
 | **4A: Multi-Tool Testing** | Low | Functional validation | Phase 1 | Multi-tool scenarios validated |
 | **4B: Prompt Caching** | Low | 70% cost savings | Phase 3 | Cached prompts (cost/latency optimization) |
-| **5: Modular Prompts** | Low | 40% quality improvement | Phase 1-3 | Context-aware emergency/billing handling |
-| **6: MCP Integration** | Medium | External tool ecosystem | Phase 1 | GitHub/Slack/Tavily/Wikidata tools |
+| **5: Modular Prompts** | Low | 40% quality improvement | Phase 1-3 | Context-aware emergency/billing handling (works with any tools) |
+| **6: MCP Integration** | Medium | External tool ecosystem | Phase 1, Phase 5 recommended | GitHub/Slack/Tavily/Wikidata + MCP-specific modules |
 
 **Expected Results**: 50-60% overall quality gain
 
@@ -1764,8 +1796,8 @@ tools:
 - After Phase 3: Schema conventions validated, unlimited directory types supported
 - After Phase 4A: Multi-tool scenarios validated (directory + vector working together)
 - After Phase 4B: 70% cost reduction via prompt caching
-- After Phase 5: Emergency protocols + billing context working
-- After Phase 6: GitHub/Slack integrations working
+- After Phase 5: Emergency protocols + billing context working (modular prompt infrastructure)
+- After Phase 6: GitHub/Slack/Tavily integrations working + MCP-specific guidance modules
 
 **Strategy Validation**: See `memorybank/analysis/advanced-agent-strategies.md` for alternative approaches evaluated (agent chaining, few-shot learning, query preprocessing) and why incremental evolution of `simple_chat` is recommended over building v2.
 
@@ -2088,12 +2120,19 @@ def load_modules_for_query(query: str, module_config: dict) -> list[str]:
 - ✅ NEW: `backend/app/agents/tools/module_selector.py` (~50 lines)
   - `select_modules(query, config)` - pure function, no state
 - ✅ NEW: `backend/config/prompt_modules/` directory structure
+  - System-level modules (shared/, medical/, administrative/)
 - ✅ NEW: `backend/config/agent_configs/{account}/modules/` structure
+  - Account-specific module overrides
 
 **Phase 6: MCP Integration**
 - ✅ MODIFY: `backend/app/agents/simple_chat.py`
-  - Add `MCPServerStdio` to toolsets list
-- ⚠️ NO new files (Pydantic AI handles everything)
+  - Add `MCPServerStdio` and `MCPServerSSE` to toolsets list
+  - Load MCP servers from config
+- ✅ NEW: `backend/config/prompt_modules/mcp/` directory
+  - MCP-specific guidance modules (leverages Phase 5 infrastructure)
+  - `github_best_practices.md`, `slack_messaging_guidelines.md`
+  - `tavily_search_guidelines.md`, `wikidata_query_patterns.md`
+- ⚠️ NO new Python files (Pydantic AI MCP support is native)
 
 **Total New Code**: ~150 lines (vs. ~900 with custom approach) + Phase 2 schema/data work
 
@@ -2268,6 +2307,11 @@ backend/config/
       tone_guidelines.md
     medical/
       clinical_disclaimers.md
+    mcp/                        # NEW (Phase 6): MCP-specific guidance
+      github_best_practices.md
+      slack_messaging_guidelines.md
+      tavily_search_guidelines.md
+      wikidata_query_patterns.md
   
   directory_schemas/
     medical_professional.yaml   # Update (Phase 3): Add directory_purpose, rename to formal_terms
