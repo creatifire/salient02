@@ -2134,9 +2134,18 @@ curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/ch
 
 **EFFORT**: 2 minutes
 
-**STATUS**: 📝 Not started
+**STATUS**: ✅ Completed
 
-**OUTCOME**: ⚠️ To be filled after testing
+**OUTCOME**: 
+- **Tested**: Claude 3.7 Sonnet (`anthropic/claude-3.7-sonnet`)
+- **Result**: Claude exhibits SAME misclassification as Gemini
+- **Evidence from Logfire**:
+  - Query: "cardiology department phone number"
+  - Claude selected: `list_name="doctors"` with `filters={"specialty":"Cardiology"}`
+  - Should have selected: `list_name="phone_directory"` with `filters={"department_name":"Cardiology"}`
+- **Root Cause**: PROMPT DESIGN ISSUE, not model-specific
+- **Conclusion**: Both Gemini and Claude struggle with "department + phone" pattern
+- **Decision**: Problem is prompt clarity, not model capability → Proceed with keyword hints module (Chunk 002)
 
 ---
 

@@ -108,6 +108,13 @@ models:
     updated: "2025-10-31"
     notes: "xAI's latest multimodal model with SOTA cost-efficiency. 2M token context window. Two flavors: non-reasoning (default) and reasoning (enable via 'reasoning: enabled' param). Released Sep 19, 2025. Used by default_account/simple_chat2."
   
+  anthropic/claude-3.7-sonnet:
+    input_per_1m: 3.00     # $3.00 per 1M input tokens
+    output_per_1m: 15.00   # $15.00 per 1M output tokens
+    source: "https://openrouter.ai/anthropic/claude-3.7-sonnet"
+    updated: "2025-02-24"
+    notes: "Claude 3.7 Sonnet with hybrid reasoning mode. 200k context. Improved coding, agentic workflows, and problem-solving. Standard and extended reasoning modes available. Used by wyckoff/wyckoff_info_chat1."
+  
   # NOTE: google/gemini-2.5-flash is available in genai-prices (as "gemini-2.5-flash")
   # No fallback entry needed - code strips provider prefix before calling calc_price()
 

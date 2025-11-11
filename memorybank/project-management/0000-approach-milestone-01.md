@@ -878,6 +878,7 @@ Execute in this order for optimal results:
 
 **In Progress**:
 - 📋 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
+**>> You are here <<**
 - 📋 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
   - Includes lightweight modular prompts (Phase 5 Lite) for tool calling enhancements
   - Keyword hints, few-shot examples, Chain-of-Thought, structured docs
@@ -893,7 +894,8 @@ Execute in this order for optimal results:
   - Builds on Phase 4A lightweight infrastructure
   - Decision pending Phase 4A validation results
 
-**Next**: Priority 6 - Profile Fields Configuration
+**Conversations**:
+- memorybank/design/conversations.md
 
 ### **Priority 6: Profile Fields Configuration & Database Schema** 📋
 - [ ] 0017-006-001 - Profile Fields YAML Configuration
