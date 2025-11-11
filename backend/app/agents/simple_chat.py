@@ -237,6 +237,27 @@ async def create_simple_chat_agent(
             reason='no_account_id'
         )
     
+    # Load prompt modules (Phase 4A)
+    from .tools.prompt_modules import load_modules_for_agent
+    
+    # Extract account_slug for account-level module loading
+    account_slug = None
+    if instance_config:
+        account_slug = instance_config.get("account")
+    
+    module_content = load_modules_for_agent(instance_config or {}, account_slug)
+    
+    if module_content:
+        system_prompt = system_prompt + "\n\n" + module_content
+        selected_modules = (instance_config or {}).get('prompting', {}).get('modules', {}).get('selected', [])
+        logfire.info(
+            'agent.prompt_modules.loaded',
+            module_count=len(selected_modules),
+            modules=selected_modules,
+            content_length=len(module_content),
+            final_prompt_length=len(system_prompt)
+        )
+    
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
     if instance_config is not None:

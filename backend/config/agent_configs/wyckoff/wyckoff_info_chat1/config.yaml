@@ -12,6 +12,13 @@ description: "Healthcare information and doctor search assistant for Wyckoff Hos
 prompts:
   system_prompt_file: "./system_prompt.md"
 
+# Prompt modules configuration (Phase 4A)
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - directory_keyword_hints  # NEW - tactical fix for multi-directory selection
+
 model_settings:
   model: "google/gemini-2.5-flash"  # Fast, reliable model with excellent tool support
   temperature: 0.3

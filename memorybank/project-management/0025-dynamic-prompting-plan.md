@@ -2226,11 +2226,26 @@ prompting:
 
 **EFFORT**: 10 minutes
 
-**STATUS**: 📝 Not started
+**STATUS**: ✅ Ready for Testing - Infrastructure complete (Chunks 003+005 done)
 
-**OUTCOME**: ⚠️ To be filled after testing
+**PROGRESS**:
+- ✅ Created directory structure: `backend/config/prompt_modules/system/` and `accounts/`
+- ✅ Created module file: `directory_keyword_hints.md` with keyword patterns
+- ✅ Updated Wyckoff config: Added `prompting.modules` section
+- ✅ Infrastructure complete: Chunk 003 (prompt_modules.py) done
+- ✅ Integration complete: Chunk 005 (simple_chat integration) done
+- 📋 Ready for user testing: Restart backend and test 3 queries
 
-**NOTE**: This module provides immediate fix. If effective, it validates the modular approach before investing 3.5 hours in full infrastructure.
+**TEST QUERIES** (from Chunk 001):
+1. "What is the pediatrics department phone number?"
+2. "How do I reach the cardiology department?"
+3. "Give me the billing department number"
+
+**EXPECTED**: All 3 queries should now correctly use `phone_directory` (not `doctors`)
+
+**OUTCOME**: ⚠️ To be filled after user testing
+
+**NOTE**: This module provides immediate fix. If effective, it validates the modular approach before investing additional time in Chunks 004+006.
 
 **ARCHITECTURAL CLARIFICATION - Schemas vs Modules**:
 
@@ -2474,7 +2489,15 @@ def test_load_modules_for_agent_disabled():
 
 **EFFORT**: ~1 hour
 
-**STATUS**: 📝 Not started
+**STATUS**: ✅ Completed
+
+**DELIVERABLES**:
+- ✅ Created `backend/app/agents/tools/prompt_modules.py` with Logfire logging
+- ✅ Implemented `load_prompt_module()` function with account/system cascade
+- ✅ Implemented `load_modules_for_agent()` function with config parsing
+- ✅ Created unit tests in `backend/tests/unit/test_prompt_modules.py`
+- ✅ No linter errors
+- ✅ File structure verified (directory_keyword_hints.md exists and loads)
 
 ---
 
@@ -2756,7 +2779,20 @@ async def test_simple_chat_with_modules_disabled(db_session, wyckoff_instance):
 
 **EFFORT**: ~1 hour
 
-**STATUS**: 📝 Not started
+**STATUS**: ✅ Completed
+
+**DELIVERABLES**:
+- ✅ Integrated `load_modules_for_agent()` into `create_simple_chat_agent()`
+- ✅ Added module loading after directory docs, before model settings
+- ✅ Proper account_slug extraction from instance_config
+- ✅ Logfire logging for module loading events
+- ✅ No linter errors
+- ✅ Wyckoff config already has `prompting.modules` section enabled
+
+**NOTES**:
+- Chunks 002, 003, and 005 now complete - system is ready for testing!
+- Keyword hints module will load automatically for Wyckoff agent
+- Can proceed with testing or implement additional modules (Chunk 004)
 
 ---
 
