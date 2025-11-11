@@ -12,10 +12,37 @@ from pathlib import Path
 from typing import Optional
 import logfire
 
-# Module directories
-# Path: backend/app/agents/tools/prompt_modules.py → backend/config/prompt_modules/
-SYSTEM_MODULES_DIR = Path(__file__).parent.parent.parent.parent / "config" / "prompt_modules" / "system"
-ACCOUNT_MODULES_DIR = Path(__file__).parent.parent.parent.parent / "config" / "prompt_modules" / "accounts"
+
+def _find_backend_root() -> Path:
+    """
+    Find backend/ directory (contains app/ and config/ subdirectories).
+    
+    Walks up from current file until it finds a directory named 'backend'
+    that contains both 'app/' and 'config/' subdirectories.
+    
+    Returns:
+        Path to backend/ directory
+        
+    Raises:
+        RuntimeError: If backend/ directory cannot be found
+    """
+    current = Path(__file__).resolve()
+    
+    for parent in [current] + list(current.parents):
+        if parent.name == "backend" and (parent / "app").is_dir() and (parent / "config").is_dir():
+            logfire.debug("backend.root.found", path=str(parent))
+            return parent
+    
+    raise RuntimeError(
+        f"Could not find backend/ directory from {current}. "
+        "Expected to find backend/app/ and backend/config/ structure."
+    )
+
+
+# Calculate backend root once at module import
+BACKEND_ROOT = _find_backend_root()
+SYSTEM_MODULES_DIR = BACKEND_ROOT / "config" / "prompt_modules" / "system"
+ACCOUNT_MODULES_DIR = BACKEND_ROOT / "config" / "prompt_modules" / "accounts"
 
 
 def load_prompt_module(module_name: str, account_slug: Optional[str] = None) -> Optional[str]:

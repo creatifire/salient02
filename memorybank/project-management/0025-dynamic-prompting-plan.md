@@ -2242,8 +2242,9 @@ prompting:
 - ✅ Integration complete: Chunk 005 (simple_chat integration) done
 - ✅ **BUG FIXED**: Path calculation error - modules now loading correctly
   - Issue: Used 3 `.parent` calls (stopped at `backend/app/`)
-  - Fix: Now uses 4 `.parent` calls (reaches `backend/`)
-  - Evidence: Logfire showed `prompt.module.not_found` errors
+  - Initial fix: Changed to 4 `.parent` calls (reaches `backend/`)
+  - **Final fix**: Replaced with `_find_backend_root()` helper (robust, maintainable)
+  - Evidence: Logfire showed `prompt.module.not_found` errors (now resolved)
 - 📋 Ready for user testing: Restart backend and test 3 queries
 
 **TEST QUERIES** (from Chunk 001):
@@ -2503,11 +2504,13 @@ def test_load_modules_for_agent_disabled():
 
 **DELIVERABLES**:
 - ✅ Created `backend/app/agents/tools/prompt_modules.py` with Logfire logging
+- ✅ Implemented `_find_backend_root()` helper for robust path resolution
 - ✅ Implemented `load_prompt_module()` function with account/system cascade
 - ✅ Implemented `load_modules_for_agent()` function with config parsing
 - ✅ Created unit tests in `backend/tests/unit/test_prompt_modules.py`
 - ✅ No linter errors
 - ✅ File structure verified (directory_keyword_hints.md exists and loads)
+- ✅ **Path Resolution Fix**: Replaced fragile `.parent.parent.parent.parent` with `_find_backend_root()` for maintainability
 
 ---
 
