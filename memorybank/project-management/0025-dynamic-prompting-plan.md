@@ -2232,7 +2232,7 @@ prompting:
 
 **EFFORT**: 10 minutes
 
-**STATUS**: ✅ Ready for Testing - Infrastructure complete (Chunks 003+005 done)
+**STATUS**: ✅ Ready for Testing - Bug fixed, ready for retry
 
 **PROGRESS**:
 - ✅ Created directory structure: `backend/config/prompt_modules/system/` and `accounts/`
@@ -2240,6 +2240,10 @@ prompting:
 - ✅ Updated Wyckoff config: Added `prompting.modules` section
 - ✅ Infrastructure complete: Chunk 003 (prompt_modules.py) done
 - ✅ Integration complete: Chunk 005 (simple_chat integration) done
+- ✅ **BUG FIXED**: Path calculation error - modules now loading correctly
+  - Issue: Used 3 `.parent` calls (stopped at `backend/app/`)
+  - Fix: Now uses 4 `.parent` calls (reaches `backend/`)
+  - Evidence: Logfire showed `prompt.module.not_found` errors
 - 📋 Ready for user testing: Restart backend and test 3 queries
 
 **TEST QUERIES** (from Chunk 001):
