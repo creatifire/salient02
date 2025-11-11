@@ -2,6 +2,26 @@ entry_type: phone_directory
 schema_version: "1.0"
 description: "Schema for hospital department phone numbers and contact information"
 
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Hospital department phone numbers and contact information"
+  
+  use_for:
+    - "Finding phone numbers for hospital departments"
+    - "Getting hours of operation for departments"
+    - "Finding contact information for administrative services"
+    - "Scheduling appointments or reaching billing"
+  
+  example_queries:
+    - "What's the emergency room number?"
+    - "How do I schedule an appointment?"
+    - "Who can I call about my bill?"
+    - "What's the main hospital number?"
+  
+  not_for:
+    - "Finding a specific doctor by name or specialty (use doctors)"
+    - "Medical professional contact information (use doctors)"
+
 required_fields:
   - service_type
 
@@ -73,6 +93,9 @@ searchable_fields:
     description: "When the service is available"
 
 search_strategy:
+  # Custom heading for prompt generation
+  synonym_mappings_heading: "Medical Term Mappings (Lay → Formal)"
+  
   guidance: |
     **When users ask about contacting departments:**
     1. Search by department name if specific
@@ -81,11 +104,11 @@ search_strategy:
   
   synonym_mappings:
     - lay_terms: ["ER", "emergency room", "emergency"]
-      department_names: ["Emergency Department"]
+      formal_terms: ["Emergency Department"]
     - lay_terms: ["appointments", "schedule", "booking"]
-      department_names: ["Appointments"]
+      formal_terms: ["Appointments"]
     - lay_terms: ["billing", "bill", "payment", "insurance"]
-      department_names: ["Billing Department"]
+      formal_terms: ["Billing Department"]
   
   examples:
     - user_query: "What's the emergency room number?"

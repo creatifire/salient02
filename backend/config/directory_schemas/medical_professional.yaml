@@ -8,6 +8,26 @@ entry_type: medical_professional
 schema_version: "1.0"
 description: "Schema for medical professionals including doctors, nurses, therapists, and healthcare providers"
 
+# NEW: Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Medical professionals including doctors, nurses, specialists"
+  
+  use_for:
+    - "Finding a doctor by medical specialty (cardiology, nephrology, etc.)"
+    - "Finding a doctor by name"
+    - "Finding doctors who speak a specific language"
+    - "Getting doctor contact information and office location"
+  
+  example_queries:
+    - "I need a cardiologist"
+    - "Do you have kidney specialists?"
+    - "Who is Dr. Jane Smith?"
+    - "Are there Spanish-speaking doctors?"
+  
+  not_for:
+    - "General hospital department phone numbers (use phone_directory)"
+    - "Hospital services information (use services)"
+
 # Required fields that must be present in entry_data JSONB
 required_fields:
   - department
@@ -217,6 +237,9 @@ search_config:
 # Used by prompt_generator.py to teach LLM how to handle general/ambiguous terms
 # CRITICAL: Medical terminology has many synonyms - always expand lay terms to medical specialties
 search_strategy:
+  # NEW: Custom heading for prompt generation
+  synonym_mappings_heading: "Medical Term Mappings (Lay → Formal)"
+  
   guidance: |
     **BEFORE searching, think step-by-step:**
     1. What medical specialty does this term refer to?
@@ -229,77 +252,77 @@ search_strategy:
   synonym_mappings:
     # Primary Care
     - lay_terms: ["primary care", "general practice", "family practice", "family doctor", "general doctor", "PCP"]
-      medical_specialties: ["Family Medicine", "General Internal Medicine", "Internal Medicine"]
+      formal_terms: ["Family Medicine", "General Internal Medicine", "Internal Medicine"]
       search_approach: "Try EACH specialty separately - they're stored differently in the database"
     
     # Kidney/Renal
     - lay_terms: ["kidney doctor", "kidney specialist", "renal specialist", "kidney disease"]
-      medical_specialties: ["Nephrology"]
+      formal_terms: ["Nephrology"]
       search_approach: "Search for 'Nephrology' - this is the formal specialty name"
     
     # Heart/Cardiac
     - lay_terms: ["heart doctor", "heart specialist", "cardiac specialist"]
-      medical_specialties: ["Cardiology", "Interventional Cardiology", "Cardiac Surgery"]
+      formal_terms: ["Cardiology", "Interventional Cardiology", "Cardiac Surgery"]
       search_approach: "Search 'Cardiology' first, then 'Cardiac Surgery' if surgical intervention mentioned"
     
     # Digestive/GI
     - lay_terms: ["stomach doctor", "digestive specialist", "GI doctor", "intestine doctor"]
-      medical_specialties: ["Gastroenterology", "Gastroenterology and Hepatology"]
+      formal_terms: ["Gastroenterology", "Gastroenterology and Hepatology"]
       search_approach: "Search for 'Gastroenterology' - covers all digestive system"
     
     # Children
     - lay_terms: ["children's doctor", "kids doctor", "baby doctor"]
-      medical_specialties: ["Pediatrics", "Neonatology", "Pediatric Surgery"]
+      formal_terms: ["Pediatrics", "Neonatology", "Pediatric Surgery"]
       search_approach: "Search 'Pediatrics' for general, 'Neonatology' for newborns"
     
     # Women's Health
     - lay_terms: ["women's doctor", "pregnancy doctor", "OBGYN", "gynecologist"]
-      medical_specialties: ["Obstetrics and Gynecology", "Gynecology", "Maternal Fetal Medicine"]
+      formal_terms: ["Obstetrics and Gynecology", "Gynecology", "Maternal Fetal Medicine"]
       search_approach: "Search for 'Obstetrics' or 'Gynecology'"
     
     # Brain/Nervous System
     - lay_terms: ["brain doctor", "nerve doctor", "neurologist"]
-      medical_specialties: ["Neurology", "Neurosurgery"]
+      formal_terms: ["Neurology", "Neurosurgery"]
       search_approach: "Search 'Neurology' first, then 'Neurosurgery' for surgical cases"
     
     # Bones/Joints
     - lay_terms: ["bone doctor", "joint doctor", "sports medicine", "orthopedic"]
-      medical_specialties: ["Orthopedic Surgery", "Sports Medicine", "Orthopedics"]
+      formal_terms: ["Orthopedic Surgery", "Sports Medicine", "Orthopedics"]
       search_approach: "Search for 'Orthopedic' - covers bones, joints, sports injuries"
     
     # Skin
     - lay_terms: ["skin doctor", "dermatologist", "acne doctor"]
-      medical_specialties: ["Dermatology"]
+      formal_terms: ["Dermatology"]
       search_approach: "Search for 'Dermatology'"
     
     # Eyes
     - lay_terms: ["eye doctor", "vision doctor", "ophthalmologist"]
-      medical_specialties: ["Ophthalmology"]
+      formal_terms: ["Ophthalmology"]
       search_approach: "Search for 'Ophthalmology'"
     
     # Ears/Nose/Throat
     - lay_terms: ["ENT", "ear doctor", "throat doctor", "sinus doctor"]
-      medical_specialties: ["Otorhinolaryngology", "Otolaryngology"]
+      formal_terms: ["Otorhinolaryngology", "Otolaryngology"]
       search_approach: "Search for 'Otolaryngology' or 'Otorhinolaryngology'"
     
     # Mental Health/Behavioral Health
     - lay_terms: ["mental health", "behavioral health", "psychiatrist", "therapist", "counselor", "psychologist"]
-      medical_specialties: ["Psychiatry", "Psychology", "Behavioral Health"]
+      formal_terms: ["Psychiatry", "Psychology", "Behavioral Health"]
       search_approach: "Search for 'Psychiatry' for medical doctors, 'Psychology' for psychologists"
     
     # Endocrinology/Hormones/Thyroid
     - lay_terms: ["thyroid doctor", "hormone doctor", "diabetes doctor", "endocrine specialist"]
-      medical_specialties: ["Endocrinology", "Endocrinology and Metabolism"]
+      formal_terms: ["Endocrinology", "Endocrinology and Metabolism"]
       search_approach: "Search for 'Endocrinology' - covers thyroid, diabetes, hormones"
     
     # Physical Therapy/Rehabilitation
     - lay_terms: ["physical therapy", "physical therapist", "PT", "rehab doctor", "rehabilitation"]
-      medical_specialties: ["Physical Medicine and Rehabilitation", "Physical Therapy", "Rehabilitation"]
+      formal_terms: ["Physical Medicine and Rehabilitation", "Physical Therapy", "Rehabilitation"]
       search_approach: "Search for 'Physical Medicine' or 'Rehabilitation'"
     
     # Urology/Genitourinary
     - lay_terms: ["urologist", "urologists", "bladder doctor", "kidney stone doctor", "prostate doctor"]
-      medical_specialties: ["Urology", "Urologic Surgery"]
+      formal_terms: ["Urology", "Urologic Surgery"]
       search_approach: "Search for 'Urology' - covers bladder, prostate, kidney stones, genitourinary issues"
   
   examples:

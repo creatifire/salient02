@@ -23,6 +23,21 @@ from ...services.directory_importer import DirectoryImporter
 import logfire
 
 
+def load_base_prompt(agent_config: Dict) -> str:
+    """
+    Load base system prompt from agent configuration.
+    
+    Args:
+        agent_config: Agent configuration from config.yaml
+        
+    Returns:
+        System prompt content as string
+    """
+    # For now, return the system_prompt from config if present
+    # In the future, this could load from files
+    return agent_config.get("system_prompt", "You are a helpful assistant.")
+
+
 class DirectoryListDocs(BaseModel):
     """Documentation for a single directory list."""
     list_name: str = Field(description="Name of the directory list")
@@ -91,13 +106,67 @@ async def generate_directory_tool_docs(
         logfire.warn('directory.no_lists_found', account_id=str(account_id))
         return ""
     
-    # Build CONCISE documentation - avoid tool loops
-    docs_lines = ["## Directory Tool\n"]
-    
-    # Build list of available directories with counts
+    # Build documentation
+    docs_lines = []
     documented_lists: List[DirectoryListDocs] = []
     list_summaries = []
     
+    # If multiple directories, add selection guide first
+    if len(lists_metadata) > 1:
+        docs_lines.append("## Directory Tool\n")
+        docs_lines.append("You have access to multiple directories. Choose the appropriate directory based on the query:\n")
+    else:
+        docs_lines.append("## Directory Tool\n")
+    
+    # First pass: Build directory selection guide (if multiple directories)
+    if len(lists_metadata) > 1:
+        for list_meta in lists_metadata:
+            try:
+                schema = DirectoryImporter.load_schema(list_meta.schema_file)
+                purpose = schema.get('directory_purpose', {})
+                
+                # Get entry count
+                from app.models.directory import DirectoryEntry
+                count_result = await db_session.execute(
+                    select(func.count(DirectoryEntry.id)).where(
+                        DirectoryEntry.directory_list_id == list_meta.id
+                    )
+                )
+                entry_count = count_result.scalar_one()
+                
+                docs_lines.append(f"\n### Directory: `{list_meta.list_name}` ({entry_count} {list_meta.entry_type}s)")
+                docs_lines.append(f"**Contains**: {purpose.get('description', 'N/A')}")
+                
+                if purpose.get('use_for'):
+                    docs_lines.append("**Use for**:")
+                    for use_case in purpose['use_for']:
+                        docs_lines.append(f"- {use_case}")
+                
+                if purpose.get('example_queries'):
+                    examples = ', '.join(f'"{q}"' for q in purpose['example_queries'][:3])
+                    docs_lines.append(f"\n**Example queries**: {examples}")
+                
+                if purpose.get('not_for'):
+                    for exclusion in purpose['not_for']:
+                        docs_lines.append(f"**Don't use for**: {exclusion}")
+                
+                docs_lines.append("\n---")
+            
+            except Exception as e:
+                logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
+                continue
+        
+        # Multi-directory query guidance
+        docs_lines.append("\n### Multi-Directory Queries")
+        docs_lines.append("\n**If a query involves multiple aspects**:")
+        docs_lines.append("1. Search the most specific directory first")
+        docs_lines.append("2. Combine results if relevant to the query")
+        docs_lines.append("3. Example: 'I need a cardiologist, what's the phone number?'")
+        docs_lines.append("   - First: Search `doctors` for cardiologists → Get doctor's contact info")
+        docs_lines.append("   - Then: If scheduling mentioned, check `phone_directory` for appointments")
+        docs_lines.append("")
+    
+    # Second pass: Build detailed tool documentation for each directory
     for list_meta in lists_metadata:
         try:
             # Entry count - use separate query to avoid lazy loading issue
@@ -139,12 +208,14 @@ async def generate_directory_tool_docs(
                 # Add synonym mappings (most important for medical terms)
                 if strategy.get('synonym_mappings'):
                     mappings = strategy['synonym_mappings']
-                    strategy_parts.append("\n**Medical Term Mappings (Lay → Formal):**")
+                    # Use custom heading from schema if provided
+                    heading = strategy.get('synonym_mappings_heading', 'Term Mappings (Lay → Formal)')
+                    strategy_parts.append(f"\n**{heading}:**")
                     for mapping in mappings[:10]:  # Limit to first 10 to keep prompt manageable
                         lay_terms = ', '.join(f'"{term}"' for term in mapping.get('lay_terms', [])[:3])
-                        medical = ', '.join(f'"{spec}"' for spec in mapping.get('medical_specialties', []))
-                        if lay_terms and medical:
-                            strategy_parts.append(f"  • {lay_terms} → {medical}")
+                        formal_terms = ', '.join(f'"{term}"' for term in mapping.get('formal_terms', []))
+                        if lay_terms and formal_terms:
+                            strategy_parts.append(f"  • {lay_terms} → {formal_terms}")
                 
                 # Add concrete examples with thought process
                 if strategy.get('examples'):
@@ -176,16 +247,17 @@ async def generate_directory_tool_docs(
             # Build concise summary for prompt
             list_summaries.append(f"`{list_meta.list_name}` ({entry_count} {list_meta.entry_type}s)")
             
-            # Add search strategy to prompt (once per schema, usually only one)
-            if search_strategy_text and not any(line.startswith("**Search Strategy") for line in docs_lines):
+            # For single directory, add search strategy details
+            if len(lists_metadata) == 1 and search_strategy_text:
                 docs_lines.append(f"\n{search_strategy_text}")
             
         except Exception as e:
             logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
             continue
     
-    # Build minimal prompt text
-    docs_lines.append("**Available**: " + ", ".join(list_summaries))
+    # Build minimal prompt text - list available directories
+    if list_summaries:
+        docs_lines.append("\n**Available**: " + ", ".join(list_summaries) + "\n")
     
     markdown_content = '\n'.join(docs_lines)
     
