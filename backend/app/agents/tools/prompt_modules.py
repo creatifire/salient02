@@ -13,8 +13,9 @@ from typing import Optional
 import logfire
 
 # Module directories
-SYSTEM_MODULES_DIR = Path(__file__).parent.parent.parent / "config" / "prompt_modules" / "system"
-ACCOUNT_MODULES_DIR = Path(__file__).parent.parent.parent / "config" / "prompt_modules" / "accounts"
+# Path: backend/app/agents/tools/prompt_modules.py → backend/config/prompt_modules/
+SYSTEM_MODULES_DIR = Path(__file__).parent.parent.parent.parent / "config" / "prompt_modules" / "system"
+ACCOUNT_MODULES_DIR = Path(__file__).parent.parent.parent.parent / "config" / "prompt_modules" / "accounts"
 
 
 def load_prompt_module(module_name: str, account_slug: Optional[str] = None) -> Optional[str]:
