@@ -1569,9 +1569,15 @@ if __name__ == "__main__":
 
 **Risk**: Low (tests existing Phase 1 infrastructure)  
 **Value**: Confidence that multi-tool agents work correctly  
-**Status**: 📝 Planned
+**Status**: 🔄 In Progress - Tool calling improvements (Task 004) partially complete
 
-**Prerequisites**: Phase 1 (Toolsets infrastructure) must be complete
+**Progress**:
+- ✅ Task 004 (Chunks 1-3, 5): Modular prompt infrastructure implemented (~1.2 hours)
+- ✅ Keyword hints module created and ready for testing
+- 📋 Task 004 (Chunks 4, 6): Research-backed modules and validation pending (~2.5 hours)
+- 📝 Tasks 001-003, 005: Multi-tool config and testing not started
+
+**Prerequisites**: Phase 1 (Toolsets infrastructure) must be complete ✅
 
 **Independent of**: Phase 4B (prompt caching) - This is pure functional validation
 
@@ -2951,19 +2957,21 @@ if __name__ == "__main__":
 #### 0025-004-004 - TASK SUMMARY
 
 **Deliverables** (6 chunks, implementation order):
-1. ✅ Model diagnostic test (Claude vs Gemini) - 2 min
-2. ✅ Quick fix: Keyword hints module - 10 min
-3. ✅ Prompt module infrastructure (`prompt_modules.py`) - 1 hour
-4. ✅ 3 research-backed modules (few-shot, CoT, structured docs) - 30 min
-5. ✅ Module loading integrated into `simple_chat.py` - 1 hour
-6. ✅ Accuracy measurement and validation - 2 hours
+1. ✅ Model diagnostic test (Claude vs Gemini) - 2 min **COMPLETE**
+2. ✅ Quick fix: Keyword hints module - 10 min **READY FOR TESTING**
+3. ✅ Prompt module infrastructure (`prompt_modules.py`) - 1 hour **COMPLETE**
+4. 📝 3 research-backed modules (few-shot, CoT, structured docs) - 30 min **NOT STARTED**
+5. ✅ Module loading integrated into `simple_chat.py` - 1 hour **COMPLETE**
+6. 📝 Accuracy measurement and validation - 2 hours **NOT STARTED**
+
+**Current Status**: Chunks 1-3 and 5 complete. Ready for user testing with keyword hints module.
 
 **Expected Impact**:
 - **Baseline**: ~80% tool selection accuracy (Phase 3)
-- **Quick fix** (Chunks 1-2): Fix immediate Gemini misclassification (~12 min)
+- **Quick fix** (Chunks 1-2-3-5): Fix immediate Gemini misclassification (~1.2 hours)
 - **Full solution** (Chunks 1-6): >90% tool selection accuracy (~4 hours)
 - **Improvement**: +10-15 percentage points
-- **Total Effort**: ~4 hours (12 min immediate + 3.5 hours infrastructure)
+- **Total Effort Completed**: ~1.2 hours | **Remaining**: ~2.5 hours (Chunks 4+6)
 
 **Architecture Benefits**:
 - ✅ **Configurable** (not hardcoded) - modules live in markdown files
