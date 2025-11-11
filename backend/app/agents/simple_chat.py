@@ -34,6 +34,7 @@ from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
 from .chat_helpers import build_request_messages, build_response_body, extract_session_account_info, save_message_pair
 from .cost_calculator import calculate_streaming_costs, track_chat_request
+from .tools.toolsets import get_enabled_toolsets
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -158,29 +159,23 @@ async def create_simple_chat_agent(
             model_used=model_name_simple,
             cost_tracking="disabled"
         )
+        
+        # Get enabled toolsets based on config
+        toolsets = get_enabled_toolsets(instance_config or {})
+        
+        logfire.info(
+            'agent.creation',
+            agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+            toolsets_count=len(toolsets),
+            mode='fallback'
+        )
+        
         agent = Agent(
             model_name_simple,
             deps_type=SessionDependencies,
-            system_prompt=system_prompt
+            system_prompt=system_prompt,
+            toolsets=toolsets  # NEW: Pass toolsets list
         )
-        
-        # Conditionally register vector search tool
-        if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
-            from backend.app.agents.tools import vector_tools
-            agent.tool(vector_tools.vector_search)
-            logfire.info(
-                'agent.tool.vector_registered',
-                agent_name=instance_config.get('instance_name', 'unknown')
-            )
-        
-        # Conditionally register directory search tool
-        if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
-            from backend.app.agents.tools.directory_tools import search_directory
-            agent.tool(search_directory)
-            logfire.info(
-                'agent.tool.directory_registered',
-                agent_name=instance_config.get('instance_name', 'unknown')
-            )
         
         return agent
     
@@ -280,30 +275,23 @@ async def create_simple_chat_agent(
         usage_tracking="always_included"
     )
     
+    # Get enabled toolsets based on config
+    toolsets = get_enabled_toolsets(instance_config or {})
+    
+    logfire.info(
+        'agent.creation',
+        agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+        toolsets_count=len(toolsets),
+        mode='normal'
+    )
+    
     # Create agent with OpenRouterProvider (official pattern)
     agent = Agent(
         model,
         deps_type=SessionDependencies,
-        system_prompt=system_prompt
+        system_prompt=system_prompt,
+        toolsets=toolsets  # NEW: Pass toolsets list
     )
-    
-    # Conditionally register vector search tool
-    if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
-        from backend.app.agents.tools import vector_tools
-        agent.tool(vector_tools.vector_search)
-        logfire.info(
-            'agent.tool.vector_registered',
-            agent_name=instance_config.get('instance_name', 'unknown')
-        )
-    
-    # Conditionally register directory search tool
-    if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
-        from backend.app.agents.tools.directory_tools import search_directory
-        agent.tool(search_directory)
-        logfire.info(
-            'agent.tool.directory_registered',
-            agent_name=instance_config.get('instance_name', 'unknown')
-        )
     
     return agent
 

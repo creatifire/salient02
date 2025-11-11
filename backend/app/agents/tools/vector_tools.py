@@ -13,9 +13,9 @@ from pydantic_ai import RunContext
 from typing import Optional
 import logfire
 
-from backend.app.agents.base.dependencies import SessionDependencies
-from backend.app.services.vector_service import VectorService, VectorQueryResponse
-from backend.app.services.agent_pinecone_config import (
+from ..base.dependencies import SessionDependencies
+from ...services.vector_service import VectorService, VectorQueryResponse
+from ...services.agent_pinecone_config import (
     load_agent_pinecone_config,
     get_cached_pinecone_client
 )
@@ -84,7 +84,7 @@ async def vector_search(
     vector_service = VectorService(pinecone_client=pinecone_client)
     
     # Query parameters: Configuration cascade (LLM param → agent → app.yaml → code)
-    from backend.app.config import load_config
+    from ...config import load_config
     app_config = load_config()
     global_vector_config = app_config.get("vector", {}).get("search", {})
     
