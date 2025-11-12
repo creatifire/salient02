@@ -3205,6 +3205,839 @@ if __name__ == "__main__":
 
 ---
 
+## Feature 0025-005 - Configurable Prompt Assembly
+
+**Objective**: Make prompt assembly sequence fully configurable per agent instance, aligning with the system's "configurable not hardcoded" design principle.
+
+**Risk**: Low (builds on existing modular prompt infrastructure)  
+**Value**: High - Enables per-agent optimization of prompt structure, experimentation with token position effects  
+**Status**: 📝 Not started
+
+**Prerequisites**: 
+- ✅ Phase 4A Chunk 003 complete (prompt module infrastructure exists)
+- ✅ Phase 4A Chunk 005 complete (module loading integrated into simple_chat)
+
+---
+
+### Background
+
+**Current State**: Prompt assembly order is **hardcoded** in `simple_chat.py`:
+```python
+1. Critical rules (tool_selection_hints) ← at TOP due to token position bias
+2. Base system prompt
+3. Directory tool documentation  
+4. Pydantic AI tool descriptions (automatic, uncontrollable)
+5. Other modules
+```
+
+**Problem**: The system is designed to be configurable, but prompt assembly is hardcoded. This contradicts the core design principle and limits per-agent optimization.
+
+**Solution**: Make the assembly sequence fully configurable via `config.yaml`, while maintaining strict validation to prevent misconfigurations.
+
+---
+
+### Design Approach: Flat Sequence with Strict Validation
+
+**Philosophy**: Maximum flexibility with clear error messages.
+
+**Key Design Decisions**:
+1. ✅ **Flat sequence** - All components in one list (no complex nesting)
+2. ✅ **Explicit inclusion** - Components only appear if listed in sequence
+3. ✅ **Strict validation** - Fail fast with clear error messages
+4. ✅ **Self-documenting** - Prefixes make component types obvious
+
+---
+
+### Naming Conventions
+
+#### **Modules** (user-created markdown files)
+- **Prefix**: `module_`
+- **Files**: `module_tool_selection_hints.md`, `module_directory_selection_hints.md`
+- **Config**: `module_tool_selection_hints`, `module_directory_selection_hints`
+- **Location**: 
+  - System-level: `backend/config/prompt_modules/system/`
+  - Account-level: `backend/config/prompt_modules/accounts/{account_slug}/`
+
+#### **System-Generated Components** (code-generated)
+- **Prefix**: `system_`
+- **Examples**: `system_directory_docs`, `system_vector_docs`, `system_mcp_docs`
+- **No files** - Generated dynamically from schemas/config
+- **Conditional**: Only generated if corresponding tool is enabled
+
+#### **Base Prompt** (user-created file)
+- **Config setting**: `base_prompt_file: system_prompt.md` (renamed from `system_prompt_file`)
+- **Assembly reference**: `base_prompt`
+- **Default**: `system_prompt.md` if not specified
+- **Location**: `backend/config/agent_configs/{account}/{instance}/system_prompt.md`
+
+---
+
+### Configuration Schema
+
+```yaml
+# Agent instance config: backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml
+
+# Base prompt file (optional, defaults to system_prompt.md)
+base_prompt_file: system_prompt.md  # RENAMED from system_prompt_file
+
+tools:
+  directory:
+    enabled: true
+    accessible_lists: ["doctors", "phone_directory"]
+  
+  vector_search:
+    enabled: true
+
+prompting:
+  assembly:
+    sequence:
+      # Flat list of components (top to bottom = first to last in prompt)
+      - module_tool_selection_hints      # Module: Critical tool selection rules (token position bias!)
+      - base_prompt                       # Base: Agent personality and role
+      - system_directory_docs             # System: Auto-generated directory documentation (if directory tool enabled)
+      - module_directory_selection_hints  # Module: Multi-directory selection guidance
+      - module_tool_calling_few_shot      # Module: Few-shot examples for tool calling
+    
+    # Note: Pydantic AI automatically appends tool descriptions AFTER our system prompt
+    # We cannot control that position (it's Pydantic AI's internal behavior)
+
+model_settings:
+  model: "google/gemini-2.5-flash"
+  temperature: 0.3
+  max_tokens: 2000
+```
+
+---
+
+### Component Types Reference
+
+| Component Type | Prefix | Example | Source | Required? |
+|---------------|--------|---------|--------|-----------|
+| **Module** | `module_` | `module_tool_selection_hints` | Markdown file | Optional |
+| **System-Generated** | `system_` | `system_directory_docs` | Code (from schemas) | Only if tool enabled |
+| **Base Prompt** | (none) | `base_prompt` | Markdown file | Optional (but recommended) |
+
+**Available System Components** (as of Phase 4A):
+- `system_directory_docs` - Auto-generated from directory schemas (requires directory tool enabled)
+
+**Future System Components** (Phase 5-6):
+- `system_vector_docs` - Vector search tool documentation (if implemented)
+- `system_mcp_docs` - MCP server documentation (if implemented)
+
+---
+
+### Validation Rules
+
+#### **Strict Validation (Fail Fast)**
+
+1. **Component Exists**:
+   - Module files must exist at expected path
+   - System components must have tool enabled
+   - Base prompt file must exist
+
+2. **No Duplicates**:
+   - Each component can only appear once in sequence
+
+3. **Valid Component Names**:
+   - Must start with `module_` or `system_`, or be `base_prompt`
+   - Must match known component types
+
+4. **Tool Dependencies**:
+   - `system_directory_docs` requires `tools.directory.enabled: true`
+   - `system_vector_docs` requires `tools.vector_search.enabled: true`
+
+#### **Error Behavior**
+
+**When validation fails**:
+- ❌ Agent creation fails immediately
+- ❌ Clear error message logged (console + Logfire)
+- ❌ Error NOT shown in frontend (server-side issue)
+- ✅ Error includes component name and reason
+
+**Example Error Messages**:
+```
+ConfigError: Module 'module_tool_selection_hints' not found
+  - Expected path: backend/config/prompt_modules/system/module_tool_selection_hints.md
+  - Agent: wyckoff/wyckoff_info_chat1
+
+ConfigError: Component 'system_directory_docs' requires directory tool enabled
+  - Set tools.directory.enabled: true in config.yaml
+  - Agent: wyckoff/wyckoff_info_chat1
+
+ConfigError: Duplicate component 'base_prompt' in assembly.sequence
+  - Component can only appear once
+  - Agent: wyckoff/wyckoff_info_chat1
+```
+
+---
+
+### Implementation Tasks
+
+#### 0025-005-001 - TASK - Rename system_prompt_file to base_prompt_file
+
+**Objective**: Update config schema and loading logic to use clearer naming.
+
+##### 0025-005-001-001 - CHUNK - Update config loader
+
+**Location**: `backend/app/agents/config_loader.py` (or wherever config loading happens)
+
+**Changes**:
+1. Add support for `base_prompt_file` setting
+2. Keep backward compatibility with `system_prompt_file` (deprecated)
+3. Default to `system_prompt.md` if neither specified
+4. Log warning if old name used
+
+**MANUAL-TESTS**:
+1. Test with `base_prompt_file` specified
+2. Test with `system_prompt_file` specified (deprecated path)
+3. Test with neither specified (should default)
+4. Verify logs show deprecation warning for old name
+
+**ACCEPTANCE**:
+- ✅ `base_prompt_file` supported
+- ✅ Backward compatibility with `system_prompt_file`
+- ✅ Default to `system_prompt.md`
+- ✅ Deprecation warning logged
+
+**EFFORT**: 30 minutes
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0025-005-002 - TASK - Implement Assembly Sequence Parser
+
+**Objective**: Parse and validate `prompting.assembly.sequence` config.
+
+##### 0025-005-002-001 - CHUNK - Create assembly parser module
+
+**Location**: `backend/app/agents/tools/prompt_assembly.py` (new file)
+
+**Code Structure**:
+```python
+"""
+Configurable prompt assembly system.
+
+Parses prompting.assembly.sequence config and validates component availability.
+"""
+
+from pathlib import Path
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class ConfigError(Exception):
+    """Raised when assembly config is invalid."""
+    pass
+
+
+@dataclass
+class ComponentSpec:
+    """Specification for a prompt component."""
+    name: str              # e.g., "module_tool_selection_hints"
+    type: str              # "module" | "system" | "base_prompt"
+    source: Optional[str]  # File path or generation method
+    required: bool         # Must exist or fail
+
+
+def parse_assembly_sequence(
+    agent_config: Dict,
+    account_slug: Optional[str] = None
+) -> List[ComponentSpec]:
+    """
+    Parse assembly.sequence config into validated component specs.
+    
+    Args:
+        agent_config: Agent configuration dict
+        account_slug: Account slug for module resolution
+        
+    Returns:
+        List of ComponentSpec objects in assembly order
+        
+    Raises:
+        ConfigError: If sequence is invalid or components missing
+    """
+    sequence = agent_config.get("prompting", {}).get("assembly", {}).get("sequence", [])
+    
+    if not sequence:
+        raise ConfigError(
+            "prompting.assembly.sequence is required. "
+            "No default sequence provided - must explicitly configure prompt assembly."
+        )
+    
+    specs = []
+    seen = set()
+    
+    for component_name in sequence:
+        # Check for duplicates
+        if component_name in seen:
+            raise ConfigError(
+                f"Duplicate component '{component_name}' in assembly.sequence. "
+                f"Each component can only appear once."
+            )
+        seen.add(component_name)
+        
+        # Parse component type
+        if component_name.startswith("module_"):
+            spec = _parse_module_component(component_name, account_slug, agent_config)
+        elif component_name.startswith("system_"):
+            spec = _parse_system_component(component_name, agent_config)
+        elif component_name == "base_prompt":
+            spec = _parse_base_prompt_component(agent_config)
+        else:
+            raise ConfigError(
+                f"Invalid component name '{component_name}'. "
+                f"Must start with 'module_', 'system_', or be 'base_prompt'."
+            )
+        
+        specs.append(spec)
+        logger.debug(f"Validated component: {component_name} ({spec.type})")
+    
+    logger.info(f"Assembly sequence validated: {len(specs)} components")
+    return specs
+
+
+def _parse_module_component(name: str, account_slug: Optional[str], config: Dict) -> ComponentSpec:
+    """Validate module component exists."""
+    module_name = name[7:]  # Strip "module_" prefix
+    
+    # Check account-level first
+    if account_slug:
+        account_path = ACCOUNT_MODULES_DIR / account_slug / f"{name}.md"
+        if account_path.exists():
+            return ComponentSpec(
+                name=name,
+                type="module",
+                source=str(account_path),
+                required=True
+            )
+    
+    # Check system-level
+    system_path = SYSTEM_MODULES_DIR / f"{name}.md"
+    if system_path.exists():
+        return ComponentSpec(
+            name=name,
+            type="module",
+            source=str(system_path),
+            required=True
+        )
+    
+    # Not found
+    raise ConfigError(
+        f"Module '{name}' not found.\n"
+        f"Expected path: {system_path}\n"
+        f"Create module file or remove from assembly.sequence."
+    )
+
+
+def _parse_system_component(name: str, config: Dict) -> ComponentSpec:
+    """Validate system component has required tool enabled."""
+    if name == "system_directory_docs":
+        if not config.get("tools", {}).get("directory", {}).get("enabled", False):
+            raise ConfigError(
+                f"Component '{name}' requires directory tool enabled.\n"
+                f"Set tools.directory.enabled: true in config.yaml."
+            )
+        return ComponentSpec(
+            name=name,
+            type="system",
+            source="generated_from_schemas",
+            required=True
+        )
+    
+    elif name == "system_vector_docs":
+        if not config.get("tools", {}).get("vector_search", {}).get("enabled", False):
+            raise ConfigError(
+                f"Component '{name}' requires vector_search tool enabled.\n"
+                f"Set tools.vector_search.enabled: true in config.yaml."
+            )
+        return ComponentSpec(
+            name=name,
+            type="system",
+            source="generated_from_config",
+            required=True
+        )
+    
+    else:
+        raise ConfigError(
+            f"Unknown system component '{name}'.\n"
+            f"Available: system_directory_docs, system_vector_docs"
+        )
+
+
+def _parse_base_prompt_component(config: Dict) -> ComponentSpec:
+    """Validate base prompt file exists."""
+    # Get file name (with backward compatibility)
+    filename = config.get("base_prompt_file")
+    if filename is None:
+        filename = config.get("system_prompt_file")  # Deprecated
+        if filename:
+            logger.warning(
+                "Config uses deprecated 'system_prompt_file'. "
+                "Rename to 'base_prompt_file' in config.yaml."
+            )
+    
+    if filename is None:
+        filename = "system_prompt.md"  # Default
+    
+    # Verify file exists (path resolution depends on your config loading logic)
+    # This is a placeholder - actual path resolution needed
+    # base_prompt_path = resolve_agent_config_path(config, filename)
+    
+    return ComponentSpec(
+        name="base_prompt",
+        type="base_prompt",
+        source=filename,
+        required=True
+    )
+
+
+async def assemble_prompt(
+    component_specs: List[ComponentSpec],
+    agent_config: Dict,
+    account_id: Optional[UUID] = None,
+    db_session: Optional[AsyncSession] = None
+) -> str:
+    """
+    Assemble final prompt from validated component specs.
+    
+    Args:
+        component_specs: Validated component specs in order
+        agent_config: Agent configuration
+        account_id: Account UUID for DB queries
+        db_session: Database session for tool docs generation
+        
+    Returns:
+        Assembled prompt string
+    """
+    prompt_parts = []
+    
+    for spec in component_specs:
+        if spec.type == "module":
+            content = Path(spec.source).read_text()
+            prompt_parts.append(content)
+            logger.debug(f"Loaded module: {spec.name} ({len(content)} chars)")
+        
+        elif spec.type == "system":
+            if spec.name == "system_directory_docs":
+                from .prompt_generator import generate_directory_tool_docs
+                content = await generate_directory_tool_docs(
+                    agent_config=agent_config,
+                    account_id=account_id,
+                    db_session=db_session
+                )
+                if content:
+                    prompt_parts.append(content)
+                    logger.debug(f"Generated {spec.name} ({len(content)} chars)")
+            
+            # Add other system components as implemented
+        
+        elif spec.type == "base_prompt":
+            # Load base prompt file (implementation depends on config loading)
+            content = load_base_prompt_from_file(agent_config, spec.source)
+            prompt_parts.append(content)
+            logger.debug(f"Loaded base_prompt ({len(content)} chars)")
+    
+    assembled = "\n\n".join(prompt_parts)
+    logger.info(f"Prompt assembled: {len(assembled)} chars from {len(component_specs)} components")
+    
+    return assembled
+```
+
+**MANUAL-TESTS**:
+1. Test with valid sequence
+2. Test with missing module file
+3. Test with system component but tool disabled
+4. Test with duplicate component names
+5. Test with invalid component name
+
+**AUTOMATED-TESTS**: `backend/tests/unit/test_prompt_assembly.py`
+```python
+import pytest
+from app.agents.tools.prompt_assembly import (
+    parse_assembly_sequence,
+    ConfigError
+)
+
+
+def test_parse_valid_sequence():
+    """Test parsing valid assembly sequence."""
+    config = {
+        "prompting": {
+            "assembly": {
+                "sequence": [
+                    "module_tool_selection_hints",
+                    "base_prompt",
+                    "system_directory_docs"
+                ]
+            }
+        },
+        "tools": {
+            "directory": {"enabled": True}
+        }
+    }
+    
+    specs = parse_assembly_sequence(config)
+    assert len(specs) == 3
+    assert specs[0].name == "module_tool_selection_hints"
+    assert specs[1].name == "base_prompt"
+    assert specs[2].name == "system_directory_docs"
+
+
+def test_parse_duplicate_component():
+    """Test that duplicate components are rejected."""
+    config = {
+        "prompting": {
+            "assembly": {
+                "sequence": [
+                    "base_prompt",
+                    "base_prompt"  # Duplicate!
+                ]
+            }
+        }
+    }
+    
+    with pytest.raises(ConfigError, match="Duplicate component"):
+        parse_assembly_sequence(config)
+
+
+def test_parse_missing_module():
+    """Test that missing module files are detected."""
+    config = {
+        "prompting": {
+            "assembly": {
+                "sequence": ["module_nonexistent"]
+            }
+        }
+    }
+    
+    with pytest.raises(ConfigError, match="Module.*not found"):
+        parse_assembly_sequence(config)
+
+
+def test_parse_system_component_tool_disabled():
+    """Test that system components require tool enabled."""
+    config = {
+        "prompting": {
+            "assembly": {
+                "sequence": ["system_directory_docs"]
+            }
+        },
+        "tools": {
+            "directory": {"enabled": False}  # Tool disabled!
+        }
+    }
+    
+    with pytest.raises(ConfigError, match="requires directory tool enabled"):
+        parse_assembly_sequence(config)
+```
+
+**ACCEPTANCE**:
+- ✅ Parser validates component names
+- ✅ Parser detects missing module files
+- ✅ Parser validates tool dependencies
+- ✅ Parser detects duplicates
+- ✅ Clear error messages with context
+- ✅ Unit tests pass
+
+**EFFORT**: 2 hours
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0025-005-003 - TASK - Integrate Assembly System into simple_chat
+
+**Objective**: Replace hardcoded prompt assembly with configurable system.
+
+##### 0025-005-003-001 - CHUNK - Update simple_chat.py
+
+**Location**: `backend/app/agents/simple_chat.py`
+
+**Changes Required**:
+
+**BEFORE** (hardcoded assembly):
+```python
+# Load base prompt
+system_prompt = load_base_prompt(instance_config)
+
+# Generate directory docs if enabled
+if directory_enabled:
+    directory_docs = await generate_directory_tool_docs(...)
+    system_prompt = system_prompt + "\n\n" + directory_docs
+
+# Load modules
+module_content = load_modules_for_agent(instance_config, account_slug)
+if module_content:
+    system_prompt = system_prompt + "\n\n" + module_content
+```
+
+**AFTER** (configurable assembly):
+```python
+from app.agents.tools.prompt_assembly import parse_assembly_sequence, assemble_prompt
+
+# Parse and validate assembly sequence
+try:
+    component_specs = parse_assembly_sequence(
+        agent_config=instance_config,
+        account_slug=account_slug
+    )
+except ConfigError as e:
+    logger.error(f"Agent config error: {e}")
+    logfire.error("agent.config.invalid", error=str(e), agent=instance_config.get("instance_name"))
+    raise  # Fail agent creation
+
+# Assemble prompt from validated components
+system_prompt = await assemble_prompt(
+    component_specs=component_specs,
+    agent_config=instance_config,
+    account_id=instance.account_id if instance else None,
+    db_session=db_session
+)
+
+logger.info(f"Prompt assembled: {len(system_prompt)} chars from {len(component_specs)} components")
+logfire.info(
+    "agent.prompt.assembled",
+    component_count=len(component_specs),
+    prompt_length=len(system_prompt),
+    components=[spec.name for spec in component_specs]
+)
+```
+
+**MANUAL-TESTS**:
+1. Test with Wyckoff agent (valid config)
+2. Test with missing module error
+3. Test with tool dependency error
+4. Verify Logfire shows assembly details
+5. Verify agent creation fails gracefully on config error
+
+**AUTOMATED-TESTS**: `backend/tests/integration/test_configurable_assembly.py`
+```python
+import pytest
+from app.agents.simple_chat import create_simple_chat_agent
+from uuid import UUID
+
+
+@pytest.mark.asyncio
+async def test_agent_creation_with_valid_assembly():
+    """Test agent creates successfully with valid assembly config."""
+    config = {
+        "base_prompt_file": "system_prompt.md",
+        "prompting": {
+            "assembly": {
+                "sequence": [
+                    "module_tool_selection_hints",
+                    "base_prompt",
+                    "system_directory_docs"
+                ]
+            }
+        },
+        "tools": {
+            "directory": {"enabled": True, "accessible_lists": ["doctors"]}
+        },
+        "model_settings": {"model": "test-model"}
+    }
+    
+    account_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
+    
+    agent = await create_simple_chat_agent(config, account_id)
+    assert agent is not None
+
+
+@pytest.mark.asyncio
+async def test_agent_creation_fails_with_invalid_assembly():
+    """Test agent creation fails with clear error on invalid config."""
+    config = {
+        "prompting": {
+            "assembly": {
+                "sequence": ["module_nonexistent"]  # Invalid!
+            }
+        },
+        "model_settings": {"model": "test-model"}
+    }
+    
+    account_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
+    
+    with pytest.raises(ConfigError, match="Module.*not found"):
+        await create_simple_chat_agent(config, account_id)
+```
+
+**ACCEPTANCE**:
+- ✅ Hardcoded assembly replaced with configurable system
+- ✅ Agent creation fails gracefully on config errors
+- ✅ Clear error messages logged
+- ✅ Logfire shows assembly details
+- ✅ Integration tests pass
+
+**EFFORT**: 1.5 hours
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0025-005-004 - TASK - Update Existing Agent Configs
+
+**Objective**: Migrate all 7+ existing agent configs to new assembly system.
+
+##### 0025-005-004-001 - CHUNK - Add assembly.sequence to all agents
+
+**Agents to Update**:
+1. wyckoff/wyckoff_info_chat1
+2. windriver/windriver_info_chat1
+3. agrofresh/agro_info_chat1
+4. prepexcellence/prepexcel_info_chat1
+5. acme/acme_chat1
+6. default_account/simple_chat1
+7. default_account/simple_chat2
+
+**Migration Strategy**:
+- Replicate current hardcoded sequence in config
+- Ensures no behavior change after migration
+- Provides starting point for future optimization
+
+**Example Migration** (wyckoff/wyckoff_info_chat1):
+
+**BEFORE**:
+```yaml
+# No assembly config (uses hardcoded sequence)
+
+tools:
+  directory:
+    enabled: true
+    accessible_lists: ["doctors", "phone_directory"]
+
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - tool_selection_hints
+      - directory_selection_hints
+```
+
+**AFTER**:
+```yaml
+# Explicit assembly sequence (matches previous hardcoded behavior)
+base_prompt_file: system_prompt.md
+
+tools:
+  directory:
+    enabled: true
+    accessible_lists: ["doctors", "phone_directory"]
+
+prompting:
+  assembly:
+    sequence:
+      - module_tool_selection_hints
+      - base_prompt
+      - system_directory_docs
+      - module_directory_selection_hints
+```
+
+**MANUAL-TESTS**:
+1. Update each agent config
+2. Test each agent individually (smoke test)
+3. Verify behavior unchanged
+4. Check logs for assembly details
+
+**ACCEPTANCE**:
+- ✅ All 7+ agents updated
+- ✅ Each agent tested successfully
+- ✅ No behavior changes
+- ✅ Configs validated by parser
+
+**EFFORT**: 1 hour
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0025-005-005 - TASK - Create Prompting Guide Documentation
+
+**Objective**: Document prompt assembly system for developers.
+
+##### 0025-005-005-001 - CHUNK - Create prompting-guide.md
+
+**Location**: `memorybank/guide/prompting-guide.md` (new file)
+
+**Content Outline**:
+1. **Overview**: Configurable prompt assembly system
+2. **Component Types**: Modules, system, base prompt
+3. **Naming Conventions**: Prefixes and file naming
+4. **Configuration**: assembly.sequence syntax
+5. **Token Position Bias**: Why order matters
+6. **Validation**: Error messages and troubleshooting
+7. **Best Practices**: Proven sequences, common patterns
+8. **Examples**: Complete configs for different agent types
+9. **Troubleshooting**: Common errors and solutions
+
+**Key Section: Token Position Bias**:
+```markdown
+## Understanding Token Position Bias
+
+**What it is**: LLMs give more weight to tokens that appear earlier in the prompt.
+
+**Why it matters**: Critical instructions at the end of the prompt are often ignored.
+
+**Research Evidence**:
+- First 1000 tokens: Highest weight (internalized as core rules)
+- Middle tokens: Moderate weight (context and details)
+- Last 1000 tokens: Lower weight (supplementary information)
+
+**Practical Impact**:
+- ✅ **WORKS**: Critical tool selection rules at TOP of prompt
+- ❌ **FAILS**: Same rules at BOTTOM (after 12,000 chars)
+
+**Recommendation**: Always put critical decision-making guidance first in `assembly.sequence`.
+```
+
+**MANUAL-TESTS**:
+1. Review documentation for clarity
+2. Validate examples are correct
+3. Test example configs
+4. Peer review by another developer
+
+**ACCEPTANCE**:
+- ✅ Documentation created
+- ✅ All sections complete
+- ✅ Examples tested and verified
+- ✅ Token position bias explained clearly
+
+**EFFORT**: 2 hours
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0025-005 - FEATURE SUMMARY
+
+**Deliverables**:
+- ✅ Configurable prompt assembly system (fully flexible, strictly validated)
+- ✅ Clear naming conventions (module_, system_, base_prompt)
+- ✅ Assembly parser with validation
+- ✅ Integration into simple_chat.py
+- ✅ All existing agents migrated
+- ✅ Developer documentation (prompting-guide.md)
+
+**Testing**:
+- ✅ Unit tests for assembly parser
+- ✅ Integration tests for simple_chat
+- ✅ Manual tests for all agent configs
+- ✅ Error message validation
+
+**Result**: 
+- Prompt assembly is now fully configurable per agent
+- System maintains "configurable not hardcoded" principle
+- Strict validation prevents misconfigurations
+- Developer guide explains token position bias
+- Foundation for per-agent prompt optimization experiments
+
+**Total Effort**: ~7 hours
+
+---
+
 ## Next Steps (Post Phase 4A)
 
 After successful completion of Phases 1-4A:
