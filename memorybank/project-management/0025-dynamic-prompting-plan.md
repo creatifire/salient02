@@ -2232,7 +2232,7 @@ prompting:
 
 **EFFORT**: 10 minutes
 
-**STATUS**: ✅ Ready for Testing - Bug fixed, ready for retry
+**STATUS**: ✅ Ready for Testing - Bug fixed + tool selection module added, ready for retry
 
 **PROGRESS**:
 - ✅ Created directory structure: `backend/config/prompt_modules/system/` and `accounts/`
@@ -2245,6 +2245,10 @@ prompting:
   - Initial fix: Changed to 4 `.parent` calls (reaches `backend/`)
   - **Final fix**: Replaced with `_find_backend_root()` helper (robust, maintainable)
   - Evidence: Logfire showed `prompt.module.not_found` errors (now resolved)
+- ✅ **ROOT CAUSE FIXED**: Created `tool_selection_hints.md` module
+  - Issue: LLM chose `vector_search` instead of `search_directory` for phone queries
+  - Solution: New module guides tool selection (Layer 1) before directory selection (Layer 2)
+  - Config updated: Both modules enabled in Wyckoff config
 - 📋 Ready for user testing: Restart backend and test 3 queries
 
 **TEST QUERIES** (from Chunk 001):
