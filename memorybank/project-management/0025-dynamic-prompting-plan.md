@@ -2232,7 +2232,7 @@ prompting:
 
 **EFFORT**: 10 minutes
 
-**STATUS**: ✅ Ready for Testing - Bug fixed + tool selection module added, ready for retry
+**STATUS**: ✅ Ready for Testing - Modules strengthened with commanding language, ready for retry
 
 **PROGRESS**:
 - ✅ Created directory structure: `backend/config/prompt_modules/system/` and `accounts/`
@@ -2249,6 +2249,13 @@ prompting:
   - Issue: LLM chose `vector_search` instead of `search_directory` for phone queries
   - Solution: New module guides tool selection (Layer 1) before directory selection (Layer 2)
   - Config updated: Both modules enabled in Wyckoff config
+- ✅ **MODULE STRENGTHENED**: Updated `tool_selection_hints.md` with commanding language (Option 1 + 3)
+  - Issue: LLM still used `vector_search` despite initial module guidance (too polite/subtle)
+  - Solution: Strengthened language ("YOU MUST", "NEVER DO THIS") + explicit tool call examples
+  - Added: ✅ CORRECT vs ❌ WRONG examples with actual Python syntax
+  - Added: Step-by-step decision flowchart with keyword triggers
+  - Added: Critical reminders section with explicit "WILL FAIL" warnings
+  - Module size: 84 lines → 167 lines (doubled for clarity)
 - 📋 Ready for user testing: Restart backend and test 3 queries
 
 **TEST QUERIES** (from Chunk 001):
