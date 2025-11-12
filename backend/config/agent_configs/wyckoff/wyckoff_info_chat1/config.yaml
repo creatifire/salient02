@@ -18,7 +18,7 @@ prompting:
     enabled: true
     selected:
       - tool_selection_hints       # NEW - choose correct tool (directory vs vector)
-      - directory_keyword_hints    # NEW - choose correct directory (doctors vs phone_directory)
+      - directory_selection_hints  # NEW - choose correct directory (doctors vs phone_directory)
 
 model_settings:
   model: "google/gemini-2.5-flash"  # Fast, reliable model with excellent tool support

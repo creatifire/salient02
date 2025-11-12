@@ -2161,7 +2161,7 @@ curl -X POST http://localhost:8000/accounts/wyckoff/agents/wyckoff_info_chat1/ch
 
 **Time**: 10 minutes
 
-**Location**: `backend/config/prompt_modules/system/directory_keyword_hints.md` (new file)
+**Location**: `backend/config/prompt_modules/system/directory_selection_hints.md` (new file)
 
 **Strategy**: Create lightweight module with explicit rules for common query patterns.
 
@@ -2210,7 +2210,7 @@ prompting:
   modules:
     enabled: true
     selected:
-      - directory_keyword_hints  # NEW - tactical fix
+      - directory_selection_hints  # NEW - tactical fix
 ```
 
 **MANUAL-TESTS**:
@@ -2236,7 +2236,7 @@ prompting:
 
 **PROGRESS**:
 - ✅ Created directory structure: `backend/config/prompt_modules/system/` and `accounts/`
-- ✅ Created module file: `directory_keyword_hints.md` with keyword patterns
+- ✅ Created module file: `directory_selection_hints.md` with keyword patterns
 - ✅ Updated Wyckoff config: Added `prompting.modules` section
 - ✅ Infrastructure complete: Chunk 003 (prompt_modules.py) done
 - ✅ Integration complete: Chunk 005 (simple_chat integration) done
@@ -2513,7 +2513,7 @@ def test_load_modules_for_agent_disabled():
 - ✅ Implemented `load_modules_for_agent()` function with config parsing
 - ✅ Created unit tests in `backend/tests/unit/test_prompt_modules.py`
 - ✅ No linter errors
-- ✅ File structure verified (directory_keyword_hints.md exists and loads)
+- ✅ File structure verified (directory_selection_hints.md exists and loads)
 - ✅ **Path Resolution Fix**: Replaced fragile `.parent.parent.parent.parent` with `_find_backend_root()` for maintainability
 
 ---
