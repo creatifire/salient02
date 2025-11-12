@@ -179,24 +179,49 @@ async def create_simple_chat_agent(
         
         return agent
     
+    # PHASE 4A: Load critical tool selection rules FIRST (before everything else)
+    # This ensures LLM sees tool selection guidance before tool descriptions
+    from .tools.prompt_modules import load_prompt_module
+    
+    account_slug = None
+    if instance_config:
+        account_slug = instance_config.get("account")
+    
+    # Load tool selection hints at the very top of the prompt
+    critical_rules = ""
+    prompting_config = (instance_config or {}).get('prompting', {}).get('modules', {})
+    if prompting_config.get('enabled', False):
+        tool_selection_content = load_prompt_module("tool_selection_hints", account_slug)
+        if tool_selection_content:
+            critical_rules = tool_selection_content + "\n\n---\n\n"
+            logfire.info(
+                'agent.critical_rules.injected',
+                module='tool_selection_hints',
+                position='top_of_prompt',
+                length=len(tool_selection_content)
+            )
+    
     # Load system prompt from instance_config (multi-tenant) or agent config (single-tenant)
     if instance_config is not None and 'system_prompt' in instance_config:
         # Multi-tenant mode: use the instance-specific system prompt
-        system_prompt = instance_config['system_prompt']
+        base_system_prompt = instance_config['system_prompt']
         logfire.info(
             'agent.system_prompt.loaded',
             source='instance_config',
-            length=len(system_prompt)
+            length=len(base_system_prompt)
         )
     else:
         # Single-tenant mode: load from agent config file
         agent_config = await get_agent_config("simple_chat")
-        system_prompt = agent_config.system_prompt
+        base_system_prompt = agent_config.system_prompt
         logfire.info(
             'agent.system_prompt.loaded',
             source='agent_config',
-            length=len(system_prompt)
+            length=len(base_system_prompt)
         )
+    
+    # Construct prompt with critical rules at the top
+    system_prompt = critical_rules + base_system_prompt
     
     # Auto-generate directory tool documentation if enabled
     directory_config = (instance_config or {}).get("tools", {}).get("directory", {})
@@ -237,26 +262,33 @@ async def create_simple_chat_agent(
             reason='no_account_id'
         )
     
-    # Load prompt modules (Phase 4A)
-    from .tools.prompt_modules import load_modules_for_agent
+    # Load remaining prompt modules (Phase 4A) - skip tool_selection_hints (already loaded at top)
+    from .tools.prompt_modules import load_modules_for_agent, load_prompt_module
     
-    # Extract account_slug for account-level module loading
-    account_slug = None
-    if instance_config:
-        account_slug = instance_config.get("account")
-    
-    module_content = load_modules_for_agent(instance_config or {}, account_slug)
-    
-    if module_content:
-        system_prompt = system_prompt + "\n\n" + module_content
-        selected_modules = (instance_config or {}).get('prompting', {}).get('modules', {}).get('selected', [])
-        logfire.info(
-            'agent.prompt_modules.loaded',
-            module_count=len(selected_modules),
-            modules=selected_modules,
-            content_length=len(module_content),
-            final_prompt_length=len(system_prompt)
-        )
+    # Load other modules (excluding tool_selection_hints which is already at the top)
+    prompting_config = (instance_config or {}).get('prompting', {}).get('modules', {})
+    if prompting_config.get('enabled', False):
+        selected_modules = prompting_config.get('selected', [])
+        other_modules = [m for m in selected_modules if m != 'tool_selection_hints']
+        
+        if other_modules:
+            other_module_contents = []
+            for module_name in other_modules:
+                module_content = load_prompt_module(module_name, account_slug)
+                if module_content:
+                    other_module_contents.append(module_content)
+            
+            if other_module_contents:
+                combined = "\n\n---\n\n".join(other_module_contents)
+                system_prompt = system_prompt + "\n\n" + combined
+                logfire.info(
+                    'agent.prompt_modules.loaded',
+                    module_count=len(other_modules),
+                    modules=other_modules,
+                    content_length=len(combined),
+                    final_prompt_length=len(system_prompt),
+                    note='tool_selection_hints loaded at top'
+                )
     
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
