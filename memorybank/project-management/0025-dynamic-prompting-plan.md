@@ -2232,7 +2232,7 @@ prompting:
 
 **EFFORT**: 10 minutes
 
-**STATUS**: ✅ Ready for Testing - Modules strengthened with commanding language, ready for retry
+**STATUS**: ✅ Ready for Testing - Nuclear option deployed, critical rules injected at TOP of prompt
 
 **PROGRESS**:
 - ✅ Created directory structure: `backend/config/prompt_modules/system/` and `accounts/`
@@ -2256,6 +2256,17 @@ prompting:
   - Added: Step-by-step decision flowchart with keyword triggers
   - Added: Critical reminders section with explicit "WILL FAIL" warnings
   - Module size: 84 lines → 167 lines (doubled for clarity)
+- ✅ **NUCLEAR OPTION (Option A)**: Restructured prompt to inject critical rules at TOP
+  - Issue: LLM still used `vector_search` despite 6088 chars of commanding guidance
+  - Root cause: Token position bias - modules loaded LAST, after tool descriptions
+  - Analysis: LLM sees tool descriptions first, decides before reading our rules
+  - Solution: Inject `tool_selection_hints` BEFORE base prompt (not after everything)
+  - Prompt structure changed:
+    * BEFORE: base → directory_docs → tool_descriptions → modules (too late!)
+    * AFTER: **CRITICAL_RULES** → base → directory_docs → tool_descriptions → other_modules
+  - Implementation: `simple_chat.py` modified to load tool_selection_hints separately at line 182
+  - Benefits: Token position bias now works FOR us (rules at top = higher weight)
+  - New Logfire event: `agent.critical_rules.injected` for monitoring
 - 📋 Ready for user testing: Restart backend and test 3 queries
 
 **TEST QUERIES** (from Chunk 001):
