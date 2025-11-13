@@ -277,6 +277,8 @@ ADMIN_PASSWORD=your-secure-password-here
 
 ### Phase 1: Backend API Endpoints
 
+**Note**: All admin APIs use GET requests (read-only). No POST/PUT/DELETE - admin UI is for debugging/inspection only, no data modification.
+
 #### Feature 0026-001: Sessions List API
 **File**: `backend/app/api/admin.py`
 
