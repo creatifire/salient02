@@ -59,6 +59,11 @@ ALTER TABLE llm_requests ADD COLUMN meta JSONB;
 ```
 
 #### Task 0026-000-002: Create PromptBreakdownService
+
+**What it does**: Captures how the LLM prompt was assembled (what sections, in what order, how long each section is). This data gets stored in the database so the admin UI can show exactly what prompt the LLM saw when it made a bad decision.
+
+**Why it matters**: When debugging "why did the LLM choose the wrong tool?", you need to see the exact prompt it received. This service tracks all the pieces (critical rules, base prompt, directory docs, modules) and their positions.
+
 **File**: `backend/app/services/prompt_breakdown_service.py`
 
 ```python
