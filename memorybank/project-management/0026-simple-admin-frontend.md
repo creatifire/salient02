@@ -136,6 +136,8 @@ class PromptBreakdownService:
         return breakdown
 ```
 
+**Storage**: Prompt breakdown gets stored in `llm_requests.meta["prompt_breakdown"]` (one per LLM request). This captures the INPUT to the LLM - what prompt structure it received.
+
 #### Task 0026-000-003: Integrate into simple_chat.py
 **Changes**: `simple_chat.py`, `cost_calculator.py`, `llm_request_tracker.py`
 
@@ -177,6 +179,11 @@ async def track_llm_request(
 ```
 
 #### Task 0026-000-004: Verify Tool Call Storage
+
+**Storage**: Tool calls get stored in `messages.meta["tool_calls"]` (one per assistant message). This captures the OUTPUT from the LLM - which tools it decided to call and with what arguments.
+
+**Why separate from prompt breakdown**: This lets you compare INPUT (prompt structure) vs OUTPUT (tool choices) to debug wrong tool selection.
+
 Check if `message.meta["tool_calls"]` is populated. If missing:
 
 ```python
