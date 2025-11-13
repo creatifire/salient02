@@ -33,9 +33,9 @@ Provide a simple, lightweight admin interface for developers to:
 ## Technology Stack
 
 - **Frontend**: Astro (already in use at `/web`)
-- **Interactivity**: HTMX (lightweight, server-driven)
+- **Interactivity**: Preact (lightweight React alternative, already installed)
 - **Backend**: FastAPI (existing backend at `/backend/app`)
-- **Styling**: Minimal CSS (TailwindCSS if already available, otherwise plain CSS)
+- **Styling**: TailwindCSS (already installed at 4.1.12)
 
 ---
 
@@ -266,6 +266,421 @@ GET /api/admin/llm-requests/{request_id}
 
 ## Implementation Plan
 
+### Phase 0: Foundation Setup (Pre-Work)
+**Goal**: Prepare data capture and authentication infrastructure before building admin UI
+
+**Status**: Required before Phase 1
+
+---
+
+#### Feature 0026-000: Foundation Prerequisites
+
+##### Task 0026-000-001: Add meta Column to llm_requests Table
+**Purpose**: Store prompt breakdown metadata for admin inspection
+
+**Implementation**:
+```sql
+ALTER TABLE llm_requests 
+ADD COLUMN meta JSONB;
+
+COMMENT ON COLUMN llm_requests.meta IS 'Extensible metadata including prompt breakdown for debugging';
+```
+
+**Manual Tests**:
+- ✅ Column exists and accepts JSONB data
+- ✅ Existing rows have NULL meta (nullable field)
+- ✅ Can insert/update meta field with JSON
+
+**Effort**: 5 minutes
+
+---
+
+##### Task 0026-000-002: Create Prompt Breakdown Service
+**Purpose**: Centralized service for capturing prompt composition metadata (reusable across all agents)
+
+**File**: `backend/app/services/prompt_breakdown_service.py`
+
+**Implementation**:
+```python
+from typing import Dict, List, Optional
+import logfire
+
+class PromptBreakdownService:
+    """
+    Centralized service for capturing prompt breakdown metadata.
+    Used by all agents to track prompt composition for admin debugging.
+    """
+    
+    @staticmethod
+    def capture_breakdown(
+        base_prompt: str,
+        critical_rules: Optional[str] = None,
+        directory_docs: Optional[str] = None,
+        modules: Optional[Dict[str, str]] = None,
+        account_slug: Optional[str] = None,
+        agent_instance_slug: Optional[str] = None
+    ) -> dict:
+        """
+        Capture prompt breakdown with character counts and sources.
+        
+        Args:
+            base_prompt: Base system prompt content
+            critical_rules: Critical tool selection rules (injected at top)
+            directory_docs: Auto-generated directory documentation
+            modules: Dict of {module_name: content} for additional modules
+            account_slug: Account identifier for logging
+            agent_instance_slug: Agent instance identifier for logging
+            
+        Returns:
+            Dict suitable for storing in llm_requests.meta['prompt_breakdown']
+        """
+        breakdown = {
+            "sections": []
+        }
+        
+        position = 1
+        total_chars = 0
+        
+        # 1. Critical rules (if present, injected at top)
+        if critical_rules:
+            breakdown["sections"].append({
+                "name": "critical_rules",
+                "position": position,
+                "char_count": len(critical_rules),
+                "source": "tool_selection_hints.md"
+            })
+            total_chars += len(critical_rules)
+            position += 1
+        
+        # 2. Base system prompt
+        breakdown["sections"].append({
+            "name": "base_prompt",
+            "position": position,
+            "char_count": len(base_prompt),
+            "source": "system_prompt.md"
+        })
+        total_chars += len(base_prompt)
+        position += 1
+        
+        # 3. Directory documentation (if present)
+        if directory_docs:
+            breakdown["sections"].append({
+                "name": "directory_docs",
+                "position": position,
+                "char_count": len(directory_docs),
+                "source": "auto-generated"
+            })
+            total_chars += len(directory_docs)
+            position += 1
+        
+        # 4. Additional modules
+        if modules:
+            module_sections = []
+            for module_name, content in modules.items():
+                module_sections.append({
+                    "name": module_name,
+                    "position": position,
+                    "char_count": len(content),
+                    "source": f"{module_name}.md"
+                })
+                total_chars += len(content)
+                position += 1
+            
+            if module_sections:
+                breakdown["sections"].append({
+                    "name": "other_modules",
+                    "modules": module_sections
+                })
+        
+        # Add summary
+        breakdown["total_char_count"] = total_chars
+        breakdown["section_count"] = len(breakdown["sections"])
+        
+        # Log breakdown for monitoring
+        logfire.info(
+            'service.prompt_breakdown.captured',
+            account_slug=account_slug,
+            agent_instance_slug=agent_instance_slug,
+            total_chars=total_chars,
+            section_count=breakdown["section_count"]
+        )
+        
+        return breakdown
+```
+
+**Manual Tests**:
+- ✅ Service captures breakdown from simple_chat.py
+- ✅ Returns valid JSON structure
+- ✅ Handles optional fields (critical_rules, directory_docs)
+- ✅ Logfire event logged with correct data
+
+**Effort**: 30 minutes
+
+---
+
+##### Task 0026-000-003: Integrate Breakdown Service into simple_chat.py
+**Purpose**: Capture prompt breakdown during agent creation and store in llm_requests.meta
+
+**Changes to**: `backend/app/agents/simple_chat.py`
+
+**Implementation**:
+```python
+# At top of file, add import
+from ..services.prompt_breakdown_service import PromptBreakdownService
+
+# In create_simple_chat_agent(), after system_prompt construction:
+async def create_simple_chat_agent(...):
+    # ... existing code to build system_prompt ...
+    
+    # Capture prompt breakdown for admin debugging
+    breakdown = PromptBreakdownService.capture_breakdown(
+        base_prompt=base_system_prompt,
+        critical_rules=critical_rules if critical_rules else None,
+        directory_docs=directory_docs if directory_config.get("enabled") else None,
+        modules={
+            name: load_prompt_module(name, account_slug)
+            for name in prompting_config.get('selected', [])
+        } if prompting_config.get('enabled') else None,
+        account_slug=account_slug,
+        agent_instance_slug=instance_config.get('slug') if instance_config else None
+    )
+    
+    # Store breakdown for later use when tracking LLM requests
+    # (We'll pass this to track_llm_request via a new parameter)
+    
+    # ... rest of agent creation ...
+```
+
+**Changes to**: `backend/app/agents/cost_calculator.py` (track_chat_request function)
+
+Add `prompt_breakdown` parameter and store in meta:
+```python
+async def track_chat_request(
+    tracker: Any,
+    # ... existing params ...
+    prompt_breakdown: Optional[dict] = None  # NEW
+) -> Optional[UUID]:
+    """Track LLM request with prompt breakdown metadata."""
+    
+    # Build request body
+    request_body = {
+        "messages": request_messages,
+        # ...
+    }
+    
+    # Track the request with breakdown metadata
+    llm_request_id = await tracker.track_llm_request(
+        # ... existing params ...
+        meta={"prompt_breakdown": prompt_breakdown} if prompt_breakdown else None  # NEW
+    )
+```
+
+**Changes to**: `backend/app/services/llm_request_tracker.py`
+
+Add `meta` parameter:
+```python
+async def track_llm_request(
+    self,
+    # ... existing params ...
+    meta: Optional[Dict[str, Any]] = None  # NEW
+) -> UUID:
+    """Track LLM request with optional metadata."""
+    
+    llm_request = LLMRequest(
+        # ... existing fields ...
+        meta=meta  # NEW
+    )
+```
+
+**Manual Tests**:
+- ✅ Breakdown captured for every simple_chat request
+- ✅ Stored in llm_requests.meta['prompt_breakdown']
+- ✅ Query database to verify JSON structure is correct
+- ✅ Logfire shows breakdown capture events
+
+**Effort**: 45 minutes
+
+---
+
+##### Task 0026-000-004: Verify Tool Call Storage in message.meta
+**Purpose**: Ensure tool calls are being stored for admin inspection
+
+**Investigation**:
+1. Check if `simple_chat.py` currently populates `message.meta` with tool calls
+2. Verify format matches expected structure: `{"tool_calls": [{"tool_name": "...", "args": {...}, "output": "..."}]}`
+
+**If Missing, Implement**:
+```python
+# In simple_chat() after agent.run() and tool calls complete:
+tool_calls_meta = []
+if result.all_messages():
+    for msg in result.all_messages():
+        if hasattr(msg, 'parts'):
+            for part in msg.parts:
+                if isinstance(part, ToolCallPart):
+                    tool_calls_meta.append({
+                        "tool_name": part.tool_name,
+                        "args": part.args,
+                        # Store output separately if available
+                    })
+
+# Include in message.meta when saving assistant response
+await message_service.save_message(
+    # ...
+    meta={"tool_calls": tool_calls_meta} if tool_calls_meta else None
+)
+```
+
+**Manual Tests**:
+- ✅ Tool calls appear in message.meta for directory queries
+- ✅ Tool calls appear for vector_search queries
+- ✅ Format is consistent and parseable
+
+**Effort**: 30 minutes (if implementation needed)
+
+---
+
+##### Task 0026-000-005: Implement Admin Authentication Middleware
+**Purpose**: Secure `/api/admin/*` routes with HTTP Basic Auth
+
+**File**: `backend/app/middleware/admin_auth_middleware.py`
+
+**Implementation**:
+```python
+"""
+Admin authentication middleware for securing admin API endpoints.
+Uses HTTP Basic Auth with credentials from environment variables.
+"""
+import os
+import secrets
+from typing import Callable
+
+from fastapi import Request, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from starlette.middleware.base import BaseHTTPMiddleware
+import logfire
+
+security = HTTPBasic()
+
+class AdminAuthMiddleware(BaseHTTPMiddleware):
+    """
+    HTTP Basic Auth middleware for admin routes.
+    
+    Protects all /api/admin/* endpoints with username/password.
+    Credentials configured via environment variables:
+    - ADMIN_USERNAME (default: "admin")
+    - ADMIN_PASSWORD (default: "changeme" - MUST be changed in production)
+    """
+    
+    def __init__(self, app):
+        super().__init__(app)
+        self.admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        self.admin_password = os.getenv("ADMIN_PASSWORD", "changeme")
+        
+        if self.admin_password == "changeme":
+            logfire.warn(
+                'security.admin_auth.default_password',
+                message="Admin password is set to default 'changeme'. Change ADMIN_PASSWORD env var."
+            )
+    
+    async def dispatch(self, request: Request, call_next: Callable):
+        # Only protect /api/admin/* routes
+        if not request.url.path.startswith("/api/admin/"):
+            return await call_next(request)
+        
+        # Check for Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Basic "):
+            return self._unauthorized_response()
+        
+        # Decode and verify credentials
+        try:
+            import base64
+            credentials = base64.b64decode(auth_header[6:]).decode("utf-8")
+            username, password = credentials.split(":", 1)
+            
+            # Constant-time comparison to prevent timing attacks
+            username_correct = secrets.compare_digest(username, self.admin_username)
+            password_correct = secrets.compare_digest(password, self.admin_password)
+            
+            if not (username_correct and password_correct):
+                logfire.warn(
+                    'security.admin_auth.failed',
+                    username=username,
+                    path=request.url.path
+                )
+                return self._unauthorized_response()
+            
+            # Log successful admin access
+            logfire.info(
+                'security.admin_auth.success',
+                username=username,
+                path=request.url.path,
+                ip=request.client.host if request.client else None
+            )
+            
+        except Exception as e:
+            logfire.error(
+                'security.admin_auth.error',
+                error=str(e),
+                path=request.url.path
+            )
+            return self._unauthorized_response()
+        
+        return await call_next(request)
+    
+    def _unauthorized_response(self):
+        """Return 401 with WWW-Authenticate header to trigger browser login prompt."""
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"detail": "Admin authentication required"},
+            headers={"WWW-Authenticate": "Basic realm=\"Admin Area\""}
+        )
+```
+
+**Register in**: `backend/app/main.py`
+
+```python
+# Add after SimpleSessionMiddleware registration
+from .middleware.admin_auth_middleware import AdminAuthMiddleware
+
+app.add_middleware(AdminAuthMiddleware)
+```
+
+**Environment Variables** (add to `.env`):
+```bash
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-secure-password-here
+```
+
+**Manual Tests**:
+- ✅ `/api/admin/sessions` returns 401 without auth
+- ✅ Browser shows Basic Auth login prompt
+- ✅ Correct credentials grant access
+- ✅ Incorrect credentials denied
+- ✅ Non-admin routes (e.g., `/api/config`) still work without auth
+- ✅ Logfire shows auth attempts (success/failure)
+
+**Effort**: 30 minutes
+
+---
+
+### Phase 0: Summary
+
+**Total Effort**: ~2.5 hours
+
+**Completion Criteria**:
+- ✅ `llm_requests.meta` column exists
+- ✅ `PromptBreakdownService` created and tested
+- ✅ Prompt breakdown captured for every LLM request
+- ✅ Tool calls stored in `message.meta`
+- ✅ Admin routes secured with HTTP Basic Auth
+
+**Once Phase 0 is complete**, all data needed for the admin UI will be captured and secured.
+
+---
+
 ### Phase 1: Backend API Endpoints (Foundation)
 **Goal**: Create read-only API endpoints for admin data
 
@@ -358,7 +773,7 @@ GET /api/admin/llm-requests/{request_id}
 
 ---
 
-### Phase 2: Frontend Pages (Astro + HTMX)
+### Phase 2: Frontend Pages (Astro + Preact)
 **Goal**: Create simple, functional admin UI
 
 #### Feature 0026-004: Session List Page
@@ -366,19 +781,20 @@ GET /api/admin/llm-requests/{request_id}
 
 **Tasks**:
 - **0026-004-001**: Create `/web/src/pages/admin/sessions.astro`
-  - Fetch sessions from API on page load
-  - Render table with session data
+  - Fetch sessions from API on page load (server-side)
+  - Embed Preact component for interactive table
   - Add "View Details" link to session detail page
   
-- **0026-004-002**: Add HTMX filters for account/agent
+- **0026-004-002**: Create Preact component for filters
+  - File: `/web/src/components/admin/SessionFilters.tsx`
   - Dropdown selects for account and agent
-  - HTMX `hx-get` to reload table on filter change
-  - Target: `#sessions-table` div
+  - Fetch filtered data on selection change
+  - Update table without page reload
   
-- **0026-004-003**: Style with minimal CSS (or TailwindCSS if available)
+- **0026-004-003**: Style with TailwindCSS
   - Simple table layout
   - Hover effects on rows
-  - Loading spinner during HTMX requests
+  - Loading spinner during fetch requests
 
 **Manual Tests**:
 - ✅ Page loads and displays sessions
@@ -396,24 +812,26 @@ GET /api/admin/llm-requests/{request_id}
 **Tasks**:
 - **0026-005-001**: Create `/web/src/pages/admin/sessions/[id].astro`
   - Dynamic route with session ID param
-  - Fetch session messages from API
+  - Fetch session messages from API (server-side)
   - Render conversation timeline (user/assistant bubbles)
   
-- **0026-005-002**: Add "Show Details" button for each assistant message
-  - HTMX `hx-get` to load LLM request details
-  - Target: `#prompt-inspector` sidebar
-  - Display: model, tokens, cost, duration, tool calls
+- **0026-005-002**: Create Preact component for message details
+  - File: `/web/src/components/admin/MessageDetails.tsx`
+  - "Show Details" button for each assistant message
+  - Fetch LLM request details on click
+  - Display in sidebar: model, tokens, cost, duration, tool calls
   
-- **0026-005-003**: Create prompt inspector sidebar
+- **0026-005-003**: Create Preact prompt inspector component
+  - File: `/web/src/components/admin/PromptInspector.tsx`
   - Expandable sections for prompt breakdown
-  - Syntax highlighting (optional, use `<pre><code>` blocks)
-  - Copy button for full prompt (JavaScript or HTMX)
+  - Syntax highlighting with `<pre><code>` blocks
+  - Copy button for full prompt (navigator.clipboard API)
   
-- **0026-005-004**: Style conversation timeline
-  - User messages: blue bubble, left
-  - Assistant messages: gray bubble, right
+- **0026-005-004**: Style conversation timeline with TailwindCSS
+  - User messages: blue bubble, left-aligned
+  - Assistant messages: gray bubble, right-aligned
   - Timestamp below each message
-  - Smooth scrolling
+  - Smooth scrolling behavior
 
 **Manual Tests**:
 - ✅ Session loads with all messages
@@ -465,12 +883,12 @@ web/
 │   │       └── [id].astro                     # LLM request detail (Feature 0026-006, optional)
 │   ├── components/
 │   │   ├── admin/
-│   │   │   ├── SessionTable.astro             # Reusable session table
-│   │   │   ├── MessageBubble.astro            # User/assistant message bubble
-│   │   │   ├── PromptInspector.astro          # Prompt breakdown sidebar
-│   │   │   └── ToolCallList.astro             # Tool calls display
-│   └── styles/
-│       └── admin.css                          # Admin-specific styles
+│   │   │   ├── SessionFilters.tsx             # Preact: Filter component with state
+│   │   │   ├── SessionTable.tsx               # Preact: Interactive session table
+│   │   │   ├── MessageBubble.tsx              # Preact: User/assistant message bubble
+│   │   │   ├── MessageDetails.tsx             # Preact: LLM metadata display
+│   │   │   ├── PromptInspector.tsx            # Preact: Prompt breakdown sidebar
+│   │   │   └── ToolCallList.tsx               # Preact: Tool calls display
 
 backend/
 ├── app/
@@ -480,44 +898,120 @@ backend/
 
 ---
 
-## HTMX Examples
+## Preact Component Examples
 
-### Filter Sessions by Account (HTMX)
-```html
-<!-- /web/src/pages/admin/sessions.astro -->
-<select 
-  hx-get="/api/admin/sessions" 
-  hx-target="#sessions-table"
-  hx-swap="innerHTML"
-  name="account"
->
-  <option value="">All Accounts</option>
-  <option value="wyckoff">Wyckoff</option>
-  <option value="acme">ACME Corp</option>
-</select>
+### Session Filter Component (TypeScript)
+```tsx
+// /web/src/components/admin/SessionFilters.tsx
+import { h } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 
-<div id="sessions-table">
-  <!-- Table will be inserted here via HTMX -->
-</div>
+interface Session {
+  id: string;
+  account_slug: string;
+  agent_instance_slug: string;
+  created_at: string;
+  message_count: number;
+}
+
+export function SessionFilters() {
+  const [account, setAccount] = useState('');
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (account) params.append('account', account);
+      
+      const response = await fetch(`/api/admin/sessions?${params}`);
+      const data = await response.json();
+      setSessions(data.sessions || []);
+      setLoading(false);
+    };
+    
+    fetchSessions();
+  }, [account]);
+
+  return (
+    <div class="p-4">
+      <select 
+        value={account}
+        onChange={(e) => setAccount(e.currentTarget.value)}
+        class="border rounded p-2"
+      >
+        <option value="">All Accounts</option>
+        <option value="wyckoff">Wyckoff</option>
+      </select>
+      
+      {loading ? (
+        <div>Loading...</div>
+      ) : (
+        <table class="w-full mt-4">
+          {/* Render sessions table */}
+        </table>
+      )}
+    </div>
+  );
+}
 ```
 
-### Load Prompt Inspector (HTMX)
-```html
-<!-- /web/src/pages/admin/sessions/[id].astro -->
-<div class="message assistant">
-  <p>I don't have the specific phone number...</p>
-  <button 
-    hx-get="/api/admin/llm-requests/{request_id}"
-    hx-target="#prompt-inspector"
-    hx-swap="innerHTML"
-  >
-    Show Details
-  </button>
-</div>
+### Prompt Inspector Component (TypeScript)
+```tsx
+// /web/src/components/admin/PromptInspector.tsx
+import { h } from 'preact';
+import { useState } from 'preact/hooks';
 
-<aside id="prompt-inspector">
-  <!-- Prompt breakdown will be inserted here via HTMX -->
-</aside>
+interface PromptBreakdown {
+  sections: Array<{
+    name: string;
+    position: number;
+    char_count: number;
+    source: string;
+  }>;
+  total_char_count: number;
+}
+
+export function PromptInspector({ requestId }: { requestId: string }) {
+  const [breakdown, setBreakdown] = useState<PromptBreakdown | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const loadBreakdown = async () => {
+    const response = await fetch(`/api/admin/llm-requests/${requestId}`);
+    const data = await response.json();
+    setBreakdown(data.prompt_breakdown);
+  };
+
+  const copyPrompt = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <aside class="border-l p-4">
+      <h3 class="font-bold mb-4">Prompt Inspector</h3>
+      {breakdown && (
+        <div>
+          {breakdown.sections.map((section) => (
+            <div key={section.name} class="mb-2">
+              <button 
+                onClick={() => setExpanded(expanded === section.name ? null : section.name)}
+                class="w-full text-left p-2 bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                {section.name} ({section.char_count} chars)
+              </button>
+              {expanded === section.name && (
+                <pre class="p-2 bg-gray-50 text-sm overflow-auto">
+                  <code>{section.content}</code>
+                </pre>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </aside>
+  );
+}
 ```
 
 ---
@@ -627,8 +1121,10 @@ async def create_simple_chat_agent(instance_config, account_id):
 
 ## Dependencies
 
-- Astro framework (already in `/web`)
-- HTMX library (add to `package.json` if not present)
+- Astro framework (already in `/web` at 5.13.0)
+- Preact (already installed at 10.27.0)
+- @astrojs/preact integration (already installed at 4.1.0)
+- TailwindCSS (already installed at 4.1.12)
 - FastAPI (already in `/backend`)
 - SQLAlchemy (already in use for database queries)
 
@@ -637,9 +1133,11 @@ async def create_simple_chat_agent(instance_config, account_id):
 ## Notes
 
 - **Keep it simple**: This is a developer tool, not a user-facing product
-- **HTMX over React/Vue**: Reduces complexity, server-rendered is sufficient
+- **Preact over React**: Lightweight (3KB) and already integrated with Astro
+- **Component-based UI**: Cleaner than vanilla JS for interactive admin features
 - **Read-only for safety**: No accidental data modification during debugging
 - **Prompt breakdown is key**: Helps debug token position bias and module loading issues
+- **TailwindCSS utilities**: Fast styling without custom CSS files
 
 ---
 
