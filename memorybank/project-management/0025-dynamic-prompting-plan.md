@@ -4071,5 +4071,38 @@ After successful completion of Phases 1-4A:
 - External tool ecosystem (GitHub, Slack, Tavily, Wikidata)
 - Graceful degradation for MCP server failures
 
-**See**: `memorybank/design/dynamic-prompting.md` for complete Phase 4B-6 design.
+---
+
+## Future Enhancements (Post-MVP)
+
+The following features are documented in design but deferred until simpler approaches prove insufficient:
+
+**Dynamic Instructions (Message Prepending)**:
+Runtime injection of context-specific directives into user messages (NOT system prompt). Enables emergency detection, time-sensitive instructions ("Pharmacy closes in 30 minutes"), and follow-up awareness. Config-driven keyword mappings trigger instruction injection per request.
+
+**See**: `memorybank/design/dynamic-prompting.md` lines 1849-1952
+
+**Advanced Module Selection**:
+Four sophisticated alternatives to keyword matching: (1) LLM-based intent classifier, (2) Conversation history analysis, (3) Dynamic module prioritization with ML-based effectiveness tracking, (4) Multi-language support via embeddings. Trade-offs include added latency, cost, and complexity.
+
+**See**: `memorybank/design/dynamic-prompting.md` lines 1955-1981
+
+**Token Budget Optimization**:
+Dynamic token allocation based on query complexity. Compress or summarize less-critical modules when approaching budget limits. Enables adaptive prompt sizing for cost control.
+
+**See**: `memorybank/design/dynamic-prompting.md` lines 1988-1989
+
+**Module Versioning**:
+Version control for modules with rollback capability and A/B testing framework for comparing module versions. Enables safe module updates and data-driven optimization.
+
+**See**: `memorybank/design/dynamic-prompting.md` lines 1991-1992
+
+**Cross-Account Module Sharing**:
+Marketplace or library of community-contributed modules with standardized format. Enables sharing best practices across accounts and domains.
+
+**See**: `memorybank/design/dynamic-prompting.md` lines 1994-1996
+
+---
+
+**Complete Design Reference**: `memorybank/design/dynamic-prompting.md` for all phase details and future enhancements.
 
