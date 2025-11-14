@@ -26,11 +26,16 @@ Debug LLM tool selection and prompt composition issues via simple admin UI.
 - **Frontend**: Astro + Preact (already installed)
 - **Backend**: FastAPI
 - **Styling**: TailwindCSS (already installed)
-- **Auth**: HTTP Basic Auth for `/api/admin/*`
+- **Auth**: Session-based authentication (Phase 3) / HTTP Basic Auth (Phase 0-2)
 
 ---
 
 ## Routes
+
+### `/admin/login` - Admin Login (Phase 3)
+Simple login form for admin authentication. On success, stores session authentication.
+
+**API**: `POST /api/admin/login` with `{username, password}`
 
 ### `/admin/sessions` - Session List
 Table with filters (account, agent, date range) showing session metadata and message counts.
@@ -418,23 +423,282 @@ export function PromptInspector({ requestId }: { requestId: string }) {
 
 ---
 
+### Phase 3: Session-Based Authentication
+
+**Goal**: Replace HTTP Basic Auth with session-based login to eliminate repeated credential prompts
+
+**Problem**: Current HTTP Basic Auth prompts for username/password on every request (field change, page refresh). Poor UX for admin debugging.
+
+**Solution**: Piggyback on existing `SimpleSessionMiddleware` infrastructure with session-stored authentication flag.
+
+#### Feature 0026-006: Session-Based Admin Login
+
+##### Task 0026-006-001: Create Admin Login Endpoint
+**File**: `backend/app/api/admin.py`
+
+```python
+from datetime import datetime, timedelta, timezone
+from fastapi import Request, HTTPException, Depends
+from pydantic import BaseModel
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+
+@router.post("/login")
+async def admin_login(credentials: AdminLoginRequest, request: Request):
+    """
+    Validate admin credentials and set session authentication.
+    
+    On success, sets session["admin_authenticated"] with expiry timestamp.
+    Returns success message and expiry time.
+    """
+    # Load credentials from env
+    admin_username = os.getenv("ADMIN_USERNAME", "admin")
+    admin_password = os.getenv("ADMIN_PASSWORD", "changeme")
+    
+    # Validate credentials (timing-safe comparison)
+    if not (secrets.compare_digest(credentials.username, admin_username) and 
+            secrets.compare_digest(credentials.password, admin_password)):
+        logfire.warn('api.admin.login.failed', username=credentials.username)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Set session authentication with expiry (default: 2 hours)
+    expiry_minutes = int(os.getenv("ADMIN_SESSION_EXPIRY_MINUTES", "120"))
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
+    
+    request.session["admin_authenticated"] = True
+    request.session["admin_expiry"] = expiry.isoformat()
+    
+    logfire.info(
+        'api.admin.login.success',
+        username=credentials.username,
+        expiry_minutes=expiry_minutes
+    )
+    
+    return {
+        "success": True,
+        "expires_in_minutes": expiry_minutes,
+        "expires_at": expiry.isoformat()
+    }
+
+@router.post("/logout")
+async def admin_logout(request: Request):
+    """Clear admin session authentication."""
+    if "admin_authenticated" in request.session:
+        del request.session["admin_authenticated"]
+    if "admin_expiry" in request.session:
+        del request.session["admin_expiry"]
+    
+    return {"success": True, "message": "Logged out"}
+```
+
+##### Task 0026-006-002: Update AdminAuthMiddleware
+**File**: `backend/app/middleware/admin_auth_middleware.py`
+
+Replace HTTP Basic Auth logic with session check:
+
+```python
+async def dispatch(self, request: Request, call_next: Callable):
+    """Check session authentication for /api/admin/* requests."""
+    
+    # Skip auth check for login endpoint itself
+    if request.url.path == "/api/admin/login":
+        return await call_next(request)
+    
+    # Only apply auth to other admin endpoints
+    if not request.url.path.startswith("/api/admin/"):
+        return await call_next(request)
+    
+    # Check session authentication
+    if not request.session.get("admin_authenticated"):
+        return self._unauthorized("Not authenticated")
+    
+    # Check session expiry
+    expiry_str = request.session.get("admin_expiry")
+    if expiry_str:
+        expiry = datetime.fromisoformat(expiry_str)
+        if datetime.now(timezone.utc) > expiry:
+            # Session expired, clear it
+            del request.session["admin_authenticated"]
+            del request.session["admin_expiry"]
+            return self._unauthorized("Session expired")
+    
+    # Authentication valid
+    return await call_next(request)
+
+def _unauthorized(self, message: str = "Admin authentication required"):
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": message, "login_required": True}
+    )
+```
+
+##### Task 0026-006-003: Create Admin Login Page
+**File**: `web/src/pages/admin/login.astro`
+
+Simple login form that posts to `/api/admin/login`:
+
+```astro
+---
+// Server-side: redirect if already authenticated
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login</title>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-md w-96">
+        <h1 class="text-2xl font-bold mb-6">Admin Login</h1>
+        <div id="login-form"></div>
+    </div>
+
+    <script>
+        import { h, render } from 'preact';
+        import { LoginForm } from '../components/admin/LoginForm';
+        
+        const container = document.getElementById('login-form');
+        if (container) {
+            render(h(LoginForm, { apiUrl: import.meta.env.PUBLIC_API_URL || 'http://localhost:8000' }), container);
+        }
+    </script>
+</body>
+</html>
+```
+
+##### Task 0026-006-004: Create LoginForm Component
+**File**: `web/src/components/admin/LoginForm.tsx`
+
+```tsx
+import { h } from 'preact';
+import { useState } from 'preact/hooks';
+
+export function LoginForm({ apiUrl }: { apiUrl: string }) {
+    const [username, setUsername] = useState('admin');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e: Event) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch(`${apiUrl}/api/admin/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // Important: send cookies
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.detail || 'Login failed');
+            }
+
+            // Redirect to sessions page
+            window.location.href = '/admin/sessions';
+        } catch (err: any) {
+            setError(err.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} class="space-y-4">
+            {error && (
+                <div class="bg-red-50 border border-red-200 text-red-800 rounded p-3 text-sm">
+                    {error}
+                </div>
+            )}
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Username
+                </label>
+                <input
+                    type="text"
+                    value={username}
+                    onInput={(e) => setUsername((e.target as HTMLInputElement).value)}
+                    class="w-full border border-gray-300 rounded-md px-3 py-2"
+                    required
+                />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                </label>
+                <input
+                    type="password"
+                    value={password}
+                    onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
+                    class="w-full border border-gray-300 rounded-md px-3 py-2"
+                    required
+                />
+            </div>
+
+            <button
+                type="submit"
+                disabled={loading}
+                class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+                {loading ? 'Logging in...' : 'Login'}
+            </button>
+        </form>
+    );
+}
+```
+
+##### Task 0026-006-005: Update Existing Components
+Remove HTTP Basic Auth prompts from:
+- `SessionFilters.tsx` - use fetch with `credentials: 'include'`
+- `SessionDetail.tsx` - use fetch with `credentials: 'include'`
+- `PromptInspector.tsx` - use fetch with `credentials: 'include'`
+
+Handle 401 responses by redirecting to `/admin/login`.
+
+**Environment Variables**:
+```bash
+# .env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-secure-password
+ADMIN_SESSION_EXPIRY_MINUTES=120  # 2 hours default
+```
+
+**Benefits**:
+- No repeated credential prompts
+- Session persists across tabs
+- Configurable expiry time
+- Reuses existing session infrastructure
+- Logout functionality
+- Better UX for debugging
+
+---
+
 ## File Structure
 
 ```
 web/src/
 ├── pages/admin/
 │   ├── index.astro                      # Redirect to /admin/sessions
+│   ├── login.astro                      # Admin login page (Phase 3)
 │   ├── sessions.astro                   # Session list
 │   └── sessions/[id].astro              # Session detail
 ├── components/admin/
+│   ├── LoginForm.tsx                    # Login form component (Phase 3)
 │   ├── SessionFilters.tsx               # Filter component
-│   ├── SessionTable.tsx                 # Interactive table
-│   ├── MessageDetails.tsx               # LLM metadata
+│   ├── SessionDetail.tsx                # Conversation timeline
 │   └── PromptInspector.tsx              # Prompt breakdown
 
 backend/app/
-├── api/admin.py                          # Admin endpoints
-├── middleware/admin_auth_middleware.py   # HTTP Basic Auth
+├── api/admin.py                          # Admin endpoints (login, sessions, llm-requests)
+├── middleware/admin_auth_middleware.py   # Session-based auth (Phase 3) / HTTP Basic Auth (Phase 0-2)
 └── services/prompt_breakdown_service.py  # Breakdown capture
 ```
 
