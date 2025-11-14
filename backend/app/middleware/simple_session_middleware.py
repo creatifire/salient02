@@ -339,147 +339,149 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         # This prevents "vapid sessions" created on page load before user interaction
         is_multi_tenant_route = request.url.path.startswith("/accounts/") and "/agents/" in request.url.path
         
+        # BUG-0026-0003 COOKIE FIX: Determine if we should skip session loading
+        # For multi-tenant routes without a cookie, defer to endpoint to create session
+        # But don't return early - we need to reach cookie-setting logic after call_next()
+        skip_session_loading = False
         if is_multi_tenant_route:
-            # Check if we have an existing session cookie
             session_config = get_session_config()
             cookie_name = session_config.get("cookie_name", "salient_session")
             session_cookie = request.cookies.get(cookie_name)
             
             if not session_cookie:
-                # No cookie - skip session handling entirely
+                # No cookie - skip session loading, endpoint will create
                 request.state.session = None
                 request.scope["session"] = {}
+                skip_session_loading = True
                 logfire.debug(
                     'middleware.session.deferred',
                     request_path=request.url.path,
                     reason='multi_tenant_route_without_cookie'
                 )
-                return await call_next(request)
-            
-            # Has cookie - try to load existing session, but DON'T create if invalid
-            # Fall through to normal session loading, but we'll skip creation below
-            
+        
         session = None
         
         try:
-            # Lazy initialization: Initialize database engine and session factory on first use
-            # This reduces application startup time and only creates connections when needed
-            await self._get_engine()
-            
-            # Load session configuration from secure configuration system
-            # Configuration includes cookie names, security settings, and timeout values
-            session_config = get_session_config()
-            cookie_name = session_config.get("cookie_name", "salient_session")
-            
-            # Attempt to retrieve existing session cookie from request
-            # Cookie contains the session key used to identify the user session
-            session_cookie = request.cookies.get(cookie_name)
-            
-            # Database session context manager ensures proper connection cleanup
-            # Each request gets its own database session for isolation and safety
-            async with self._session_factory() as db_session:
-                if session_cookie:
-                    # Session validation: Check if cookie corresponds to valid database session
-                    # This prevents session hijacking with invalid or expired session keys
-                    # Using selectinload() prevents N+1 queries if relationships are accessed later
-                    stmt = (
-                        select(Session)
-                        .options(
-                            selectinload(Session.account),  # Eager load account relationship
-                            selectinload(Session.agent_instance)  # Eager load agent_instance relationship
-                        )
-                        .where(Session.session_key == session_cookie)
-                    )
-                    result = await db_session.execute(stmt)
-                    session = result.scalar_one_or_none()
-                    
-                    if session:
-                        # Valid session found: log resumption for debugging and analytics
-                        logfire.info(
-                            'middleware.session.resumed',
-                            session_key_prefix=session.session_key[:8],
-                            session_id=str(session.id),
-                            meta_loaded=session.meta
-                        )
-                    else:
-                        # Invalid session cookie: log for security monitoring
-                        logfire.debug('middleware.session.cookie_invalid', session_key_prefix=session_cookie[:8])
+            # BUG-0026-0003 COOKIE FIX: Only load session if not deferred
+            if not skip_session_loading:
+                # Lazy initialization: Initialize database engine and session factory on first use
+                # This reduces application startup time and only creates connections when needed
+                await self._get_engine()
                 
-                # Session creation: Generate new session if no valid session exists
-                # This handles both new users and users with invalid/expired sessions
-                # BUG-0026-0003: Skip creation for multi-tenant routes (let chat endpoints handle it)
-                if not session:
-                    # Skip auto-creation for multi-tenant routes
-                    if is_multi_tenant_route:
-                        logfire.debug(
-                            'middleware.session.deferred',
-                            request_path=request.url.path,
-                            reason='multi_tenant_route_with_invalid_cookie'
+                # Load session configuration from secure configuration system
+                # Configuration includes cookie names, security settings, and timeout values
+                session_config = get_session_config()
+                cookie_name = session_config.get("cookie_name", "salient_session")
+                
+                # Attempt to retrieve existing session cookie from request
+                # Cookie contains the session key used to identify the user session
+                session_cookie = request.cookies.get(cookie_name)
+                
+                # Database session context manager ensures proper connection cleanup
+                # Each request gets its own database session for isolation and safety
+                async with self._session_factory() as db_session:
+                    if session_cookie:
+                        # Session validation: Check if cookie corresponds to valid database session
+                        # This prevents session hijacking with invalid or expired session keys
+                        # Using selectinload() prevents N+1 queries if relationships are accessed later
+                        stmt = (
+                            select(Session)
+                            .options(
+                                selectinload(Session.account),  # Eager load account relationship
+                                selectinload(Session.agent_instance)  # Eager load agent_instance relationship
+                            )
+                            .where(Session.session_key == session_cookie)
                         )
+                        result = await db_session.execute(stmt)
+                        session = result.scalar_one_or_none()
+                        
+                        if session:
+                            # Valid session found: log resumption for debugging and analytics
+                            logfire.info(
+                                'middleware.session.resumed',
+                                session_key_prefix=session.session_key[:8],
+                                session_id=str(session.id),
+                                meta_loaded=session.meta
+                            )
+                        else:
+                            # Invalid session cookie: log for security monitoring
+                            logfire.debug('middleware.session.cookie_invalid', session_key_prefix=session_cookie[:8])
+                    
+                    # Session creation: Generate new session if no valid session exists
+                    # This handles both new users and users with invalid/expired sessions
+                    # BUG-0026-0003: Skip creation for multi-tenant routes (let chat endpoints handle it)
+                    if not session:
+                        # Skip auto-creation for multi-tenant routes
+                        if is_multi_tenant_route:
+                            logfire.debug(
+                                'middleware.session.deferred',
+                                request_path=request.url.path,
+                                reason='multi_tenant_route_with_invalid_cookie'
+                            )
+                            request.state.session = None
+                            request.scope["session"] = {}
+                            # Continue without session - chat endpoints will create it when needed
+                        else:
+                            # Generate cryptographically secure session key using secrets module
+                            session_key = self._generate_session_key()
+                            
+                            # BUG-0026-0003: Log detailed context about session creation
+                            # to understand why sessions are created without account/agent context
+                            logfire.info(
+                                'middleware.session.creating',
+                                session_key_prefix=session_key[:8],
+                                request_path=request.url.path,
+                                request_method=request.method,
+                                has_existing_cookie=bool(session_cookie),
+                                query_params=dict(request.query_params),
+                                path_params=dict(request.path_params) if hasattr(request, 'path_params') else {},
+                                headers_user_agent=request.headers.get('user-agent', 'unknown')[:50],
+                                headers_referer=request.headers.get('referer', 'none')
+                            )
+                            
+                            # Create new session record with secure defaults
+                            # Anonymous sessions allow usage without user registration
+                            session = Session(
+                                session_key=session_key,
+                                email=None,  # No email for anonymous sessions
+                                is_anonymous=True,  # Flag for permission checks
+                                created_at=datetime.now(timezone.utc),  # UTC timestamp for consistency
+                                last_activity_at=datetime.now(timezone.utc),  # Track user activity
+                                meta={}  # Extensible metadata storage
+                            )
+                            
+                            # Persist new session to database with proper transaction handling
+                            db_session.add(session)
+                            await db_session.commit()
+                            await db_session.refresh(session)  # Get database-generated ID
+                            
+                            # Log session creation for analytics and debugging
+                            logfire.info(
+                                'middleware.session.created', 
+                                session_key_prefix=session.session_key[:8], 
+                                session_id=str(session.id),
+                                account_id=session.account_id,
+                                account_slug=session.account_slug,
+                                agent_instance_id=session.agent_instance_id,
+                                agent_instance_slug=session.agent_instance_slug
+                            )
+                    
+                    # Store session in request state for access by route handlers
+                    # This makes session available throughout the request lifecycle
+                    # Only set if we have a valid session (skip for deferred multi-tenant routes)
+                    if session:
+                        request.state.session = session
+                        
+                        # Also set request.scope["session"] for Starlette session interface compatibility
+                        # This allows using request.session.get("key") in middleware and route handlers
+                        # Initialize with session.meta dict (which is already a mutable dict in the database)
+                        if session.meta is None:
+                            session.meta = {}
+                        request.scope["session"] = session.meta
+                    else:
+                        # No session for this request (deferred creation or skipped route)
                         request.state.session = None
                         request.scope["session"] = {}
-                        # Continue without session - chat endpoints will create it when needed
-                    else:
-                        # Generate cryptographically secure session key using secrets module
-                        session_key = self._generate_session_key()
-                        
-                        # BUG-0026-0003: Log detailed context about session creation
-                        # to understand why sessions are created without account/agent context
-                        logfire.info(
-                            'middleware.session.creating',
-                            session_key_prefix=session_key[:8],
-                            request_path=request.url.path,
-                            request_method=request.method,
-                            has_existing_cookie=bool(session_cookie),
-                            query_params=dict(request.query_params),
-                            path_params=dict(request.path_params) if hasattr(request, 'path_params') else {},
-                            headers_user_agent=request.headers.get('user-agent', 'unknown')[:50],
-                            headers_referer=request.headers.get('referer', 'none')
-                        )
-                        
-                        # Create new session record with secure defaults
-                        # Anonymous sessions allow usage without user registration
-                        session = Session(
-                            session_key=session_key,
-                            email=None,  # No email for anonymous sessions
-                            is_anonymous=True,  # Flag for permission checks
-                            created_at=datetime.now(timezone.utc),  # UTC timestamp for consistency
-                            last_activity_at=datetime.now(timezone.utc),  # Track user activity
-                            meta={}  # Extensible metadata storage
-                        )
-                        
-                        # Persist new session to database with proper transaction handling
-                        db_session.add(session)
-                        await db_session.commit()
-                        await db_session.refresh(session)  # Get database-generated ID
-                        
-                        # Log session creation for analytics and debugging
-                        logfire.info(
-                            'middleware.session.created', 
-                            session_key_prefix=session.session_key[:8], 
-                            session_id=str(session.id),
-                            account_id=session.account_id,
-                            account_slug=session.account_slug,
-                            agent_instance_id=session.agent_instance_id,
-                            agent_instance_slug=session.agent_instance_slug
-                        )
-                
-                # Store session in request state for access by route handlers
-                # This makes session available throughout the request lifecycle
-                # Only set if we have a valid session (skip for deferred multi-tenant routes)
-                if session:
-                    request.state.session = session
-                    
-                    # Also set request.scope["session"] for Starlette session interface compatibility
-                    # This allows using request.session.get("key") in middleware and route handlers
-                    # Initialize with session.meta dict (which is already a mutable dict in the database)
-                    if session.meta is None:
-                        session.meta = {}
-                    request.scope["session"] = session.meta
-                else:
-                    # No session for this request (deferred creation or skipped route)
-                    request.state.session = None
-                    request.scope["session"] = {}
                 
         except Exception as e:
             # Comprehensive error handling: Log errors but don't break the request
