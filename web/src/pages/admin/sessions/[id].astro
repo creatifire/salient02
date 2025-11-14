@@ -8,6 +8,24 @@
 
 const { id } = Astro.params;
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+
+// Server-side auth check - redirect to login if not authenticated
+try {
+    const response = await fetch(`${apiUrl}/api/admin/sessions?limit=1`, {
+        credentials: 'include',
+        headers: {
+            'Cookie': Astro.request.headers.get('Cookie') || ''
+        }
+    });
+    
+    if (response.status === 401) {
+        // Not authenticated - redirect to login
+        return Astro.redirect('/admin/login');
+    }
+} catch (error) {
+    // Network error or API down - redirect to login for safety
+    return Astro.redirect('/admin/login');
+}
 ---
 
 <!DOCTYPE html>

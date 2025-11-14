@@ -6,8 +6,26 @@
  * Provides quick access to session details for debugging.
  */
 
-// Server-side fetch (initial load)
+// Server-side auth check - redirect to login if not authenticated
 const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+
+// Check authentication by making a simple test request
+try {
+    const response = await fetch(`${apiUrl}/api/admin/sessions?limit=1`, {
+        credentials: 'include',
+        headers: {
+            'Cookie': Astro.request.headers.get('Cookie') || ''
+        }
+    });
+    
+    if (response.status === 401) {
+        // Not authenticated - redirect to login
+        return Astro.redirect('/admin/login');
+    }
+} catch (error) {
+    // Network error or API down - redirect to login for safety
+    return Astro.redirect('/admin/login');
+}
 
 // Initial data will be loaded client-side by Preact component
 ---
