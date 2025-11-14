@@ -10,6 +10,7 @@ from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Query, HTTPException
 from sqlalchemy import select, func, desc
+from sqlalchemy.orm import selectinload
 import logfire
 
 from ..models.session import Session
@@ -37,11 +38,15 @@ async def list_sessions(
     
     async with db_service.get_session() as db_session:
         try:
-            # Build query with optional filters
+            # Build query with optional filters and eager load relationships
             query = (
                 select(
                     Session,
                     func.count(Message.id).label('message_count')
+                )
+                .options(
+                    selectinload(Session.account),
+                    selectinload(Session.agent_instance)
                 )
                 .outerjoin(Message, Message.session_id == Session.id)
                 .group_by(Session.id)
@@ -76,7 +81,7 @@ async def list_sessions(
                 sessions_list.append({
                     "id": str(session.id),
                     "account_slug": session.account.slug if session.account else None,
-                    "agent_instance_slug": session.agent_instance.slug if session.agent_instance else None,
+                    "agent_instance_slug": session.agent_instance.instance_slug if session.agent_instance else None,
                     "created_at": session.created_at.isoformat(),
                     "message_count": message_count
                 })
