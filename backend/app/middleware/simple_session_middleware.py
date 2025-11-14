@@ -327,6 +327,13 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS":
             return await call_next(request)
         
+        # Skip session handling for admin routes (read-only, stateless)
+        # Admin UI doesn't need conversation sessions - it just views existing sessions
+        if request.url.path.startswith("/api/admin/"):
+            request.state.session = None
+            request.scope["session"] = {}
+            return await call_next(request)
+        
         # BUG-0026-0003 FIX: Skip auto-session-creation for multi-tenant chat routes
         # Let chat endpoints create sessions with proper account/agent context on first message
         # This prevents "vapid sessions" created on page load before user interaction
