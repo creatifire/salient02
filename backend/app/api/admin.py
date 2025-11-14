@@ -147,7 +147,8 @@ async def get_session_messages(session_id: str):
                         "model": llm_request.model,
                         "input_tokens": llm_request.prompt_tokens,
                         "output_tokens": llm_request.completion_tokens,
-                        "cost": float(llm_request.total_cost) if llm_request.total_cost else 0.0
+                        "cost": float(llm_request.total_cost) if llm_request.total_cost else 0.0,
+                        "latency_ms": llm_request.latency_ms
                     }
                     
                     # Add tool calls from message.meta if present
