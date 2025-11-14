@@ -81,7 +81,7 @@
                         ${msg.llm_request_id ? `
                             <button hx-get="/api/admin/llm-requests/${msg.llm_request_id}"
                                     hx-trigger="click"
-                                    hx-target="#breakdown-${msg.llm_request_id}"
+                                    hx-swap="none"
                                     hx-on::after-request="renderPromptBreakdown(event.detail.xhr.responseText, '${msg.llm_request_id}')"
                                     class="mt-3 text-sm text-blue-600 hover:text-blue-800">
                                 🔍 View Prompt Breakdown
@@ -100,6 +100,9 @@
             }).join('');
             
             container.innerHTML = html;
+            
+            // Tell HTMX to process the newly added elements with hx-* attributes
+            htmx.process(container);
         }
         
         // Render prompt breakdown from JSON response (called by HTMX event handler)
