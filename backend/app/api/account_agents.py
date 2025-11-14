@@ -391,6 +391,8 @@ async def chat_endpoint(
     # Update session context if NULL (progressive context flow)
     if session.account_id is None:
         from ..services.session_service import SessionService
+        from sqlalchemy import select
+        from ..models.session import Session
         
         async with get_database_service().get_session() as db_session:
             session_service = SessionService(db_session)
@@ -401,12 +403,24 @@ async def chat_endpoint(
                 agent_instance_id=instance.id,
                 agent_instance_slug=instance.instance_slug
             )
-        
-        # Update local session object for use in this request
-        session.account_id = instance.account_id
-        session.account_slug = instance.account_slug
-        session.agent_instance_id = instance.id
-        session.agent_instance_slug = instance.instance_slug
+            
+            # Reload session from database to get fresh values
+            # This ensures we have the committed values from update_session_context()
+            stmt = select(Session).where(Session.id == session.id)
+            result = await db_session.execute(stmt)
+            fresh_session = result.scalar_one()
+            
+            # Update request state with fresh session object
+            # This prevents middleware from overwriting with stale detached object
+            request.state.session = fresh_session
+            session = fresh_session
+            
+        logfire.info(
+            'api.account.chat.session_context_updated',
+            session_id=str(session.id),
+            account_id=str(session.account_id),
+            agent_instance_id=str(session.agent_instance_id)
+        )
     
     # ========================================================================
     # STEP 3: LOAD CONVERSATION HISTORY
@@ -605,6 +619,8 @@ async def stream_endpoint(
     # Update session context if NULL (progressive context flow)
     if session.account_id is None:
         from ..services.session_service import SessionService
+        from sqlalchemy import select
+        from ..models.session import Session
         
         async with get_database_service().get_session() as db_session:
             session_service = SessionService(db_session)
@@ -615,12 +631,24 @@ async def stream_endpoint(
                 agent_instance_id=instance.id,
                 agent_instance_slug=instance.instance_slug
             )
-        
-        # Update local session object for use in this request
-        session.account_id = instance.account_id
-        session.account_slug = instance.account_slug
-        session.agent_instance_id = instance.id
-        session.agent_instance_slug = instance.instance_slug
+            
+            # Reload session from database to get fresh values
+            # This ensures we have the committed values from update_session_context()
+            stmt = select(Session).where(Session.id == session.id)
+            result = await db_session.execute(stmt)
+            fresh_session = result.scalar_one()
+            
+            # Update request state with fresh session object
+            # This prevents middleware from overwriting with stale detached object
+            request.state.session = fresh_session
+            session = fresh_session
+            
+        logfire.info(
+            'api.account.stream.session_context_updated',
+            session_id=str(session.id),
+            account_id=str(session.account_id),
+            agent_instance_id=str(session.agent_instance_id)
+        )
     
     # ========================================================================
     # STEP 3: LOAD CONVERSATION HISTORY
@@ -798,6 +826,8 @@ async def history_endpoint(
         if session.account_id is None:
             from ..services.session_service import SessionService
             from ..database import get_database_service
+            from sqlalchemy import select
+            from ..models.session import Session
             
             db_service = get_database_service()
             async with db_service.get_session() as db_session:
@@ -809,12 +839,24 @@ async def history_endpoint(
                     agent_instance_id=instance.id,
                     agent_instance_slug=instance.instance_slug
                 )
-            
-            # Update local session object for use in this request
-            session.account_id = instance.account_id
-            session.account_slug = instance.account_slug
-            session.agent_instance_id = instance.id
-            session.agent_instance_slug = instance.instance_slug
+                
+                # Reload session from database to get fresh values
+                # This ensures we have the committed values from update_session_context()
+                stmt = select(Session).where(Session.id == session.id)
+                result = await db_session.execute(stmt)
+                fresh_session = result.scalar_one()
+                
+                # Update request state with fresh session object
+                # This prevents middleware from overwriting with stale detached object
+                request.state.session = fresh_session
+                session = fresh_session
+                
+            logfire.info(
+                'api.account.history.session_context_updated',
+                session_id=str(session.id),
+                account_id=str(session.account_id),
+                agent_instance_id=str(session.agent_instance_id)
+            )
         
         # ====================================================================
         # STEP 3: LOAD HISTORY FILTERED BY SESSION + AGENT INSTANCE
