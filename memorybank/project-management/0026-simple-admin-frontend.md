@@ -35,12 +35,14 @@
   - ✅ Task 005: Update existing components with credentials: 'include' and 401 handling
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
-- ⏳ Feature 0026-007: Transform to professional dashboard UI
-  - Task 001: Create AdminLayout wrapper with sidebar
-  - Task 002: Create reusable UI components (Card, Badge, Avatar)
-  - Task 003: Update sessions list with stats cards
-  - Task 004: Improve table styling with hover states
-  - Task 005: Polish session detail page
+- ⏳ Feature 0026-007: Professional dashboard UI (HTMX + TailwindCSS)
+  - Task 001: Create shared admin.css stylesheet
+  - Task 002: Add navigation header with branding
+  - Task 003: Polish sessions list (stats cards, improved filters/table)
+  - Task 004: Polish session detail (metadata card, message styling, prompt breakdown)
+  - Task 005: Add loading/empty states and keyboard shortcuts
+  
+**Note**: Phase 4 updated post-Phase 3C to work with HTMX + Vanilla JS architecture (no build step, pure TailwindCSS utilities). See detailed plan below after Phase 3C.
 
 **Commits**:
 - `5cae767` - Phase 0-2 implementation (14 files changed)
@@ -2445,6 +2447,691 @@ SET meta = jsonb_set(
 WHERE created_at < NOW() - INTERVAL '30 days'
   AND meta->'prompt_breakdown'->'sections' IS NOT NULL;
 ```
+
+## Phase 4: UI Polish & Layout Improvements
+
+**Status**: PLANNED (Post Phase 3C)
+
+**Goal**: Transform the functional HTMX admin UI into a polished, professional debugging tool with better visual hierarchy, improved readability, and modern design elements.
+
+**Design Inspiration**: `memorybank/sample-screens/dribble-admin-business-analytics-app-prody.webp`
+
+---
+
+### Context: What Changed in Phase 3C
+
+Phase 3C made architectural decisions that impact Phase 4:
+
+| Aspect | Phase 3B | Phase 3C Impact | Phase 4 Consideration |
+|--------|----------|-----------------|----------------------|
+| **Architecture** | HTMX + Vanilla JS | Added nested prompt sections | Polish nested UI, improve indentation |
+| **Files** | 2 HTML files | Same (sessions.html, session.html) | In-place polish, no new files |
+| **Styling** | TailwindCSS CDN | Same | Pure utility classes, no build |
+| **Components** | Vanilla JS functions | Same | Extract shared CSS snippets |
+| **Prompt Breakdown** | Flat list | Nested hierarchy (directories) | Visual polish for nested items |
+
+**Key Constraint**: No build step, no component frameworks - pure HTML + TailwindCSS + vanilla JS.
+
+---
+
+### Feature 0026-007: Professional Dashboard UI
+
+#### Task 0026-007-001: Create Shared Admin Stylesheet
+
+**Goal**: Centralize common styles and avoid TailwindCSS class repetition.
+
+**File**: `web/public/admin/admin.css`
+
+**Contents**:
+```css
+/* Admin UI Shared Styles */
+
+/* Custom scrollbar for code sections */
+.admin-code-block::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.admin-code-block::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.admin-code-block::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.admin-code-block::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Improved nested prompt sections */
+.prompt-section-nested {
+    margin-left: 1.5rem;
+    border-left: 2px solid #e5e7eb;
+    padding-left: 0.75rem;
+    position: relative;
+}
+
+.prompt-section-nested::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #3b82f6 0%, #e5e7eb 100%);
+}
+
+/* Loading state animation */
+@keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+}
+
+.admin-loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+    border-radius: 4px;
+}
+
+/* Card shadow for depth */
+.admin-card {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s ease;
+}
+
+.admin-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Stats badge */
+.admin-stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Improved button states */
+.admin-button {
+    transition: all 0.15s ease;
+}
+
+.admin-button:active {
+    transform: scale(0.98);
+}
+
+/* Improved prompt section header */
+.prompt-section-header {
+    transition: all 0.15s ease;
+    border-radius: 0.375rem;
+}
+
+.prompt-section-header:hover {
+    background-color: #f3f4f6;
+    transform: translateX(2px);
+}
+
+.prompt-section-header.expanded {
+    background-color: #dbeafe;
+    border-left: 3px solid #3b82f6;
+}
+```
+
+**Add to both HTML files**:
+```html
+<link rel="stylesheet" href="/admin/admin.css">
+```
+
+---
+
+#### Task 0026-007-002: Add Navigation Header with Branding
+
+**Goal**: Add a consistent header with branding, breadcrumbs, and quick stats.
+
+**Apply to**: Both `sessions.html` and `session.html`
+
+**Add before existing header**:
+```html
+<!-- Global Admin Header -->
+<div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+            <!-- Branding -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                    <span class="text-2xl">🔍</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold">OpenThought Admin</h1>
+                    <p class="text-xs text-blue-100">LLM Debug Console</p>
+                </div>
+            </div>
+            
+            <!-- Breadcrumbs (dynamic per page) -->
+            <nav class="flex items-center gap-2 text-sm">
+                <a href="/admin/sessions.html" class="text-blue-100 hover:text-white transition">
+                    Sessions
+                </a>
+                <!-- Add more breadcrumb items in session.html -->
+            </nav>
+            
+            <!-- Quick Stats (optional, from API) -->
+            <div class="hidden md:flex items-center gap-4 text-sm">
+                <div class="admin-stat-badge">
+                    <span>📊</span>
+                    <span id="total-sessions-stat">-</span> Sessions
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+---
+
+#### Task 0026-007-003: Polish Sessions List Page
+
+**File**: `web/public/admin/sessions.html`
+
+**Changes**:
+
+1. **Add Summary Stats Cards** (above filters):
+```html
+<!-- Summary Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="admin-card bg-white rounded-lg p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Total Sessions</p>
+                <p id="stat-total" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+            </div>
+            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <span class="text-2xl">💬</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="admin-card bg-white rounded-lg p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Active Today</p>
+                <p id="stat-today" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+            </div>
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <span class="text-2xl">✨</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="admin-card bg-white rounded-lg p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500 font-medium">Avg Messages</p>
+                <p id="stat-avg-msgs" class="text-3xl font-bold text-gray-900 mt-2">-</p>
+            </div>
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <span class="text-2xl">📈</span>
+            </div>
+        </div>
+    </div>
+</div>
+```
+
+2. **Improve Filter Section** (better visual hierarchy):
+```html
+<!-- Filters -->
+<div class="admin-card bg-white rounded-lg mb-6 p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <span>🔎</span>
+        Filter Sessions
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Account
+            </label>
+            <select id="account-filter" 
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2.5 
+                           focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           transition admin-button"
+                    onchange="updateAgentDropdown(); fetchSessions();">
+                <!-- Options populated by JS -->
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Agent Instance
+            </label>
+            <select id="agent-filter" 
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2.5
+                           focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                           transition admin-button"
+                    onchange="fetchSessions();">
+                <!-- Options populated by JS -->
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button onclick="fetchSessions()" 
+                    class="w-full px-6 py-2.5 bg-blue-600 text-white rounded-lg 
+                           hover:bg-blue-700 font-medium admin-button
+                           flex items-center justify-center gap-2">
+                <span>🔄</span>
+                Refresh
+            </button>
+        </div>
+    </div>
+</div>
+```
+
+3. **Improve Table Styling**:
+```html
+<!-- In renderSessions() function -->
+<div class="admin-card bg-white rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
+            <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Session ID
+                </th>
+                <!-- More headers with icons -->
+                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <span class="flex items-center gap-1">
+                        <span>👤</span> Account
+                    </span>
+                </th>
+                <!-- ... -->
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-100">
+            <!-- Rows with improved hover state -->
+            <tr class="hover:bg-blue-50 transition-colors duration-150">
+                <!-- Cells with better typography -->
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="font-mono text-sm text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                        ${session.id.substring(0, 13)}...
+                    </span>
+                </td>
+                <!-- More cells with badges, icons -->
+            </tr>
+        </tbody>
+    </table>
+</div>
+```
+
+---
+
+#### Task 0026-007-004: Polish Session Detail Page
+
+**File**: `web/public/admin/session.html`
+
+**Changes**:
+
+1. **Add Session Metadata Card** (after header):
+```html
+<!-- Session Metadata -->
+<div class="admin-card bg-white rounded-lg p-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Session ID</p>
+            <p class="mt-1 font-mono text-sm text-gray-900 bg-gray-100 px-2 py-1 rounded inline-block">
+                <span id="session-id-display"></span>
+            </p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Account</p>
+            <p id="session-account" class="mt-1 text-sm font-semibold text-gray-900">-</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Agent</p>
+            <p id="session-agent" class="mt-1 text-sm font-semibold text-gray-900">-</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Messages</p>
+            <p id="session-msg-count" class="mt-1 text-2xl font-bold text-blue-600">-</p>
+        </div>
+    </div>
+</div>
+```
+
+2. **Improve Message Cards** (in `renderMessages()`):
+```javascript
+// User message styling
+const userBg = 'bg-gradient-to-r from-blue-50 to-indigo-50';
+const userBorder = 'border-l-4 border-blue-500';
+const userIcon = '👤';
+const userLabel = 'User';
+
+// Assistant message styling
+const assistantBg = 'bg-gradient-to-r from-purple-50 to-pink-50';
+const assistantBorder = 'border-l-4 border-purple-500';
+const assistantIcon = '🤖';
+const assistantLabel = 'Assistant';
+
+const messageCard = `
+    <div class="admin-card mb-4 rounded-lg ${isUser ? userBg : assistantBg} ${isUser ? userBorder : assistantBorder} overflow-hidden">
+        <!-- Message header -->
+        <div class="px-6 py-3 bg-white bg-opacity-50 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">${isUser ? userIcon : assistantIcon}</span>
+                <span class="font-semibold text-sm ${isUser ? 'text-blue-700' : 'text-purple-700'}">
+                    ${isUser ? userLabel : assistantLabel}
+                </span>
+            </div>
+            <span class="text-xs text-gray-500">
+                ${new Date(msg.timestamp).toLocaleString()}
+            </span>
+        </div>
+        
+        <!-- Message content -->
+        <div class="px-6 py-4">
+            <p class="text-gray-900 whitespace-pre-wrap leading-relaxed">${msg.content}</p>
+        </div>
+        
+        <!-- Rest of message (tool calls, prompt breakdown) -->
+    </div>
+`;
+```
+
+3. **Polish Prompt Breakdown Section** (from Phase 3C):
+
+Update `renderPromptBreakdown()` to use new CSS classes:
+
+```javascript
+function renderPromptBreakdown(responseText, requestId) {
+    // ... existing code ...
+    
+    breakdown.sections.forEach((section, index) => {
+        const sectionId = `section-${requestId}-${index}`;
+        const hasContent = section.content && section.content.trim().length > 0;
+        const isNested = section.parent_position !== undefined;
+        
+        // Use new CSS class for nested sections
+        const indentClass = isNested ? 'prompt-section-nested' : '';
+        
+        html += `
+            <div class="mb-2 ${indentClass}">
+                <!-- Clickable Header with improved states -->
+                <button 
+                    class="prompt-section-header w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 
+                           font-medium flex justify-between items-center admin-button"
+                    onclick="toggleSection('${sectionId}', this)"
+                    ${!hasContent ? 'disabled opacity-50 cursor-not-allowed' : ''}>
+                    <span class="flex items-center gap-3">
+                        <span class="arrow text-blue-600 font-bold text-lg">▶</span> 
+                        <span class="font-mono text-sm">${section.name}</span>
+                    </span>
+                    <span class="text-xs text-gray-600 bg-white px-2 py-1 rounded">
+                        <span class="font-semibold">${section.position}</span> · 
+                        ${section.characters.toLocaleString()} chars
+                    </span>
+                </button>
+                
+                <!-- Content box with improved styling -->
+                ${hasContent ? `
+                    <div id="${sectionId}" class="hidden mt-2">
+                        <!-- Metadata bar with icons -->
+                        <div class="px-4 py-2 text-xs bg-gradient-to-r from-gray-100 to-gray-50 
+                                    rounded-t-lg border border-gray-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span>📄</span>
+                                <span class="font-medium">Source:</span>
+                                <span class="text-gray-700">${section.source || 'N/A'}</span>
+                            </div>
+                            ${section.metadata && section.metadata.entry_count ? `
+                                <div class="flex items-center gap-2 bg-white px-2 py-1 rounded">
+                                    <span>📊</span>
+                                    <span class="font-semibold text-blue-600">
+                                        ${section.metadata.entry_count} ${section.metadata.entry_type}s
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <!-- Content with improved styling -->
+                        <div class="px-4 py-3 bg-white border-x border-b border-gray-200 rounded-b-lg">
+                            <pre class="admin-code-block text-xs whitespace-pre-wrap font-mono text-gray-800 
+                                       border-l-4 border-blue-400 pl-4 pr-2 py-2 bg-gray-50 rounded
+                                       max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
+                        </div>
+                    </div>
+                ` : `
+                    <div class="px-4 py-3 text-xs text-gray-500 italic bg-gray-50 rounded-b-lg">
+                        ⚠️ Content not captured for this section
+                    </div>
+                `}
+            </div>
+        `;
+    });
+    
+    // ... rest of function ...
+}
+
+// Update toggleSection to add visual feedback
+function toggleSection(sectionId, buttonEl) {
+    const contentDiv = document.getElementById(sectionId);
+    const arrow = buttonEl.querySelector('.arrow');
+    
+    if (contentDiv.classList.contains('hidden')) {
+        contentDiv.classList.remove('hidden');
+        arrow.textContent = '▼';
+        buttonEl.classList.add('expanded');
+    } else {
+        contentDiv.classList.add('hidden');
+        arrow.textContent = '▶';
+        buttonEl.classList.remove('expanded');
+    }
+}
+```
+
+---
+
+#### Task 0026-007-005: Add Loading States and Empty States
+
+**Goal**: Improve UX during data loading and when no data exists.
+
+**For both HTML files, update loading indicators**:
+
+```html
+<!-- Better loading state -->
+<div class="admin-card bg-white rounded-lg p-8">
+    <div class="flex flex-col items-center justify-center">
+        <div class="relative w-16 h-16 mb-4">
+            <div class="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+        </div>
+        <p class="text-gray-600 font-medium">Loading sessions...</p>
+        <p class="text-sm text-gray-400 mt-1">Fetching data from backend</p>
+    </div>
+</div>
+
+<!-- Better empty state -->
+<div class="admin-card bg-white rounded-lg p-12">
+    <div class="flex flex-col items-center justify-center text-center">
+        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <span class="text-4xl">🔍</span>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">No sessions found</h3>
+        <p class="text-sm text-gray-500 max-w-sm">
+            Try adjusting your filters or create a new chat session to get started.
+        </p>
+    </div>
+</div>
+```
+
+---
+
+#### Task 0026-007-006: Add Keyboard Shortcuts
+
+**Goal**: Power user features for navigation and actions.
+
+**Add to both HTML files** (before closing `</body>`):
+
+```html
+<script>
+    // Global keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + K: Focus search/filter
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            const accountFilter = document.getElementById('account-filter');
+            if (accountFilter) accountFilter.focus();
+        }
+        
+        // Ctrl/Cmd + R: Refresh data
+        if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+            e.preventDefault();
+            if (typeof fetchSessions === 'function') {
+                fetchSessions();
+            }
+        }
+        
+        // Escape: Close expanded sections
+        if (e.key === 'Escape') {
+            document.querySelectorAll('[id^="breakdown-"]:not(.hidden)').forEach(el => {
+                el.classList.add('hidden');
+            });
+        }
+    });
+</script>
+
+<!-- Keyboard shortcuts help (show on ?) -->
+<div id="shortcuts-help" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 
+                                  flex items-center justify-center p-4"
+     onclick="this.classList.add('hidden')">
+    <div class="admin-card bg-white rounded-lg p-6 max-w-md" onclick="event.stopPropagation()">
+        <h3 class="text-lg font-semibold mb-4">Keyboard Shortcuts</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-600">Focus Filters</span>
+                <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">⌘K</kbd>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Refresh</span>
+                <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">⌘R</kbd>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Close Sections</span>
+                <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">ESC</kbd>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Show Shortcuts</span>
+                <kbd class="px-2 py-1 bg-gray-100 rounded text-xs font-mono">?</kbd>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('keydown', (e) => {
+        if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            document.getElementById('shortcuts-help').classList.toggle('hidden');
+        }
+    });
+</script>
+```
+
+---
+
+### Testing Plan
+
+#### Visual Regression Testing
+
+**Test 1: Sessions List Page**
+1. Visit `http://localhost:4321/admin/sessions.html`
+2. Verify:
+   - ✅ Global header with branding
+   - ✅ Stats cards with icons and numbers
+   - ✅ Filter section with improved styling
+   - ✅ Table with hover states and badges
+   - ✅ Loading states show spinner
+   - ✅ Empty states show friendly message
+
+**Test 2: Session Detail Page**
+1. Click any session
+2. Verify:
+   - ✅ Global header with breadcrumbs
+   - ✅ Session metadata card
+   - ✅ Message cards with gradient backgrounds
+   - ✅ User/Assistant visual distinction clear
+   - ✅ Prompt breakdown sections styled correctly
+   - ✅ Nested directory sections have border and indentation
+   - ✅ Expanded sections have blue highlight
+
+**Test 3: Prompt Breakdown (Phase 3C Integration)**
+1. Click "View Prompt Breakdown" on user message
+2. Verify:
+   - ✅ Sections have position numbers and char counts
+   - ✅ Nested directories are visually indented
+   - ✅ Click section → expands with blue border
+   - ✅ Metadata bar shows entry counts with icons
+   - ✅ Code block has custom scrollbar
+   - ✅ Click again → collapses smoothly
+
+**Test 4: Responsive Design**
+1. Resize browser to mobile width
+2. Verify:
+   - ✅ Tables remain scrollable
+   - ✅ Filter grid stacks vertically
+   - ✅ Stats cards stack on mobile
+   - ✅ Message cards remain readable
+
+**Test 5: Keyboard Shortcuts**
+1. Press `⌘K` → account filter focuses
+2. Press `⌘R` → data refreshes
+3. Press `ESC` → expanded sections close
+4. Press `?` → shortcuts help appears
+
+---
+
+### File Changes Summary
+
+**Files Modified**:
+1. `web/public/admin/admin.css` (NEW) - Shared stylesheet
+2. `web/public/admin/sessions.html` - Add header, stats cards, polished filters, improved table
+3. `web/public/admin/session.html` - Add header, metadata card, polished messages, improved prompt breakdown
+4. Both HTML files - Add keyboard shortcuts, help modal
+
+**Total Changes**: 3 files (1 new, 2 modified)
+
+**Lines Added**: ~600 lines (CSS + HTML improvements)
+
+**No Backend Changes**: This is pure frontend polish
+
+---
+
+### Design Principles Applied
+
+1. **Visual Hierarchy**: Headers, cards, shadows create depth
+2. **Consistent Spacing**: Tailwind's spacing scale (4, 6, 8, 12, 16)
+3. **Color Palette**: Blue (primary), Purple (assistant), Gray (neutral)
+4. **Typography**: Font weights (normal, medium, semibold, bold) for hierarchy
+5. **Icons**: Emojis for quick visual cues (🔍, 👤, 🤖, 📊)
+6. **States**: Hover, active, focus, disabled - all styled
+7. **Animations**: Smooth transitions (150-200ms)
+8. **Accessibility**: Focus rings, keyboard nav, ARIA labels
+
+---
+
+### Future Enhancements (Post-Phase 4)
+
+**Phase 5 (Optional)**:
+- **Dark Mode**: Toggle between light/dark themes (pure CSS variables)
+- **Export**: Download session as JSON or markdown
+- **Search**: Full-text search across sessions
+- **Filters**: Date range picker, message count range
+- **Sorting**: Click column headers to sort
+- **Pagination**: Next/Previous buttons for large datasets
+- **Real-time**: Auto-refresh with HTMX polling
+- **Syntax Highlighting**: Use Prism.js for code in prompts
 
 ---
 
