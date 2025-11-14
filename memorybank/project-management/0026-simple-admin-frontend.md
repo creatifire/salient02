@@ -1,9 +1,58 @@
 # Epic 0026 - Simple Admin Frontend for Chat Tracing
 
-**Status**: Draft  
+**Status**: In Progress (Phases 0-2 Complete)  
 **Created**: 2025-11-12  
+**Updated**: 2025-11-14  
 **Priority**: Medium  
 **Category**: Developer Tools / Debugging
+
+---
+
+## Implementation Status
+
+### ✅ **Phase 0: Foundation Setup** (COMPLETE)
+- ✅ Task 0026-000-001: Add meta JSONB column to llm_requests
+- ✅ Task 0026-000-002: Create PromptBreakdownService
+- ✅ Task 0026-000-003: Integrate into simple_chat.py (both streaming/non-streaming)
+- ✅ Task 0026-000-004: Verify/implement tool call storage in message.meta
+- ✅ Task 0026-000-005: Create AdminAuthMiddleware with HTTP Basic Auth
+
+### ✅ **Phase 1: Backend API Endpoints** (COMPLETE)
+- ✅ Feature 0026-001: GET /api/admin/sessions (list with filters)
+- ✅ Feature 0026-002: GET /api/admin/sessions/{id}/messages
+- ✅ Feature 0026-003: GET /api/admin/llm-requests/{id}
+
+### ✅ **Phase 2: Frontend Pages** (COMPLETE)
+- ✅ Feature 0026-004: Session list page (/admin/sessions) with SessionFilters component
+- ✅ Feature 0026-005: Session detail page (/admin/sessions/[id]) with PromptInspector
+
+### 📋 **Phase 3: Session-Based Authentication** (PLANNED)
+- ⏳ Feature 0026-006: Replace HTTP Basic Auth with session-based login
+  - Task 001: Create POST /api/admin/login endpoint
+  - Task 002: Update AdminAuthMiddleware to check session
+  - Task 003: Create /admin/login page
+  - Task 004: Create LoginForm component
+  - Task 005: Update existing components to use credentials: 'include'
+
+### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
+- ⏳ Feature 0026-007: Transform to professional dashboard UI
+  - Task 001: Create AdminLayout wrapper with sidebar
+  - Task 002: Create reusable UI components (Card, Badge, Avatar)
+  - Task 003: Update sessions list with stats cards
+  - Task 004: Improve table styling with hover states
+  - Task 005: Polish session detail page
+
+**Commits**:
+- `5cae767` - Phase 0-2 implementation (14 files changed)
+- `304f32e` - Phase 3 documentation (session auth)
+- `7835ae3` - Phase 4 documentation (UI polish)
+
+**Next Steps**:
+1. Run database migration: `alembic upgrade head`
+2. Set ADMIN_USERNAME/ADMIN_PASSWORD in .env
+3. Test current implementation at /admin/sessions
+4. Implement Phase 3 (session-based auth) for better UX
+5. Implement Phase 4 (UI polish) for professional appearance
 
 ---
 
