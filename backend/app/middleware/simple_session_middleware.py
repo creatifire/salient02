@@ -419,9 +419,8 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         if session and "session" in request.scope:
             try:
                 # The session.meta dict was modified in place, so we need to mark it as dirty
-                # and commit the changes to the database
-                db_service = get_database_service()
-                async with db_service.get_session() as db_session:
+                # Use the middleware's own isolated database session factory
+                async with self._session_factory() as db_session:
                     # Merge the session back into this db session and commit
                     db_session.add(session)
                     await db_session.commit()
