@@ -186,6 +186,9 @@
             `;
             
             container.innerHTML = html;
+            
+            // Tell HTMX to process the newly added elements (though this table doesn't have hx-* attributes)
+            htmx.process(container);
         }
         
         // Build query params for HTMX request

@@ -1665,6 +1665,467 @@ If we need more features later:
 
 ---
 
+## Phase 3C: Full Prompt Content Viewer
+
+**Status**: PROPOSED (Awaiting Design Decision)
+
+**Goal**: Enable viewing the **actual text content** of each prompt section, not just metadata (char counts, section names). This is critical for debugging "why did the LLM choose the wrong tool?" - you need to see the exact words it saw, not just section lengths.
+
+**Current Behavior:**
+- Click "🔍 View Prompt Breakdown" on session detail page
+- Inline expansion shows:
+  ```
+  1. critical_rules - 4,928 chars
+  2. base_prompt - 3,200 chars  
+  3. directory_docs - 6,100 chars
+  ```
+- **Problem**: You can't see what the critical_rules actually said, or what the system prompt text was
+
+**Desired Behavior:**
+- Click "🔍 View Prompt Breakdown" 
+- **Navigate to new page**: `/admin/llm-request.html?id={request_id}`
+- Show full text of each section in expandable accordions:
+  ```
+  ┌─ Section 1: Critical Rules (4,928 chars) ─────────────┐
+  │ Source: tool_selection_hints.md                       │
+  │                                                        │
+  │ <full text of critical rules here>                    │
+  │ <exactly what the LLM saw>                            │
+  └────────────────────────────────────────────────────────┘
+  
+  ┌─ Section 2: System Prompt (3,200 chars) ──────────────┐
+  │ Source: system_prompt.md                              │
+  │                                                        │
+  │ <full text of system prompt here>                     │
+  └────────────────────────────────────────────────────────┘
+  ```
+
+**Example - `default_account > simple_chat1` Session:**
+
+When viewing a session from `simple_chat1`, the prompt breakdown page would show:
+1. **Critical Rules** (tool_selection_hints.md) - full text
+2. **System Prompt** (system_prompt.md) - full text  
+3. **Directory Docs** (if directory search was enabled) - full auto-generated text
+4. **Prompt Modules** (if any configured):
+   - few_shot_examples.md - full text
+   - chain_of_thought.md - full text
+
+Each section expandable/collapsible, with syntax highlighting for readability.
+
+---
+
+### Design Decision Required
+
+**Problem**: Currently, `PromptBreakdownService.capture_breakdown()` only stores metadata:
+
+```python
+{
+  "sections": [
+    {
+      "name": "critical_rules",
+      "position": 1,
+      "char_count": 4928,
+      "source": "tool_selection_hints.md"
+      # ❌ NO "content" field
+    }
+  ],
+  "total_char_count": 14228
+}
+```
+
+**Question**: How do we get the actual text content for display?
+
+#### Option A: Store Full Content in `llm_requests.meta`
+
+**Changes:**
+- Update `PromptBreakdownService.capture_breakdown()` to accept full text:
+  ```python
+  breakdown["sections"].append({
+      "name": "critical_rules",
+      "position": 1,
+      "char_count": len(critical_rules),
+      "source": "tool_selection_hints.md",
+      "content": critical_rules  # ✅ NEW: Store actual text
+  })
+  ```
+- Update `simple_chat.py` to pass full text (already has it in scope)
+- New API: `GET /api/admin/llm-requests/{id}/full-prompt` returns all sections with content
+
+**Pros:**
+- Simple implementation (data already available at capture time)
+- Fast retrieval (no reconstruction needed)
+- Guaranteed to match what LLM actually saw
+
+**Cons:**
+- **Significantly increases DB size** (15KB → ~15KB metadata + ~50-200KB content per request)
+- Duplicates content already in config files
+- For high-volume agents, could be expensive
+
+#### Option B: Reconstruct from Config Files at View-Time
+
+**Changes:**
+- Keep `llm_requests.meta` as-is (just metadata)
+- New API: `GET /api/admin/llm-requests/{id}/reconstruct-prompt`
+- Backend reads:
+  - Session's account_slug and agent_instance_slug
+  - Loads agent config YAML
+  - Loads system_prompt.md, tool_selection_hints.md
+  - Loads selected prompt modules
+  - Re-generates directory docs (if enabled)
+- Returns reconstructed sections with full text
+
+**Pros:**
+- No DB size increase
+- No data duplication
+- Always shows current version of files (even if they changed since request)
+
+**Cons:**
+- **Complex reconstruction logic** (must replicate prompt assembly)
+- **May not match exactly** what LLM saw (if files changed since request)
+- Slower (file I/O + processing on every view)
+- What if agent config was deleted?
+
+#### Option C: Separate `prompt_content` Column
+
+**Changes:**
+- Add `llm_requests.prompt_content JSONB` column (nullable)
+- Store full content there (not in `meta`)
+- Only populated if `ADMIN_STORE_FULL_PROMPTS=true` env var set
+- Allows opt-in for debugging without bloating all requests
+
+**Pros:**
+- DB size impact only when explicitly needed
+- Separates metadata (always stored) from content (optional)
+- Can enable for specific accounts/agents only
+
+**Cons:**
+- Extra migration and column management
+- Still duplicates data when enabled
+- More complex logic (two storage paths)
+
+---
+
+### Recommendation: Option A (Store Full Content)
+
+**Rationale:**
+1. **Accuracy is paramount** - Must see exactly what LLM saw, not a reconstruction
+2. **Debugging is rare** - Admin UI is for debugging, not high-frequency access
+3. **Modern Postgres handles it** - JSONB compression is good, 200KB per request is acceptable
+4. **Simple to implement** - Data already in scope, just add to breakdown dict
+
+**Mitigation for DB size:**
+- Add retention policy (delete prompt content older than 30 days)
+- Add `ADMIN_CAPTURE_FULL_PROMPTS=true` env var (default: true for dev, false for prod)
+- Compress large sections before storage
+
+---
+
+### Feature 0026-009: Prompt Content Viewer Page
+
+#### Task 0026-009-001: Update PromptBreakdownService
+
+**File**: `backend/app/services/prompt_breakdown_service.py`
+
+Add `content` field to breakdown sections:
+
+```python
+@staticmethod
+def capture_breakdown(
+    base_prompt: str,
+    critical_rules: Optional[str] = None,
+    directory_docs: Optional[str] = None,
+    modules: Optional[Dict[str, str]] = None,
+    account_slug: Optional[str] = None,
+    agent_instance_slug: Optional[str] = None,
+    capture_content: bool = True  # NEW: Control full content capture
+) -> dict:
+    breakdown = {"sections": []}
+    position = 1
+    total_chars = 0
+    
+    if critical_rules:
+        section = {
+            "name": "critical_rules",
+            "position": position,
+            "char_count": len(critical_rules),
+            "source": "tool_selection_hints.md"
+        }
+        if capture_content:
+            section["content"] = critical_rules  # ✅ NEW
+        breakdown["sections"].append(section)
+        total_chars += len(critical_rules)
+        position += 1
+    
+    # ... same for base_prompt, directory_docs, modules ...
+    
+    breakdown["total_char_count"] = total_chars
+    breakdown["content_captured"] = capture_content  # ✅ NEW flag
+    
+    return breakdown
+```
+
+**Environment Variable:**
+```bash
+ADMIN_CAPTURE_FULL_PROMPTS=true  # Default: true for dev, false for prod
+```
+
+#### Task 0026-009-002: Create LLM Request Detail Page
+
+**File**: `web/public/admin/llm-request.html`
+
+**Requirements:**
+- Read LLM request ID from URL (`?id=xxx`)
+- Fetch `/api/admin/llm-requests/{id}` (already returns prompt_breakdown in meta)
+- Display each section in expandable accordion
+- Syntax highlighting for markdown content
+- Back to session link (requires session ID in URL: `?id=xxx&session_id=yyy`)
+
+**Implementation:**
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prompt Breakdown | Admin</title>
+    <script src="https://unpkg.com/htmx.org@2.0.7"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-5xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="bg-white shadow-sm rounded-lg mb-6 p-6">
+            <a href="#" id="back-link" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">
+                ← Back to Session
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">Prompt Breakdown</h1>
+            <p id="request-id" class="text-sm text-gray-500 font-mono mt-1"></p>
+        </header>
+
+        <!-- Metadata Summary -->
+        <div class="bg-white shadow-sm rounded-lg mb-6 p-6">
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Total Characters</p>
+                    <p id="total-chars" class="text-2xl font-bold text-gray-900">-</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Sections</p>
+                    <p id="section-count" class="text-2xl font-bold text-gray-900">-</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Model</p>
+                    <p id="model-name" class="text-lg font-semibold text-gray-900">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prompt Sections -->
+        <div id="sections-container">
+            <div class="text-center text-gray-500 py-8">Loading prompt sections...</div>
+        </div>
+    </div>
+
+    <script>
+        // Get IDs from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestId = urlParams.get('id');
+        const sessionId = urlParams.get('session_id');
+
+        if (!requestId) {
+            document.body.innerHTML = '<p class="text-red-600 p-6">No request ID provided</p>';
+        } else {
+            document.getElementById('request-id').textContent = `Request ID: ${requestId}`;
+            
+            // Set back link
+            if (sessionId) {
+                document.getElementById('back-link').href = `/admin/session.html?id=${sessionId}`;
+            }
+
+            // Fetch breakdown
+            fetch(`/api/admin/llm-requests/${requestId}`)
+                .then(r => r.json())
+                .then(data => renderBreakdown(data))
+                .catch(err => {
+                    document.getElementById('sections-container').innerHTML = 
+                        `<div class="bg-red-50 rounded-lg p-6 text-red-600">Error: ${err.message}</div>`;
+                });
+        }
+
+        function renderBreakdown(data) {
+            const breakdown = data.meta?.prompt_breakdown;
+            
+            if (!breakdown || !breakdown.content_captured) {
+                document.getElementById('sections-container').innerHTML = `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-yellow-800">
+                        <p class="font-semibold mb-2">⚠️ Full prompt content not available</p>
+                        <p class="text-sm">This request was captured before full content storage was enabled, or content capture is disabled.</p>
+                        <p class="text-sm mt-2">Only section metadata is available:</p>
+                        <ul class="mt-3 space-y-1 text-sm">
+                            ${breakdown.sections.map(s => 
+                                `<li>• ${s.name}: ${s.char_count.toLocaleString()} chars (${s.source})</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                `;
+                return;
+            }
+
+            // Update summary
+            document.getElementById('total-chars').textContent = breakdown.total_char_count.toLocaleString();
+            document.getElementById('section-count').textContent = breakdown.sections.length;
+            document.getElementById('model-name').textContent = data.model || 'Unknown';
+
+            // Render sections
+            const html = breakdown.sections.map((section, index) => `
+                <div class="bg-white shadow-sm rounded-lg mb-4 overflow-hidden">
+                    <!-- Section Header (clickable) -->
+                    <button 
+                        onclick="toggleSection(${index})"
+                        class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left">
+                        <div class="flex items-center gap-3">
+                            <span class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-semibold">
+                                ${section.position}
+                            </span>
+                            <div>
+                                <p class="font-semibold text-gray-900">${section.name}</p>
+                                <p class="text-sm text-gray-500">${section.source} · ${section.char_count.toLocaleString()} characters</p>
+                            </div>
+                        </div>
+                        <svg id="chevron-${index}" class="w-5 h-5 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Section Content (expandable) -->
+                    <div id="content-${index}" class="hidden border-t border-gray-200">
+                        <pre class="p-6 bg-gray-50 text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">${escapeHtml(section.content || '(content not available)')}</pre>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('sections-container').innerHTML = html;
+        }
+
+        function toggleSection(index) {
+            const content = document.getElementById(`content-${index}`);
+            const chevron = document.getElementById(`chevron-${index}`);
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
+```
+
+#### Task 0026-009-003: Update Session Detail Page
+
+**File**: `web/public/admin/session.html`
+
+Change "View Prompt Breakdown" button from inline expansion to navigation:
+
+```javascript
+// OLD (inline expansion):
+<button onclick="loadPromptBreakdown('${msg.llm_request_id}')" ...>
+
+// NEW (navigation to dedicated page):
+<a href="/admin/llm-request.html?id=${msg.llm_request_id}&session_id=${sessionId}" 
+   class="mt-3 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
+    🔍 View Full Prompt Breakdown →
+</a>
+```
+
+Remove `loadPromptBreakdown()` function (no longer needed).
+
+---
+
+### Testing Checklist
+
+**Test 1: Full Content Capture**
+1. Make a new chat request in `default_account > simple_chat1`
+2. Check Logfire: `service.prompt_breakdown.captured` should show sections captured
+3. Query database:
+   ```sql
+   SELECT meta->'prompt_breakdown'->'sections'->0->'content' 
+   FROM llm_requests 
+   ORDER BY created_at DESC LIMIT 1;
+   ```
+4. **Expected**: Full text content visible in database
+
+**Test 2: Navigate to Breakdown Page**
+1. Visit session detail page
+2. Click "View Full Prompt Breakdown" on assistant message
+3. **Expected**: Navigate to `/admin/llm-request.html?id=xxx&session_id=yyy`
+4. **Expected**: See 3-5 expandable sections
+5. **Expected**: Each section shows full text when expanded
+
+**Test 3: Expand/Collapse Sections**
+1. Click section header
+2. **Expected**: Content expands with full text
+3. Click again
+4. **Expected**: Content collapses
+
+**Test 4: Backward Compatibility**
+1. View old LLM requests (captured before full content storage)
+2. **Expected**: Yellow warning box: "Full prompt content not available"
+3. **Expected**: Shows metadata list (section names + char counts)
+
+**Test 5: Back Navigation**
+1. On breakdown page, click "← Back to Session"
+2. **Expected**: Return to correct session detail page
+
+---
+
+### DB Size Impact Analysis
+
+**Assumptions:**
+- Average prompt: 50KB (compressed JSONB)
+- 100 requests/day
+- 30-day retention
+
+**Storage:**
+- Per day: 100 × 50KB = 5MB
+- Per month: 5MB × 30 = 150MB
+- Per year: 150MB × 12 = 1.8GB
+
+**Mitigation:**
+1. Add cleanup job: Delete `prompt_breakdown.sections[].content` for requests older than 30 days
+2. Keep metadata forever, content for 30 days only
+3. Env var to disable in production if not needed
+
+---
+
+### Summary
+
+**What This Adds:**
+- **New Page**: `/admin/llm-request.html` - dedicated prompt content viewer
+- **Full Content Storage**: Each section's actual text captured in `llm_requests.meta`
+- **Navigation**: "View Prompt Breakdown" becomes a link instead of inline expansion
+- **Better Debugging**: See exactly what the LLM saw, word-for-word
+
+**Benefits:**
+- Answers "what prompt did the LLM actually see?" conclusively
+- Easier to spot issues (missing modules, truncated sections, wrong order)
+- No reconstruction ambiguity (exact historical snapshot)
+
+**Trade-offs:**
+- Increases DB size (~50KB per request with content vs ~1KB without)
+- Requires retention policy to manage growth
+
+---
+
 
 ### Phase 4: UI Polish & Layout Improvements
 

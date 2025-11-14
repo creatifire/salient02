@@ -65,7 +65,7 @@
             }
             
             const html = data.messages.map(msg => {
-                const isUser = msg.role === 'user';
+                const isUser = msg.role === 'human';
                 const bgColor = isUser ? 'bg-blue-50' : 'bg-white';
                 const borderColor = isUser ? 'border-blue-200' : 'border-gray-200';
                 
@@ -82,11 +82,8 @@
                         <p class="text-gray-900 whitespace-pre-wrap">${msg.content}</p>
                         
                         ${msg.llm_request_id ? `
-                            <button hx-get="/api/admin/llm-requests/${msg.llm_request_id}"
-                                    hx-trigger="click"
-                                    hx-swap="none"
-                                    hx-on::after-request="renderPromptBreakdown(event.detail.xhr.responseText, '${msg.llm_request_id}')"
-                                    class="mt-3 text-sm text-blue-600 hover:text-blue-800">
+                            <button onclick="toggleBreakdown('${msg.llm_request_id}')"
+                                    class="mt-3 text-sm text-blue-600 hover:text-blue-800 cursor-pointer">
                                 🔍 View Prompt Breakdown
                             </button>
                             <div id="breakdown-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-gray-50 rounded text-sm"></div>
@@ -108,39 +105,49 @@
             htmx.process(container);
         }
         
-        // Render prompt breakdown from JSON response (called by HTMX event handler)
-        function renderPromptBreakdown(responseText, requestId) {
+        // Toggle prompt breakdown visibility
+        async function toggleBreakdown(requestId) {
             const breakdownDiv = document.getElementById(`breakdown-${requestId}`);
             
-            // Toggle visibility if already loaded
-            if (!breakdownDiv.classList.contains('hidden') && breakdownDiv.innerHTML.includes('Prompt Sections')) {
+            // If already visible, just hide it
+            if (!breakdownDiv.classList.contains('hidden')) {
                 breakdownDiv.classList.add('hidden');
                 return;
             }
             
-            const data = JSON.parse(responseText);
-            const breakdown = data.prompt_breakdown;
-            
-            if (!breakdown) {
-                breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
+            // If already loaded, just show it
+            if (breakdownDiv.innerHTML && breakdownDiv.innerHTML.includes('Prompt Sections')) {
                 breakdownDiv.classList.remove('hidden');
                 return;
             }
             
-            const html = `
-                <p class="font-semibold mb-2">Prompt Sections (${breakdown.total_char_count.toLocaleString()} chars):</p>
-                <ul class="space-y-2">
-                    ${breakdown.sections.map(section => `
-                        <li class="flex justify-between items-center">
-                            <span class="font-mono text-xs">${section.position}. ${section.name}</span>
-                            <span class="text-gray-600">${section.char_count.toLocaleString()} chars</span>
-                        </li>
-                    `).join('')}
-                </ul>
-            `;
-            
-            breakdownDiv.innerHTML = html;
-            breakdownDiv.classList.remove('hidden');
+            // Fetch and display the breakdown
+            try {
+                const response = await fetch(`/api/admin/llm-requests/${requestId}`);
+                const data = await response.json();
+                const breakdown = data.prompt_breakdown;
+                
+                if (!breakdown) {
+                    breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
+                } else {
+                    breakdownDiv.innerHTML = `
+                        <p class="font-semibold mb-2">Prompt Sections (${breakdown.total_char_count.toLocaleString()} chars):</p>
+                        <ul class="space-y-2">
+                            ${breakdown.sections.map(section => `
+                                <li class="border-l-2 border-gray-300 pl-3 py-1">
+                                    <div class="font-mono text-xs font-semibold">${section.position}. ${section.name}</div>
+                                    <div class="text-xs text-gray-600">Source: ${section.source} | ${section.char_count.toLocaleString()} chars</div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                }
+                
+                breakdownDiv.classList.remove('hidden');
+            } catch (error) {
+                breakdownDiv.innerHTML = `<p class="text-red-600">Error loading breakdown: ${error.message}</p>`;
+                breakdownDiv.classList.remove('hidden');
+            }
         }
     </script>
 </body>
