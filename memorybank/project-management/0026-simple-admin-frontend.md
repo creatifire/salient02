@@ -42,13 +42,16 @@
 - **Result**: 2 static HTML files, no build step, HTMX v2.0.7, TailwindCSS CDN
 
 #### 📋 **Phase 3C: Inline Prompt Content Viewer with Module Breakdown** (PROPOSED)
-- ⏳ Feature 0026-009: Structured prompt breakdown with directory separation
+- ⏳ Feature 0026-009: Structured prompt breakdown with directory separation + full assembled prompt viewer
   - Task 001: Fix button visibility bug (user messages only)
-  - Task 002: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
-  - Task 003: Update `PromptBreakdownService` to handle structured directories
-  - Task 004: Update `simple_chat.py` to use new structure
-  - Task 005: Update frontend to render nested sections with CSS indentation
-- **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging
+  - Task 002: Add `assembled_prompt` column to `llm_requests` table
+  - Task 003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
+  - Task 004: Update `PromptBreakdownService` to handle structured directories
+  - Task 005: Update `simple_chat.py` to use new structure and capture assembled prompt
+  - Task 006: Update `LLMRequestTracker` to accept assembled_prompt parameter
+  - Task 007: Add "View Full Assembled Prompt" UI toggle
+  - Task 008: Update frontend to render nested sections with CSS indentation
+- **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
 - ⏳ Feature 0026-007: Professional dashboard UI (HTMX + TailwindCSS)
@@ -1866,7 +1869,88 @@ ${msg.role === 'user' && msg.llm_request_id ? `
 
 ---
 
-#### Task 3C-002: Refactor `generate_directory_tool_docs()` to Return Structured Data
+#### Task 3C-002: Add `assembled_prompt` Column to llm_requests Table
+
+**Goal**: Store the complete assembled system prompt (after all concatenation) for debugging.
+
+**Why**: The `meta.prompt_breakdown` stores structured metadata and content per section, but we also need the exact final text sent to the LLM for copy/paste testing and debugging.
+
+**Database Migration**:
+
+```sql
+-- Migration: Add assembled_prompt column
+ALTER TABLE llm_requests 
+ADD COLUMN assembled_prompt TEXT;
+
+CREATE INDEX idx_llm_requests_assembled_prompt_not_null 
+ON llm_requests (id) WHERE assembled_prompt IS NOT NULL;
+```
+
+**Alembic Migration File**: `backend/migrations/versions/XXXX_add_assembled_prompt_to_llm_requests.py`
+
+```python
+"""Add assembled_prompt column to llm_requests
+
+Revision ID: XXXX
+Revises: YYYY
+Create Date: 2025-11-14
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = 'XXXX'
+down_revision = 'YYYY'
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    # Add assembled_prompt column
+    op.add_column('llm_requests', sa.Column('assembled_prompt', sa.Text(), nullable=True))
+    
+    # Add partial index for performance (only index non-null values)
+    op.create_index(
+        'idx_llm_requests_assembled_prompt_not_null',
+        'llm_requests',
+        ['id'],
+        postgresql_where=sa.text('assembled_prompt IS NOT NULL')
+    )
+
+def downgrade():
+    op.drop_index('idx_llm_requests_assembled_prompt_not_null', table_name='llm_requests')
+    op.drop_column('llm_requests', 'assembled_prompt')
+```
+
+**Model Update**: `backend/app/models/llm_request.py`
+
+Add after line 100 (after `meta` column):
+
+```python
+# Full assembled system prompt (for debugging and copy/paste)
+assembled_prompt = Column(Text, nullable=True, comment="Complete system prompt as sent to LLM (after all module concatenation)")
+```
+
+Update `to_dict()` method to include new field:
+
+```python
+def to_dict(self) -> dict:
+    """Convert to dictionary for JSON serialization.""" 
+    return {
+        # ... existing fields ...
+        "assembled_prompt": self.assembled_prompt,  # NEW
+        "meta": self.meta,
+        "created_at": self.created_at.isoformat() if self.created_at else None
+    }
+```
+
+**Storage Estimate**:
+- Average prompt size: 10-30 KB
+- Impact: Moderate (similar to storing in JSONB sections, but deduplicated)
+- Retention: Can be cleared for old requests (keep metadata)
+
+---
+
+#### Task 3C-003: Refactor `generate_directory_tool_docs()` to Return Structured Data
 
 **Goal**: Return both the full markdown text (for prompt assembly) AND structured breakdown (for debugging).
 
@@ -1962,7 +2046,7 @@ return DirectoryDocsResult(
 
 ---
 
-#### Task 3C-003: Update `PromptBreakdownService` to Handle Structured Directories
+#### Task 3C-004: Update `PromptBreakdownService` to Handle Structured Directories
 
 **File**: `backend/app/services/prompt_breakdown_service.py`
 
@@ -2075,7 +2159,7 @@ return breakdown
 
 ---
 
-#### Task 3C-004: Update `simple_chat.py` to Use New Structure
+#### Task 3C-005: Update `simple_chat.py` to Use New Structure and Capture Assembled Prompt
 
 **File**: `backend/app/agents/simple_chat.py`
 
@@ -2128,9 +2212,198 @@ prompt_breakdown = PromptBreakdownService.capture_breakdown(
 )
 ```
 
+**Find the tracker.track_llm_request() call** (in streaming and non-streaming paths):
+
+Look for calls to `track_llm_request()` that pass `meta={"prompt_breakdown": prompt_breakdown}`.
+
+**Add `assembled_prompt` parameter**:
+
+```python
+# The complete assembled system prompt is in the variable `system_prompt`
+# (after all concatenation: critical_rules + base_system_prompt + directory_docs + modules)
+
+llm_request_id = await tracker.track_llm_request(
+    # ... existing parameters ...
+    meta={"prompt_breakdown": prompt_breakdown},
+    assembled_prompt=system_prompt  # NEW: Pass the complete assembled prompt
+)
+```
+
+**Note**: The variable `system_prompt` contains the final assembled text sent to the LLM. This is what we want to capture for the full prompt viewer.
+
 ---
 
-#### Task 3C-005: Update Frontend to Render Nested Sections
+#### Task 3C-006: Update `LLMRequestTracker` to Accept assembled_prompt Parameter
+
+**File**: `backend/app/services/llm_request_tracker.py`
+
+**Update `track_llm_request()` signature**:
+
+```python
+async def track_llm_request(
+    self,
+    # ... existing parameters ...
+    meta: Optional[Dict[str, Any]] = None,
+    assembled_prompt: Optional[str] = None  # NEW
+) -> UUID:
+    """
+    Track LLM request with cost and usage data.
+    
+    Args:
+        # ... existing args ...
+        meta: Extensible metadata (e.g., prompt breakdown)
+        assembled_prompt: Complete system prompt as sent to LLM (NEW)
+        
+    Returns:
+        UUID of created LLM request
+    """
+```
+
+**Update LLMRequest instantiation**:
+
+```python
+llm_request = LLMRequest(
+    # ... existing fields ...
+    meta=meta,
+    assembled_prompt=assembled_prompt  # NEW
+)
+```
+
+---
+
+#### Task 3C-007: Add "View Full Assembled Prompt" UI Toggle
+
+**File**: `web/public/admin/session.html`
+
+**Update the user message breakdown buttons section** (in `renderMessages()`):
+
+```javascript
+${msg.role === 'user' && msg.llm_request_id ? `
+    <div class="mt-3 flex gap-2">
+        <!-- Existing: View Prompt Breakdown button -->
+        <button class="px-3 py-1 bg-gray-200 text-gray-800 rounded-md text-sm hover:bg-gray-300"
+                hx-get="/api/admin/llm-requests/${msg.llm_request_id}"
+                hx-trigger="click"
+                hx-target="#breakdown-${msg.llm_request_id}"
+                hx-swap="none"
+                hx-on::after-request="renderPromptBreakdown(event.detail.xhr.responseText, '${msg.llm_request_id}');">
+            🔍 View Prompt Breakdown
+        </button>
+        
+        <!-- NEW: View Full Assembled Prompt button -->
+        <button class="px-3 py-1 bg-blue-200 text-blue-800 rounded-md text-sm hover:bg-blue-300"
+                hx-get="/api/admin/llm-requests/${msg.llm_request_id}"
+                hx-trigger="click"
+                hx-target="#full-prompt-${msg.llm_request_id}"
+                hx-swap="none"
+                hx-on::after-request="renderFullPrompt(event.detail.xhr.responseText, '${msg.llm_request_id}');">
+            📄 View Full Assembled Prompt
+        </button>
+        
+        <!-- Container for prompt breakdown -->
+        <div id="breakdown-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-gray-50 rounded text-sm">
+            <!-- Prompt breakdown will be loaded here -->
+        </div>
+        
+        <!-- NEW: Container for full assembled prompt -->
+        <div id="full-prompt-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <!-- Full assembled prompt will be loaded here -->
+        </div>
+    </div>
+` : ''}
+```
+
+**Add new `renderFullPrompt()` function**:
+
+```javascript
+function renderFullPrompt(responseText, requestId) {
+    const fullPromptDiv = document.getElementById(`full-prompt-${requestId}`);
+    
+    // Toggle visibility if already loaded
+    if (!fullPromptDiv.classList.contains('hidden') && 
+        fullPromptDiv.innerHTML.includes('Assembled Prompt')) {
+        fullPromptDiv.classList.add('hidden');
+        return;
+    }
+
+    const data = JSON.parse(responseText);
+    const assembledPrompt = data.assembled_prompt;
+
+    if (assembledPrompt && assembledPrompt.trim().length > 0) {
+        const charCount = assembledPrompt.length;
+        const lineCount = assembledPrompt.split('\n').length;
+        
+        let html = `
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-blue-300">
+                <h4 class="font-semibold text-blue-900 flex items-center gap-2">
+                    <span>📄</span>
+                    Full Assembled Prompt
+                </h4>
+                <div class="flex gap-3 text-xs text-blue-700">
+                    <span class="bg-blue-100 px-2 py-1 rounded">${charCount.toLocaleString()} characters</span>
+                    <span class="bg-blue-100 px-2 py-1 rounded">${lineCount.toLocaleString()} lines</span>
+                    <button onclick="copyToClipboard('full-prompt-content-${requestId}')" 
+                            class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
+                        📋 Copy
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white border border-blue-200 rounded p-3 max-h-96 overflow-y-auto">
+                <pre id="full-prompt-content-${requestId}" 
+                     class="text-xs whitespace-pre-wrap font-mono text-gray-800 leading-relaxed">${escapeHtml(assembledPrompt)}</pre>
+            </div>
+            <p class="mt-2 text-xs text-blue-600 italic">
+                💡 This is the exact system prompt sent to the LLM (before chat history)
+            </p>
+        `;
+        
+        fullPromptDiv.innerHTML = html;
+    } else {
+        fullPromptDiv.innerHTML = `
+            <p class="text-gray-500 italic">
+                ⚠️ Assembled prompt not available for this request (captured in future requests only)
+            </p>
+        `;
+    }
+    
+    fullPromptDiv.classList.remove('hidden');
+}
+
+// Copy to clipboard utility
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        const text = element.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            // Show temporary success message
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ Copied!';
+            btn.classList.add('bg-green-600');
+            btn.classList.remove('bg-blue-600');
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.add('bg-blue-600');
+                btn.classList.remove('bg-green-600');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy to clipboard');
+        });
+    }
+}
+```
+
+**Benefits**:
+- Side-by-side comparison with breakdown (both buttons visible)
+- Copy button for testing prompts in other tools
+- Character and line count stats
+- Clean, collapsible UI
+- Works alongside existing breakdown viewer
+
+---
+
+#### Task 3C-008: Update Frontend to Render Nested Sections
 
 **File**: `web/public/admin/session.html`
 
