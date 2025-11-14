@@ -379,6 +379,20 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
                     # Generate cryptographically secure session key using secrets module
                     session_key = self._generate_session_key()
                     
+                    # BUG-0026-0003: Log detailed context about session creation
+                    # to understand why sessions are created without account/agent context
+                    logfire.info(
+                        'middleware.session.creating',
+                        session_key_prefix=session_key[:8],
+                        request_path=request.url.path,
+                        request_method=request.method,
+                        has_existing_cookie=bool(session_cookie),
+                        query_params=dict(request.query_params),
+                        path_params=dict(request.path_params) if hasattr(request, 'path_params') else {},
+                        headers_user_agent=request.headers.get('user-agent', 'unknown')[:50],
+                        headers_referer=request.headers.get('referer', 'none')
+                    )
+                    
                     # Create new session record with secure defaults
                     # Anonymous sessions allow usage without user registration
                     session = Session(
@@ -396,7 +410,15 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
                     await db_session.refresh(session)  # Get database-generated ID
                     
                     # Log session creation for analytics and debugging
-                    logfire.info('middleware.session.created', session_key_prefix=session.session_key[:8], session_id=str(session.id))
+                    logfire.info(
+                        'middleware.session.created', 
+                        session_key_prefix=session.session_key[:8], 
+                        session_id=str(session.id),
+                        account_id=session.account_id,
+                        account_slug=session.account_slug,
+                        agent_instance_id=session.agent_instance_id,
+                        agent_instance_slug=session.agent_instance_slug
+                    )
                 
                 # Store session in request state for access by route handlers
                 # This makes session available throughout the request lifecycle
