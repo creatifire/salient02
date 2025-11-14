@@ -746,6 +746,8 @@ ADMIN_SESSION_EXPIRY_MINUTES=120  # 2 hours default
 
 **Implementation**: Pure TailwindCSS (already installed at v4.1.12)
 
+**Design Inspiration**: [Dribbble Admin Dashboard Sample](../sample-screens/dribble-admin-business-analytics-app-prody.webp)
+
 #### Feature 0026-007: Admin UI Polish
 
 ##### Task 0026-007-001: Create Admin Layout Wrapper
