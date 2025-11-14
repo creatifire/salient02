@@ -1424,15 +1424,45 @@ Prompt Sections: 6 modules, 14,228 characters total
 
 ### Implementation Tasks
 
-#### Task 3C-001: Fix Button Visibility Bug
+#### Task 3C-001: Verify Message Card Content Display (COMPLETE ✅)
 
-**Issue**: "View Prompt Breakdown" button appears in both user AND assistant messages.
+**Goal**: Ensure proper information display for User vs Assistant message cards.
 
-**Fix**: Only show for `msg.role === 'user'`.
+**Status**: Already implemented correctly in `session.html` (Phase 3B).
 
-**File**: `web/public/admin/session.html` in `renderMessages()`:
+---
 
+**User Message Cards** (Blue background):
+- Message content
+- **"View Prompt Breakdown" button** - Shows prompt composition (modules, directories, etc.)
+  - Button condition: `msg.role === 'user' && msg.llm_request_id`
+  - Expandable breakdown section below
+
+**Assistant Message Cards** (White background):
+- Message content
+- **NO "View Prompt Breakdown" button** (prompt composition is not relevant to assistant output)
+- **LLM Metadata** (Purple box) - Always displayed when available:
+  - Model used
+  - Input/Output/Total tokens
+  - Cost
+  - Latency (ms)
+  - Condition: `!isUser && msg.meta && (msg.meta.model || msg.meta.input_tokens)`
+- **Response Quality** (Green box) - Displayed when available (Epic 0027):
+  - Confidence score (as percentage)
+  - Reasoning chain (formatted text)
+  - Condition: `!isUser && msg.meta && (msg.meta.confidence_score || msg.meta.reasoning_chain)`
+- **Tool Calls** (Yellow box) - Always displayed when present:
+  - Tool name and arguments (JSON formatted)
+  - Always visible (not behind a button)
+  - Condition: `msg.meta?.tool_calls`
+
+---
+
+**File**: `web/public/admin/session.html` (lines 67-129)
+
+**Verification**:
 ```javascript
+// User messages: Show breakdown button
 ${msg.role === 'user' && msg.llm_request_id ? `
     <div class="mt-3">
         <button class="px-3 py-1 bg-gray-200 text-gray-800 rounded-md text-sm hover:bg-gray-300"
@@ -1448,7 +1478,55 @@ ${msg.role === 'user' && msg.llm_request_id ? `
         </div>
     </div>
 ` : ''}
+
+// Assistant messages: LLM Metadata (purple box)
+${!isUser && msg.meta && (msg.meta.model || msg.meta.input_tokens) ? `
+    <div class="mt-3 p-3 bg-purple-50 rounded border border-purple-200">
+        <p class="text-xs font-semibold text-purple-800 mb-2">📊 LLM Metadata:</p>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <div><span class="font-medium text-purple-700">Model:</span> ...</div>
+            <div><span class="font-medium text-purple-700">Latency:</span> ...</div>
+            <div><span class="font-medium text-purple-700">Input Tokens:</span> ...</div>
+            <div><span class="font-medium text-purple-700">Output Tokens:</span> ...</div>
+            <div><span class="font-medium text-purple-700">Total Tokens:</span> ...</div>
+            <div><span class="font-medium text-purple-700">Cost:</span> ...</div>
+        </div>
+    </div>
+` : ''}
+
+// Assistant messages: Response Quality (green box) - Epic 0027
+${!isUser && msg.meta && (msg.meta.confidence_score || msg.meta.reasoning_chain) ? `
+    <div class="mt-3 p-3 bg-green-50 rounded border border-green-200">
+        <p class="text-xs font-semibold text-green-800 mb-2">✨ Response Quality:</p>
+        <div class="space-y-2 text-xs">
+            ${msg.meta.confidence_score ? `
+                <div><span class="font-medium text-green-700">Confidence:</span> 
+                <span class="text-gray-700">${(msg.meta.confidence_score * 100).toFixed(1)}%</span></div>
+            ` : ''}
+            ${msg.meta.reasoning_chain ? `
+                <div class="mt-2">
+                    <span class="font-medium text-green-700">Reasoning Chain:</span>
+                    <pre class="mt-1 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap">...</pre>
+                </div>
+            ` : ''}
+        </div>
+    </div>
+` : ''}
+
+// Assistant messages: Tool Calls (yellow box) - always visible
+${msg.meta?.tool_calls ? `
+    <div class="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
+        <p class="text-xs font-semibold text-yellow-800 mb-2">🛠️ Tool Calls:</p>
+        <pre class="text-xs text-gray-700 overflow-x-auto">${JSON.stringify(msg.meta.tool_calls, null, 2)}</pre>
+    </div>
+` : ''}
 ```
+
+**Design Rationale**:
+- **User cards focus on INPUT**: What prompt was sent to the LLM
+- **Assistant cards focus on OUTPUT**: What the LLM returned and how it performed
+- **Always-visible Tool Calls**: Critical for debugging tool selection (no click required)
+- **Color-coded sections**: Purple (performance), Green (quality), Yellow (actions)
 
 ---
 
