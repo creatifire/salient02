@@ -39,11 +39,10 @@ interface LLMRequestData {
 interface PromptInspectorProps {
     requestId: string;
     apiUrl: string;
-    credentials: { username: string; password: string } | null;
     onClose: () => void;
 }
 
-export function PromptInspector({ requestId, apiUrl, credentials, onClose }: PromptInspectorProps) {
+export function PromptInspector({ requestId, apiUrl, onClose }: PromptInspectorProps) {
     const [data, setData] = useState<LLMRequestData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,17 +57,15 @@ export function PromptInspector({ requestId, apiUrl, credentials, onClose }: Pro
         setError(null);
 
         try {
-            if (!credentials) {
-                throw new Error('No credentials provided');
-            }
-
-            const auth = btoa(`${credentials.username}:${credentials.password}`);
-
             const response = await fetch(`${apiUrl}/api/admin/llm-requests/${requestId}`, {
-                headers: {
-                    'Authorization': `Basic ${auth}`
-                }
+                credentials: 'include' // Send session cookies
             });
+
+            // Handle 401 - redirect to login
+            if (response.status === 401) {
+                window.location.href = '/admin/login';
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

@@ -1,0 +1,38 @@
+---
+/**
+ * Admin Login Page
+ * 
+ * Provides a simple login form for admin authentication.
+ * On successful login, redirects to /admin/sessions.
+ */
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login | OpenThought</title>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-md w-96">
+        <div class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-gray-900">OpenThought Admin</h1>
+            <p class="text-sm text-gray-600 mt-2">Sign in to access admin tools</p>
+        </div>
+        <div id="login-form"></div>
+    </div>
+
+    <script>
+        import { h, render } from 'preact';
+        import { LoginForm } from '../../components/admin/LoginForm';
+        
+        const container = document.getElementById('login-form');
+        if (container) {
+            const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+            render(h(LoginForm, { apiUrl }), container);
+        }
+    </script>
+</body>
+</html>
+

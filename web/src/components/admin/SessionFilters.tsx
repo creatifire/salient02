@@ -41,23 +41,15 @@ export function SessionFilters({ apiUrl }: SessionFiltersProps) {
             if (agent) params.append('agent', agent);
             params.append('limit', '50');
 
-            // Use HTTP Basic Auth credentials (prompt user)
-            const username = prompt('Admin Username:', 'admin');
-            const password = prompt('Admin Password:');
-            
-            if (!username || !password) {
-                setError('Authentication cancelled');
-                setLoading(false);
+            const response = await fetch(`${apiUrl}/api/admin/sessions?${params}`, {
+                credentials: 'include' // Send session cookies
+            });
+
+            // Handle 401 - redirect to login
+            if (response.status === 401) {
+                window.location.href = '/admin/login';
                 return;
             }
-
-            const credentials = btoa(`${username}:${password}`);
-
-            const response = await fetch(`${apiUrl}/api/admin/sessions?${params}`, {
-                headers: {
-                    'Authorization': `Basic ${credentials}`
-                }
-            });
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

@@ -36,7 +36,6 @@ export function SessionDetail({ sessionId, apiUrl }: SessionDetailProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-    const [credentials, setCredentials] = useState<{ username: string; password: string } | null>(null);
 
     useEffect(() => {
         fetchMessages();
@@ -47,28 +46,15 @@ export function SessionDetail({ sessionId, apiUrl }: SessionDetailProps) {
         setError(null);
 
         try {
-            // Prompt for credentials if not cached
-            if (!credentials) {
-                const username = prompt('Admin Username:', 'admin');
-                const password = prompt('Admin Password:');
-                
-                if (!username || !password) {
-                    setError('Authentication cancelled');
-                    setLoading(false);
-                    return;
-                }
-                
-                setCredentials({ username, password });
-            }
-
-            const creds = credentials || { username: 'admin', password: '' };
-            const auth = btoa(`${creds.username}:${creds.password}`);
-
             const response = await fetch(`${apiUrl}/api/admin/sessions/${sessionId}/messages`, {
-                headers: {
-                    'Authorization': `Basic ${auth}`
-                }
+                credentials: 'include' // Send session cookies
             });
+
+            // Handle 401 - redirect to login
+            if (response.status === 401) {
+                window.location.href = '/admin/login';
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -165,7 +151,6 @@ export function SessionDetail({ sessionId, apiUrl }: SessionDetailProps) {
                     <PromptInspector
                         requestId={selectedRequestId}
                         apiUrl={apiUrl}
-                        credentials={credentials}
                         onClose={() => setSelectedRequestId(null)}
                     />
                 ) : (

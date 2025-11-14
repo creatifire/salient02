@@ -26,13 +26,13 @@
 - ✅ Feature 0026-004: Session list page (/admin/sessions) with SessionFilters component
 - ✅ Feature 0026-005: Session detail page (/admin/sessions/[id]) with PromptInspector
 
-### 📋 **Phase 3: Session-Based Authentication** (PLANNED)
-- ⏳ Feature 0026-006: Replace HTTP Basic Auth with session-based login
-  - Task 001: Create POST /api/admin/login endpoint
-  - Task 002: Update AdminAuthMiddleware to check session
-  - Task 003: Create /admin/login page
-  - Task 004: Create LoginForm component
-  - Task 005: Update existing components to use credentials: 'include'
+### ✅ **Phase 3: Session-Based Authentication** (COMPLETE)
+- ✅ Feature 0026-006: Replace HTTP Basic Auth with session-based login
+  - ✅ Task 001: Create POST /api/admin/login and POST /api/admin/logout endpoints
+  - ✅ Task 002: Update AdminAuthMiddleware to check session instead of Basic Auth
+  - ✅ Task 003: Create /admin/login.astro page
+  - ✅ Task 004: Create LoginForm.tsx component
+  - ✅ Task 005: Update existing components with credentials: 'include' and 401 handling
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
 - ⏳ Feature 0026-007: Transform to professional dashboard UI
@@ -46,13 +46,20 @@
 - `5cae767` - Phase 0-2 implementation (14 files changed)
 - `304f32e` - Phase 3 documentation (session auth)
 - `7835ae3` - Phase 4 documentation (UI polish)
+- `[pending]` - Phase 3 implementation (session-based auth)
 
 **Next Steps**:
-1. Run database migration: `alembic upgrade head`
-2. Set ADMIN_USERNAME/ADMIN_PASSWORD in .env
-3. Test current implementation at /admin/sessions
-4. Implement Phase 3 (session-based auth) for better UX
-5. Implement Phase 4 (UI polish) for professional appearance
+1. Run database migration: `cd backend && alembic upgrade head`
+2. Set environment variables in `.env`:
+   ```bash
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=your-secure-password
+   ADMIN_SESSION_EXPIRY_MINUTES=120  # 2 hours default
+   ```
+3. Restart backend to load new auth middleware
+4. Visit `http://localhost:4321/admin/login` to authenticate
+5. Test session persistence (no repeated logins for 2 hours)
+6. Implement Phase 4 (UI polish) for professional appearance
 
 ---
 
