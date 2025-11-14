@@ -50,6 +50,9 @@
             // Set the HTMX URL with the actual session ID
             const messagesContainer = document.getElementById('messages-container');
             messagesContainer.setAttribute('hx-get', `/api/admin/sessions/${sessionId}/messages`);
+            
+            // CRITICAL: Tell HTMX to process the newly set attribute!
+            htmx.process(messagesContainer);
         }
         
         // Render messages from JSON response (called by HTMX event handler)
