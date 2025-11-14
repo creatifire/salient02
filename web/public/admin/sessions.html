@@ -156,7 +156,7 @@
                         ${data.sessions.map(session => `
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                                    ${session.id.substring(0, 13)}...
+                                    <span class="bg-gray-100 px-2 py-1 rounded">${session.id}</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     ${session.account_slug || '-'}
