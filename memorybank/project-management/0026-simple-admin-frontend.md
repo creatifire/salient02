@@ -1665,928 +1665,272 @@ If we need more features later:
 
 ---
 
-## Phase 3C: Full Prompt Content Viewer
+## Phase 3C: Inline Prompt Content Viewer
 
-**Status**: PROPOSED (Awaiting Design Decision)
+**Status**: PROPOSED
 
-**Goal**: Enable viewing the **actual text content** of each prompt section, not just metadata (char counts, section names). This is critical for debugging "why did the LLM choose the wrong tool?" - you need to see the exact words it saw, not just section lengths.
-
-**Current Behavior:**
-- Click "🔍 View Prompt Breakdown" on session detail page
-- Inline expansion shows:
-  ```
-  1. critical_rules - 4,928 chars
-  2. base_prompt - 3,200 chars  
-  3. directory_docs - 6,100 chars
-  ```
-- **Problem**: You can't see what the critical_rules actually said, or what the system prompt text was
-
-**Desired Behavior:**
-- Click "🔍 View Prompt Breakdown" 
-- **Navigate to new page**: `/admin/llm-request.html?id={request_id}`
-- Show full text of each section in expandable accordions:
-  ```
-  ┌─ Section 1: Critical Rules (4,928 chars) ─────────────┐
-  │ Source: tool_selection_hints.md                       │
-  │                                                        │
-  │ <full text of critical rules here>                    │
-  │ <exactly what the LLM saw>                            │
-  └────────────────────────────────────────────────────────┘
-  
-  ┌─ Section 2: System Prompt (3,200 chars) ──────────────┐
-  │ Source: system_prompt.md                              │
-  │                                                        │
-  │ <full text of system prompt here>                     │
-  └────────────────────────────────────────────────────────┘
-  ```
-
-**Example - `default_account > simple_chat1` Session:**
-
-When viewing a session from `simple_chat1`, the prompt breakdown page would show:
-1. **Critical Rules** (tool_selection_hints.md) - full text
-2. **System Prompt** (system_prompt.md) - full text  
-3. **Directory Docs** (if directory search was enabled) - full auto-generated text
-4. **Prompt Modules** (if any configured):
-   - few_shot_examples.md - full text
-   - chain_of_thought.md - full text
-
-Each section expandable/collapsible, with syntax highlighting for readability.
+**Goal**: Enable viewing the **actual text content** of each prompt section inline, not just metadata. This is critical for debugging "why did the LLM choose the wrong tool?" - you need to see the exact words it saw.
 
 ---
 
-### Design Decision Required
+### Current Behavior (Phase 3B)
 
-**Problem**: Currently, `PromptBreakdownService.capture_breakdown()` only stores metadata:
+Click "🔍 View Prompt Breakdown" → inline expansion shows metadata only:
+
+```
+Prompt Sections: 3 sections, 14,228 characters total
+
+Section 1: critical_rules
+  Source: tool_selection_hints.md | Position: 0 | Characters: 4,928
+
+Section 2: system_prompt  
+  Source: system_prompt.md | Position: 4,928 | Characters: 3,200
+```
+
+**Problem**: Metadata only - can't see the actual text sent to the LLM.
+
+---
+
+### Desired Behavior (Phase 3C)
+
+Make each section **clickable** to expand/collapse the full text inline:
+
+```
+Prompt Sections: 3 sections, 14,228 characters total
+
+▼ Section 1: critical_rules (4,928 chars) — click to collapse
+  Source: tool_selection_hints.md | Position: 0
+  ┌─────────────────────────────────────────────────┐
+  │ ## Critical Rules for Tool Selection            │
+  │                                                  │
+  │ When the user asks about doctors, you MUST...   │
+  │ [Full text exactly as sent to LLM]              │
+  └─────────────────────────────────────────────────┘
+
+▶ Section 2: system_prompt (3,200 chars) — click to expand
+  Source: system_prompt.md | Position: 4,928
+```
+
+**Benefits:**
+- No page navigation - stay on session detail page
+- Compare multiple prompts - expand several at once
+- Fast - just expand/collapse divs
+- Contextual - see prompt alongside conversation
+
+---
+
+###  Implementation Tasks
+
+#### Task 3C-001: Fix Button Visibility Bug
+
+**Issue**: "View Prompt Breakdown" button appears in both user AND assistant messages.
+
+**Fix**: Only show for `msg.role === 'user'` (user messages trigger LLM requests; assistant messages are responses with no prompt to show).
+
+**File**: `web/public/admin/session.html` in `renderMessages()`:
+
+```javascript
+${msg.role === 'user' && msg.llm_request_id ? `
+    <div class="mt-3">
+        <button class="px-3 py-1 bg-gray-200 ..." ...>
+            🔍 View Prompt Breakdown
+        </button>
+        <div id="breakdown-${msg.llm_request_id}" class="hidden ...">
+            <!-- Prompt breakdown -->
+        </div>
+    </div>
+` : ''}
+```
+
+---
+
+#### Task 3C-002: Store Full Prompt Content in Backend
+
+**Current**: `PromptBreakdownService` stores only metadata (no `content` field).
+
+**Required**: Add actual text content to each section in `llm_requests.meta`:
 
 ```python
 {
   "sections": [
     {
       "name": "critical_rules",
-      "position": 1,
-      "char_count": 4928,
-      "source": "tool_selection_hints.md"
-      # ❌ NO "content" field
+      "position": 0,
+      "characters": 4928,
+      "source": "tool_selection_hints.md",
+      "content": "## Critical Rules...\n\nFull text here"  # ✅ ADD THIS
     }
-  ],
-  "total_char_count": 14228
+  ]
 }
 ```
 
-**Question**: How do we get the actual text content for display?
+**Why store in `meta` JSONB?**
+- See **exact prompt sent at that time** (not reconstructed from current files)
+- Simple - data already available at capture time
+- Fast - single API call, no reconstruction
+- JSONB compresses well
 
-#### Option A: Store Full Content in `llm_requests.meta`
+**Implementation**:
 
-**Changes:**
-- Update `PromptBreakdownService.capture_breakdown()` to accept full text:
-  ```python
-  breakdown["sections"].append({
-      "name": "critical_rules",
-      "position": 1,
-      "char_count": len(critical_rules),
-      "source": "tool_selection_hints.md",
-      "content": critical_rules  # ✅ NEW: Store actual text
-  })
-  ```
-- Update `simple_chat.py` to pass full text (already has it in scope)
-- New API: `GET /api/admin/llm-requests/{id}/full-prompt` returns all sections with content
+1. Update `backend/app/services/prompt_breakdown_service.py`:
+   ```python
+   @staticmethod
+   def capture_breakdown(
+       base_prompt: str,
+       critical_rules: Optional[str] = None,
+       directory_docs: Optional[str] = None,
+       modules: Optional[Dict[str, str]] = None,
+       # ... existing params ...
+   ) -> dict:
+       # Add "content": text to each section dict
+   ```
 
-**Pros:**
-- Simple implementation (data already available at capture time)
-- Fast retrieval (no reconstruction needed)
-- Guaranteed to match what LLM actually saw
-
-**Cons:**
-- **Significantly increases DB size** (15KB → ~15KB metadata + ~50-200KB content per request)
-- Duplicates content already in config files
-- For high-volume agents, could be expensive
-
-#### Option B: Reconstruct from Config Files at View-Time
-
-**Changes:**
-- Keep `llm_requests.meta` as-is (just metadata)
-- New API: `GET /api/admin/llm-requests/{id}/reconstruct-prompt`
-- Backend reads:
-  - Session's account_slug and agent_instance_slug
-  - Loads agent config YAML
-  - Loads system_prompt.md, tool_selection_hints.md
-  - Loads selected prompt modules
-  - Re-generates directory docs (if enabled)
-- Returns reconstructed sections with full text
-
-**Pros:**
-- No DB size increase
-- No data duplication
-- Always shows current version of files (even if they changed since request)
-
-**Cons:**
-- **Complex reconstruction logic** (must replicate prompt assembly)
-- **May not match exactly** what LLM saw (if files changed since request)
-- Slower (file I/O + processing on every view)
-- What if agent config was deleted?
-
-#### Option C: Separate `prompt_content` Column
-
-**Changes:**
-- Add `llm_requests.prompt_content JSONB` column (nullable)
-- Store full content there (not in `meta`)
-- Only populated if `ADMIN_STORE_FULL_PROMPTS=true` env var set
-- Allows opt-in for debugging without bloating all requests
-
-**Pros:**
-- DB size impact only when explicitly needed
-- Separates metadata (always stored) from content (optional)
-- Can enable for specific accounts/agents only
-
-**Cons:**
-- Extra migration and column management
-- Still duplicates data when enabled
-- More complex logic (two storage paths)
+2. Update `simple_chat.py` (and future agents):
+   ```python
+   prompt_breakdown = PromptBreakdownService.capture_breakdown(
+       base_prompt=system_prompt,
+       critical_rules=tool_hints,
+       directory_docs=dir_docs,
+       modules=prompt_modules_text,  # Pass full text, not just names
+       # ...
+   )
+   ```
 
 ---
 
-### Recommendation: Option A (Store Full Content)
-
-**Rationale:**
-1. **Accuracy is paramount** - Must see exactly what LLM saw, not a reconstruction
-2. **Debugging is rare** - Admin UI is for debugging, not high-frequency access
-3. **Modern Postgres handles it** - JSONB compression is good, 200KB per request is acceptable
-4. **Simple to implement** - Data already in scope, just add to breakdown dict
-
-**Mitigation for DB size:**
-- Add retention policy (delete prompt content older than 30 days)
-- Add `ADMIN_CAPTURE_FULL_PROMPTS=true` env var (default: true for dev, false for prod)
-- Compress large sections before storage
-
----
-
-### Feature 0026-009: Prompt Content Viewer Page
-
-#### Task 0026-009-001: Update PromptBreakdownService
-
-**File**: `backend/app/services/prompt_breakdown_service.py`
-
-Add `content` field to breakdown sections:
-
-```python
-@staticmethod
-def capture_breakdown(
-    base_prompt: str,
-    critical_rules: Optional[str] = None,
-    directory_docs: Optional[str] = None,
-    modules: Optional[Dict[str, str]] = None,
-    account_slug: Optional[str] = None,
-    agent_instance_slug: Optional[str] = None,
-    capture_content: bool = True  # NEW: Control full content capture
-) -> dict:
-    breakdown = {"sections": []}
-    position = 1
-    total_chars = 0
-    
-    if critical_rules:
-        section = {
-            "name": "critical_rules",
-            "position": position,
-            "char_count": len(critical_rules),
-            "source": "tool_selection_hints.md"
-        }
-        if capture_content:
-            section["content"] = critical_rules  # ✅ NEW
-        breakdown["sections"].append(section)
-        total_chars += len(critical_rules)
-        position += 1
-    
-    # ... same for base_prompt, directory_docs, modules ...
-    
-    breakdown["total_char_count"] = total_chars
-    breakdown["content_captured"] = capture_content  # ✅ NEW flag
-    
-    return breakdown
-```
-
-**Environment Variable:**
-```bash
-ADMIN_CAPTURE_FULL_PROMPTS=true  # Default: true for dev, false for prod
-```
-
-#### Task 0026-009-002: Create LLM Request Detail Page
-
-**File**: `web/public/admin/llm-request.html`
-
-**Requirements:**
-- Read LLM request ID from URL (`?id=xxx`)
-- Fetch `/api/admin/llm-requests/{id}` (already returns prompt_breakdown in meta)
-- Display each section in expandable accordion
-- Syntax highlighting for markdown content
-- Back to session link (requires session ID in URL: `?id=xxx&session_id=yyy`)
-
-**Implementation:**
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Prompt Breakdown | Admin</title>
-    <script src="https://unpkg.com/htmx.org@2.0.7"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-5xl mx-auto px-4 py-6">
-        <!-- Header -->
-        <header class="bg-white shadow-sm rounded-lg mb-6 p-6">
-            <a href="#" id="back-link" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">
-                ← Back to Session
-            </a>
-            <h1 class="text-2xl font-bold text-gray-900">Prompt Breakdown</h1>
-            <p id="request-id" class="text-sm text-gray-500 font-mono mt-1"></p>
-        </header>
-
-        <!-- Metadata Summary -->
-        <div class="bg-white shadow-sm rounded-lg mb-6 p-6">
-            <div class="grid grid-cols-3 gap-4">
-                <div>
-                    <p class="text-sm text-gray-500">Total Characters</p>
-                    <p id="total-chars" class="text-2xl font-bold text-gray-900">-</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Sections</p>
-                    <p id="section-count" class="text-2xl font-bold text-gray-900">-</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Model</p>
-                    <p id="model-name" class="text-lg font-semibold text-gray-900">-</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Prompt Sections -->
-        <div id="sections-container">
-            <div class="text-center text-gray-500 py-8">Loading prompt sections...</div>
-        </div>
-    </div>
-
-    <script>
-        // Get IDs from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const requestId = urlParams.get('id');
-        const sessionId = urlParams.get('session_id');
-
-        if (!requestId) {
-            document.body.innerHTML = '<p class="text-red-600 p-6">No request ID provided</p>';
-        } else {
-            document.getElementById('request-id').textContent = `Request ID: ${requestId}`;
-            
-            // Set back link
-            if (sessionId) {
-                document.getElementById('back-link').href = `/admin/session.html?id=${sessionId}`;
-            }
-
-            // Fetch breakdown
-            fetch(`/api/admin/llm-requests/${requestId}`)
-                .then(r => r.json())
-                .then(data => renderBreakdown(data))
-                .catch(err => {
-                    document.getElementById('sections-container').innerHTML = 
-                        `<div class="bg-red-50 rounded-lg p-6 text-red-600">Error: ${err.message}</div>`;
-                });
-        }
-
-        function renderBreakdown(data) {
-            const breakdown = data.meta?.prompt_breakdown;
-            
-            if (!breakdown || !breakdown.content_captured) {
-                document.getElementById('sections-container').innerHTML = `
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-yellow-800">
-                        <p class="font-semibold mb-2">⚠️ Full prompt content not available</p>
-                        <p class="text-sm">This request was captured before full content storage was enabled, or content capture is disabled.</p>
-                        <p class="text-sm mt-2">Only section metadata is available:</p>
-                        <ul class="mt-3 space-y-1 text-sm">
-                            ${breakdown.sections.map(s => 
-                                `<li>• ${s.name}: ${s.char_count.toLocaleString()} chars (${s.source})</li>`
-                            ).join('')}
-                        </ul>
-                    </div>
-                `;
-                return;
-            }
-
-            // Update summary
-            document.getElementById('total-chars').textContent = breakdown.total_char_count.toLocaleString();
-            document.getElementById('section-count').textContent = breakdown.sections.length;
-            document.getElementById('model-name').textContent = data.model || 'Unknown';
-
-            // Render sections
-            const html = breakdown.sections.map((section, index) => `
-                <div class="bg-white shadow-sm rounded-lg mb-4 overflow-hidden">
-                    <!-- Section Header (clickable) -->
-                    <button 
-                        onclick="toggleSection(${index})"
-                        class="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left">
-                        <div class="flex items-center gap-3">
-                            <span class="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-semibold">
-                                ${section.position}
-                            </span>
-                            <div>
-                                <p class="font-semibold text-gray-900">${section.name}</p>
-                                <p class="text-sm text-gray-500">${section.source} · ${section.char_count.toLocaleString()} characters</p>
-                            </div>
-                        </div>
-                        <svg id="chevron-${index}" class="w-5 h-5 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-
-                    <!-- Section Content (expandable) -->
-                    <div id="content-${index}" class="hidden border-t border-gray-200">
-                        <pre class="p-6 bg-gray-50 text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">${escapeHtml(section.content || '(content not available)')}</pre>
-                    </div>
-                </div>
-            `).join('');
-
-            document.getElementById('sections-container').innerHTML = html;
-        }
-
-        function toggleSection(index) {
-            const content = document.getElementById(`content-${index}`);
-            const chevron = document.getElementById(`chevron-${index}`);
-            
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                chevron.style.transform = 'rotate(180deg)';
-            } else {
-                content.classList.add('hidden');
-                chevron.style.transform = 'rotate(0deg)';
-            }
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-    </script>
-</body>
-</html>
-```
-
-#### Task 0026-009-003: Update Session Detail Page
+#### Task 3C-003: Make Sections Expandable in Frontend
 
 **File**: `web/public/admin/session.html`
 
-Change "View Prompt Breakdown" button from inline expansion to navigation:
+**Update `renderPromptBreakdown()` function:**
 
 ```javascript
-// OLD (inline expansion):
-<button onclick="loadPromptBreakdown('${msg.llm_request_id}')" ...>
-
-// NEW (navigation to dedicated page):
-<a href="/admin/llm-request.html?id=${msg.llm_request_id}&session_id=${sessionId}" 
-   class="mt-3 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
-    🔍 View Full Prompt Breakdown →
-</a>
-```
-
-Remove `loadPromptBreakdown()` function (no longer needed).
-
----
-
-### Testing Checklist
-
-**Test 1: Full Content Capture**
-1. Make a new chat request in `default_account > simple_chat1`
-2. Check Logfire: `service.prompt_breakdown.captured` should show sections captured
-3. Query database:
-   ```sql
-   SELECT meta->'prompt_breakdown'->'sections'->0->'content' 
-   FROM llm_requests 
-   ORDER BY created_at DESC LIMIT 1;
-   ```
-4. **Expected**: Full text content visible in database
-
-**Test 2: Navigate to Breakdown Page**
-1. Visit session detail page
-2. Click "View Full Prompt Breakdown" on assistant message
-3. **Expected**: Navigate to `/admin/llm-request.html?id=xxx&session_id=yyy`
-4. **Expected**: See 3-5 expandable sections
-5. **Expected**: Each section shows full text when expanded
-
-**Test 3: Expand/Collapse Sections**
-1. Click section header
-2. **Expected**: Content expands with full text
-3. Click again
-4. **Expected**: Content collapses
-
-**Test 4: Backward Compatibility**
-1. View old LLM requests (captured before full content storage)
-2. **Expected**: Yellow warning box: "Full prompt content not available"
-3. **Expected**: Shows metadata list (section names + char counts)
-
-**Test 5: Back Navigation**
-1. On breakdown page, click "← Back to Session"
-2. **Expected**: Return to correct session detail page
-
----
-
-### DB Size Impact Analysis
-
-**Assumptions:**
-- Average prompt: 50KB (compressed JSONB)
-- 100 requests/day
-- 30-day retention
-
-**Storage:**
-- Per day: 100 × 50KB = 5MB
-- Per month: 5MB × 30 = 150MB
-- Per year: 150MB × 12 = 1.8GB
-
-**Mitigation:**
-1. Add cleanup job: Delete `prompt_breakdown.sections[].content` for requests older than 30 days
-2. Keep metadata forever, content for 30 days only
-3. Env var to disable in production if not needed
-
----
-
-### Summary
-
-**What This Adds:**
-- **New Page**: `/admin/llm-request.html` - dedicated prompt content viewer
-- **Full Content Storage**: Each section's actual text captured in `llm_requests.meta`
-- **Navigation**: "View Prompt Breakdown" becomes a link instead of inline expansion
-- **Better Debugging**: See exactly what the LLM saw, word-for-word
-
-**Benefits:**
-- Answers "what prompt did the LLM actually see?" conclusively
-- Easier to spot issues (missing modules, truncated sections, wrong order)
-- No reconstruction ambiguity (exact historical snapshot)
-
-**Trade-offs:**
-- Increases DB size (~50KB per request with content vs ~1KB without)
-- Requires retention policy to manage growth
-
----
-
-
-### Phase 4: UI Polish & Layout Improvements
-
-**Goal**: Transform basic admin interface into polished, professional-looking dashboard matching modern design standards
-
-**Current State**: Basic HTML pages with minimal styling - functional but not polished
-
-**Target State**: Clean, modern interface with:
-- Professional sidebar navigation with icons
-- Polished header with breadcrumbs and user info
-- Card-based layouts with proper shadows and spacing
-- Improved tables with avatars, badges, and hover states
-- Consistent color scheme and typography
-- Responsive design for mobile/tablet
-
-**Implementation**: Pure TailwindCSS (already installed at v4.1.12)
-
-**Design Inspiration**: [Dribbble Admin Dashboard Sample](../sample-screens/dribble-admin-business-analytics-app-prody.webp)
-
-#### Feature 0026-007: Admin UI Polish
-
-##### Task 0026-007-001: Create Admin Layout Wrapper
-**File**: `web/src/layouts/AdminLayout.astro`
-
-Create consistent layout with sidebar navigation:
-
-```astro
----
-interface Props {
-    title: string;
-    breadcrumbs?: Array<{ label: string; href?: string }>;
-}
-
-const { title, breadcrumbs = [] } = Astro.props;
----
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} | Admin</title>
-</head>
-<body class="bg-gray-50">
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
-            <!-- Logo -->
-            <div class="h-16 flex items-center px-6 border-b border-gray-200">
-                <h1 class="text-xl font-bold text-gray-900">OpenThought</h1>
-            </div>
-            
-            <!-- Navigation -->
-            <nav class="flex-1 px-4 py-6 space-y-1">
-                <a href="/admin/sessions" 
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <span class="font-medium">Sessions</span>
-                </a>
-                
-                <a href="/admin/analytics" 
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    <span class="font-medium">Analytics</span>
-                </a>
-            </nav>
-            
-            <!-- User Info -->
-            <div class="p-4 border-t border-gray-200">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span class="text-blue-600 font-semibold">A</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 truncate">Admin</p>
-                        <p class="text-xs text-gray-500 truncate">admin@localhost</p>
-                    </div>
-                </div>
-                <a href="/api/admin/logout" 
-                   class="mt-2 block text-xs text-gray-500 hover:text-gray-700">
-                    Logout
-                </a>
-            </div>
-        </aside>
-        
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- Header -->
-            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-                <div>
-                    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                        {breadcrumbs.map((crumb, i) => (
-                            <>
-                                {i > 0 && <span>/</span>}
-                                {crumb.href ? (
-                                    <a href={crumb.href} class="hover:text-gray-700">{crumb.label}</a>
-                                ) : (
-                                    <span class="text-gray-900 font-medium">{crumb.label}</span>
-                                )}
-                            </>
-                        ))}
-                    </nav>
-                    <h1 class="text-xl font-semibold text-gray-900">{title}</h1>
-                </div>
-            </header>
-            
-            <!-- Page Content -->
-            <main class="flex-1 overflow-auto p-6">
-                <slot />
-            </main>
-        </div>
-    </div>
-</body>
-</html>
-```
-
-##### Task 0026-007-002: Create Reusable UI Components
-**File**: `web/src/components/admin/ui/Card.tsx`
-
-```tsx
-import { h } from 'preact';
-
-interface CardProps {
-    children: any;
-    className?: string;
-}
-
-export function Card({ children, className = '' }: CardProps) {
-    return (
-        <div class={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>
-            {children}
-        </div>
-    );
-}
-
-export function CardHeader({ children, className = '' }: CardProps) {
-    return (
-        <div class={`px-6 py-4 border-b border-gray-200 ${className}`}>
-            {children}
-        </div>
-    );
-}
-
-export function CardBody({ children, className = '' }: CardProps) {
-    return (
-        <div class={`px-6 py-4 ${className}`}>
-            {children}
-        </div>
-    );
-}
-```
-
-**File**: `web/src/components/admin/ui/Badge.tsx`
-
-```tsx
-import { h } from 'preact';
-
-interface BadgeProps {
-    children: any;
-    variant?: 'blue' | 'green' | 'red' | 'yellow' | 'gray';
-}
-
-const variantStyles = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    red: 'bg-red-50 text-red-700 border-red-200',
-    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    gray: 'bg-gray-50 text-gray-700 border-gray-200'
-};
-
-export function Badge({ children, variant = 'gray' }: BadgeProps) {
-    return (
-        <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variantStyles[variant]}`}>
-            {children}
-        </span>
-    );
-}
-```
-
-**File**: `web/src/components/admin/ui/Avatar.tsx`
-
-```tsx
-import { h } from 'preact';
-
-interface AvatarProps {
-    name: string;
-    src?: string;
-    size?: 'sm' | 'md' | 'lg';
-}
-
-const sizeStyles = {
-    sm: 'w-8 h-8 text-xs',
-    md: 'w-10 h-10 text-sm',
-    lg: 'w-12 h-12 text-base'
-};
-
-export function Avatar({ name, src, size = 'md' }: AvatarProps) {
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+function renderPromptBreakdown(responseText, requestId) {
+    const breakdownDiv = document.getElementById(`breakdown-${requestId}`);
     
-    return (
-        <div class={`${sizeStyles[size]} rounded-full bg-blue-100 flex items-center justify-center overflow-hidden`}>
-            {src ? (
-                <img src={src} alt={name} class="w-full h-full object-cover" />
-            ) : (
-                <span class="text-blue-600 font-semibold">{initials}</span>
-            )}
-        </div>
-    );
-}
-```
-
-##### Task 0026-007-003: Update Sessions List Page
-Replace basic styling with polished design:
-
-```astro
----
-import AdminLayout from '../../layouts/AdminLayout.astro';
----
-
-<AdminLayout 
-    title="Chat Sessions" 
-    breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Sessions' }
-    ]}
->
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-medium text-gray-600">Total Sessions</p>
-                <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
-                    <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
-                </svg>
-            </div>
-            <p class="text-3xl font-bold text-gray-900">127</p>
-            <p class="text-sm text-green-600 mt-1">↑ 12% from last week</p>
-        </div>
-        
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-medium text-gray-600">Avg Messages</p>
-                <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6zm6 6H5v2h6v-2z"/>
-                </svg>
-            </div>
-            <p class="text-3xl font-bold text-gray-900">4.2</p>
-            <p class="text-sm text-gray-500 mt-1">per session</p>
-        </div>
-        
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-medium text-gray-600">Tool Calls</p>
-                <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/>
-                </svg>
-            </div>
-            <p class="text-3xl font-bold text-gray-900">234</p>
-            <p class="text-sm text-red-600 mt-1">↓ 3% from yesterday</p>
-        </div>
-    </div>
-
-    <!-- Filters & Table -->
-    <div id="session-filters"></div>
-</AdminLayout>
-```
-
-##### Task 0026-007-004: Update SessionFilters Component
-Improve table styling with hover states, badges, and proper spacing:
-
-```tsx
-// Replace table rendering with:
-<table class="min-w-full divide-y divide-gray-200">
-    <thead>
-        <tr class="bg-gray-50">
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Session
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Account
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Agent
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Messages
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Created
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-            </th>
-        </tr>
-    </thead>
-    <tbody class="bg-white divide-y divide-gray-200">
-        {sessions.map((session) => (
-            <tr key={session.id} class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
-                            </svg>
-                        </div>
-                        <div class="ml-4">
-                            <div class="text-sm font-medium text-gray-900">
-                                {session.id.substring(0, 8)}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                ID: {session.id.substring(0, 8)}...
-                            </div>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <Badge variant="blue">{session.account_slug || 'N/A'}</Badge>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {session.agent_instance_slug || '-'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <span class="text-sm font-medium text-gray-900">{session.message_count}</span>
-                        <span class="ml-2 text-xs text-gray-500">messages</span>
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(session.created_at).toLocaleString()}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a
-                        href={`/admin/sessions/${session.id}`}
-                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                        View Details
-                        <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
-                </td>
-            </tr>
-        ))}
-    </tbody>
-</table>
-```
-
-##### Task 0026-007-005: Polish Session Detail Page
-Add visual hierarchy, better message bubbles, and improved sidebar:
-
-- Message bubbles with proper shadows and spacing
-- User/assistant avatars
-- Tool call badges with icons
-- Sticky prompt inspector sidebar
-- Better color coding (blue for user, green for assistant, yellow for tool calls)
-
-**Benefits**:
-- Professional, modern appearance
-- Better visual hierarchy and information density
-- Improved usability with hover states and clear CTAs
-- Consistent design language across all admin pages
-- Responsive design for different screen sizes
-- Uses only TailwindCSS (no additional dependencies)
-
----
-
-## File Structure
-
-```
-web/src/
-├── pages/admin/
-│   ├── index.astro                      # Redirect to /admin/sessions
-│   ├── login.astro                      # Admin login page (Phase 3)
-│   ├── sessions.astro                   # Session list
-│   └── sessions/[id].astro              # Session detail
-├── components/admin/
-│   ├── LoginForm.tsx                    # Login form component (Phase 3)
-│   ├── SessionFilters.tsx               # Filter component
-│   ├── SessionDetail.tsx                # Conversation timeline
-│   └── PromptInspector.tsx              # Prompt breakdown
-
-backend/app/
-├── api/admin.py                          # Admin endpoints (login, sessions, llm-requests)
-├── middleware/admin_auth_middleware.py   # Session-based auth (Phase 3) / HTTP Basic Auth (Phase 0-2)
-└── services/prompt_breakdown_service.py  # Breakdown capture
-```
-
----
-
-## API Response Schemas
-
-### Sessions List
-```json
-{
-  "sessions": [{
-    "id": "uuid",
-    "account_slug": "wyckoff",
-    "agent_instance_slug": "wyckoff_info_chat1",
-    "created_at": "2025-11-12T20:46:10Z",
-    "message_count": 4
-  }],
-  "total": 42,
-  "limit": 50,
-  "offset": 0
-}
-```
-
-### Session Messages
-```json
-{
-  "session_id": "uuid",
-  "messages": [{
-    "id": "uuid",
-    "role": "user",
-    "content": "what is the number of the pharmacy",
-    "created_at": "2025-11-12T20:47:49Z"
-  }, {
-    "id": "uuid",
-    "role": "assistant",
-    "content": "I don't have the specific phone number...",
-    "llm_request_id": "uuid",
-    "meta": {
-      "model": "google/gemini-2.5-flash",
-      "input_tokens": 15410,
-      "cost": 0.04623,
-      "tool_calls": [{"tool_name": "vector_search", "args": {...}}]
+    // Toggle visibility if already loaded
+    if (!breakdownDiv.classList.contains('hidden') && 
+        breakdownDiv.innerHTML.includes('Prompt Sections')) {
+        breakdownDiv.classList.add('hidden');
+        return;
     }
-  }]
+
+    const data = JSON.parse(responseText);
+    const breakdown = data.prompt_breakdown;
+
+    if (breakdown && breakdown.sections && breakdown.sections.length > 0) {
+        let html = `
+            <h4 class="font-semibold mb-3">
+                Prompt Sections: ${breakdown.sections.length} sections, 
+                ${breakdown.total_characters} characters total
+            </h4>
+        `;
+        
+        breakdown.sections.forEach((section, index) => {
+            const sectionId = `section-${requestId}-${index}`;
+            const hasContent = section.content && section.content.trim().length > 0;
+            
+            html += `
+                <div class="mb-3 border border-gray-300 rounded">
+                    <!-- Clickable Header -->
+                    <button 
+                        class="w-full text-left px-3 py-2 bg-gray-100 hover:bg-gray-200 
+                               font-medium flex justify-between items-center"
+                        onclick="toggleSection('${sectionId}', this)"
+                        ${!hasContent ? 'disabled' : ''}>
+                        <span>
+                            <span class="arrow">▶</span> 
+                            Section ${index + 1}: ${section.name}
+                        </span>
+                        <span class="text-sm text-gray-600">
+                            ${section.characters} chars
+                        </span>
+                    </button>
+                    
+                    <!-- Metadata (always visible) -->
+                    <div class="px-3 py-1 text-xs text-gray-600 bg-gray-50">
+                        Source: ${section.source || 'N/A'} | Position: ${section.position}
+                    </div>
+                    
+                    <!-- Content (expandable) -->
+                    ${hasContent ? `
+                        <div id="${sectionId}" class="hidden px-3 py-2 bg-white">
+                            <pre class="text-xs whitespace-pre-wrap font-mono text-gray-800 
+                                       border-l-4 border-blue-400 pl-3 max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
+                        </div>
+                    ` : `
+                        <div class="px-3 py-2 text-xs text-gray-500 italic">
+                            Content not captured for this section
+                        </div>
+                    `}
+                </div>
+            `;
+        });
+        
+        breakdownDiv.innerHTML = html;
+    } else {
+        breakdownDiv.innerHTML = '<p>No prompt breakdown available.</p>';
+    }
+    
+    breakdownDiv.classList.remove('hidden');
+}
+
+// Toggle section content visibility
+function toggleSection(sectionId, buttonEl) {
+    const contentDiv = document.getElementById(sectionId);
+    const arrow = buttonEl.querySelector('.arrow');
+    
+    if (contentDiv.classList.contains('hidden')) {
+        contentDiv.classList.remove('hidden');
+        arrow.textContent = '▼';
+    } else {
+        contentDiv.classList.add('hidden');
+        arrow.textContent = '▶';
+    }
+}
+
+// HTML escape utility
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 ```
 
-### LLM Request Detail
-```json
-{
-  "id": "uuid",
-  "model": "google/gemini-2.5-flash",
-  "prompt_breakdown": {
-    "sections": [
-      {"name": "critical_rules", "char_count": 4928, "source": "tool_selection_hints.md"},
-      {"name": "base_prompt", "char_count": 3200, "source": "system_prompt.md"},
-      {"name": "directory_docs", "char_count": 6100, "source": "auto-generated"}
-    ],
-    "total_char_count": 14228
-  },
-  "tool_calls": [
-    {"tool_name": "vector_search", "args": {"query": "phone number"}}
-  ],
-  "response": {
-    "content": "I don't have the specific phone number...",
-    "input_tokens": 15410,
-    "cost": 0.04623
-  }
-}
-```
+**Features:**
+- ▶/▼ arrow indicates expand/collapse state
+- Max height with scroll for long sections
+- Disabled state if no content available
+- Styled `<pre>` block for readable formatting
+
+---
+
+### Testing Plan
+
+1. **Simple Chat** (`default_account > simple_chat1`):
+   - Navigate to session detail
+   - Verify button only on user messages, not assistant messages
+   - Click button → metadata displays
+   - Click section → full text expands
+   - Click again → collapses
+
+2. **Multi-Tool Agents** (future):
+   - Verify tool calls still display
+   - Verify all sections (critical_rules, directory_docs, modules) expandable
+
+3. **Edge Cases**:
+   - No `llm_request_id` → no button
+   - Assistant message → no button
+   - Missing content → show "Content not captured"
+
+---
+
+### Future Enhancements
+
+- **Syntax Highlighting**: Use Prism.js for markdown rendering
+- **Copy Button**: Copy individual section text to clipboard
+- **Search**: Text search within expanded sections
+- **Diff View**: Compare prompts across messages
 
 ---
 
