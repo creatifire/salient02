@@ -256,10 +256,10 @@ app.add_middleware(
 
 # Middleware Configuration: Session management with path exclusions
 # SimpleSessionMiddleware provides automatic session creation, validation, and persistence
-# Excluded paths are optimized for performance (health checks, static assets, dev tools)
+# Excluded paths are optimized for performance (health checks, static assets, dev tools, admin)
 app.add_middleware(
     SimpleSessionMiddleware,
-    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]
+    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config", "/api/admin"]
 )
 
 # Static file serving configuration for assets (images, CSS, JS)

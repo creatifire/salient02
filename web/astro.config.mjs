@@ -9,6 +9,9 @@ const BACKEND = process.env.BACKEND_ORIGIN || 'http://localhost:8000';
 
 // https://astro.build/config
 export default defineConfig({
+  // Enable hybrid mode: static by default, SSR for specific pages
+  output: 'hybrid',
+  
   vite: {
     plugins: [tailwindcss()],
     server: {
