@@ -396,15 +396,39 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
                 # This makes session available throughout the request lifecycle
                 request.state.session = session
                 
+                # Also set request.scope["session"] for Starlette session interface compatibility
+                # This allows using request.session.get("key") in middleware and route handlers
+                # Initialize with session.meta dict (which is already a mutable dict in the database)
+                if session.meta is None:
+                    session.meta = {}
+                request.scope["session"] = session.meta
+                
         except Exception as e:
             # Comprehensive error handling: Log errors but don't break the request
             # Failed session operations should not prevent application functionality
             logfire.exception('middleware.session.error', error=str(e))
             request.state.session = None  # Set to None for defensive programming
+            request.scope["session"] = {}  # Provide empty dict for session interface
         
         # Request processing: Pass request through the application call stack
         # This processes the request through all remaining middleware and route handlers
         response = await call_next(request)
+        
+        # Persist any session changes made during request processing
+        # This ensures modifications via request.session (like admin_authenticated) are saved
+        if session and "session" in request.scope:
+            try:
+                # The session.meta dict was modified in place, so we need to mark it as dirty
+                # and commit the changes to the database
+                db_service = get_database_service()
+                async with db_service.get_session() as db_session:
+                    # Merge the session back into this db session and commit
+                    db_session.add(session)
+                    await db_session.commit()
+                    logfire.debug('middleware.session.saved', session_id=str(session.id))
+            except Exception as e:
+                # Session save errors should not break the response
+                logfire.exception('middleware.session.save_failed', error=str(e))
         
         # Cookie setting: Set secure session cookie if we have a valid session
         # This ensures the session persists across browser requests and page reloads
