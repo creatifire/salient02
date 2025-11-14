@@ -255,18 +255,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Admin authentication middleware for /api/admin/* endpoints
+# Protects admin debugging interfaces with session-based authentication
+# Credentials: ADMIN_USERNAME and ADMIN_PASSWORD environment variables
+# NOTE: Must be registered BEFORE SimpleSessionMiddleware so session runs first
+app.add_middleware(AdminAuthMiddleware)
+
 # Middleware Configuration: Session management with path exclusions
 # SimpleSessionMiddleware provides automatic session creation, validation, and persistence
 # Excluded paths are optimized for performance (health checks, static assets, dev tools)
+# NOTE: Registered AFTER AdminAuthMiddleware so it executes FIRST (middleware stack is LIFO)
 app.add_middleware(
     SimpleSessionMiddleware,
     exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]
 )
-
-# Admin authentication middleware for /api/admin/* endpoints
-# Protects admin debugging interfaces with HTTP Basic Auth
-# Credentials: ADMIN_USERNAME and ADMIN_PASSWORD environment variables
-app.add_middleware(AdminAuthMiddleware)
 
 # Static file serving configuration for assets (images, CSS, JS)
 # Mount static files directory for serving SVG icons and other assets
