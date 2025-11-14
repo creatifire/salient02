@@ -55,10 +55,7 @@
 
         <!-- Sessions Table -->
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-            <div id="sessions-container" 
-                 hx-get="/api/admin/sessions?limit=50" 
-                 hx-trigger="load"
-                 hx-on::after-request="renderSessions(event)">
+            <div id="sessions-container">
                 <div class="p-6 text-center text-gray-500">
                     <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -112,11 +109,11 @@
         // Initialize agent dropdown on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateAgentDropdown();
+            fetchSessions();  // Load sessions on page load
         });
 
         // Render sessions table from JSON response
-        function renderSessions(event) {
-            const data = JSON.parse(event.detail.xhr.response);
+        function renderSessions(data) {
             const container = document.getElementById('sessions-container');
             
             if (!data.sessions || data.sessions.length === 0) {
@@ -186,12 +183,15 @@
             if (agent) params.append('agent', agent);
             params.append('limit', '50');
             
-            // Manually trigger HTMX request with new URL
-            const container = document.getElementById('sessions-container');
-            htmx.ajax('GET', `/api/admin/sessions?${params}`, {
-                target: '#sessions-container',
-                swap: 'none' // We handle rendering in renderSessions()
-            });
+            // Use fetch instead of HTMX for full control
+            fetch(`/api/admin/sessions?${params}`)
+                .then(r => r.json())
+                .then(data => renderSessions(data))
+                .catch(err => {
+                    console.error('Failed to fetch sessions:', err);
+                    const container = document.getElementById('sessions-container');
+                    container.innerHTML = `<div class="bg-white rounded-lg p-6 text-red-600">Error loading sessions: ${err.message}</div>`;
+                });
         }
     </script>
 </body>
