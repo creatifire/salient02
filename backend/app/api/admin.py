@@ -53,16 +53,12 @@ async def list_sessions(
             )
             
             # Apply filters
+            # Use denormalized slug fields to avoid NULL ID join failures
             if account:
-                from ..models.account import Account
-                query = query.join(Account, Session.account_id == Account.id).where(Account.slug == account)
+                query = query.where(Session.account_slug == account)
             
             if agent:
-                from ..models.agent_instance import AgentInstanceModel
-                query = query.join(
-                    AgentInstanceModel,
-                    Session.agent_instance_id == AgentInstanceModel.id
-                ).where(AgentInstanceModel.slug == agent)
+                query = query.where(Session.agent_instance_slug == agent)
             
             # Count total matching records
             count_query = select(func.count()).select_from(query.subquery())
@@ -80,8 +76,9 @@ async def list_sessions(
             for session, message_count in sessions_with_counts:
                 sessions_list.append({
                     "id": str(session.id),
-                    "account_slug": session.account.slug if session.account else None,
-                    "agent_instance_slug": session.agent_instance.instance_slug if session.agent_instance else None,
+                    # Use denormalized slug fields directly (handles NULL relationship gracefully)
+                    "account_slug": session.account_slug,
+                    "agent_instance_slug": session.agent_instance_slug,
                     "created_at": session.created_at.isoformat(),
                     "message_count": message_count
                 })
