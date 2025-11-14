@@ -26,13 +26,29 @@
 - ✅ Feature 0026-004: Session list page (/admin/sessions) with SessionFilters component
 - ✅ Feature 0026-005: Session detail page (/admin/sessions/[id]) with PromptInspector
 
-### ✅ **Phase 3: Session-Based Authentication** (COMPLETE)
-- ✅ Feature 0026-006: Replace HTTP Basic Auth with session-based login
-  - ✅ Task 001: Create POST /api/admin/login and POST /api/admin/logout endpoints
-  - ✅ Task 002: Update AdminAuthMiddleware to check session instead of Basic Auth
-  - ✅ Task 003: Create /admin/login.astro page
-  - ✅ Task 004: Create LoginForm.tsx component
-  - ✅ Task 005: Update existing components with credentials: 'include' and 401 handling
+### **Phase 3: Admin UI Refinement**
+
+#### ❌ **Phase 3A: Session-Based Authentication** (DEPRECATED)
+- Feature 0026-006: Replace HTTP Basic Auth with session-based login
+  - Status: **Removed per BUG-0026-0002** (authentication unnecessary for localhost debugging tool)
+  - Tasks 001-005: Login/logout endpoints, session middleware, Astro login page (all removed)
+
+#### ✅ **Phase 3B: Session Browser in HTMX** (COMPLETE)
+- ✅ Feature 0026-008: Replace Astro+Preact with HTMX+Vanilla JS
+  - ✅ Task 001: Create `sessions.html` (sessions list with filters)
+  - ✅ Task 002: Create `session.html` (conversation timeline with prompt inspector)
+  - ✅ Task 003: Delete Astro pages and Preact components (6 files removed)
+  - ✅ Task 004: Update Astro config (optional cleanup)
+- **Result**: 2 static HTML files, no build step, HTMX v2.0.7, TailwindCSS CDN
+
+#### 📋 **Phase 3C: Inline Prompt Content Viewer with Module Breakdown** (PROPOSED)
+- ⏳ Feature 0026-009: Structured prompt breakdown with directory separation
+  - Task 001: Fix button visibility bug (user messages only)
+  - Task 002: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
+  - Task 003: Update `PromptBreakdownService` to handle structured directories
+  - Task 004: Update `simple_chat.py` to use new structure
+  - Task 005: Update frontend to render nested sections with CSS indentation
+- **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
 - ⏳ Feature 0026-007: Professional dashboard UI (HTMX + TailwindCSS)
