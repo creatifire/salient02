@@ -23,7 +23,10 @@
         </header>
 
         <!-- Messages Timeline -->
-        <div id="messages-container">
+        <div id="messages-container"
+             hx-get="/api/admin/sessions/{SESSION_ID}/messages"
+             hx-trigger="load"
+             hx-on::after-request="renderMessages(JSON.parse(event.detail.xhr.responseText))">
             <div class="p-6 text-center text-gray-500">
                 <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -44,16 +47,12 @@
         } else {
             document.getElementById('session-id').textContent = sessionId;
             
-            // Fetch messages on load
-            fetch(`/api/admin/sessions/${sessionId}/messages`)
-                .then(r => r.json())
-                .then(data => renderMessages(data))
-                .catch(err => {
-                    document.getElementById('messages-container').innerHTML = 
-                        `<div class="bg-white rounded-lg p-6 text-red-600">Error loading messages: ${err.message}</div>`;
-                });
+            // Set the HTMX URL with the actual session ID
+            const messagesContainer = document.getElementById('messages-container');
+            messagesContainer.setAttribute('hx-get', `/api/admin/sessions/${sessionId}/messages`);
         }
         
+        // Render messages from JSON response (called by HTMX event handler)
         function renderMessages(data) {
             const container = document.getElementById('messages-container');
             
@@ -80,13 +79,14 @@
                         <p class="text-gray-900 whitespace-pre-wrap">${msg.content}</p>
                         
                         ${msg.llm_request_id ? `
-                            <button onclick="loadPromptBreakdown('${msg.llm_request_id}')" 
+                            <button hx-get="/api/admin/llm-requests/${msg.llm_request_id}"
+                                    hx-trigger="click"
+                                    hx-target="#breakdown-${msg.llm_request_id}"
+                                    hx-on::after-request="renderPromptBreakdown(event.detail.xhr.responseText, '${msg.llm_request_id}')"
                                     class="mt-3 text-sm text-blue-600 hover:text-blue-800">
                                 🔍 View Prompt Breakdown
                             </button>
-                            <div id="breakdown-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-gray-50 rounded text-sm">
-                                Loading...
-                            </div>
+                            <div id="breakdown-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-gray-50 rounded text-sm"></div>
                         ` : ''}
                         
                         ${msg.meta?.tool_calls ? `
@@ -102,43 +102,39 @@
             container.innerHTML = html;
         }
         
-        function loadPromptBreakdown(requestId) {
+        // Render prompt breakdown from JSON response (called by HTMX event handler)
+        function renderPromptBreakdown(responseText, requestId) {
             const breakdownDiv = document.getElementById(`breakdown-${requestId}`);
             
-            if (!breakdownDiv.classList.contains('hidden')) {
+            // Toggle visibility if already loaded
+            if (!breakdownDiv.classList.contains('hidden') && breakdownDiv.innerHTML.includes('Prompt Sections')) {
                 breakdownDiv.classList.add('hidden');
                 return;
             }
             
-            fetch(`/api/admin/llm-requests/${requestId}`)
-                .then(r => r.json())
-                .then(data => {
-                    const breakdown = data.prompt_breakdown;
-                    if (!breakdown) {
-                        breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
-                        breakdownDiv.classList.remove('hidden');
-                        return;
-                    }
-                    
-                    const html = `
-                        <p class="font-semibold mb-2">Prompt Sections (${breakdown.total_char_count.toLocaleString()} chars):</p>
-                        <ul class="space-y-2">
-                            ${breakdown.sections.map(section => `
-                                <li class="flex justify-between items-center">
-                                    <span class="font-mono text-xs">${section.position}. ${section.name}</span>
-                                    <span class="text-gray-600">${section.char_count.toLocaleString()} chars</span>
-                                </li>
-                            `).join('')}
-                        </ul>
-                    `;
-                    
-                    breakdownDiv.innerHTML = html;
-                    breakdownDiv.classList.remove('hidden');
-                })
-                .catch(err => {
-                    breakdownDiv.innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
-                    breakdownDiv.classList.remove('hidden');
-                });
+            const data = JSON.parse(responseText);
+            const breakdown = data.prompt_breakdown;
+            
+            if (!breakdown) {
+                breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
+                breakdownDiv.classList.remove('hidden');
+                return;
+            }
+            
+            const html = `
+                <p class="font-semibold mb-2">Prompt Sections (${breakdown.total_char_count.toLocaleString()} chars):</p>
+                <ul class="space-y-2">
+                    ${breakdown.sections.map(section => `
+                        <li class="flex justify-between items-center">
+                            <span class="font-mono text-xs">${section.position}. ${section.name}</span>
+                            <span class="text-gray-600">${section.char_count.toLocaleString()} chars</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+            
+            breakdownDiv.innerHTML = html;
+            breakdownDiv.classList.remove('hidden');
         }
     </script>
 </body>

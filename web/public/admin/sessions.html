@@ -26,7 +26,12 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Account</label>
                     <select id="account-filter" 
                             class="w-full border border-gray-300 rounded-md px-3 py-2"
-                            onchange="updateAgentDropdown(); fetchSessions();">
+                            hx-get="/api/admin/sessions"
+                            hx-trigger="change"
+                            hx-target="#sessions-container"
+                            hx-vals="js:{account: document.getElementById('account-filter').value, agent: document.getElementById('agent-filter').value, limit: 50}"
+                            hx-on::after-request="renderSessions(JSON.parse(event.detail.xhr.responseText))"
+                            onchange="updateAgentDropdown()">
                         <option value="">All Accounts</option>
                         <option value="acme">acme</option>
                         <option value="agrofresh">agrofresh</option>
@@ -40,12 +45,20 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Agent Instance</label>
                     <select id="agent-filter" 
                             class="w-full border border-gray-300 rounded-md px-3 py-2"
-                            onchange="fetchSessions()">
+                            hx-get="/api/admin/sessions"
+                            hx-trigger="change"
+                            hx-target="#sessions-container"
+                            hx-vals="js:{account: document.getElementById('account-filter').value, agent: document.getElementById('agent-filter').value, limit: 50}"
+                            hx-on::after-request="renderSessions(JSON.parse(event.detail.xhr.responseText))">
                         <option value="">All Agents</option>
                     </select>
                 </div>
                 <div>
-                    <button onclick="fetchSessions()" 
+                    <button hx-get="/api/admin/sessions"
+                            hx-trigger="click"
+                            hx-target="#sessions-container"
+                            hx-vals="js:{account: document.getElementById('account-filter').value, agent: document.getElementById('agent-filter').value, limit: 50}"
+                            hx-on::after-request="renderSessions(JSON.parse(event.detail.xhr.responseText))"
                             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
                         Refresh
                     </button>
@@ -55,7 +68,10 @@
 
         <!-- Sessions Table -->
         <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-            <div id="sessions-container">
+            <div id="sessions-container"
+                 hx-get="/api/admin/sessions?limit=50"
+                 hx-trigger="load"
+                 hx-on::after-request="renderSessions(JSON.parse(event.detail.xhr.responseText))">
                 <div class="p-6 text-center text-gray-500">
                     <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -109,10 +125,9 @@
         // Initialize agent dropdown on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateAgentDropdown();
-            fetchSessions();  // Load sessions on page load
         });
 
-        // Render sessions table from JSON response
+        // Render sessions table from JSON response (called by HTMX event handler)
         function renderSessions(data) {
             const container = document.getElementById('sessions-container');
             
@@ -173,8 +188,8 @@
             container.innerHTML = html;
         }
         
-        // Fetch sessions with filters
-        function fetchSessions() {
+        // Build query params for HTMX request
+        function getSessionsQueryParams() {
             const account = document.getElementById('account-filter').value;
             const agent = document.getElementById('agent-filter').value;
             
@@ -183,15 +198,7 @@
             if (agent) params.append('agent', agent);
             params.append('limit', '50');
             
-            // Use fetch instead of HTMX for full control
-            fetch(`/api/admin/sessions?${params}`)
-                .then(r => r.json())
-                .then(data => renderSessions(data))
-                .catch(err => {
-                    console.error('Failed to fetch sessions:', err);
-                    const container = document.getElementById('sessions-container');
-                    container.innerHTML = `<div class="bg-white rounded-lg p-6 text-red-600">Error loading sessions: ${err.message}</div>`;
-                });
+            return params.toString();
         }
     </script>
 </body>
