@@ -245,6 +245,7 @@ async def track_llm_request(
 
 **Why separate from prompt breakdown**: This lets you compare INPUT (prompt structure) vs OUTPUT (tool choices) to debug wrong tool selection.
 
+
 Check if `message.meta["tool_calls"]` is populated. If missing:
 
 ```python
@@ -736,6 +737,452 @@ ADMIN_SESSION_EXPIRY_MINUTES=120  # 2 hours default
 - Better UX for debugging
 
 ---
+
+### Bug 0026-0001: Admin Pages Not Checking Authentication on Initial Load
+
+**Problem**: Visiting `/admin` or `/admin/sessions` loads the page without checking authentication. User sees the UI briefly before client-side code detects 401 and redirects to login.
+
+**Expected Behavior**: Unauthenticated users should be redirected to `/admin/login` BEFORE the page loads.
+
+**Root Cause**: Astro pages don't perform server-side authentication checks. Only client-side Preact components check auth (after page load).
+
+#### Desired Authentication Flow
+
+**Step 1: User visits `/admin` or `/admin/sessions`**
+- Astro SSR receives request
+- Astro has access to request cookies (via `Astro.cookies`)
+- **Cookie name**: `salient_session` (from `SimpleSessionMiddleware`)
+- **Cookie contains**: Session key (e.g., `"xva_WipVFTED2LZ0j-hV5_KwgV3yTdzX"`)
+
+**Step 2: Astro checks session cookie**
+```astro
+---
+const sessionCookie = Astro.cookies.get('salient_session');
+if (!sessionCookie) {
+    // No session cookie = not logged in
+    return Astro.redirect('/admin/login');
+}
+---
+```
+
+**Step 3: If cookie exists, verify authentication with backend**
+- **Option A (Simple)**: Make server-side fetch to `/api/admin/sessions?limit=1`
+  - If 200: User is authenticated → render page
+  - If 401: Session exists but not authenticated → redirect to login
+  
+- **Option B (Direct DB Check)**: Query `sessions` table directly in Astro
+  - Look up session by `session_key` from cookie
+  - Check if `session.meta["admin_authenticated"]` is `true`
+  - Check if `session.meta["admin_expiry"]` is not expired
+  - If valid: render page
+  - If invalid: redirect to login
+
+**Step 4a: User IS authenticated**
+- Astro renders page HTML
+- Client-side Preact components mount
+- Components fetch data with `credentials: 'include'`
+- Session cookie automatically sent with API requests
+- Backend validates session and returns data
+
+**Step 4b: User is NOT authenticated**
+- Astro redirects to `/admin/login` (HTTP 302)
+- User never sees admin page
+- Login page loads
+- User enters credentials
+- `POST /api/admin/login` validates and sets `session["admin_authenticated"] = true`
+- Login redirects to `/admin/sessions`
+- Now authenticated, flow goes to Step 4a
+
+#### What the Cookie Contains
+- **Cookie name**: `salient_session` (configurable via `session_config.cookie_name`)
+- **Cookie value**: Session key string (e.g., `"xva_WipVFTED2LZ0j-hV5_KwgV3yTdzX"`)
+- **Cookie attributes**:
+  - `HttpOnly=true` (JavaScript can't access it)
+  - `SameSite=None` or `null` (for cross-origin in dev)
+  - `Secure=false` (in dev), `Secure=true` (in production)
+  - `Max-Age=604800` (7 days default)
+
+#### What the Backend Looks For
+1. **SimpleSessionMiddleware** (runs first):
+   - Extracts `salient_session` cookie from request
+   - Queries `sessions` table: `WHERE session_key = <cookie_value>`
+   - Loads `session.meta` JSONB column
+   - Sets `request.scope["session"] = session.meta` (makes it available as dict)
+   
+2. **AdminAuthMiddleware** (runs second):
+   - Checks `request.session.get("admin_authenticated")`
+   - If `True`: checks `request.session.get("admin_expiry")`
+   - If expiry not passed: allows request through
+   - If `False` or expired: returns 401 Unauthorized
+
+#### Session Data Structure
+```python
+# sessions table row
+{
+  "id": "019a8045-623b-7670-a452-908588ff4143",
+  "session_key": "xva_WipVFTED2LZ0j-hV5_KwgV3yTdzX",
+  "meta": {
+    "admin_authenticated": true,           # ← Set by POST /api/admin/login
+    "admin_expiry": "2025-11-14T04:55:54Z" # ← Set by POST /api/admin/login
+  },
+  "created_at": "2025-11-14T02:50:22Z",
+  "is_anonymous": true
+}
+```
+
+#### Current vs Desired Flow
+
+**Current (Broken)**:
+1. User visits `/admin/sessions`
+2. Astro renders page (no auth check)
+3. Browser loads page, mounts Preact components
+4. SessionFilters fetches `/api/admin/sessions`
+5. Backend returns 401 Unauthorized
+6. Component redirects to `/admin/login`
+7. **Problem**: User sees flash of admin page before redirect
+
+**Desired (Fixed)**:
+1. User visits `/admin/sessions`
+2. Astro checks session cookie server-side
+3. Astro validates authentication (API call or DB query)
+4. If not authenticated: Astro returns 302 redirect to `/admin/login`
+5. If authenticated: Astro renders page
+6. **Result**: No flash, seamless experience
+
+#### Implementation Options
+
+**Option 1: Server-Side API Call (Recommended)**
+```astro
+---
+// web/src/pages/admin/sessions.astro
+const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+const sessionCookie = Astro.cookies.get('salient_session');
+
+if (!sessionCookie) {
+    return Astro.redirect('/admin/login');
+}
+
+// Verify authentication with backend
+try {
+    const response = await fetch(`${apiUrl}/api/admin/sessions?limit=1`, {
+        headers: {
+            'Cookie': `salient_session=${sessionCookie.value}`
+        }
+    });
+    
+    if (response.status === 401) {
+        return Astro.redirect('/admin/login');
+    }
+} catch (error) {
+    console.error('Auth check failed:', error);
+    return Astro.redirect('/admin/login');
+}
+---
+```
+
+**Option 2: Direct Database Query**
+```astro
+---
+import { getSessionByKey, isAdminAuthenticated } from '../../lib/auth';
+
+const sessionCookie = Astro.cookies.get('salient_session');
+
+if (!sessionCookie) {
+    return Astro.redirect('/admin/login');
+}
+
+const session = await getSessionByKey(sessionCookie.value);
+if (!session || !isAdminAuthenticated(session)) {
+    return Astro.redirect('/admin/login');
+}
+---
+```
+
+**Recommendation**: Use Option 1 (server-side API call) because:
+- Reuses existing authentication logic in `AdminAuthMiddleware`
+- No need to duplicate auth logic in Astro
+- Centralized auth validation in one place
+- Easier to maintain and test
+
+#### Implementation Status: COMPLETE ✅
+
+**Files Modified**:
+1. `/web/src/pages/admin/sessions.astro` - Added server-side auth check
+2. `/web/src/pages/admin/sessions/[id].astro` - Added server-side auth check
+3. `/backend/app/api/admin.py` - Enhanced logging for login process
+4. `/backend/app/middleware/admin_auth_middleware.py` - Added detailed session checking logs
+5. `/backend/app/middleware/simple_session_middleware.py` - Enhanced session persistence logging
+
+**Logging Added**:
+
+1. **Login Process** (`api.admin.login.setting_flags`, `api.admin.login.success`):
+   - Session ID
+   - Session meta before/after setting flags
+   - Username and expiry minutes
+
+2. **Session Loading** (`middleware.session.resumed`):
+   - Session ID
+   - Session meta loaded from database
+   - Confirms what authentication flags are present
+
+3. **Session Persistence** (`middleware.session.saving`, `middleware.session.committing`, `middleware.session.saved`):
+   - Session ID
+   - Meta data before save
+   - Meta data being committed
+   - Meta data after commit
+   - Verifies `flag_modified()` + `merge()` is working
+
+4. **Auth Checking** (`security.admin_auth.checking`, `security.admin_auth.not_authenticated`):
+   - Path being checked
+   - Session ID
+   - Session meta contents
+   - Whether admin_authenticated flag is present
+
+5. **Astro Server-Side** (console logs):
+   - Cookie presence check
+   - Backend auth verification response
+   - Redirect decisions
+
+#### Verification Checklist
+
+**Test 1: Unauthenticated User**
+1. Clear browser cookies
+2. Visit `http://localhost:4321/admin/sessions`
+3. **Expected**: Immediate redirect to `/admin/login` (NO page flash)
+4. **Logfire**: Should see `[Admin Auth] No session cookie found`
+
+**Test 2: Login Flow**
+1. On login page, enter credentials
+2. Submit login form
+3. **Expected**: Redirect to `/admin/sessions` with page visible
+4. **Logfire Sequence**:
+   ```
+   api.admin.login.setting_flags (session_meta_before: {})
+   api.admin.login.success (session_meta_after: {admin_authenticated: true, admin_expiry: "..."})
+   middleware.session.saving (meta_before_save: {admin_authenticated: true, ...})
+   middleware.session.committing (meta_to_commit: {admin_authenticated: true, ...})
+   middleware.session.saved (meta_saved: {admin_authenticated: true, ...})
+   ```
+
+**Test 3: Authenticated Session Persistence**
+1. After successful login, refresh page
+2. **Expected**: Page loads immediately (no redirect)
+3. **Logfire Sequence**:
+   ```
+   middleware.session.resumed (meta_loaded: {admin_authenticated: true, admin_expiry: "..."})
+   security.admin_auth.checking (has_admin_flag: true)
+   security.admin_auth.session_valid
+   ```
+
+**Test 4: Database Verification**
+1. After login, query database:
+   ```sql
+   SELECT id, session_key, meta FROM sessions 
+   ORDER BY updated_at DESC LIMIT 1;
+   ```
+2. **Expected**: `meta` column contains:
+   ```json
+   {
+     "admin_authenticated": true,
+     "admin_expiry": "2025-11-14T06:55:54Z"
+   }
+   ```
+
+**Test 5: Session Expiry**
+1. Log in successfully
+2. Manually set `ADMIN_SESSION_EXPIRY_MINUTES=1` in `.env`
+3. Wait 2 minutes
+4. Try to access `/admin/sessions`
+5. **Expected**: Redirect to `/admin/login`
+6. **Logfire**: Should see `security.admin_auth.session_expired`
+
+**Test 6: Cross-Tab Persistence**
+1. Log in on Tab 1
+2. Open Tab 2, visit `/admin/sessions`
+3. **Expected**: Immediate access (no login prompt)
+4. **Reason**: Session cookie shared across tabs
+
+#### Known Issues
+
+**Issue**: Console logs in Astro SSR don't appear in browser console
+**Solution**: Check server-side logs (terminal running `npm run dev`)
+
+**Issue**: Session cookie not forwarding in Astro SSR fetch
+**Status**: FIXED - Now forwarding `Cookie` header manually in server-side fetch
+
+---
+
+## BUG-0026-0002: Remove Login Functionality for Admin screen
+
+**Problem**: We're building a simple internal debugging tool (view sessions, inspect prompts, trace tool calls) but we've added login/session complexity that's blocking progress. Authentication is unnecessary for a localhost debugging tool.
+
+**Goal**: Strip out ALL authentication, keep the core value proposition:
+1. Browse chat sessions
+2. View conversation history
+3. Inspect prompt breakdowns
+4. Trace tool calls
+
+**Decision**: No login, no auth checks, no session management. Just simple read-only data endpoints accessible on localhost during development.
+
+### Files to DELETE
+
+1. **`web/src/pages/admin/login.astro`** - Login page (not needed)
+2. **`web/src/pages/admin/login-htmx.astro`** - HTMX login experiment (not needed)
+3. **`web/src/components/admin/LoginForm.tsx`** - Login form component (not needed)
+4. **`backend/app/middleware/admin_auth_middleware.py`** - Auth middleware (blocking requests)
+
+**Total**: 4 files deleted
+
+### Files to MODIFY (Remove Auth Logic)
+
+#### Backend Changes
+
+1. **`backend/app/main.py`**
+   - **Remove**: `from .middleware.admin_auth_middleware import AdminAuthMiddleware`
+   - **Remove**: `app.add_middleware(AdminAuthMiddleware)`
+   - **Keep**: Everything else (CORS, session middleware for chat)
+
+2. **`backend/app/api/admin.py`**
+   - **Remove**: `POST /api/admin/login` endpoint
+   - **Remove**: `POST /api/admin/logout` endpoint
+   - **Remove**: All imports related to auth (secrets, datetime for expiry)
+   - **Keep**: All GET endpoints (sessions, messages, llm-requests)
+
+#### Frontend Changes
+
+3. **`web/src/pages/admin/sessions.astro`**
+   - **Remove**: Entire server-side auth check block (lines checking cookie, calling backend)
+   - **Remove**: Auth-related imports
+   - **Simplify**: Just render page directly, no redirects
+
+4. **`web/src/pages/admin/sessions/[id].astro`**
+   - **Remove**: Entire server-side auth check block
+   - **Simplify**: Just fetch and render session data
+
+5. **`web/src/components/admin/SessionFilters.tsx`**
+   - **Remove**: `credentials: 'include'` from fetch calls (not needed)
+   - **Remove**: 401 handling and redirect logic
+   - **Simplify**: Just fetch data, show errors if fetch fails
+
+6. **`web/src/components/admin/SessionDetail.tsx`**
+   - **Remove**: `credentials: 'include'` from fetch calls
+   - **Remove**: 401 handling and redirect logic
+   - **Simplify**: Just fetch and display messages
+
+7. **`web/src/components/admin/PromptInspector.tsx`**
+   - **Remove**: `credentials: 'include'` from fetch calls
+   - **Remove**: 401 handling and redirect logic
+   - **Simplify**: Just fetch and display prompt breakdown
+
+**Total**: 7 files modified
+
+### What We're KEEPING (The Core Value)
+
+✅ **Database Layer**:
+- `llm_requests.meta` JSONB column for prompt breakdowns
+- `messages.meta` for tool calls
+- All existing tables and relationships
+
+✅ **Backend Services**:
+- `PromptBreakdownService` - captures prompt composition
+- Integration in `simple_chat.py` - tracks how prompts are assembled
+
+✅ **Backend APIs** (read-only):
+- `GET /api/admin/sessions` - list sessions with filters
+- `GET /api/admin/sessions/{id}/messages` - conversation history
+- `GET /api/admin/llm-requests/{id}` - detailed prompt breakdown
+
+✅ **Frontend Pages**:
+- `/admin/sessions` - browse all sessions
+- `/admin/sessions/{id}` - view conversation + prompt inspector
+- `/admin` - redirect to sessions
+
+✅ **Frontend Components**:
+- `SessionFilters.tsx` - interactive table with filtering
+- `SessionDetail.tsx` - conversation timeline
+- `PromptInspector.tsx` - expandable prompt sections
+
+### Architecture After Cleanup
+
+```
+┌─────────────────────────────────────────────┐
+│  Browser: localhost:4321/admin/sessions    │
+└────────────────┬────────────────────────────┘
+                 │
+                 │ Simple fetch (no auth)
+                 │
+┌────────────────▼────────────────────────────┐
+│  Backend: localhost:8000/api/admin/*        │
+│  - GET /sessions                            │
+│  - GET /sessions/{id}/messages              │
+│  - GET /llm-requests/{id}                   │
+│                                             │
+│  NO MIDDLEWARE (except CORS)                │
+└────────────────┬────────────────────────────┘
+                 │
+                 │ SQLAlchemy queries
+                 │
+┌────────────────▼────────────────────────────┐
+│  PostgreSQL Database                        │
+│  - sessions table                           │
+│  - messages table (meta["tool_calls"])      │
+│  - llm_requests table (meta["breakdown"])   │
+└─────────────────────────────────────────────┘
+```
+
+### Complexity Removed
+
+**Before**: 
+- Login page + form component
+- Session-based auth middleware
+- Cookie management across origins
+- Server-side auth checks in Astro
+- Client-side 401 handling and redirects
+- Login/logout endpoints
+- Password management
+- Session expiry logic
+
+**After**:
+- Direct page access
+- Simple fetch calls
+- No redirects
+- No authentication flow
+- **Result**: ~500 lines of code removed, zero auth debugging
+
+### Security Note
+
+This is appropriate because:
+1. **Development tool** - runs on localhost only
+2. **Read-only** - no data modification endpoints
+3. **Internal use** - not exposed to public internet
+4. **Temporary** - if we deploy to production later, we can add proper auth then
+
+For production deployment (if ever needed), we'd add:
+- Reverse proxy auth (nginx basic auth)
+- VPN requirement
+- OAuth/SSO integration
+- Or keep it localhost-only (SSH tunnel for remote access)
+
+### Implementation Order
+
+1. **Delete 4 files** (login pages, LoginForm, AdminAuthMiddleware)
+2. **Clean backend**: Remove login endpoints, remove middleware registration
+3. **Clean frontend**: Remove auth checks from Astro pages
+4. **Simplify components**: Remove credentials/401 handling from Preact components
+5. **Test**: Visit localhost:4321/admin/sessions → should load instantly, no redirects
+6. **Commit**: "refactor: remove authentication complexity from admin UI"
+
+### Expected Outcome
+
+- Visit `localhost:4321/admin/sessions` → page loads immediately
+- Click session → see conversation history
+- Click "View Prompt" → see breakdown
+- **Zero friction, zero auth errors, just data**
+
+
+
+---
+
 
 ### Phase 4: UI Polish & Layout Improvements
 
