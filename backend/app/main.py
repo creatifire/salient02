@@ -128,6 +128,7 @@ import logfire
 from .config import load_config
 from .database import get_database_service, initialize_database, shutdown_database
 from .middleware.simple_session_middleware import SimpleSessionMiddleware, get_current_session
+from .middleware.admin_auth_middleware import AdminAuthMiddleware
 from .openrouter_client import chat_completion_content, stream_chat_chunks
 from .services.message_service import get_message_service
 
@@ -261,6 +262,11 @@ app.add_middleware(
     SimpleSessionMiddleware,
     exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]
 )
+
+# Admin authentication middleware for /api/admin/* endpoints
+# Protects admin debugging interfaces with HTTP Basic Auth
+# Credentials: ADMIN_USERNAME and ADMIN_PASSWORD environment variables
+app.add_middleware(AdminAuthMiddleware)
 
 # Static file serving configuration for assets (images, CSS, JS)
 # Mount static files directory for serving SVG icons and other assets
@@ -444,3 +450,8 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
 # Include multi-tenant endpoints for account-scoped agent instances
 from .api.account_agents import router as account_agents_router
 app.include_router(account_agents_router)
+
+# Admin API Router Registration
+# Include admin debugging endpoints for chat tracing and LLM inspection
+from .api.admin import router as admin_router
+app.include_router(admin_router)

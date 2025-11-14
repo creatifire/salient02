@@ -32,6 +32,7 @@ from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
+from ..services.prompt_breakdown_service import PromptBreakdownService
 from .chat_helpers import build_request_messages, build_response_body, extract_session_account_info, save_message_pair
 from .cost_calculator import calculate_streaming_costs, track_chat_request
 from .tools.toolsets import get_enabled_toolsets
@@ -115,7 +116,7 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
 async def create_simple_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> Agent:  # Fixed: async function
+) -> tuple[Agent, dict]:  # Fixed: return agent and prompt_breakdown
     """
     Create a simple chat agent with OpenRouter provider for cost tracking.
     
@@ -170,6 +171,13 @@ async def create_simple_chat_agent(
             mode='fallback'
         )
         
+        # Create minimal prompt breakdown for fallback mode
+        prompt_breakdown = PromptBreakdownService.capture_breakdown(
+            base_prompt=system_prompt,
+            account_slug=None,
+            agent_instance_slug=None
+        )
+        
         agent = Agent(
             model_name_simple,
             deps_type=SessionDependencies,
@@ -177,7 +185,7 @@ async def create_simple_chat_agent(
             toolsets=toolsets  # NEW: Pass toolsets list
         )
         
-        return agent
+        return agent, prompt_breakdown
     
     # PHASE 4A: Load critical tool selection rules FIRST (before everything else)
     # This ensures LLM sees tool selection guidance before tool descriptions
@@ -223,6 +231,9 @@ async def create_simple_chat_agent(
     # Construct prompt with critical rules at the top
     system_prompt = critical_rules + base_system_prompt
     
+    # Initialize variables for prompt breakdown tracking
+    directory_docs = ""
+    
     # Auto-generate directory tool documentation if enabled
     directory_config = (instance_config or {}).get("tools", {}).get("directory", {})
     if directory_config.get("enabled", False) and account_id is not None:
@@ -265,6 +276,9 @@ async def create_simple_chat_agent(
     # Load remaining prompt modules (Phase 4A) - skip tool_selection_hints (already loaded at top)
     from .tools.prompt_modules import load_modules_for_agent, load_prompt_module
     
+    # Initialize module tracking for prompt breakdown
+    other_modules = []
+    
     # Load other modules (excluding tool_selection_hints which is already at the top)
     prompting_config = (instance_config or {}).get('prompting', {}).get('modules', {})
     if prompting_config.get('enabled', False):
@@ -289,6 +303,17 @@ async def create_simple_chat_agent(
                     final_prompt_length=len(system_prompt),
                     note='tool_selection_hints loaded at top'
                 )
+    
+    # Capture prompt breakdown for admin debugging
+    prompt_breakdown = PromptBreakdownService.capture_breakdown(
+        base_prompt=base_system_prompt,
+        critical_rules=critical_rules if critical_rules else None,
+        directory_docs=directory_docs if directory_config.get("enabled", False) and account_id is not None else None,
+        modules={name: load_prompt_module(name, account_slug) 
+                 for name in other_modules} if prompting_config.get('enabled') and other_modules else None,
+        account_slug=account_slug,
+        agent_instance_slug=instance_config.get('slug') if instance_config else None
+    )
     
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
@@ -346,12 +371,12 @@ async def create_simple_chat_agent(
         toolsets=toolsets  # NEW: Pass toolsets list
     )
     
-    return agent
+    return agent, prompt_breakdown
 
 async def get_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> Agent:  # Fixed: async function
+) -> tuple[Agent, dict]:  # Fixed: return agent and prompt_breakdown
     """
     Create a fresh chat agent instance.
     
@@ -365,10 +390,11 @@ async def get_chat_agent(
     """
     # Always create fresh agent to pick up latest configuration
     # This ensures config changes work reliably in production
-    return await create_simple_chat_agent(
+    agent, prompt_breakdown = await create_simple_chat_agent(
         instance_config=instance_config,
         account_id=account_id
     )
+    return agent, prompt_breakdown
 
 async def simple_chat(
     message: str, 
@@ -430,7 +456,7 @@ async def simple_chat(
     
     # Get the agent (Fixed: await async function)
     # Pass instance_config and account_id for multi-tenant support and directory docs generation
-    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    agent, prompt_breakdown = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for debugging
     config_to_use = instance_config if instance_config is not None else load_config()
@@ -636,7 +662,8 @@ async def simple_chat(
                     account_slug=account_slug,
                     agent_instance_slug=agent_instance_slug,
                     agent_type=agent_type,
-                    completion_status="complete"
+                    completion_status="complete",
+                    meta={"prompt_breakdown": prompt_breakdown}  # Admin debugging
                 )
         
             # Save messages to database for multi-tenant message attribution
@@ -654,13 +681,27 @@ async def simple_chat(
                         content=message
                     )
                 
-                    # Save assistant response (link to same LLM request)
+                    # Extract tool calls from result for admin debugging
+                    tool_calls_meta = []
+                    if result.all_messages():
+                        from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+                        for msg in result.all_messages():
+                            if hasattr(msg, 'parts'):
+                                for part in msg.parts:
+                                    if isinstance(part, ToolCallPart):
+                                        tool_calls_meta.append({
+                                            "tool_name": part.tool_name,
+                                            "args": part.args
+                                        })
+                
+                    # Save assistant response (link to same LLM request) with tool calls
                     await message_service.save_message(
                         session_id=UUID(session_id),
                         agent_instance_id=agent_instance_id,
                         llm_request_id=llm_request_id,
                         role="assistant",
-                        content=response_text
+                        content=response_text,
+                        metadata={"tool_calls": tool_calls_meta} if tool_calls_meta else None
                     )
                 
                     logfire.info(
@@ -786,7 +827,7 @@ async def simple_chat_stream(
         )
     
     # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
-    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    agent, prompt_breakdown = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for logging
     config_to_use = instance_config if instance_config is not None else load_config()
@@ -1113,7 +1154,8 @@ async def simple_chat_stream(
                     account_slug=account_slug,
                     agent_instance_slug=agent_instance_slug,
                     agent_type=agent_type,
-                    completion_status="complete"
+                    completion_status="complete",
+                    meta={"prompt_breakdown": prompt_breakdown}  # Admin debugging
                 )
                 
                 logfire.info(
@@ -1145,13 +1187,27 @@ async def simple_chat_stream(
                 content=message
             )
             
-            # Save assistant response (link to same LLM request)
+            # Extract tool calls from result for admin debugging
+            tool_calls_meta = []
+            if result.all_messages():
+                from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+                for msg in result.all_messages():
+                    if hasattr(msg, 'parts'):
+                        for part in msg.parts:
+                            if isinstance(part, ToolCallPart):
+                                tool_calls_meta.append({
+                                    "tool_name": part.tool_name,
+                                    "args": part.args
+                                })
+            
+            # Save assistant response (link to same LLM request) with tool calls
             await message_service.save_message(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
                 llm_request_id=llm_request_id,
                 role="assistant",
-                content=response_text
+                content=response_text,
+                metadata={"tool_calls": tool_calls_meta} if tool_calls_meta else None
             )
             
             logfire.info(
