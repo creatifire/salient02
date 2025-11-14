@@ -128,7 +128,6 @@ import logfire
 from .config import load_config
 from .database import get_database_service, initialize_database, shutdown_database
 from .middleware.simple_session_middleware import SimpleSessionMiddleware, get_current_session
-from .middleware.admin_auth_middleware import AdminAuthMiddleware
 from .openrouter_client import chat_completion_content, stream_chat_chunks
 from .services.message_service import get_message_service
 
@@ -255,16 +254,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Admin authentication middleware for /api/admin/* endpoints
-# Protects admin debugging interfaces with session-based authentication
-# Credentials: ADMIN_USERNAME and ADMIN_PASSWORD environment variables
-# NOTE: Must be registered BEFORE SimpleSessionMiddleware so session runs first
-app.add_middleware(AdminAuthMiddleware)
-
 # Middleware Configuration: Session management with path exclusions
 # SimpleSessionMiddleware provides automatic session creation, validation, and persistence
 # Excluded paths are optimized for performance (health checks, static assets, dev tools)
-# NOTE: Registered AFTER AdminAuthMiddleware so it executes FIRST (middleware stack is LIFO)
 app.add_middleware(
     SimpleSessionMiddleware,
     exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]

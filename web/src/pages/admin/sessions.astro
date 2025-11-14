@@ -3,12 +3,8 @@
  * Admin - Session List Page
  * 
  * Displays list of chat sessions with filtering by account/agent.
- * Provides quick access to session details for debugging.
+ * No authentication required - localhost development tool.
  */
-
-// Note: Auth check happens client-side in SessionFilters component
-// which will redirect to /admin/login if 401 received
-const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <!DOCTYPE html>

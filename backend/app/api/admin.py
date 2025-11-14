@@ -3,16 +3,13 @@ Admin API endpoints for chat tracing and debugging.
 
 Provides read-only access to session history, LLM requests, and prompt breakdowns
 for debugging tool selection and prompt composition issues.
+
+No authentication required - localhost development tool only.
 """
-import os
-import secrets
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi import APIRouter, Query, HTTPException
 from sqlalchemy import select, func, desc
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 import logfire
 
 from ..models.session import Session
@@ -22,63 +19,6 @@ from ..database import get_database_service
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
-
-
-class AdminLoginRequest(BaseModel):
-    """Request model for admin login."""
-    username: str
-    password: str
-
-
-@router.post("/login")
-async def admin_login(credentials: AdminLoginRequest, request: Request):
-    """
-    Validate admin credentials and set session authentication.
-    
-    On success, sets session["admin_authenticated"] with expiry timestamp.
-    Returns success message and expiry time.
-    """
-    # Load credentials from env
-    admin_username = os.getenv("ADMIN_USERNAME", "admin")
-    admin_password = os.getenv("ADMIN_PASSWORD", "changeme")
-    
-    # Validate credentials (timing-safe comparison)
-    if not (secrets.compare_digest(credentials.username, admin_username) and 
-            secrets.compare_digest(credentials.password, admin_password)):
-        logfire.warn('api.admin.login.failed', username=credentials.username)
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    # Set session authentication with expiry (default: 2 hours)
-    expiry_minutes = int(os.getenv("ADMIN_SESSION_EXPIRY_MINUTES", "120"))
-    expiry = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
-    
-    request.session["admin_authenticated"] = True
-    request.session["admin_expiry"] = expiry.isoformat()
-    
-    logfire.info(
-        'api.admin.login.success',
-        username=credentials.username,
-        expiry_minutes=expiry_minutes
-    )
-    
-    return {
-        "success": True,
-        "expires_in_minutes": expiry_minutes,
-        "expires_at": expiry.isoformat()
-    }
-
-
-@router.post("/logout")
-async def admin_logout(request: Request):
-    """Clear admin session authentication."""
-    if "admin_authenticated" in request.session:
-        del request.session["admin_authenticated"]
-    if "admin_expiry" in request.session:
-        del request.session["admin_expiry"]
-    
-    logfire.info('api.admin.logout')
-    
-    return {"success": True, "message": "Logged out"}
 
 
 @router.get("/sessions")

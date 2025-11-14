@@ -46,15 +46,7 @@ export function SessionDetail({ sessionId, apiUrl }: SessionDetailProps) {
         setError(null);
 
         try {
-            const response = await fetch(`${apiUrl}/api/admin/sessions/${sessionId}/messages`, {
-                credentials: 'include' // Send session cookies
-            });
-
-            // Handle 401 - redirect to login
-            if (response.status === 401) {
-                window.location.href = '/admin/login';
-                return;
-            }
+            const response = await fetch(`${apiUrl}/api/admin/sessions/${sessionId}/messages`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

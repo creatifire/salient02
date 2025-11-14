@@ -41,15 +41,7 @@ export function SessionFilters({ apiUrl }: SessionFiltersProps) {
             if (agent) params.append('agent', agent);
             params.append('limit', '50');
 
-            const response = await fetch(`${apiUrl}/api/admin/sessions?${params}`, {
-                credentials: 'include' // Send session cookies
-            });
-
-            // Handle 401 - redirect to login
-            if (response.status === 401) {
-                window.location.href = '/admin/login';
-                return;
-            }
+            const response = await fetch(`${apiUrl}/api/admin/sessions?${params}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

@@ -57,15 +57,7 @@ export function PromptInspector({ requestId, apiUrl, onClose }: PromptInspectorP
         setError(null);
 
         try {
-            const response = await fetch(`${apiUrl}/api/admin/llm-requests/${requestId}`, {
-                credentials: 'include' // Send session cookies
-            });
-
-            // Handle 401 - redirect to login
-            if (response.status === 401) {
-                window.location.href = '/admin/login';
-                return;
-            }
+            const response = await fetch(`${apiUrl}/api/admin/llm-requests/${requestId}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

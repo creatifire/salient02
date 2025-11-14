@@ -86,6 +86,7 @@ import logfire
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
@@ -362,7 +363,12 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
                     
                     if session:
                         # Valid session found: log resumption for debugging and analytics
-                        logfire.debug('middleware.session.resumed', session_key_prefix=session.session_key[:8])
+                        logfire.info(
+                            'middleware.session.resumed',
+                            session_key_prefix=session.session_key[:8],
+                            session_id=str(session.id),
+                            meta_loaded=session.meta
+                        )
                     else:
                         # Invalid session cookie: log for security monitoring
                         logfire.debug('middleware.session.cookie_invalid', session_key_prefix=session_cookie[:8])
@@ -418,13 +424,37 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         # This ensures modifications via request.session (like admin_authenticated) are saved
         if session and "session" in request.scope:
             try:
-                # The session.meta dict was modified in place, so we need to mark it as dirty
+                # Log what we're about to save
+                logfire.info(
+                    'middleware.session.saving',
+                    session_id=str(session.id),
+                    meta_before_save=session.meta,
+                    scope_session_data=dict(request.scope["session"]) if "session" in request.scope else {}
+                )
+                
                 # Use the middleware's own isolated database session factory
                 async with self._session_factory() as db_session:
-                    # Merge the session back into this db session and commit
-                    db_session.add(session)
+                    # Merge the detached session object into this new db session context
+                    # merge() properly handles the state transfer from the detached object
+                    merged_session = await db_session.merge(session)
+                    
+                    # Now mark the meta field as modified in THIS session context
+                    # SQLAlchemy doesn't auto-detect changes to mutable JSONB fields
+                    flag_modified(merged_session, "meta")
+                    
+                    logfire.info(
+                        'middleware.session.committing',
+                        session_id=str(merged_session.id),
+                        meta_to_commit=merged_session.meta
+                    )
+                    
                     await db_session.commit()
-                    logfire.debug('middleware.session.saved', session_id=str(session.id))
+                    
+                    logfire.info(
+                        'middleware.session.saved',
+                        session_id=str(merged_session.id),
+                        meta_saved=merged_session.meta
+                    )
             except Exception as e:
                 # Session save errors should not break the response
                 logfire.exception('middleware.session.save_failed', error=str(e))

@@ -3,14 +3,10 @@
  * Admin - Session Detail Page
  * 
  * Displays conversation timeline with LLM request metadata and prompt inspector.
- * Allows drilling into individual LLM requests for debugging.
+ * No authentication required - localhost development tool.
  */
 
 const { id } = Astro.params;
-const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
-
-// Note: Auth check happens client-side in SessionDetail component
-// which will redirect to /admin/login if 401 received
 ---
 
 <!DOCTYPE html>
