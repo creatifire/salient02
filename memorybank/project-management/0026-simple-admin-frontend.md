@@ -765,7 +765,7 @@ if (!sessionCookie) {
 ---
 ```
 
-**Step 3: If cookie exists, verify authentication with backend**
+**Step 3A: If cookie exists, verify authentication with backend - DEPRECATED** 
 - **Option A (Simple)**: Make server-side fetch to `/api/admin/sessions?limit=1`
   - If 200: User is authenticated → render page
   - If 401: Session exists but not authenticated → redirect to login
@@ -1179,7 +1179,489 @@ For production deployment (if ever needed), we'd add:
 - Click "View Prompt" → see breakdown
 - **Zero friction, zero auth errors, just data**
 
+---
 
+## Phase 3B: Session Browser in HTMX
+
+**Goal**: Replace Astro + Preact complexity with simple HTMX + vanilla HTML/JS in `web/public/admin/`
+
+**Current Problem**: 
+- Astro SSR configuration causing routing issues (`GetStaticPathsRequired` errors)
+- Preact hydration not working reliably
+- Build complexity and framework overhead for a simple debugging tool
+- ~15 files, multiple layers (Astro pages → Preact components → API calls)
+
+**Solution**: 
+- **3 static HTML files** in `web/public/admin/` (no build, no SSR, no hydration)
+- **HTMX v2.0.7** for declarative data fetching
+- **Vanilla JavaScript** for JSON → HTML rendering
+- **TailwindCSS CDN** for styling (no build step)
+
+**Architecture**:
+```
+web/public/admin/
+├── sessions.html          # List all sessions (filters, table)
+├── session.html           # View single session (messages + prompt inspector)
+└── styles.css             # Shared styles (optional)
+
+Backend APIs (already exist, no changes):
+- GET /api/admin/sessions
+- GET /api/admin/sessions/{id}/messages
+- GET /api/admin/llm-requests/{id}
+```
+
+---
+
+### Feature 0026-008: HTMX Session Browser
+
+#### Task 0026-008-001: Create Sessions List Page
+
+**File**: `web/public/admin/sessions.html`
+
+**Requirements**:
+- Load on page load (HTMX `hx-trigger="load"`)
+- Fetch `/api/admin/sessions?limit=50`
+- Render JSON as HTML table using vanilla JS
+- Account/Agent filter dropdowns (trigger new fetch)
+- Refresh button
+- Link to session detail page
+
+**Implementation**:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Sessions | OpenThought</title>
+    
+    <!-- HTMX v2.0.7 (latest) -->
+    <script src="https://unpkg.com/htmx.org@2.0.7"></script>
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="bg-white shadow-sm rounded-lg mb-6 p-6">
+            <h1 class="text-2xl font-bold text-gray-900">Chat Sessions</h1>
+            <p class="text-sm text-gray-500 mt-1">Debug LLM tool selection and prompt composition</p>
+        </header>
+
+        <!-- Filters -->
+        <div class="bg-white shadow-sm rounded-lg mb-6 p-6">
+            <div class="flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Account</label>
+                    <select id="account-filter" 
+                            class="w-full border border-gray-300 rounded-md px-3 py-2"
+                            onchange="fetchSessions()">
+                        <option value="">All Accounts</option>
+                        <option value="wyckoff">Wyckoff</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Agent</label>
+                    <select id="agent-filter" 
+                            class="w-full border border-gray-300 rounded-md px-3 py-2"
+                            onchange="fetchSessions()">
+                        <option value="">All Agents</option>
+                        <option value="wyckoff_info_chat1">wyckoff_info_chat1</option>
+                    </select>
+                </div>
+                <div>
+                    <button onclick="fetchSessions()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions Table -->
+        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div id="sessions-container" 
+                 hx-get="/api/admin/sessions?limit=50" 
+                 hx-trigger="load"
+                 hx-on::after-request="renderSessions(event)">
+                <div class="p-6 text-center text-gray-500">
+                    <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading sessions...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Render sessions table from JSON response
+        function renderSessions(event) {
+            const data = JSON.parse(event.detail.xhr.response);
+            const container = document.getElementById('sessions-container');
+            
+            if (!data.sessions || data.sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        No sessions found
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = `
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Messages</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${data.sessions.map(session => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                                    ${session.id.substring(0, 13)}...
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${session.account_slug || '-'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${session.agent_instance_slug || '-'}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    ${session.message_count || 0}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    ${new Date(session.created_at).toLocaleString()}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                    <a href="/admin/session.html?id=${session.id}" 
+                                       class="text-blue-600 hover:text-blue-800 font-medium">
+                                        View Detail →
+                                    </a>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 text-sm text-gray-500">
+                    Showing ${data.sessions.length} of ${data.total || data.sessions.length} sessions
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // Fetch sessions with filters
+        function fetchSessions() {
+            const account = document.getElementById('account-filter').value;
+            const agent = document.getElementById('agent-filter').value;
+            
+            const params = new URLSearchParams();
+            if (account) params.append('account', account);
+            if (agent) params.append('agent', agent);
+            params.append('limit', '50');
+            
+            // Manually trigger HTMX request with new URL
+            const container = document.getElementById('sessions-container');
+            htmx.ajax('GET', `/api/admin/sessions?${params}`, {
+                target: '#sessions-container',
+                swap: 'none' // We handle rendering in renderSessions()
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+**Benefits**:
+- No build step, edit and refresh
+- HTMX handles loading state automatically
+- Vanilla JS for full control over rendering
+- TailwindCSS CDN for instant styling
+- Works immediately in any browser
+
+---
+
+#### Task 0026-008-002: Create Session Detail Page
+
+**File**: `web/public/admin/session.html`
+
+**Requirements**:
+- Read session ID from URL query param (`?id=xxx`)
+- Fetch `/api/admin/sessions/{id}/messages` on load
+- Display conversation timeline (user/assistant messages)
+- Show LLM metadata (model, tokens, cost)
+- Expandable prompt inspector (fetch `/api/admin/llm-requests/{id}` on click)
+- Back to sessions link
+
+**Implementation Sketch**:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Session Detail | Admin</title>
+    <script src="https://unpkg.com/htmx.org@2.0.7"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header with back link -->
+        <header class="mb-6">
+            <a href="/admin/sessions.html" class="text-blue-600 hover:text-blue-800 text-sm">
+                ← Back to Sessions
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900 mt-2">Session Detail</h1>
+            <p id="session-id" class="text-sm text-gray-500 font-mono mt-1"></p>
+        </header>
+
+        <!-- Messages Timeline -->
+        <div id="messages-container"
+             hx-trigger="load"
+             hx-on::after-request="renderMessages(event)">
+            <div class="text-center text-gray-500">Loading messages...</div>
+        </div>
+    </div>
+
+    <script>
+        // Get session ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('id');
+        
+        if (!sessionId) {
+            document.body.innerHTML = '<p class="text-red-600 p-6">No session ID provided</p>';
+        } else {
+            document.getElementById('session-id').textContent = sessionId;
+            
+            // Fetch messages on load
+            htmx.ajax('GET', `/api/admin/sessions/${sessionId}/messages`, {
+                target: '#messages-container',
+                swap: 'none'
+            });
+        }
+        
+        function renderMessages(event) {
+            const data = JSON.parse(event.detail.xhr.response);
+            const container = document.getElementById('messages-container');
+            
+            if (!data.messages || data.messages.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 p-6">No messages in this session</p>';
+                return;
+            }
+            
+            const html = data.messages.map(msg => {
+                const isUser = msg.role === 'user';
+                const bgColor = isUser ? 'bg-blue-50' : 'bg-white';
+                const borderColor = isUser ? 'border-blue-200' : 'border-gray-200';
+                
+                return `
+                    <div class="mb-4 p-4 rounded-lg border ${borderColor} ${bgColor}">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm ${isUser ? 'text-blue-700' : 'text-gray-700'}">
+                                ${isUser ? '👤 User' : '🤖 Assistant'}
+                            </span>
+                            <span class="text-xs text-gray-500">
+                                ${new Date(msg.created_at).toLocaleString()}
+                            </span>
+                        </div>
+                        <p class="text-gray-900 whitespace-pre-wrap">${msg.content}</p>
+                        
+                        ${msg.llm_request_id ? `
+                            <button onclick="loadPromptBreakdown('${msg.llm_request_id}')" 
+                                    class="mt-3 text-sm text-blue-600 hover:text-blue-800">
+                                🔍 View Prompt Breakdown
+                            </button>
+                            <div id="breakdown-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-gray-50 rounded text-sm">
+                                Loading...
+                            </div>
+                        ` : ''}
+                        
+                        ${msg.meta?.tool_calls ? `
+                            <div class="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
+                                <p class="text-xs font-semibold text-yellow-800 mb-2">Tool Calls:</p>
+                                <pre class="text-xs text-gray-700">${JSON.stringify(msg.meta.tool_calls, null, 2)}</pre>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        function loadPromptBreakdown(requestId) {
+            const breakdownDiv = document.getElementById(`breakdown-${requestId}`);
+            
+            if (!breakdownDiv.classList.contains('hidden')) {
+                breakdownDiv.classList.add('hidden');
+                return;
+            }
+            
+            fetch(`/api/admin/llm-requests/${requestId}`)
+                .then(r => r.json())
+                .then(data => {
+                    const breakdown = data.prompt_breakdown;
+                    if (!breakdown) {
+                        breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
+                        breakdownDiv.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    const html = `
+                        <p class="font-semibold mb-2">Prompt Sections (${breakdown.total_char_count.toLocaleString()} chars):</p>
+                        <ul class="space-y-2">
+                            ${breakdown.sections.map(section => `
+                                <li class="flex justify-between items-center">
+                                    <span class="font-mono text-xs">${section.position}. ${section.name}</span>
+                                    <span class="text-gray-600">${section.char_count.toLocaleString()} chars</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                    
+                    breakdownDiv.innerHTML = html;
+                    breakdownDiv.classList.remove('hidden');
+                })
+                .catch(err => {
+                    breakdownDiv.innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
+                    breakdownDiv.classList.remove('hidden');
+                });
+        }
+    </script>
+</body>
+</html>
+```
+
+---
+
+#### Task 0026-008-003: Delete Astro and Preact Files
+
+**Files to DELETE** (no longer needed):
+
+**Astro Pages** (3 files):
+1. `web/src/pages/admin/index.astro`
+2. `web/src/pages/admin/sessions.astro`
+3. `web/src/pages/admin/sessions/[id].astro`
+
+**Preact Components** (3 files):
+4. `web/src/components/admin/SessionFilters.tsx`
+5. `web/src/components/admin/SessionDetail.tsx`
+6. `web/src/components/admin/PromptInspector.tsx`
+
+**Directories to DELETE** (if empty after removing above):
+7. `web/src/pages/admin/` (entire directory)
+8. `web/src/components/admin/` (entire directory)
+
+**Total**: 6 files + 2 directories removed
+
+**What's LEFT**:
+- `web/public/admin/sessions.html` (new)
+- `web/public/admin/session.html` (new)
+- Backend APIs (unchanged)
+- Database schema (unchanged)
+- `PromptBreakdownService` (unchanged)
+
+---
+
+#### Task 0026-008-004: Update Astro Config (Optional Cleanup)
+
+**File**: `web/astro.config.mjs`
+
+Since we're no longer using Astro pages for admin, we can optionally:
+- Remove `output: 'hybrid'` (revert to default static)
+- Keep Preact integration for chat UI (if still needed elsewhere)
+- Keep proxy config for API calls
+
+**Decision**: Leave config as-is unless admin was the ONLY reason for SSR mode.
+
+---
+
+### Comparison: Before vs After
+
+| Aspect | Before (Astro + Preact) | After (HTMX + Vanilla JS) |
+|--------|------------------------|---------------------------|
+| **Files** | 6 files (3 Astro + 3 Preact) | 2 HTML files |
+| **Build** | Required (`npm run build`) | None (edit and refresh) |
+| **Dependencies** | Astro, Preact, @astrojs/preact | HTMX CDN, TailwindCSS CDN |
+| **Hydration** | Client-side hydration issues | No hydration needed |
+| **Routing** | Astro SSR with dynamic routes | Simple URL query params |
+| **Debugging** | Framework stack traces | Standard browser console |
+| **Load Time** | ~200-500ms (SSR + hydration) | ~50-100ms (static HTML) |
+| **Code Size** | ~500 lines across 6 files | ~200 lines across 2 files |
+
+---
+
+### Benefits of HTMX Approach
+
+1. **Simplicity**: 2 HTML files vs 6+ framework files
+2. **No Build Step**: Edit HTML, refresh browser, done
+3. **No Hydration**: No framework mounting/rendering issues
+4. **Standard Web**: Just HTML + JS + CSS (any developer can read it)
+5. **Fast**: Static HTML loads instantly
+6. **Debuggable**: Browser DevTools, no framework abstractions
+7. **Portable**: Copy HTML files anywhere, they work
+
+---
+
+### Testing Checklist
+
+**Test 1: Sessions List**
+1. Visit `http://localhost:4321/admin/sessions.html`
+2. **Expected**: Table loads with sessions from database
+3. **Expected**: Account/Agent filters work
+4. **Expected**: Refresh button reloads data
+
+**Test 2: Session Detail**
+1. Click "View Detail" on any session
+2. **Expected**: Redirects to `/admin/session.html?id=xxx`
+3. **Expected**: Messages display in timeline
+4. **Expected**: User/Assistant messages styled differently
+
+**Test 3: Prompt Inspector**
+1. Click "🔍 View Prompt Breakdown" on any assistant message
+2. **Expected**: Breakdown expands with sections list
+3. **Expected**: Shows character counts and sources
+4. **Expected**: Clicking again collapses it
+
+**Test 4: Tool Calls**
+1. Find message with tool calls in `meta`
+2. **Expected**: Yellow box shows tool call details
+3. **Expected**: JSON formatted and readable
+
+**Test 5: Browser Compatibility**
+1. Test in Chrome, Firefox, Safari
+2. **Expected**: Works identically in all browsers
+3. **Expected**: No console errors
+
+---
+
+### Migration Steps
+
+1. **Create** `web/public/admin/sessions.html` (Task 0026-008-001)
+2. **Create** `web/public/admin/session.html` (Task 0026-008-002)
+3. **Test** both pages work correctly
+4. **Delete** 6 Astro/Preact files (Task 0026-008-003)
+5. **Delete** empty directories (`web/src/pages/admin/`, `web/src/components/admin/`)
+6. **Commit**: `"refactor: replace Astro+Preact admin UI with HTMX+vanilla JS (2 HTML files, zero build)"`
+
+---
+
+### Future Enhancements (Post-MVP)
+
+If we need more features later:
+- **Pagination**: Add prev/next buttons with offset tracking
+- **Search**: Add text search input that filters sessions
+- **Export**: Add "Download as JSON" button for debugging
+- **Real-time**: Use HTMX polling (`hx-trigger="every 5s"`) for auto-refresh
+- **Theming**: Add dark mode toggle (pure CSS)
 
 ---
 
