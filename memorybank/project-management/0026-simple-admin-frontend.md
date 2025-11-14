@@ -681,6 +681,376 @@ ADMIN_SESSION_EXPIRY_MINUTES=120  # 2 hours default
 
 ---
 
+### Phase 4: UI Polish & Layout Improvements
+
+**Goal**: Transform basic admin interface into polished, professional-looking dashboard matching modern design standards
+
+**Current State**: Basic HTML pages with minimal styling - functional but not polished
+
+**Target State**: Clean, modern interface with:
+- Professional sidebar navigation with icons
+- Polished header with breadcrumbs and user info
+- Card-based layouts with proper shadows and spacing
+- Improved tables with avatars, badges, and hover states
+- Consistent color scheme and typography
+- Responsive design for mobile/tablet
+
+**Implementation**: Pure TailwindCSS (already installed at v4.1.12)
+
+#### Feature 0026-007: Admin UI Polish
+
+##### Task 0026-007-001: Create Admin Layout Wrapper
+**File**: `web/src/layouts/AdminLayout.astro`
+
+Create consistent layout with sidebar navigation:
+
+```astro
+---
+interface Props {
+    title: string;
+    breadcrumbs?: Array<{ label: string; href?: string }>;
+}
+
+const { title, breadcrumbs = [] } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} | Admin</title>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <!-- Logo -->
+            <div class="h-16 flex items-center px-6 border-b border-gray-200">
+                <h1 class="text-xl font-bold text-gray-900">OpenThought</h1>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 py-6 space-y-1">
+                <a href="/admin/sessions" 
+                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <span class="font-medium">Sessions</span>
+                </a>
+                
+                <a href="/admin/analytics" 
+                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span class="font-medium">Analytics</span>
+                </a>
+            </nav>
+            
+            <!-- User Info -->
+            <div class="p-4 border-t border-gray-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span class="text-blue-600 font-semibold">A</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">Admin</p>
+                        <p class="text-xs text-gray-500 truncate">admin@localhost</p>
+                    </div>
+                </div>
+                <a href="/api/admin/logout" 
+                   class="mt-2 block text-xs text-gray-500 hover:text-gray-700">
+                    Logout
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+                <div>
+                    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                        {breadcrumbs.map((crumb, i) => (
+                            <>
+                                {i > 0 && <span>/</span>}
+                                {crumb.href ? (
+                                    <a href={crumb.href} class="hover:text-gray-700">{crumb.label}</a>
+                                ) : (
+                                    <span class="text-gray-900 font-medium">{crumb.label}</span>
+                                )}
+                            </>
+                        ))}
+                    </nav>
+                    <h1 class="text-xl font-semibold text-gray-900">{title}</h1>
+                </div>
+            </header>
+            
+            <!-- Page Content -->
+            <main class="flex-1 overflow-auto p-6">
+                <slot />
+            </main>
+        </div>
+    </div>
+</body>
+</html>
+```
+
+##### Task 0026-007-002: Create Reusable UI Components
+**File**: `web/src/components/admin/ui/Card.tsx`
+
+```tsx
+import { h } from 'preact';
+
+interface CardProps {
+    children: any;
+    className?: string;
+}
+
+export function Card({ children, className = '' }: CardProps) {
+    return (
+        <div class={`bg-white rounded-xl shadow-sm border border-gray-200 ${className}`}>
+            {children}
+        </div>
+    );
+}
+
+export function CardHeader({ children, className = '' }: CardProps) {
+    return (
+        <div class={`px-6 py-4 border-b border-gray-200 ${className}`}>
+            {children}
+        </div>
+    );
+}
+
+export function CardBody({ children, className = '' }: CardProps) {
+    return (
+        <div class={`px-6 py-4 ${className}`}>
+            {children}
+        </div>
+    );
+}
+```
+
+**File**: `web/src/components/admin/ui/Badge.tsx`
+
+```tsx
+import { h } from 'preact';
+
+interface BadgeProps {
+    children: any;
+    variant?: 'blue' | 'green' | 'red' | 'yellow' | 'gray';
+}
+
+const variantStyles = {
+    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    green: 'bg-green-50 text-green-700 border-green-200',
+    red: 'bg-red-50 text-red-700 border-red-200',
+    yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    gray: 'bg-gray-50 text-gray-700 border-gray-200'
+};
+
+export function Badge({ children, variant = 'gray' }: BadgeProps) {
+    return (
+        <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variantStyles[variant]}`}>
+            {children}
+        </span>
+    );
+}
+```
+
+**File**: `web/src/components/admin/ui/Avatar.tsx`
+
+```tsx
+import { h } from 'preact';
+
+interface AvatarProps {
+    name: string;
+    src?: string;
+    size?: 'sm' | 'md' | 'lg';
+}
+
+const sizeStyles = {
+    sm: 'w-8 h-8 text-xs',
+    md: 'w-10 h-10 text-sm',
+    lg: 'w-12 h-12 text-base'
+};
+
+export function Avatar({ name, src, size = 'md' }: AvatarProps) {
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    
+    return (
+        <div class={`${sizeStyles[size]} rounded-full bg-blue-100 flex items-center justify-center overflow-hidden`}>
+            {src ? (
+                <img src={src} alt={name} class="w-full h-full object-cover" />
+            ) : (
+                <span class="text-blue-600 font-semibold">{initials}</span>
+            )}
+        </div>
+    );
+}
+```
+
+##### Task 0026-007-003: Update Sessions List Page
+Replace basic styling with polished design:
+
+```astro
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout 
+    title="Chat Sessions" 
+    breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Sessions' }
+    ]}
+>
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-medium text-gray-600">Total Sessions</p>
+                <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+                    <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold text-gray-900">127</p>
+            <p class="text-sm text-green-600 mt-1">↑ 12% from last week</p>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-medium text-gray-600">Avg Messages</p>
+                <svg class="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6zm6 6H5v2h6v-2z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold text-gray-900">4.2</p>
+            <p class="text-sm text-gray-500 mt-1">per session</p>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-medium text-gray-600">Tool Calls</p>
+                <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold text-gray-900">234</p>
+            <p class="text-sm text-red-600 mt-1">↓ 3% from yesterday</p>
+        </div>
+    </div>
+
+    <!-- Filters & Table -->
+    <div id="session-filters"></div>
+</AdminLayout>
+```
+
+##### Task 0026-007-004: Update SessionFilters Component
+Improve table styling with hover states, badges, and proper spacing:
+
+```tsx
+// Replace table rendering with:
+<table class="min-w-full divide-y divide-gray-200">
+    <thead>
+        <tr class="bg-gray-50">
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Session
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Account
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Agent
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Messages
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Created
+            </th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+            </th>
+        </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200">
+        {sessions.map((session) => (
+            <tr key={session.id} class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">
+                                {session.id.substring(0, 8)}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                ID: {session.id.substring(0, 8)}...
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <Badge variant="blue">{session.account_slug || 'N/A'}</Badge>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {session.agent_instance_slug || '-'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium text-gray-900">{session.message_count}</span>
+                        <span class="ml-2 text-xs text-gray-500">messages</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(session.created_at).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <a
+                        href={`/admin/sessions/${session.id}`}
+                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                        View Details
+                        <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </td>
+            </tr>
+        ))}
+    </tbody>
+</table>
+```
+
+##### Task 0026-007-005: Polish Session Detail Page
+Add visual hierarchy, better message bubbles, and improved sidebar:
+
+- Message bubbles with proper shadows and spacing
+- User/assistant avatars
+- Tool call badges with icons
+- Sticky prompt inspector sidebar
+- Better color coding (blue for user, green for assistant, yellow for tool calls)
+
+**Benefits**:
+- Professional, modern appearance
+- Better visual hierarchy and information density
+- Improved usability with hover states and clear CTAs
+- Consistent design language across all admin pages
+- Responsive design for different screen sizes
+- Uses only TailwindCSS (no additional dependencies)
+
+---
+
 ## File Structure
 
 ```
