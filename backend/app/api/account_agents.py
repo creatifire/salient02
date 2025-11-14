@@ -380,15 +380,56 @@ async def chat_endpoint(
     # ========================================================================
     
     session = get_current_session(request)
+    
+    # BUG-0026-0003 FIX: Create session if it doesn't exist (user is actively chatting)
+    # This is different from read-only endpoints (metadata/history) which don't create sessions
     if not session:
-        logfire.error('api.account.chat.no_session')
-        raise HTTPException(status_code=500, detail="Session error")
+        from ..services.session_service import SessionService
+        from ..models.session import Session
+        from datetime import datetime, timezone
+        import secrets
+        import string
+        
+        logfire.info('api.account.chat.creating_session', account=account_slug, instance=instance_slug)
+        
+        async with get_database_service().get_session() as db_session:
+            # Generate secure session key
+            alphabet = string.ascii_letters + string.digits + "-_"
+            session_key = ''.join(secrets.choice(alphabet) for _ in range(32))
+            
+            # Create session WITH account/agent context from the start
+            session = Session(
+                session_key=session_key,
+                account_id=instance.account_id,
+                account_slug=instance.account_slug,
+                agent_instance_id=instance.id,
+                agent_instance_slug=instance.instance_slug,
+                email=None,
+                is_anonymous=True,
+                created_at=datetime.now(timezone.utc),
+                last_activity_at=datetime.now(timezone.utc),
+                meta={}
+            )
+            
+            db_session.add(session)
+            await db_session.commit()
+            await db_session.refresh(session)
+            
+            # Store in request state for this request
+            request.state.session = session
+            
+            logfire.info(
+                'api.account.chat.session_created',
+                session_id=str(session.id),
+                account_id=str(session.account_id),
+                agent_instance_id=str(session.agent_instance_id)
+            )
     
     session_key_prefix = session.session_key[:8] + "..." if session.session_key else None
     account_id_str = str(session.account_id) if session.account_id else None
     logfire.debug('api.account.chat.session_retrieved', session_id=str(session.id), session_key_prefix=session_key_prefix, account_id=account_id_str)
     
-    # Update session context if NULL (progressive context flow)
+    # Update session context if NULL (progressive context flow - for old sessions)
     if session.account_id is None:
         from ..services.session_service import SessionService
         from sqlalchemy import select
@@ -608,9 +649,50 @@ async def stream_endpoint(
     # ========================================================================
     
     session = get_current_session(request)
+    
+    # BUG-0026-0003 FIX: Create session if it doesn't exist (user is actively chatting)
+    # This is different from read-only endpoints (metadata/history) which don't create sessions
     if not session:
-        logfire.error('api.account.stream.no_session')
-        raise HTTPException(status_code=500, detail="Session error")
+        from ..services.session_service import SessionService
+        from ..models.session import Session
+        from datetime import datetime, timezone
+        import secrets
+        import string
+        
+        logfire.info('api.account.stream.creating_session', account=account_slug, instance=instance_slug)
+        
+        async with get_database_service().get_session() as db_session:
+            # Generate secure session key
+            alphabet = string.ascii_letters + string.digits + "-_"
+            session_key = ''.join(secrets.choice(alphabet) for _ in range(32))
+            
+            # Create session WITH account/agent context from the start
+            session = Session(
+                session_key=session_key,
+                account_id=instance.account_id,
+                account_slug=instance.account_slug,
+                agent_instance_id=instance.id,
+                agent_instance_slug=instance.instance_slug,
+                email=None,
+                is_anonymous=True,
+                created_at=datetime.now(timezone.utc),
+                last_activity_at=datetime.now(timezone.utc),
+                meta={}
+            )
+            
+            db_session.add(session)
+            await db_session.commit()
+            await db_session.refresh(session)
+            
+            # Store in request state for this request
+            request.state.session = session
+            
+            logfire.info(
+                'api.account.stream.session_created',
+                session_id=str(session.id),
+                account_id=str(session.account_id),
+                agent_instance_id=str(session.agent_instance_id)
+            )
     
     session_key_prefix = session.session_key[:8] + "..." if session.session_key else None
     account_id_str = str(session.account_id) if session.account_id else None

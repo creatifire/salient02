@@ -492,6 +492,12 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         # This processes the request through all remaining middleware and route handlers
         response = await call_next(request)
         
+        # BUG-0026-0003: Check if endpoint created a session (for interactive chat/stream)
+        # The endpoint might have created a session and stored it in request.state.session
+        if hasattr(request.state, 'session') and request.state.session and not session:
+            session = request.state.session
+            logfire.info('middleware.session.endpoint_created', session_id=str(session.id))
+        
         # Persist any session changes made during request processing
         # This ensures modifications via request.session (like admin_authenticated) are saved
         if session and "session" in request.scope:
