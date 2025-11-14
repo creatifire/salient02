@@ -796,15 +796,20 @@ async def history_endpoint(
     
     try:
         # ====================================================================
-        # STEP 1: VALIDATE SESSION
+        # STEP 1: CHECK SESSION (BUT DON'T REQUIRE IT)
         # ====================================================================
+        # BUG-0026-0003 FIX: History endpoint should not create sessions
+        # If no session exists yet, just return empty array (no conversation started)
         session = get_current_session(request)
         if not session:
-            logfire.warn('api.account.history.no_session', account=account_slug, instance=instance_slug)
-            raise HTTPException(
-                status_code=401,
-                detail="No session found. Please send a message first."
-            )
+            logfire.info('api.account.history.no_session_yet', account=account_slug, instance=instance_slug)
+            return JSONResponse({
+                "session_id": None,
+                "account": account_slug,
+                "agent_instance": instance_slug,
+                "messages": [],
+                "count": 0
+            })
         
         # ====================================================================
         # STEP 2: LOAD AND VALIDATE AGENT INSTANCE

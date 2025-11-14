@@ -326,6 +326,27 @@ class SimpleSessionMiddleware(BaseHTTPMiddleware):
         # This prevents orphaned vapid sessions from being created by preflight requests
         if request.method == "OPTIONS":
             return await call_next(request)
+        
+        # BUG-0026-0003 FIX: Skip auto-session-creation for multi-tenant chat routes
+        # Let chat endpoints create sessions with proper account/agent context on first message
+        # This prevents "vapid sessions" created on page load before user interaction
+        if request.url.path.startswith("/accounts/") and "/agents/" in request.url.path:
+            # Check if we have an existing session cookie
+            session_config = get_session_config()
+            cookie_name = session_config.get("cookie_name", "salient_session")
+            session_cookie = request.cookies.get(cookie_name)
+            
+            if not session_cookie:
+                # No existing session - don't create one yet
+                # Let chat/stream endpoints create it with full context on first message
+                request.state.session = None
+                request.scope["session"] = {}
+                logfire.debug(
+                    'middleware.session.deferred',
+                    request_path=request.url.path,
+                    reason='multi_tenant_route_without_cookie'
+                )
+                return await call_next(request)
             
         session = None
         
