@@ -4,7 +4,7 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Epics
-> **Last Updated**: October 11, 2025
+> **Last Updated**: November 14, 2025
 > Convention: Use `[ ]` for open items and `[x]` for completed items across FEATURES, TASKS, and CHUNKS.
 
 ## Milestone Planning
@@ -25,6 +25,8 @@ Unauthorized copying of this file is strictly prohibited.
 11. [Multi-Tenant Account-Instance Architecture](./0022-multi-tenant-architecture.md) - 🚧 In Progress (Priority 2B - Foundational Infrastructure)
 12. [Multi-Purpose Directory Service](./0023-directory-service.md) - 📋 Planned (Priority 5)
 13. [Ticketing Tool](./0024-ticketing.md) - 📋 Planned
+14. [Simple Admin Frontend](./0026-simple-admin-frontend.md) - ✅ Phase 3B Complete (Admin UI for session/prompt debugging)
+15. [Reasoning Chain & Confidence Score Capture](./0027-reasoning-chain-confidence-capture.md) - 📋 Proposed (LLM transparency features)
 
 ## Epic Backlog
 
