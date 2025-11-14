@@ -1665,11 +1665,11 @@ If we need more features later:
 
 ---
 
-## Phase 3C: Inline Prompt Content Viewer
+## Phase 3C: Inline Prompt Content Viewer with Module Breakdown
 
 **Status**: PROPOSED
 
-**Goal**: Enable viewing the **actual text content** of each prompt section inline, not just metadata. This is critical for debugging "why did the LLM choose the wrong tool?" - you need to see the exact words it saw.
+**Goal**: Enable viewing the **actual text content** of each prompt module inline, with proper separation for directory sections to debug multi-tool selection. Each module is independently expandable to see exactly what the LLM saw.
 
 ---
 
@@ -1680,63 +1680,167 @@ Click "🔍 View Prompt Breakdown" → inline expansion shows metadata only:
 ```
 Prompt Sections: 3 sections, 14,228 characters total
 
-Section 1: critical_rules
-  Source: tool_selection_hints.md | Position: 0 | Characters: 4,928
+Section 1: directory_docs
+  Source: auto-generated | Position: 1 | Characters: 8,600
 
-Section 2: system_prompt  
-  Source: system_prompt.md | Position: 4,928 | Characters: 3,200
+Section 2: system_prompt
+  Source: system_prompt.md | Position: 2 | Characters: 3,200
+
+Section 3: few_shot_examples
+  Source: few_shot_examples.md | Position: 3 | Characters: 2,428
 ```
 
-**Problem**: Metadata only - can't see the actual text sent to the LLM.
+**Problems**:
+1. Can't see the actual text sent to the LLM
+2. `directory_docs` is one blob - can't see individual directories
+3. No way to debug "why did the LLM choose doctors instead of phone_numbers?"
 
 ---
 
 ### Desired Behavior (Phase 3C)
 
-Make each section **clickable** to expand/collapse the full text inline:
+Make each module **clickable** to expand/collapse full text inline, with directory sections broken out:
 
 ```
-Prompt Sections: 3 sections, 14,228 characters total
+Prompt Sections: 6 modules, 14,228 characters total
 
-▼ Section 1: critical_rules (4,928 chars) — click to collapse
-  Source: tool_selection_hints.md | Position: 0
+▶ tool_selection_hints.md (1) - 4,928 chars
+▼ directory_docs_header (2) - 150 chars — click to collapse
   ┌─────────────────────────────────────────────────┐
-  │ ## Critical Rules for Tool Selection            │
-  │                                                  │
-  │ When the user asks about doctors, you MUST...   │
-  │ [Full text exactly as sent to LLM]              │
+  │ ## Directory Tool                               │
+  │ You have access to multiple directories...      │
   └─────────────────────────────────────────────────┘
-
-▶ Section 2: system_prompt (3,200 chars) — click to expand
-  Source: system_prompt.md | Position: 4,928
+  
+  ▼ directory: doctors (3) - 3,500 chars
+    ┌─────────────────────────────────────────────────┐
+    │ ### Directory: `doctors` (45 doctors)           │
+    │ **Contains**: Licensed physicians...            │
+    │ **Use for**: Finding doctor info...             │
+    └─────────────────────────────────────────────────┘
+  
+  ▶ directory: phone_numbers (4) - 2,600 chars
+  
+▶ system_prompt.md (5) - 3,200 chars
+▶ few_shot_examples.md (6) - 2,100 chars
 ```
 
 **Benefits:**
-- No page navigation - stay on session detail page
-- Compare multiple prompts - expand several at once
-- Fast - just expand/collapse divs
-- Contextual - see prompt alongside conversation
+- See each prompt module independently
+- Directory sections separated for debugging tool selection
+- Visual hierarchy (nested indentation)
+- No page navigation
+- Compare prompts across multiple messages
 
 ---
 
-###  Implementation Tasks
+### Architecture Changes
+
+#### Backend: Structured Prompt Breakdown
+
+**New Data Structure** (stored in `llm_requests.meta["prompt_breakdown"]`):
+
+```json
+{
+  "sections": [
+    {
+      "name": "tool_selection_hints.md",
+      "position": 1,
+      "characters": 4928,
+      "source": "tool_selection_hints.md",
+      "content": "## Critical Rules...",
+      "type": "module"
+    },
+    {
+      "name": "directory_docs_header",
+      "position": 2,
+      "characters": 150,
+      "source": "auto-generated",
+      "content": "## Directory Tool\n\nYou have access to...",
+      "type": "directory_header"
+    },
+    {
+      "name": "directory: doctors",
+      "position": 3,
+      "characters": 3500,
+      "source": "auto-generated (doctors.yaml schema)",
+      "content": "### Directory: `doctors`...",
+      "type": "directory",
+      "parent_position": 2,
+      "metadata": {
+        "list_name": "doctors",
+        "entry_count": 45,
+        "entry_type": "doctor",
+        "schema_file": "doctors.yaml"
+      }
+    },
+    {
+      "name": "directory: phone_numbers",
+      "position": 4,
+      "characters": 2600,
+      "source": "auto-generated (phone_numbers.yaml schema)",
+      "content": "### Directory: `phone_numbers`...",
+      "type": "directory",
+      "parent_position": 2,
+      "metadata": {
+        "list_name": "phone_numbers",
+        "entry_count": 120,
+        "entry_type": "contact",
+        "schema_file": "phone_numbers.yaml"
+      }
+    },
+    {
+      "name": "system_prompt.md",
+      "position": 5,
+      "characters": 3200,
+      "source": "system_prompt.md",
+      "content": "You are a helpful assistant...",
+      "type": "module"
+    },
+    {
+      "name": "few_shot_examples.md",
+      "position": 6,
+      "characters": 2100,
+      "source": "few_shot_examples.md",
+      "content": "Example 1: User asks...",
+      "type": "module"
+    }
+  ],
+  "total_characters": 16478
+}
+```
+
+**Key Changes**:
+- `position`: Simple incrementing integer (order in final prompt)
+- `type`: `"module"`, `"directory_header"`, or `"directory"`
+- `parent_position`: Links directory sections to their header (for UI nesting)
+- `metadata`: Directory-specific info (entry counts, schema file)
+- `content`: **Full text** as sent to LLM
+
+---
+
+### Implementation Tasks
 
 #### Task 3C-001: Fix Button Visibility Bug
 
 **Issue**: "View Prompt Breakdown" button appears in both user AND assistant messages.
 
-**Fix**: Only show for `msg.role === 'user'` (user messages trigger LLM requests; assistant messages are responses with no prompt to show).
+**Fix**: Only show for `msg.role === 'user'`.
 
 **File**: `web/public/admin/session.html` in `renderMessages()`:
 
 ```javascript
 ${msg.role === 'user' && msg.llm_request_id ? `
     <div class="mt-3">
-        <button class="px-3 py-1 bg-gray-200 ..." ...>
+        <button class="px-3 py-1 bg-gray-200 text-gray-800 rounded-md text-sm hover:bg-gray-300"
+                hx-get="/api/admin/llm-requests/${msg.llm_request_id}"
+                hx-trigger="click"
+                hx-target="#breakdown-${msg.llm_request_id}"
+                hx-swap="none"
+                hx-on::after-request="renderPromptBreakdown(event.detail.xhr.responseText, '${msg.llm_request_id}');">
             🔍 View Prompt Breakdown
         </button>
-        <div id="breakdown-${msg.llm_request_id}" class="hidden ...">
-            <!-- Prompt breakdown -->
+        <div id="breakdown-${msg.llm_request_id}" class="hidden mt-3 p-3 bg-gray-50 rounded text-sm">
+            <!-- Prompt breakdown will be loaded here -->
         </div>
     </div>
 ` : ''}
@@ -1744,65 +1848,275 @@ ${msg.role === 'user' && msg.llm_request_id ? `
 
 ---
 
-#### Task 3C-002: Store Full Prompt Content in Backend
+#### Task 3C-002: Refactor `generate_directory_tool_docs()` to Return Structured Data
 
-**Current**: `PromptBreakdownService` stores only metadata (no `content` field).
+**Goal**: Return both the full markdown text (for prompt assembly) AND structured breakdown (for debugging).
 
-**Required**: Add actual text content to each section in `llm_requests.meta`:
+**File**: `backend/app/agents/tools/prompt_generator.py`
+
+**Add new Pydantic models**:
 
 ```python
-{
-  "sections": [
-    {
-      "name": "critical_rules",
-      "position": 0,
-      "characters": 4928,
-      "source": "tool_selection_hints.md",
-      "content": "## Critical Rules...\n\nFull text here"  # ✅ ADD THIS
-    }
-  ]
-}
+from typing import Dict, List, Optional
+from pydantic import BaseModel, Field
+
+class DirectorySection(BaseModel):
+    """Single directory's documentation section."""
+    name: str = Field(description="Display name, e.g., 'directory: doctors'")
+    content: str = Field(description="Full markdown text for this directory")
+    character_count: int = Field(description="Character count")
+    metadata: Dict[str, Any] = Field(description="list_name, entry_count, entry_type, schema_file")
+
+class DirectoryDocsResult(BaseModel):
+    """Complete result from directory docs generation."""
+    full_text: str = Field(description="Concatenated markdown for prompt assembly")
+    header_section: Optional[DirectorySection] = Field(None, description="Multi-directory header (if applicable)")
+    directory_sections: List[DirectorySection] = Field(description="Individual directory docs")
 ```
 
-**Why store in `meta` JSONB?**
-- See **exact prompt sent at that time** (not reconstructed from current files)
-- Simple - data already available at capture time
-- Fast - single API call, no reconstruction
-- JSONB compresses well
+**Update `generate_directory_tool_docs()` signature**:
 
-**Implementation**:
+```python
+async def generate_directory_tool_docs(
+    agent_config: Dict,
+    account_id: UUID,
+    db_session: AsyncSession
+) -> DirectoryDocsResult:  # Changed return type
+    """
+    Auto-generate directory tool docs with structured breakdown.
+    
+    Returns:
+        DirectoryDocsResult with full_text (for prompt) and sections (for breakdown)
+    """
+```
 
-1. Update `backend/app/services/prompt_breakdown_service.py`:
-   ```python
-   @staticmethod
-   def capture_breakdown(
-       base_prompt: str,
-       critical_rules: Optional[str] = None,
-       directory_docs: Optional[str] = None,
-       modules: Optional[Dict[str, str]] = None,
-       # ... existing params ...
-   ) -> dict:
-       # Add "content": text to each section dict
-   ```
+**Implementation approach**:
 
-2. Update `simple_chat.py` (and future agents):
-   ```python
-   prompt_breakdown = PromptBreakdownService.capture_breakdown(
-       base_prompt=system_prompt,
-       critical_rules=tool_hints,
-       directory_docs=dir_docs,
-       modules=prompt_modules_text,  # Pass full text, not just names
-       # ...
-   )
-   ```
+1. Build `header_content` string and `header_section` object (if multiple directories)
+2. For each directory, build both `dir_content` string and `DirectorySection` object
+3. Concatenate all strings into `full_text`
+4. Return `DirectoryDocsResult(full_text=..., header_section=..., directory_sections=[...])`
+
+**Example construction**:
+
+```python
+# Inside generate_directory_tool_docs()
+header_section = None
+directory_sections = []
+all_text_parts = []
+
+if len(lists_metadata) > 1:
+    # Build header
+    header_text = "## Directory Tool\n\nYou have access to multiple directories..."
+    header_section = DirectorySection(
+        name="directory_docs_header",
+        content=header_text,
+        character_count=len(header_text),
+        metadata={"type": "multi_directory_header"}
+    )
+    all_text_parts.append(header_text)
+
+for list_meta in lists_metadata:
+    # Build directory-specific text
+    dir_text = f"### Directory: `{list_meta.list_name}`\n..."
+    
+    directory_sections.append(DirectorySection(
+        name=f"directory: {list_meta.list_name}",
+        content=dir_text,
+        character_count=len(dir_text),
+        metadata={
+            "list_name": list_meta.list_name,
+            "entry_count": entry_count,
+            "entry_type": list_meta.entry_type,
+            "schema_file": list_meta.schema_file
+        }
+    ))
+    all_text_parts.append(dir_text)
+
+full_text = '\n\n'.join(all_text_parts)
+
+return DirectoryDocsResult(
+    full_text=full_text,
+    header_section=header_section,
+    directory_sections=directory_sections
+)
+```
 
 ---
 
-#### Task 3C-003: Make Sections Expandable in Frontend
+#### Task 3C-003: Update `PromptBreakdownService` to Handle Structured Directories
+
+**File**: `backend/app/services/prompt_breakdown_service.py`
+
+**Update signature**:
+
+```python
+@staticmethod
+def capture_breakdown(
+    base_prompt: str,
+    critical_rules: Optional[str] = None,
+    directory_result: Optional['DirectoryDocsResult'] = None,  # NEW: Structured data
+    modules: Optional[Dict[str, str]] = None,
+    account_slug: Optional[str] = None,
+    agent_instance_slug: Optional[str] = None
+) -> dict:
+    """
+    Capture prompt breakdown with full content for each module.
+    
+    Args:
+        base_prompt: Base system prompt content
+        critical_rules: Critical tool selection rules
+        directory_result: Structured directory docs (header + sections)
+        modules: Dict of {module_name: content} for additional modules
+        
+    Returns:
+        Dict with sections array, each containing name, position, characters, source, content, type
+    """
+```
+
+**Implementation**:
+
+```python
+breakdown = {"sections": []}
+position = 1
+
+# 1. Critical rules (if present)
+if critical_rules:
+    breakdown["sections"].append({
+        "name": "tool_selection_hints.md",
+        "position": position,
+        "characters": len(critical_rules),
+        "source": "tool_selection_hints.md",
+        "content": critical_rules,
+        "type": "module"
+    })
+    position += 1
+
+# 2. Base system prompt
+breakdown["sections"].append({
+    "name": "system_prompt.md",
+    "position": position,
+    "characters": len(base_prompt),
+    "source": "system_prompt.md",
+    "content": base_prompt,
+    "type": "module"
+})
+position += 1
+
+# 3. Directory documentation (structured)
+if directory_result:
+    header_position = None
+    
+    # 3a. Directory header (if multi-directory)
+    if directory_result.header_section:
+        header_position = position
+        breakdown["sections"].append({
+            "name": directory_result.header_section.name,
+            "position": position,
+            "characters": directory_result.header_section.character_count,
+            "source": "auto-generated",
+            "content": directory_result.header_section.content,
+            "type": "directory_header"
+        })
+        position += 1
+    
+    # 3b. Individual directory sections
+    for dir_section in directory_result.directory_sections:
+        section_dict = {
+            "name": dir_section.name,
+            "position": position,
+            "characters": dir_section.character_count,
+            "source": f"auto-generated ({dir_section.metadata.get('schema_file', 'N/A')})",
+            "content": dir_section.content,
+            "type": "directory",
+            "metadata": dir_section.metadata
+        }
+        if header_position is not None:
+            section_dict["parent_position"] = header_position
+        
+        breakdown["sections"].append(section_dict)
+        position += 1
+
+# 4. Additional modules
+if modules:
+    for module_name, content in modules.items():
+        breakdown["sections"].append({
+            "name": f"{module_name}.md",
+            "position": position,
+            "characters": len(content),
+            "source": f"{module_name}.md",
+            "content": content,
+            "type": "module"
+        })
+        position += 1
+
+breakdown["total_characters"] = sum(s["characters"] for s in breakdown["sections"])
+
+return breakdown
+```
+
+---
+
+#### Task 3C-004: Update `simple_chat.py` to Use New Structure
+
+**File**: `backend/app/agents/simple_chat.py`
+
+**Find the existing call** (around lines 247-250):
+
+```python
+directory_docs = await generate_directory_tool_docs(
+    agent_config=instance_config or {},
+    account_id=account_id,
+    db_session=db_session
+)
+```
+
+**Change to**:
+
+```python
+directory_result = await generate_directory_tool_docs(
+    agent_config=instance_config or {},
+    account_id=account_id,
+    db_session=db_session
+)
+directory_docs = directory_result.full_text if directory_result else None
+```
+
+**Find the `PromptBreakdownService.capture_breakdown()` call** (around line 308):
+
+```python
+prompt_breakdown = PromptBreakdownService.capture_breakdown(
+    base_prompt=base_system_prompt,
+    critical_rules=critical_rules if critical_rules else None,
+    directory_docs=directory_docs if directory_config.get("enabled", False) else None,  # OLD
+    modules={name: load_prompt_module(name, account_slug) 
+             for name in other_modules} if prompting_config.get('enabled') and other_modules else None,
+    account_slug=account_slug,
+    agent_instance_slug=agent_instance_slug
+)
+```
+
+**Change to**:
+
+```python
+prompt_breakdown = PromptBreakdownService.capture_breakdown(
+    base_prompt=base_system_prompt,
+    critical_rules=critical_rules if critical_rules else None,
+    directory_result=directory_result if directory_config.get("enabled", False) and account_id else None,  # NEW
+    modules={name: load_prompt_module(name, account_slug) 
+             for name in other_modules} if prompting_config.get('enabled') and other_modules else None,
+    account_slug=account_slug,
+    agent_instance_slug=agent_instance_slug
+)
+```
+
+---
+
+#### Task 3C-005: Update Frontend to Render Nested Sections
 
 **File**: `web/public/admin/session.html`
 
-**Update `renderPromptBreakdown()` function:**
+**Replace `renderPromptBreakdown()` function**:
 
 ```javascript
 function renderPromptBreakdown(responseText, requestId) {
@@ -1821,42 +2135,48 @@ function renderPromptBreakdown(responseText, requestId) {
     if (breakdown && breakdown.sections && breakdown.sections.length > 0) {
         let html = `
             <h4 class="font-semibold mb-3">
-                Prompt Sections: ${breakdown.sections.length} sections, 
-                ${breakdown.total_characters} characters total
+                Prompt Sections: ${breakdown.sections.length} modules, 
+                ${breakdown.total_characters.toLocaleString()} characters total
             </h4>
         `;
         
         breakdown.sections.forEach((section, index) => {
             const sectionId = `section-${requestId}-${index}`;
             const hasContent = section.content && section.content.trim().length > 0;
+            const isNested = section.parent_position !== undefined;
+            const indentClass = isNested ? 'ml-6 border-l-2 border-gray-300 pl-3' : '';
             
             html += `
-                <div class="mb-3 border border-gray-300 rounded">
+                <div class="mb-2 ${indentClass}">
                     <!-- Clickable Header -->
                     <button 
                         class="w-full text-left px-3 py-2 bg-gray-100 hover:bg-gray-200 
-                               font-medium flex justify-between items-center"
+                               font-medium flex justify-between items-center rounded"
                         onclick="toggleSection('${sectionId}', this)"
                         ${!hasContent ? 'disabled' : ''}>
-                        <span>
-                            <span class="arrow">▶</span> 
-                            Section ${index + 1}: ${section.name}
+                        <span class="flex items-center gap-2">
+                            <span class="arrow text-gray-600">▶</span> 
+                            <span class="font-mono text-sm">${section.name}</span>
                         </span>
-                        <span class="text-sm text-gray-600">
-                            ${section.characters} chars
+                        <span class="text-xs text-gray-600">
+                            (${section.position}) ${section.characters.toLocaleString()} chars
                         </span>
                     </button>
                     
-                    <!-- Metadata (always visible) -->
-                    <div class="px-3 py-1 text-xs text-gray-600 bg-gray-50">
-                        Source: ${section.source || 'N/A'} | Position: ${section.position}
-                    </div>
-                    
                     <!-- Content (expandable) -->
                     ${hasContent ? `
-                        <div id="${sectionId}" class="hidden px-3 py-2 bg-white">
-                            <pre class="text-xs whitespace-pre-wrap font-mono text-gray-800 
-                                       border-l-4 border-blue-400 pl-3 max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
+                        <div id="${sectionId}" class="hidden mt-2">
+                            <!-- Metadata bar -->
+                            <div class="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-t border border-gray-300">
+                                Source: ${section.source || 'N/A'}
+                                ${section.metadata && section.metadata.entry_count ? 
+                                    ` | ${section.metadata.entry_count} ${section.metadata.entry_type}s` : ''}
+                            </div>
+                            <!-- Content box -->
+                            <div class="px-3 py-2 bg-white border-x border-b border-gray-300 rounded-b">
+                                <pre class="text-xs whitespace-pre-wrap font-mono text-gray-800 
+                                           border-l-4 border-blue-400 pl-3 max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
+                            </div>
                         </div>
                     ` : `
                         <div class="px-3 py-2 text-xs text-gray-500 italic">
@@ -1869,7 +2189,7 @@ function renderPromptBreakdown(responseText, requestId) {
         
         breakdownDiv.innerHTML = html;
     } else {
-        breakdownDiv.innerHTML = '<p>No prompt breakdown available.</p>';
+        breakdownDiv.innerHTML = '<p class="text-gray-500">No prompt breakdown available.</p>';
     }
     
     breakdownDiv.classList.remove('hidden');
@@ -1889,7 +2209,7 @@ function toggleSection(sectionId, buttonEl) {
     }
 }
 
-// HTML escape utility
+// HTML escape utility (already exists, keep as-is)
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -1897,40 +2217,234 @@ function escapeHtml(text) {
 }
 ```
 
-**Features:**
-- ▶/▼ arrow indicates expand/collapse state
-- Max height with scroll for long sections
-- Disabled state if no content available
-- Styled `<pre>` block for readable formatting
+**Key Features**:
+- `isNested` check determines if section has `parent_position`
+- `indentClass` adds left margin and border for nested items
+- Position number shown in metadata: `(3) 3,500 chars`
+- Entry count displayed for directory sections: `45 doctors`
+- Arrow indicator (▶/▼) for expand/collapse
+
+---
+
+### Visual Example (After Implementation)
+
+**Collapsed State**:
+```
+Prompt Sections: 6 modules, 16,478 characters total
+
+▶ tool_selection_hints.md (1) 4,928 chars
+▶ directory_docs_header (2) 150 chars
+  ▶ directory: doctors (3) 3,500 chars
+  ▶ directory: phone_numbers (4) 2,600 chars
+▶ system_prompt.md (5) 3,200 chars
+▶ few_shot_examples.md (6) 2,100 chars
+```
+
+**Partially Expanded** (directory_docs_header + doctors expanded):
+```
+Prompt Sections: 6 modules, 16,478 characters total
+
+▶ tool_selection_hints.md (1) 4,928 chars
+▼ directory_docs_header (2) 150 chars
+  ┌─────────────────────────────────────────────────┐
+  │ Source: auto-generated                          │
+  ├─────────────────────────────────────────────────┤
+  │ ## Directory Tool                               │
+  │                                                  │
+  │ You have access to multiple directories.        │
+  │ Choose the appropriate directory...             │
+  └─────────────────────────────────────────────────┘
+  
+  ▼ directory: doctors (3) 3,500 chars
+    ┌─────────────────────────────────────────────────┐
+    │ Source: auto-generated (doctors.yaml) | 45 doctors │
+    ├─────────────────────────────────────────────────┤
+    │ ### Directory: `doctors` (45 doctors)           │
+    │ **Contains**: Licensed physicians...            │
+    │ **Use for**: Finding doctor information...      │
+    │                                                  │
+    │ **Term Mappings (Lay → Formal):**               │
+    │   • "heart doctor" → "cardiologist"             │
+    │   • "bone doctor" → "orthopedist"               │
+    │ ...                                              │
+    └─────────────────────────────────────────────────┘
+  
+  ▶ directory: phone_numbers (4) 2,600 chars
+  
+▶ system_prompt.md (5) 3,200 chars
+▶ few_shot_examples.md (6) 2,100 chars
+```
 
 ---
 
 ### Testing Plan
 
-1. **Simple Chat** (`default_account > simple_chat1`):
-   - Navigate to session detail
-   - Verify button only on user messages, not assistant messages
-   - Click button → metadata displays
-   - Click section → full text expands
-   - Click again → collapses
+#### Test 1: Simple Agent (No Directories)
 
-2. **Multi-Tool Agents** (future):
-   - Verify tool calls still display
-   - Verify all sections (critical_rules, directory_docs, modules) expandable
+**Agent**: `default_account > simple_chat1` (no directory tool)
 
-3. **Edge Cases**:
-   - No `llm_request_id` → no button
-   - Assistant message → no button
-   - Missing content → show "Content not captured"
+**Expected Breakdown**:
+```
+▶ system_prompt.md (1) 800 chars
+```
+
+**Test**:
+1. Navigate to session detail for simple_chat1 session
+2. Click "View Prompt Breakdown" on user message
+3. Verify only system_prompt appears
+4. Click system_prompt → text expands
+5. Click again → collapses
+
+---
+
+#### Test 2: Single Directory Agent
+
+**Agent**: `wyckoff > wyckoff_info_chat1` (doctors directory only)
+
+**Expected Breakdown**:
+```
+▶ tool_selection_hints.md (1) 4,928 chars
+▶ system_prompt.md (2) 3,200 chars
+▶ directory: doctors (3) 3,500 chars   ← NO header (single directory)
+▶ few_shot_examples.md (4) 2,100 chars
+```
+
+**Test**:
+1. Navigate to session with directory usage
+2. Click "View Prompt Breakdown"
+3. Verify NO "directory_docs_header" (single directory case)
+4. Verify "directory: doctors" is top-level (no indentation)
+5. Expand directory section → see doctor search strategy
+6. Verify metadata shows entry count: "45 doctors"
+
+---
+
+#### Test 3: Multi-Directory Agent
+
+**Agent**: `wyckoff > wyckoff_multi_chat1` (doctors + phone_numbers)
+
+**Expected Breakdown**:
+```
+▶ tool_selection_hints.md (1) 4,928 chars
+▶ system_prompt.md (2) 3,200 chars
+▶ directory_docs_header (3) 150 chars
+  ▶ directory: doctors (4) 3,500 chars        ← Indented
+  ▶ directory: phone_numbers (5) 2,600 chars  ← Indented
+▶ few_shot_examples.md (6) 2,100 chars
+```
+
+**Test**:
+1. Navigate to session with multi-directory usage
+2. Click "View Prompt Breakdown"
+3. Verify "directory_docs_header" exists at top level
+4. Verify directory sections are visually indented (CSS `ml-6`)
+5. Expand header → see "You have access to multiple directories" text
+6. Expand "directory: doctors" → see doctor-specific search strategy
+7. Expand "directory: phone_numbers" → see phone-specific search strategy
+8. Verify metadata shows different entry counts for each
+
+---
+
+#### Test 4: Button Visibility (Bug Fix)
+
+**Test**:
+1. View any session detail page
+2. Verify "View Prompt Breakdown" button ONLY on user messages
+3. Verify NO button on assistant messages
+4. Verify tool calls still display (yellow box)
+
+---
+
+#### Test 5: Edge Cases
+
+**Test 5a: Missing Content**
+- Old session (before Phase 3C) → sections exist but no `content` field
+- **Expected**: Button disabled, shows "Content not captured"
+
+**Test 5b: Empty Session**
+- Session with no LLM requests
+- **Expected**: No breakdown buttons at all
+
+**Test 5c: Database Query**
+- Query `llm_requests` table after creating new session
+- **Expected**: `meta["prompt_breakdown"]["sections"]` contains `content` field
+- **Expected**: JSONB column size reasonable (< 500KB per request)
+
+---
+
+### Migration Checklist
+
+**Phase 1: Backend Changes** (Breaking Changes)
+1. ✅ Update `prompt_generator.py` - add Pydantic models, change return type
+2. ✅ Update `PromptBreakdownService` - accept `directory_result`, store structured data
+3. ✅ Update `simple_chat.py` - use new `DirectoryDocsResult`, pass to breakdown service
+4. ✅ Test backend: Create new session, verify breakdown structure in database
+
+**Phase 2: Frontend Changes**
+5. ✅ Fix button visibility bug in `session.html`
+6. ✅ Update `renderPromptBreakdown()` to handle nested sections
+7. ✅ Test frontend: View existing session (should fail gracefully), view new session (should show nested structure)
+
+**Phase 3: Verification**
+8. ✅ Test single-directory agent
+9. ✅ Test multi-directory agent
+10. ✅ Test agent with no directories
+11. ✅ Compare prompts across messages (expand multiple breakdowns)
+12. ✅ Verify metadata display (entry counts, source files)
+
+**Phase 4: Commit**
+13. ✅ Commit: `"feat(admin): add inline prompt content viewer with structured directory breakdown (Phase 3C)"`
 
 ---
 
 ### Future Enhancements
 
-- **Syntax Highlighting**: Use Prism.js for markdown rendering
+**Post-MVP Features**:
+- **Syntax Highlighting**: Use Prism.js for markdown rendering in expanded sections
 - **Copy Button**: Copy individual section text to clipboard
-- **Search**: Text search within expanded sections
-- **Diff View**: Compare prompts across messages
+- **Search**: Text search within expanded sections (highlight matches)
+- **Diff View**: Side-by-side comparison of prompts across two messages
+- **Export**: Download full prompt as markdown file
+- **Collapse All / Expand All**: Buttons to toggle all sections at once
+- **Filter by Type**: Show only directories, or only modules
+- **Token Count**: Show token count alongside character count (using tiktoken)
+
+---
+
+### Database Impact
+
+**Storage Estimate** (per LLM request):
+
+| Component | Size |
+|-----------|------|
+| Metadata (position, name, source, type) | ~500 bytes |
+| System prompt content | ~3 KB |
+| Critical rules content | ~5 KB |
+| Directory header content | ~200 bytes |
+| Single directory content | ~3-5 KB each |
+| Prompt module content | ~2-3 KB each |
+| **Total (multi-directory agent)** | **~20-30 KB per request** |
+
+**Mitigation**:
+- JSONB compression (Postgres compresses text well)
+- Add retention policy: Delete `meta["prompt_breakdown"]["sections"][*].content` for requests older than 30 days
+- Keep metadata (position, characters, source) forever - only delete content
+- Env var: `ADMIN_CAPTURE_PROMPT_CONTENT=true` (default: true for dev, false for prod)
+
+**Example cleanup query**:
+```sql
+-- Remove content but keep metadata after 30 days
+UPDATE llm_requests
+SET meta = jsonb_set(
+    meta,
+    '{prompt_breakdown,sections}',
+    (SELECT jsonb_agg(
+        jsonb_strip_nulls(section - 'content')
+    ) FROM jsonb_array_elements(meta->'prompt_breakdown'->'sections') AS section)
+)
+WHERE created_at < NOW() - INTERVAL '30 days'
+  AND meta->'prompt_breakdown'->'sections' IS NOT NULL;
+```
 
 ---
 
