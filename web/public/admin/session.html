@@ -168,7 +168,7 @@
                             ${breakdown.sections.map(section => `
                                 <li class="border-l-2 border-gray-300 pl-3 py-1">
                                     <div class="font-mono text-xs font-semibold">${section.position}. ${section.name}</div>
-                                    <div class="text-xs text-gray-600">Source: ${section.source} | ${section.char_count.toLocaleString()} chars</div>
+                                    <div class="text-xs text-gray-600">Source: ${section.source} | ${section.characters.toLocaleString()} chars</div>
                                 </li>
                             `).join('')}
                         </ul>
