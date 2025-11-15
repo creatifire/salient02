@@ -244,11 +244,14 @@ async def create_simple_chat_agent(
         
         db_service = get_database_service()
         async with db_service.get_session() as db_session:
-            directory_docs = await generate_directory_tool_docs(
+            directory_result = await generate_directory_tool_docs(
                 agent_config=instance_config or {},
                 account_id=account_id,
                 db_session=db_session
             )
+            
+            # Extract full_text from DirectoryDocsResult for prompt assembly
+            directory_docs = directory_result.full_text if directory_result else ""
             
             if directory_docs:
                 system_prompt = system_prompt + "\n\n" + directory_docs
