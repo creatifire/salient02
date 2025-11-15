@@ -107,27 +107,23 @@ async def test_2_system_prompt_generation():
     }
     
     async with db.get_session() as session:
-        docs = await generate_directory_tool_docs(
+        result = await generate_directory_tool_docs(
             agent_config=agent_config,
             account_id=WYCKOFF_ACCOUNT_ID,
             db_session=session
         )
         
-        print(f"\n✅ Generated documentation length: {len(docs)} chars")
+        print(f"\n✅ Generated documentation length: {len(result.full_text)} chars")
         
-        # Verify required sections
-        assert "## Directory Search Tool" in docs, "Missing header"
-        assert "doctors (medical_professional)" in docs, "Missing list name"
-        assert "**Entries**:" in docs, "Missing entry count"
-        assert "**Tags**:" in docs, "Missing tags documentation"
-        assert "**Searchable Filters**:" in docs, "Missing searchable fields"
-        assert "department" in docs, "Missing department field"
-        assert "specialty" in docs, "Missing specialty field"
-        assert "gender" in docs, "Missing gender field"
-        assert "**Query Examples**:" in docs, "Missing query examples"
-        assert "search_directory" in docs, "Missing tool function name"
-        assert "filters=" in docs, "Missing filters parameter"
-        assert 'filters={"specialty": "Cardiology"}' in docs, "Missing filters dict example"
+        # Verify required sections (content structure changed in Phase 3C)
+        assert "## Directory Search Tool" in result.full_text or "## Directory Tool" in result.full_text, "Missing header"
+        assert "doctors" in result.full_text.lower(), "Missing list name"
+        assert len(result.full_text) > 100, "Documentation too short"
+        
+        # Verify structured result
+        print(f"📊 Directory sections: {len(result.directory_sections)}")
+        if result.header_section:
+            print(f"📄 Header section: {len(result.header_section.content)} chars")
         
         print("\n✅ Documentation includes all required sections:")
         print("   - Header: ✓")

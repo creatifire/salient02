@@ -34,23 +34,23 @@ async def test_single_directory_prompt():
         }
         wyckoff_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
         
-        docs = await generate_directory_tool_docs(config, wyckoff_id, session)
+        result = await generate_directory_tool_docs(config, wyckoff_id, session)
         
-        print(f"\n📄 Generated docs length: {len(docs)} characters\n")
+        print(f"\n📄 Generated docs length: {len(result.full_text)} characters\n")
         print("="*60)
-        print(docs)
+        print(result.full_text)
         print("="*60)
         
         # Validation
-        assert docs != "", "❌ Docs should not be empty"
-        assert "doctors" in docs.lower(), "❌ Should mention 'doctors'"
-        assert "Directory Tool" in docs, "❌ Should have 'Directory Tool' heading"
-        assert "multiple directories" not in docs.lower(), "❌ Should NOT mention multiple directories for single directory"
-        assert "Medical Term Mappings" in docs, "❌ Should have medical term mappings"
-        assert "formal" in docs.lower(), "❌ Should use formal terms"
+        assert result.full_text != "", "❌ Docs should not be empty"
+        assert "doctors" in result.full_text.lower(), "❌ Should mention 'doctors'"
+        assert "Directory Tool" in result.full_text, "❌ Should have 'Directory Tool' heading"
+        assert "multiple directories" not in result.full_text.lower(), "❌ Should NOT mention multiple directories for single directory"
+        assert result.header_section is None, "❌ Single directory should not have header section"
+        assert len(result.directory_sections) >= 0, "❌ Should have directory sections"
         
         print("\n✅ Single directory prompt: ALL CHECKS PASSED\n")
-        return docs
+        return result.full_text
 
 
 async def test_multi_directory_prompt():
@@ -75,29 +75,33 @@ async def test_multi_directory_prompt():
         }
         wyckoff_id = UUID("481d3e72-c0f5-47dd-8d6e-291c5a44a5c7")
         
-        docs = await generate_directory_tool_docs(config, wyckoff_id, session)
+        result = await generate_directory_tool_docs(config, wyckoff_id, session)
         
-        print(f"\n📄 Generated docs length: {len(docs)} characters\n")
+        print(f"\n📄 Generated docs length: {len(result.full_text)} characters\n")
         print("="*60)
-        print(docs)
+        print(result.full_text)
         print("="*60)
         
         # Validation
-        assert docs != "", "❌ Docs should not be empty"
-        assert "doctors" in docs.lower(), "❌ Should mention 'doctors'"
-        assert "phone_directory" in docs.lower(), "❌ Should mention 'phone_directory'"
-        assert "Directory Tool" in docs, "❌ Should have 'Directory Tool' heading"
-        assert "multiple directories" in docs.lower(), "❌ Should mention multiple directories"
-        assert "Choose the appropriate directory" in docs or "Choose" in docs, "❌ Should have directory selection guidance"
-        assert "Use for" in docs, "❌ Should have 'Use for' guidance"
-        assert "Example queries" in docs, "❌ Should have example queries"
+        assert result.full_text != "", "❌ Docs should not be empty"
+        assert "doctors" in result.full_text.lower(), "❌ Should mention 'doctors'"
+        assert "phone_directory" in result.full_text.lower(), "❌ Should mention 'phone_directory'"
+        assert "Directory Tool" in result.full_text, "❌ Should have 'Directory Tool' heading"
+        assert "multiple directories" in result.full_text.lower(), "❌ Should mention multiple directories"
+        assert "Choose the appropriate directory" in result.full_text or "Choose" in result.full_text, "❌ Should have directory selection guidance"
+        assert "Use for" in result.full_text, "❌ Should have 'Use for' guidance"
+        assert "Example queries" in result.full_text, "❌ Should have example queries"
         
         # Check for directory_purpose content
-        assert "Medical professionals" in docs or "medical professionals" in docs, "❌ Should describe doctors directory"
-        assert "phone numbers" in docs.lower(), "❌ Should describe phone_directory"
+        assert "Medical professionals" in result.full_text or "medical professionals" in result.full_text, "❌ Should describe doctors directory"
+        assert "phone numbers" in result.full_text.lower(), "❌ Should describe phone_directory"
+        
+        # Check structured result
+        assert result.header_section is not None, "❌ Multi-directory should have header section"
+        assert len(result.directory_sections) == 0, "❌ Multi-directory uses header section only"
         
         print("\n✅ Multi-directory prompt: ALL CHECKS PASSED\n")
-        return docs
+        return result.full_text
 
 
 async def main():

@@ -56,7 +56,7 @@
 - ⏳ Feature 0026-009: Structured prompt breakdown with directory separation + full assembled prompt viewer
   - ✅ Task 3C-001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
   - ✅ Task 3C-002: Add `assembled_prompt` column to `llm_requests` table
-  - Task 3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
+  - ✅ Task 3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` + externalize hardcoded guidance
   - Task 3C-004: Update `PromptBreakdownService` to handle structured directories
   - Task 3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
   - Task 3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
@@ -1616,7 +1616,18 @@ def to_dict(self) -> dict:
 
 **Goal**: Return both the full markdown text (for prompt assembly) AND structured breakdown (for debugging).
 
-**File**: `backend/app/agents/tools/prompt_generator.py`
+**Files**: 
+- `backend/app/agents/tools/prompt_generator.py` (refactor)
+- `backend/config/prompt_modules/system/directory_selection_hints.md` (update)
+
+**Architectural Decision**: Move hardcoded multi-directory orchestration guidance (lines 177-184 in prompt_generator.py) to `directory_selection_hints.md`. This maintains separation of concerns:
+- `tool_selection_hints.md` = Cross-tool selection ("use directory vs vector vs web")
+- `directory_selection_hints.md` = Within-tool orchestration ("which directory + how to combine")
+
+**Changes to directory_selection_hints.md**:
+1. Add "Multi-Directory Orchestration" section at the top
+2. Keep existing pattern matching rules below
+3. Source attribution in admin UI will show "directory_selection_hints.md"
 
 **Add new Pydantic models**:
 
@@ -1656,10 +1667,11 @@ async def generate_directory_tool_docs(
 
 **Implementation approach**:
 
-1. Build `header_content` string and `header_section` object (if multiple directories)
-2. For each directory, build both `dir_content` string and `DirectorySection` object
-3. Concatenate all strings into `full_text`
-4. Return `DirectoryDocsResult(full_text=..., header_section=..., directory_sections=[...])`
+1. Load multi-directory orchestration from `directory_selection_hints.md` (if multiple directories)
+2. Build `header_content` string and `header_section` object combining loaded guidance + auto-generated directory summaries
+3. For each directory, build both `dir_content` string and `DirectorySection` object
+4. Concatenate all strings into `full_text`
+5. Return `DirectoryDocsResult(full_text=..., header_section=..., directory_sections=[...])`
 
 **Example construction**:
 
@@ -1670,13 +1682,25 @@ directory_sections = []
 all_text_parts = []
 
 if len(lists_metadata) > 1:
-    # Build header
-    header_text = "## Directory Tool\n\nYou have access to multiple directories..."
+    # Load orchestration guidance from markdown file
+    from ..utils.prompt_loader import load_prompt_module
+    multi_dir_guidance = load_prompt_module("directory_selection_hints", account_slug="system")
+    
+    # Build header with guidance + directory summaries
+    header_text = "## Directory Tool\n\n"
+    if multi_dir_guidance:
+        header_text += multi_dir_guidance + "\n\n"
+    header_text += "You have access to multiple directories..."
+    # ... add directory summaries from schema ...
+    
     header_section = DirectorySection(
         name="directory_docs_header",
         content=header_text,
         character_count=len(header_text),
-        metadata={"type": "multi_directory_header"}
+        metadata={
+            "type": "multi_directory_header",
+            "source": "directory_selection_hints.md + auto-generated summaries"
+        }
     )
     all_text_parts.append(header_text)
 

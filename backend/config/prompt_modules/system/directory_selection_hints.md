@@ -1,5 +1,16 @@
 ## Directory Selection Hints
 
+### Multi-Directory Orchestration
+
+**If a query involves multiple aspects**:
+1. Search the most specific directory first
+2. Combine results if relevant to the query
+3. Example: 'I need a cardiologist, what's the phone number?'
+   - First: Search `doctors` for cardiologists → Get doctor's contact info
+   - Then: If scheduling mentioned, check `phone_directory` for appointments
+
+---
+
 **Pattern: Department/Service + Phone/Number**
 
 When the query mentions BOTH a department/service name AND phone/number/contact:
