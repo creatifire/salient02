@@ -54,23 +54,24 @@
 
 #### 📋 **Phase 3C: Inline Prompt Content Viewer with Module Breakdown** (PROPOSED)
 - ⏳ Feature 0026-009: Structured prompt breakdown with directory separation + full assembled prompt viewer
-  - ✅ Task 001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
-  - Task 002: Add `assembled_prompt` column to `llm_requests` table
-  - Task 003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
-  - Task 004: Update `PromptBreakdownService` to handle structured directories
-  - Task 005: Update `simple_chat.py` to use new structure and capture assembled prompt
-  - Task 006: Update `LLMRequestTracker` to accept assembled_prompt parameter
-  - Task 007: Add "View Full Assembled Prompt" UI toggle
-  - Task 008: Update frontend to render nested sections with CSS indentation
+  - ✅ Task 3C-001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
+  - Task 3C-002: Add `assembled_prompt` column to `llm_requests` table
+  - Task 3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
+  - Task 3C-004: Update `PromptBreakdownService` to handle structured directories
+  - Task 3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
+  - Task 3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
+  - Task 3C-007: Add "View Full Assembled Prompt" UI toggle
+  - Task 3C-008: Update frontend to render nested sections with CSS indentation
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
 - ⏳ Feature 0026-007: Professional dashboard UI (HTMX + TailwindCSS)
-  - Task 001: Create shared admin.css stylesheet
-  - Task 002: Add navigation header with branding
-  - Task 003: Polish sessions list (stats cards, improved filters/table)
-  - Task 004: Polish session detail (metadata card, message styling, prompt breakdown)
-  - Task 005: Add loading/empty states and keyboard shortcuts
+  - Task 0026-007-001: Create shared admin.css stylesheet
+  - Task 0026-007-002: Add navigation header with branding
+  - Task 0026-007-003: Polish sessions list (stats cards, improved filters/table)
+  - Task 0026-007-004: Polish session detail (metadata card, message styling, prompt breakdown)
+  - Task 0026-007-005: Add loading/empty states
+  - Task 0026-007-006: Add keyboard shortcuts
   
 **Note**: Phase 4 updated post-Phase 3C to work with HTMX + Vanilla JS architecture (no build step, pure TailwindCSS utilities). See detailed plan below after Phase 3C.
 
