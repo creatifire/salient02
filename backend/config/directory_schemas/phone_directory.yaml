@@ -98,8 +98,10 @@ search_strategy:
   
   guidance: |
     **When users ask about contacting departments:**
-    1. Search by department name if specific
-    2. Search by service_type for general queries
+    1. Search by department NAME using the `query` parameter (not filters!)
+       Example: search_directory(list_name="phone_directory", query="Cardiology")
+    2. Search by service_type using `filters` ONLY if searching by category
+       Example: search_directory(list_name="phone_directory", filters={"service_type": "Emergency Services"})
     3. Always include hours_of_operation in response
   
   synonym_mappings:
@@ -113,8 +115,14 @@ search_strategy:
   examples:
     - user_query: "What's the emergency room number?"
       tool_calls:
-        - 'search_directory(list_name="phone_directory", filters={"department_name": "Emergency Department"})'
+        - 'search_directory(list_name="phone_directory", query="Emergency Department")'
     - user_query: "How do I schedule an appointment?"
       tool_calls:
-        - 'search_directory(list_name="phone_directory", filters={"department_name": "Appointments"})'
+        - 'search_directory(list_name="phone_directory", query="Appointments")'
+    - user_query: "What's the cardiology phone number?"
+      tool_calls:
+        - 'search_directory(list_name="phone_directory", query="Cardiology")'
+    - user_query: "Show me all emergency services contact info"
+      tool_calls:
+        - 'search_directory(list_name="phone_directory", filters={"service_type": "Emergency Services"})'
 
