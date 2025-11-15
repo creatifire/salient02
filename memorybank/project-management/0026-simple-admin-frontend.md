@@ -55,7 +55,7 @@
 #### 📋 **Phase 3C: Inline Prompt Content Viewer with Module Breakdown** (PROPOSED)
 - ⏳ Feature 0026-009: Structured prompt breakdown with directory separation + full assembled prompt viewer
   - ✅ Task 3C-001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
-  - Task 3C-002: Add `assembled_prompt` column to `llm_requests` table
+  - ✅ Task 3C-002: Add `assembled_prompt` column to `llm_requests` table
   - Task 3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` (Pydantic model)
   - Task 3C-004: Update `PromptBreakdownService` to handle structured directories
   - Task 3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
