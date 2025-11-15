@@ -57,7 +57,7 @@
   - ✅ Task 3C-001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
   - ✅ Task 3C-002: Add `assembled_prompt` column to `llm_requests` table
   - ✅ Task 3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` + externalize hardcoded guidance
-  - Task 3C-004: Update `PromptBreakdownService` to handle structured directories
+  - ✅ Task 3C-004: Update `PromptBreakdownService` to handle structured directories
   - Task 3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
   - Task 3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
   - Task 3C-007: Add "View Full Assembled Prompt" UI toggle

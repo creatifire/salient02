@@ -4,8 +4,11 @@ Prompt breakdown service for capturing LLM prompt composition metadata.
 This service provides centralized tracking of how LLM prompts are assembled,
 enabling debugging of tool selection and prompt composition issues in the admin UI.
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 import logfire
+
+if TYPE_CHECKING:
+    from ..agents.tools.prompt_generator import DirectoryDocsResult
 
 
 class PromptBreakdownService:
@@ -18,18 +21,18 @@ class PromptBreakdownService:
     def capture_breakdown(
         base_prompt: str,
         critical_rules: Optional[str] = None,
-        directory_docs: Optional[str] = None,
+        directory_result: Optional['DirectoryDocsResult'] = None,
         modules: Optional[Dict[str, str]] = None,
         account_slug: Optional[str] = None,
         agent_instance_slug: Optional[str] = None
     ) -> dict:
         """
-        Capture prompt breakdown with character counts and sources.
+        Capture prompt breakdown with full content for each module.
         
         Args:
             base_prompt: Base system prompt content
             critical_rules: Critical tool selection rules (injected at top)
-            directory_docs: Auto-generated directory documentation
+            directory_result: Structured directory docs (header + sections) from DirectoryDocsResult
             modules: Dict of {module_name: content} for additional modules
             account_slug: Account identifier for logging
             agent_instance_slug: Agent instance identifier for logging
@@ -38,8 +41,14 @@ class PromptBreakdownService:
             Dict suitable for storing in llm_requests.meta['prompt_breakdown']
             Format: {
                 "sections": [
-                    {"name": "critical_rules", "position": 1, "char_count": 4928, "source": "tool_selection_hints.md"},
-                    {"name": "base_prompt", "position": 2, "char_count": 3200, "source": "system_prompt.md"},
+                    {
+                        "name": "tool_selection_hints.md", 
+                        "position": 1, 
+                        "characters": 4928, 
+                        "source": "tool_selection_hints.md",
+                        "content": "...",
+                        "type": "module"
+                    },
                     ...
                 ],
                 "total_char_count": 15410
@@ -55,43 +64,76 @@ class PromptBreakdownService:
         # 1. Critical rules (if present, injected at top)
         if critical_rules:
             breakdown["sections"].append({
-                "name": "critical_rules",
+                "name": "tool_selection_hints.md",
                 "position": position,
-                "char_count": len(critical_rules),
-                "source": "tool_selection_hints.md"
+                "characters": len(critical_rules),
+                "source": "tool_selection_hints.md",
+                "content": critical_rules,
+                "type": "module"
             })
             total_chars += len(critical_rules)
             position += 1
         
         # 2. Base system prompt
         breakdown["sections"].append({
-            "name": "base_prompt",
+            "name": "system_prompt.md",
             "position": position,
-            "char_count": len(base_prompt),
-            "source": "system_prompt.md"
+            "characters": len(base_prompt),
+            "source": "system_prompt.md",
+            "content": base_prompt,
+            "type": "module"
         })
         total_chars += len(base_prompt)
         position += 1
         
-        # 3. Directory documentation (if present)
-        if directory_docs:
-            breakdown["sections"].append({
-                "name": "directory_docs",
-                "position": position,
-                "char_count": len(directory_docs),
-                "source": "auto-generated"
-            })
-            total_chars += len(directory_docs)
-            position += 1
+        # 3. Directory documentation (structured)
+        if directory_result:
+            header_position = None
+            
+            # 3a. Directory header (if multi-directory)
+            if directory_result.header_section:
+                header_position = position
+                header_section = directory_result.header_section
+                breakdown["sections"].append({
+                    "name": header_section.name,
+                    "position": position,
+                    "characters": header_section.character_count,
+                    "source": header_section.metadata.get("source", "auto-generated"),
+                    "content": header_section.content,
+                    "type": "directory_header",
+                    "metadata": header_section.metadata
+                })
+                total_chars += header_section.character_count
+                position += 1
+            
+            # 3b. Individual directory sections
+            for dir_section in directory_result.directory_sections:
+                section_dict = {
+                    "name": dir_section.name,
+                    "position": position,
+                    "characters": dir_section.character_count,
+                    "source": f"auto-generated ({dir_section.metadata.get('schema_file', 'N/A')})",
+                    "content": dir_section.content,
+                    "type": "directory",
+                    "metadata": dir_section.metadata
+                }
+                if header_position is not None:
+                    section_dict["parent_position"] = header_position
+                
+                breakdown["sections"].append(section_dict)
+                total_chars += dir_section.character_count
+                position += 1
         
         # 4. Additional modules
         if modules:
             for module_name, content in modules.items():
                 breakdown["sections"].append({
-                    "name": module_name,
+                    "name": f"{module_name}.md",
                     "position": position,
-                    "char_count": len(content),
-                    "source": f"{module_name}.md"
+                    "characters": len(content),
+                    "source": f"{module_name}.md",
+                    "content": content,
+                    "type": "module"
                 })
                 total_chars += len(content)
                 position += 1
