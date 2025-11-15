@@ -116,7 +116,7 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
 async def create_simple_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> tuple[Agent, dict]:  # Fixed: return agent and prompt_breakdown
+) -> tuple[Agent, dict, str]:  # Return agent, prompt_breakdown, and assembled system_prompt
     """
     Create a simple chat agent with OpenRouter provider for cost tracking.
     
@@ -125,6 +125,9 @@ async def create_simple_chat_agent(
         account_id: Optional account ID for multi-tenant directory documentation generation
                         instead of loading the global config. This enables multi-tenant
                         support where each instance can have different model settings.
+    
+    Returns:
+        tuple: (agent, prompt_breakdown, system_prompt)
     """
     config = instance_config if instance_config is not None else load_config()
     llm_config = config.get("model_settings", {})
@@ -185,7 +188,7 @@ async def create_simple_chat_agent(
             toolsets=toolsets  # NEW: Pass toolsets list
         )
         
-        return agent, prompt_breakdown
+        return agent, prompt_breakdown, system_prompt
     
     # PHASE 4A: Load critical tool selection rules FIRST (before everything else)
     # This ensures LLM sees tool selection guidance before tool descriptions
@@ -375,12 +378,12 @@ async def create_simple_chat_agent(
         toolsets=toolsets  # NEW: Pass toolsets list
     )
     
-    return agent, prompt_breakdown
+    return agent, prompt_breakdown, system_prompt
 
 async def get_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> tuple[Agent, dict]:  # Fixed: return agent and prompt_breakdown
+) -> tuple[Agent, dict, str]:  # Return agent, prompt_breakdown, and system_prompt
     """
     Create a fresh chat agent instance.
     
@@ -394,11 +397,11 @@ async def get_chat_agent(
     """
     # Always create fresh agent to pick up latest configuration
     # This ensures config changes work reliably in production
-    agent, prompt_breakdown = await create_simple_chat_agent(
+    agent, prompt_breakdown, system_prompt = await create_simple_chat_agent(
         instance_config=instance_config,
         account_id=account_id
     )
-    return agent, prompt_breakdown
+    return agent, prompt_breakdown, system_prompt
 
 async def simple_chat(
     message: str, 
@@ -460,7 +463,7 @@ async def simple_chat(
     
     # Get the agent (Fixed: await async function)
     # Pass instance_config and account_id for multi-tenant support and directory docs generation
-    agent, prompt_breakdown = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    agent, prompt_breakdown, system_prompt = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for debugging
     config_to_use = instance_config if instance_config is not None else load_config()
@@ -832,7 +835,7 @@ async def simple_chat_stream(
         )
     
     # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
-    agent, prompt_breakdown = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    agent, prompt_breakdown, system_prompt = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for logging
     config_to_use = instance_config if instance_config is not None else load_config()
