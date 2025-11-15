@@ -79,7 +79,8 @@ class LLMRequestTracker:
         agent_instance_id: Optional[UUID] = None,
         completion_status: str = "complete",
         error_metadata: Optional[Dict[str, Any]] = None,
-        meta: Optional[Dict[str, Any]] = None
+        meta: Optional[Dict[str, Any]] = None,
+        assembled_prompt: Optional[str] = None
     ) -> UUID:
         """
         Track a complete LLM request with all billing and performance data.
@@ -102,6 +103,7 @@ class LLMRequestTracker:
                 Values: "complete", "partial", "error", "timeout"
             error_metadata: Error information for failed requests
             meta: Optional metadata including prompt breakdown for admin debugging
+            assembled_prompt: Complete system prompt as sent to LLM
             
         Returns:
             UUID: The llm_request.id for linking with messages
@@ -184,6 +186,7 @@ class LLMRequestTracker:
                 total_cost=cost_data.get("total_cost", 0.0),
                 latency_ms=latency_ms,
                 meta=meta,  # Prompt breakdown and other debugging metadata
+                assembled_prompt=assembled_prompt,  # Complete system prompt as sent to LLM
                 # Denormalized fields for fast billing queries (all Python primitives)
                 account_id=account_id_primitive,
                 account_slug=account_slug_primitive,

@@ -233,6 +233,7 @@ async def create_simple_chat_agent(
     
     # Initialize variables for prompt breakdown tracking
     directory_docs = ""
+    directory_result = None  # Will hold DirectoryDocsResult if directory tools enabled
     
     # Auto-generate directory tool documentation if enabled
     directory_config = (instance_config or {}).get("tools", {}).get("directory", {})
@@ -311,7 +312,7 @@ async def create_simple_chat_agent(
     prompt_breakdown = PromptBreakdownService.capture_breakdown(
         base_prompt=base_system_prompt,
         critical_rules=critical_rules if critical_rules else None,
-        directory_docs=directory_docs if directory_config.get("enabled", False) and account_id is not None else None,
+        directory_result=directory_result if directory_config.get("enabled", False) and account_id is not None else None,
         modules={name: load_prompt_module(name, account_slug) 
                  for name in other_modules} if prompting_config.get('enabled') and other_modules else None,
         account_slug=account_slug,
@@ -666,7 +667,8 @@ async def simple_chat(
                     agent_instance_slug=agent_instance_slug,
                     agent_type=agent_type,
                     completion_status="complete",
-                    meta={"prompt_breakdown": prompt_breakdown}  # Admin debugging
+                    meta={"prompt_breakdown": prompt_breakdown},  # Admin debugging
+                    assembled_prompt=system_prompt  # Complete assembled prompt as sent to LLM
                 )
         
             # Save messages to database for multi-tenant message attribution
@@ -1158,7 +1160,8 @@ async def simple_chat_stream(
                     agent_instance_slug=agent_instance_slug,
                     agent_type=agent_type,
                     completion_status="complete",
-                    meta={"prompt_breakdown": prompt_breakdown}  # Admin debugging
+                    meta={"prompt_breakdown": prompt_breakdown},  # Admin debugging
+                    assembled_prompt=system_prompt  # Complete assembled prompt as sent to LLM
                 )
                 
                 logfire.info(
