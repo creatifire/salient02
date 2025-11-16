@@ -61,7 +61,8 @@
   - ✅ Task 3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
   - ✅ Task 3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
   - ✅ Task 3C-007: Add "View Full Assembled Prompt" UI toggle
-  - Task 3C-008: Update frontend to render nested sections with CSS indentation
+  - ✅ Task 3C-008: Update frontend to render nested sections with CSS indentation
+  - ⏳ Task 3C-009: Add multi-level nested expandable sections for directory breakdown
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
@@ -2251,6 +2252,163 @@ Prompt Sections: 6 modules, 16,478 characters total
 ▶ system_prompt.md (5) 3,200 chars
 ▶ few_shot_examples.md (6) 2,100 chars
 ```
+
+---
+
+#### Task 3C-009: Add Multi-Level Nested Expandable Sections for Directory Breakdown
+
+**Status**: PROPOSED
+
+**Goal**: Break down the current `directory_docs_header` section into a three-level hierarchy for better debugging granularity of multi-directory prompts.
+
+**Current Structure** (2 levels):
+```
+▶ directory_docs_header (1)
+  ▶ directory: doctors (2)
+  ▶ directory: phone_directory (3)
+```
+
+**Desired Structure** (3+ levels):
+```
+▶ directory_docs_header (1)
+  ▶ directory_selection_hints (2)
+  ▶ directory_schema_summary (3)
+    ▶ directory: doctors (4)
+    ▶ directory: phone_directory (5)
+```
+
+**Benefits**:
+- **Separate concerns**: Selection hints vs schema descriptions vs individual directories
+- **Easier debugging**: Quickly identify if issue is in orchestration guidance vs directory content
+- **Better granularity**: Expand only the section you need to inspect
+- **Visual clarity**: More intuitive hierarchy matches logical structure
+
+---
+
+**Backend Changes**:
+
+1. **`prompt_generator.py`** - Restructure `DirectoryDocsResult`:
+   - Split `header_section` into two sections:
+     - `directory_selection_hints` (from markdown file)
+     - `directory_schema_summary` (auto-generated directory descriptions)
+   - Set `parent_position` on both to link to `directory_docs_header`
+   - Update `directory_sections` to have `parent_position` pointing to `directory_schema_summary`
+
+2. **`prompt_breakdown_service.py`** - Update breakdown structure:
+   - Accept new multi-level structure from `DirectoryDocsResult`
+   - Correctly set `parent_position` for 3-level hierarchy
+   - Ensure character counts remain accurate
+
+**Data Structure**:
+```json
+{
+  "sections": [
+    {
+      "name": "directory_docs_header",
+      "position": 1,
+      "type": "container",
+      "characters": 0,
+      "content": ""
+    },
+    {
+      "name": "directory_selection_hints",
+      "position": 2,
+      "type": "module",
+      "parent_position": 1,
+      "characters": 1500,
+      "content": "## Directory Selection Hints\n...",
+      "source": "directory_selection_hints.md"
+    },
+    {
+      "name": "directory_schema_summary",
+      "position": 3,
+      "type": "container",
+      "parent_position": 1,
+      "characters": 300,
+      "content": "## Directory Tool\n\nYou have access to...",
+      "source": "auto-generated"
+    },
+    {
+      "name": "directory: doctors",
+      "position": 4,
+      "type": "directory",
+      "parent_position": 3,
+      "characters": 3500,
+      "content": "### Directory: `doctors`...",
+      "metadata": {...}
+    },
+    {
+      "name": "directory: phone_directory",
+      "position": 5,
+      "type": "directory",
+      "parent_position": 3,
+      "characters": 2600,
+      "content": "### Directory: `phone_directory`...",
+      "metadata": {...}
+    }
+  ]
+}
+```
+
+---
+
+**Frontend Changes**:
+
+**File**: `web/public/admin/session.html`
+
+1. **Update `renderPromptBreakdown()`** to support 3+ nesting levels:
+   - Detect sections with `type: "container"` (non-expandable headers)
+   - Calculate nesting depth by traversing `parent_position` chain
+   - Apply appropriate `ml-*` indentation classes dynamically
+   - Render container sections as non-clickable headers
+
+2. **CSS Updates** (add to inline styles or `admin.css`):
+```css
+/* Multi-level nesting */
+.prompt-section-level-1 { margin-left: 0; }
+.prompt-section-level-2 { margin-left: 1.5rem; border-left: 2px solid #e5e7eb; padding-left: 0.75rem; }
+.prompt-section-level-3 { margin-left: 3rem; border-left: 2px solid #d1d5db; padding-left: 0.75rem; }
+
+/* Container sections (non-expandable) */
+.prompt-section-container {
+    font-weight: 600;
+    color: #374151;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+```
+
+3. **Update `toggleSection()` logic**:
+   - Auto-expand/collapse children when parent toggled
+   - Add "Expand All" / "Collapse All" buttons for convenience
+
+---
+
+**Implementation Steps**:
+
+1. ✅ **Backend**: Refactor `prompt_generator.py` to return 3-level structure
+2. ✅ **Backend**: Update `prompt_breakdown_service.py` to handle containers
+3. ✅ **Frontend**: Update `renderPromptBreakdown()` to calculate depth and render hierarchy
+4. ✅ **Frontend**: Add CSS for multi-level indentation
+5. ✅ **Testing**: Verify single-directory (no containers), multi-directory (full hierarchy)
+6. ✅ **Testing**: Verify character counts still match exactly
+
+---
+
+**Complexity**: Medium (4-6 hours)
+- Backend refactor: 2-3 hours
+- Frontend updates: 1-2 hours  
+- Testing & polish: 1 hour
+
+**Files Modified**:
+- `backend/app/agents/tools/prompt_generator.py`
+- `backend/app/services/prompt_breakdown_service.py`
+- `web/public/admin/session.html`
+
+**Edge Cases**:
+- Single directory: No containers, keep flat structure
+- No directories: No changes needed
+- Legacy sessions: Gracefully handle old 2-level structure
 
 ---
 
