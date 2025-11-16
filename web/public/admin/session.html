@@ -205,6 +205,7 @@
                                            font-medium flex justify-between items-center rounded 
                                            ${!hasContent && !isContainer ? 'opacity-50 cursor-not-allowed' : ''}"
                                     onclick="toggleSection('${sectionId}', this)"
+                                    data-is-container="${isContainer}"
                                     ${!hasContent && !isContainer ? 'disabled' : ''}>
                                     <span class="flex items-center gap-2">
                                         <span class="arrow text-gray-600">
@@ -259,13 +260,17 @@
         function toggleSection(sectionId, buttonEl) {
             const contentDiv = document.getElementById(sectionId);
             const arrow = buttonEl.querySelector('.arrow');
+            const isContainer = buttonEl.getAttribute('data-is-container') === 'true';
             
             if (contentDiv.classList.contains('hidden')) {
+                // Expanding
                 contentDiv.classList.remove('hidden');
                 arrow.textContent = '▼';
             } else {
+                // Collapsing
                 contentDiv.classList.add('hidden');
-                arrow.textContent = '▶';
+                // Use folder icon for containers, arrow for regular sections
+                arrow.textContent = isContainer ? '📁' : '▶';
             }
         }
         
