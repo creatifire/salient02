@@ -62,7 +62,7 @@
   - ✅ Task 3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
   - ✅ Task 3C-007: Add "View Full Assembled Prompt" UI toggle
   - ✅ Task 3C-008: Update frontend to render nested sections with CSS indentation
-  - ⏳ Task 3C-009: Add multi-level nested expandable sections for directory breakdown
+  - ✅ Task 3C-009: Add multi-level nested expandable sections for directory breakdown
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
