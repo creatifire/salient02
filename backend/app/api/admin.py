@@ -231,6 +231,8 @@ async def get_llm_request(request_id: str):
                 "id": str(llm_request.id),
                 "model": llm_request.model,
                 "prompt_breakdown": prompt_breakdown,
+                "assembled_prompt": llm_request.assembled_prompt,  # NEW: Include assembled prompt
+                "meta": llm_request.meta,  # NEW: Include full meta for additional context
                 "tool_calls": tool_calls,
                 "response": {
                     "content": None,  # Full content is in messages table
