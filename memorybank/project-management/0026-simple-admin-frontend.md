@@ -16,63 +16,80 @@
 
 ---
 
+## Naming Convention
+
+**Hierarchical Structure**: `EPIC-FEATURE-TASK-CHUNK`
+
+- **Epic**: Top-level initiative (e.g., `0026`)
+- **Feature**: Major feature within epic (e.g., `3C`, `007`)
+- **Task**: Specific task within feature (e.g., `010`, `001`)
+- **Chunk**: Implementation step within task (e.g., `001`, `002`)
+
+**Examples**:
+- `FEATURE-0026-010`: Feature 010 in Epic 0026
+- `TASK-0026-007-001`: Task 001 in Feature 007 of Epic 0026
+- `CHUNK-0026-3C-010-001`: First chunk of TASK-0026-3C-010
+
+---
+
 ## Implementation Status
 
 ### ✅ **Phase 0: Foundation Setup** (COMPLETE)
-- ✅ Task 0026-000-001: Add meta JSONB column to llm_requests
-- ✅ Task 0026-000-002: Create PromptBreakdownService
-- ✅ Task 0026-000-003: Integrate into simple_chat.py (both streaming/non-streaming)
-- ✅ Task 0026-000-004: Verify/implement tool call storage in message.meta
-- ✅ Task 0026-000-005: Create AdminAuthMiddleware with HTTP Basic Auth
+- ✅ TASK-0026-000-001: Add meta JSONB column to llm_requests
+- ✅ TASK-0026-000-002: Create PromptBreakdownService
+- ✅ TASK-0026-000-003: Integrate into simple_chat.py (both streaming/non-streaming)
+- ✅ TASK-0026-000-004: Verify/implement tool call storage in message.meta
+- ✅ TASK-0026-000-005: Create AdminAuthMiddleware with HTTP Basic Auth
 
 ### ✅ **Phase 1: Backend API Endpoints** (COMPLETE)
-- ✅ Feature 0026-001: GET /api/admin/sessions (list with filters)
-- ✅ Feature 0026-002: GET /api/admin/sessions/{id}/messages
-- ✅ Feature 0026-003: GET /api/admin/llm-requests/{id}
+- ✅ FEATURE-0026-001: GET /api/admin/sessions (list with filters)
+- ✅ FEATURE-0026-002: GET /api/admin/sessions/{id}/messages
+- ✅ FEATURE-0026-003: GET /api/admin/llm-requests/{id}
 
 ### ✅ **Phase 2: Frontend Pages** (COMPLETE)
-- ✅ Feature 0026-004: Session list page (/admin/sessions) with SessionFilters component
-- ✅ Feature 0026-005: Session detail page (/admin/sessions/[id]) with PromptInspector
+- ✅ FEATURE-0026-004: Session list page (/admin/sessions) with SessionFilters component
+- ✅ FEATURE-0026-005: Session detail page (/admin/sessions/[id]) with PromptInspector
 
 ### **Phase 3: Admin UI Refinement**
 
 #### ❌ **Phase 3A: Session-Based Authentication** (DEPRECATED)
-- Feature 0026-006: Replace HTTP Basic Auth with session-based login
+- FEATURE-0026-006: Replace HTTP Basic Auth with session-based login
   - Status: **Removed per BUG-0026-0002** (authentication unnecessary for localhost debugging tool)
   - Tasks 001-005: Login/logout endpoints, session middleware, Astro login page (all removed)
 
 #### ✅ **Phase 3B: Session Browser in HTMX** (COMPLETE)
-- ✅ Feature 0026-008: Replace Astro+Preact with HTMX+Vanilla JS
-  - ✅ Task 001: Create `sessions.html` (sessions list with filters)
-  - ✅ Task 002: Create `session.html` (conversation timeline with prompt inspector)
-  - ✅ Task 003: Delete Astro pages and Preact components (6 files removed)
-  - ✅ Task 004: Update Astro config (optional cleanup)
-  - ✅ Task 005: Add Response Quality UI section (Epic 0027 prep - confidence scores & reasoning chains)
-  - ✅ Task 006: Fix BUG-0026-0003 (session creation without account/agent context on page load)
+- ✅ FEATURE-0026-008: Replace Astro+Preact with HTMX+Vanilla JS
+  - ✅ TASK-0026-008-001: Create `sessions.html` (sessions list with filters)
+  - ✅ TASK-0026-008-002: Create `session.html` (conversation timeline with prompt inspector)
+  - ✅ TASK-0026-008-003: Delete Astro pages and Preact components (6 files removed)
+  - ✅ TASK-0026-008-004: Update Astro config (optional cleanup)
+  - ✅ TASK-0026-008-005: Add Response Quality UI section (Epic 0027 prep - confidence scores & reasoning chains)
+  - ✅ TASK-0026-008-006: Fix BUG-0026-0003 (session creation without account/agent context on page load)
 - **Result**: 2 static HTML files, no build step, HTMX v2.0.7, TailwindCSS CDN
 - **Bug Fixes**: Session creation now deferred to first user message; admin routes skip session handling
 
 #### 📋 **Phase 3C: Inline Prompt Content Viewer with Module Breakdown** (PROPOSED)
-- ⏳ Feature 0026-009: Structured prompt breakdown with directory separation + full assembled prompt viewer
-  - ✅ Task 3C-001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
-  - ✅ Task 3C-002: Add `assembled_prompt` column to `llm_requests` table
-  - ✅ Task 3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` + externalize hardcoded guidance
-  - ✅ Task 3C-004: Update `PromptBreakdownService` to handle structured directories
-  - ✅ Task 3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
-  - ✅ Task 3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
-  - ✅ Task 3C-007: Add "View Full Assembled Prompt" UI toggle
-  - ✅ Task 3C-008: Update frontend to render nested sections with CSS indentation
-  - ✅ Task 3C-009: Add multi-level nested expandable sections for directory breakdown
+- ⏳ FEATURE-0026-009: Structured prompt breakdown with directory separation + full assembled prompt viewer
+  - ✅ TASK-0026-3C-001: Verify button visibility logic (confirmed: user messages only) *(already implemented correctly)*
+  - ✅ TASK-0026-3C-002: Add `assembled_prompt` column to `llm_requests` table
+  - ✅ TASK-0026-3C-003: Refactor `prompt_generator.py` to return `DirectoryDocsResult` + externalize hardcoded guidance
+  - ✅ TASK-0026-3C-004: Update `PromptBreakdownService` to handle structured directories
+  - ✅ TASK-0026-3C-005: Update `simple_chat.py` to use new structure and capture assembled prompt
+  - ✅ TASK-0026-3C-006: Update `LLMRequestTracker` to accept assembled_prompt parameter
+  - ✅ TASK-0026-3C-007: Add "View Full Assembled Prompt" UI toggle
+  - ✅ TASK-0026-3C-008: Update frontend to render nested sections with CSS indentation
+  - ✅ TASK-0026-3C-009: Add multi-level nested expandable sections for directory breakdown
+  - ⏳ TASK-0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
-- ⏳ Feature 0026-007: Professional dashboard UI (HTMX + TailwindCSS)
-  - Task 0026-007-001: Create shared admin.css stylesheet
-  - Task 0026-007-002: Add navigation header with branding
-  - Task 0026-007-003: Polish sessions list (stats cards, improved filters/table)
-  - Task 0026-007-004: Polish session detail (metadata card, message styling, prompt breakdown)
-  - Task 0026-007-005: Add loading/empty states
-  - Task 0026-007-006: Add keyboard shortcuts
+- ⏳ FEATURE-0026-007: Professional dashboard UI (HTMX + TailwindCSS)
+  - TASK-0026-007-001: Create shared admin.css stylesheet
+  - TASK-0026-007-002: Add navigation header with branding
+  - TASK-0026-007-003: Polish sessions list (stats cards, improved filters/table)
+  - TASK-0026-007-004: Polish session detail (metadata card, message styling, prompt breakdown)
+  - TASK-0026-007-005: Add loading/empty states
+  - TASK-0026-007-006: Add keyboard shortcuts
   
 **Note**: Phase 4 updated post-Phase 3C to work with HTMX + Vanilla JS architecture (no build step, pure TailwindCSS utilities). See detailed plan below after Phase 3C.
 
@@ -162,12 +179,12 @@ Conversation timeline showing user/assistant messages with expandable metadata.
 
 ### Phase 0: Foundation Setup
 
-#### Task 0026-000-001: Add meta Column
+#### TASK-0026-000-001: Add meta Column
 ```sql
 ALTER TABLE llm_requests ADD COLUMN meta JSONB;
 ```
 
-#### Task 0026-000-002: Create PromptBreakdownService
+#### TASK-0026-000-002: Create PromptBreakdownService
 
 **What it does**: Captures how the LLM prompt was assembled (what sections, in what order, how long each section is). This data gets stored in the database so the admin UI can show exactly what prompt the LLM saw when it made a bad decision.
 
@@ -247,7 +264,7 @@ class PromptBreakdownService:
 
 **Storage**: Prompt breakdown gets stored in `llm_requests.meta["prompt_breakdown"]` (one per LLM request). This captures the INPUT to the LLM - what prompt structure it received.
 
-#### Task 0026-000-003: Integrate into simple_chat.py
+#### TASK-0026-000-003: Integrate into simple_chat.py
 **Changes**: `simple_chat.py`, `cost_calculator.py`, `llm_request_tracker.py`
 
 ```python
@@ -287,7 +304,7 @@ async def track_llm_request(
     )
 ```
 
-#### Task 0026-000-004: Verify Tool Call Storage
+#### TASK-0026-000-004: Verify Tool Call Storage
 
 **Storage**: Tool calls get stored in `messages.meta["tool_calls"]` (one per assistant message). This captures the OUTPUT from the LLM - which tools it decided to call and with what arguments.
 
@@ -315,7 +332,7 @@ await message_service.save_message(
 )
 ```
 
-#### Task 0026-000-005: Admin Auth Middleware
+#### TASK-0026-000-005: Admin Auth Middleware
 **File**: `backend/app/middleware/admin_auth_middleware.py`
 
 ```python
@@ -389,7 +406,7 @@ ADMIN_PASSWORD=your-secure-password-here
 
 **Note**: All admin APIs use GET requests (read-only). No POST/PUT/DELETE - admin UI is for debugging/inspection only, no data modification.
 
-#### Feature 0026-001: Sessions List API
+#### FEATURE-0026-001: Sessions List API
 **File**: `backend/app/api/admin.py`
 
 ```python
@@ -412,7 +429,7 @@ async def list_sessions(
     pass
 ```
 
-#### Feature 0026-002: Session Messages API
+#### FEATURE-0026-002: Session Messages API
 ```python
 @router.get("/sessions/{session_id}/messages")
 async def get_session_messages(session_id: str):
@@ -422,7 +439,7 @@ async def get_session_messages(session_id: str):
     pass
 ```
 
-#### Feature 0026-003: LLM Request Detail API
+#### FEATURE-0026-003: LLM Request Detail API
 ```python
 @router.get("/llm-requests/{request_id}")
 async def get_llm_request(request_id: str):
@@ -436,7 +453,7 @@ async def get_llm_request(request_id: str):
 
 ### Phase 2: Frontend Pages
 
-#### Feature 0026-004: Session List Page
+#### FEATURE-0026-004: Session List Page
 **File**: `web/src/pages/admin/sessions.astro`
 - Server-side fetch sessions on load
 - Embed `<SessionFilters client:load />` Preact component for interactivity
@@ -483,7 +500,7 @@ export function SessionFilters() {
 }
 ```
 
-#### Feature 0026-005: Session Detail Page
+#### FEATURE-0026-005: Session Detail Page
 **File**: `web/src/pages/admin/sessions/[id].astro`
 - Dynamic route with session ID
 - Server-side fetch messages
@@ -536,9 +553,9 @@ export function PromptInspector({ requestId }: { requestId: string }) {
 
 **Solution**: Piggyback on existing `SimpleSessionMiddleware` infrastructure with session-stored authentication flag.
 
-#### Feature 0026-006: Session-Based Admin Login
+#### FEATURE-0026-006: Session-Based Admin Login
 
-##### Task 0026-006-001: Create Admin Login Endpoint
+##### TASK-0026-006-001: Create Admin Login Endpoint
 **File**: `backend/app/api/admin.py`
 
 ```python
@@ -598,7 +615,7 @@ async def admin_logout(request: Request):
     return {"success": True, "message": "Logged out"}
 ```
 
-##### Task 0026-006-002: Update AdminAuthMiddleware
+##### TASK-0026-006-002: Update AdminAuthMiddleware
 **File**: `backend/app/middleware/admin_auth_middleware.py`
 
 Replace HTTP Basic Auth logic with session check:
@@ -639,7 +656,7 @@ def _unauthorized(self, message: str = "Admin authentication required"):
     )
 ```
 
-##### Task 0026-006-003: Create Admin Login Page
+##### TASK-0026-006-003: Create Admin Login Page
 **File**: `web/src/pages/admin/login.astro`
 
 Simple login form that posts to `/api/admin/login`:
@@ -674,7 +691,7 @@ Simple login form that posts to `/api/admin/login`:
 </html>
 ```
 
-##### Task 0026-006-004: Create LoginForm Component
+##### TASK-0026-006-004: Create LoginForm Component
 **File**: `web/src/components/admin/LoginForm.tsx`
 
 ```tsx
@@ -760,7 +777,7 @@ export function LoginForm({ apiUrl }: { apiUrl: string }) {
 }
 ```
 
-##### Task 0026-006-005: Update Existing Components
+##### TASK-0026-006-005: Update Existing Components
 Remove HTTP Basic Auth prompts from:
 - `SessionFilters.tsx` - use fetch with `credentials: 'include'`
 - `SessionDetail.tsx` - use fetch with `credentials: 'include'`
@@ -818,9 +835,9 @@ Backend APIs (already exist, no changes):
 
 ---
 
-### Feature 0026-008: HTMX Session Browser
+### FEATURE-0026-008: HTMX Session Browser
 
-#### Task 0026-008-001: Create Sessions List Page
+#### TASK-0026-008-001: Create Sessions List Page
 
 **File**: `web/public/admin/sessions.html`
 
@@ -996,7 +1013,7 @@ Backend APIs (already exist, no changes):
 
 ---
 
-#### Task 0026-008-002: Create Session Detail Page
+#### TASK-0026-008-002: Create Session Detail Page
 
 **File**: `web/public/admin/session.html`
 
@@ -1148,7 +1165,7 @@ Backend APIs (already exist, no changes):
 
 ---
 
-#### Task 0026-008-003: Delete Astro and Preact Files
+#### TASK-0026-008-003: Delete Astro and Preact Files
 
 **Files to DELETE** (no longer needed):
 
@@ -1177,7 +1194,7 @@ Backend APIs (already exist, no changes):
 
 ---
 
-#### Task 0026-008-004: Update Astro Config (Optional Cleanup)
+#### TASK-0026-008-004: Update Astro Config (Optional Cleanup)
 
 **File**: `web/astro.config.mjs`
 
@@ -1426,7 +1443,7 @@ Prompt Sections: 6 modules, 14,228 characters total
 
 ### Implementation Tasks
 
-#### Task 3C-001: Verify Message Card Content Display (COMPLETE ✅)
+#### TASK-0026-3C-001: Verify Message Card Content Display (COMPLETE ✅)
 
 **Goal**: Ensure proper information display for User vs Assistant message cards.
 
@@ -1532,7 +1549,7 @@ ${msg.meta?.tool_calls ? `
 
 ---
 
-#### Task 3C-002: Add `assembled_prompt` Column to llm_requests Table
+#### TASK-0026-3C-002: Add `assembled_prompt` Column to llm_requests Table
 
 **Goal**: Store the complete assembled system prompt (after all concatenation) for debugging.
 
@@ -1613,7 +1630,7 @@ def to_dict(self) -> dict:
 
 ---
 
-#### Task 3C-003: Refactor `generate_directory_tool_docs()` to Return Structured Data
+#### TASK-0026-3C-003: Refactor `generate_directory_tool_docs()` to Return Structured Data
 
 **Goal**: Return both the full markdown text (for prompt assembly) AND structured breakdown (for debugging).
 
@@ -1733,7 +1750,7 @@ return DirectoryDocsResult(
 
 ---
 
-#### Task 3C-004: Update `PromptBreakdownService` to Handle Structured Directories
+#### TASK-0026-3C-004: Update `PromptBreakdownService` to Handle Structured Directories
 
 **File**: `backend/app/services/prompt_breakdown_service.py`
 
@@ -1846,7 +1863,7 @@ return breakdown
 
 ---
 
-#### Task 3C-005: Update `simple_chat.py` to Use New Structure and Capture Assembled Prompt
+#### TASK-0026-3C-005: Update `simple_chat.py` to Use New Structure and Capture Assembled Prompt
 
 **File**: `backend/app/agents/simple_chat.py`
 
@@ -1920,7 +1937,7 @@ llm_request_id = await tracker.track_llm_request(
 
 ---
 
-#### Task 3C-006: Update `LLMRequestTracker` to Accept assembled_prompt Parameter
+#### TASK-0026-3C-006: Update `LLMRequestTracker` to Accept assembled_prompt Parameter
 
 **File**: `backend/app/services/llm_request_tracker.py`
 
@@ -1958,7 +1975,7 @@ llm_request = LLMRequest(
 
 ---
 
-#### Task 3C-007: Add "View Full Assembled Prompt" UI Toggle
+#### TASK-0026-3C-007: Add "View Full Assembled Prompt" UI Toggle
 
 **File**: `web/public/admin/session.html`
 
@@ -2090,7 +2107,7 @@ function copyToClipboard(elementId) {
 
 ---
 
-#### Task 3C-008: Update Frontend to Render Nested Sections
+#### TASK-0026-3C-008: Update Frontend to Render Nested Sections
 
 **File**: `web/public/admin/session.html`
 
@@ -2255,7 +2272,7 @@ Prompt Sections: 6 modules, 16,478 characters total
 
 ---
 
-#### Task 3C-009: Add Multi-Level Nested Expandable Sections for Directory Breakdown
+#### TASK-0026-3C-009: Add Multi-Level Nested Expandable Sections for Directory Breakdown
 
 **Status**: PROPOSED
 
@@ -2409,6 +2426,502 @@ Prompt Sections: 6 modules, 16,478 characters total
 - Single directory: No containers, keep flat structure
 - No directories: No changes needed
 - Legacy sessions: Gracefully handle old 2-level structure
+
+---
+
+#### Task 0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern
+
+**Status**: PROPOSED
+
+**Goal**: Fix tool selection issues by implementing a two-tool discovery pattern that eliminates hardcoded examples in tool docstrings, making the system adaptable to new directories without code changes.
+
+**Problem Statement**:
+- LLM chooses wrong tool (`vector_search` instead of `search_directory`) for contact info queries
+- Root cause: `vector_search()` docstring mentions "phone numbers, emails, addresses"
+- Current solution (hardcoded examples in docstrings) is brittle and not scalable
+- Adding new directories requires modifying Python code
+
+**Inspiration from MCP Server Patterns**:
+
+1. **Context7 MCP Server** (two-tool pattern):
+   - `resolve-library-id(libraryName)` → Returns available libraries with descriptions
+   - `get-library-docs(libraryId, topic)` → Fetches actual documentation
+
+2. **Postgres MCP Server** (discovery pattern):
+   - `list_schemas()` → Returns available schemas
+   - `list_objects(schema, type)` → Returns tables/views/etc with descriptions
+   - `get_object_details(schema, object)` → Returns column info
+   - `execute_sql(query)` → Generic executor (no hardcoded table names)
+
+**Proposed Architecture**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Tool 1: get_available_directories()                         │
+│ - Discovery tool (called BEFORE search)                     │
+│ - Returns directory metadata from YAML schemas              │
+│ - No hardcoded examples                                     │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Tool 2: search_directory(list_name, query, filters)        │
+│ - Generic execution tool (no specific examples)            │
+│ - Works with ANY directory (future-proof)                  │
+│ - Docstring focuses on HOW to search, not WHAT to search   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+**Implementation Plan**:
+
+##### CHUNK-0026-3C-010-001: Create `get_available_directories()` Tool
+
+**File**: `backend/app/agents/tools/directory_tools.py`
+
+**New Tool Function**:
+```python
+@agent.tool
+async def get_available_directories(
+    ctx: RunContext[SessionDependencies]
+) -> str:
+    """
+    Get metadata about available directory tools.
+    
+    **CALL THIS FIRST before using search_directory** to understand:
+    - What directories exist
+    - What data each contains
+    - When to use each directory
+    - What fields are searchable
+    
+    Returns JSON with directory metadata including:
+    - Directory name (list_name)
+    - Entry type (doctors, contacts, products, etc.)
+    - Entry count
+    - Use cases (when to use this directory)
+    - Searchable fields
+    - Example queries
+    
+    **Usage Pattern**:
+    1. User asks question
+    2. Call get_available_directories() to see options
+    3. Choose appropriate directory based on metadata
+    4. Call search_directory(list_name=...) with chosen directory
+    
+    Example:
+        User: "What's the cardiology department phone number?"
+        Step 1: get_available_directories()
+        Step 2: Review returned metadata, see phone_directory has department contacts
+        Step 3: search_directory(list_name="phone_directory", query="cardiology")
+    """
+    account_id = ctx.deps.session.account_id
+    
+    if not account_id:
+        return json.dumps({"error": "No account context available"})
+    
+    # Load directory metadata from YAML schemas
+    lists_metadata = await DirectoryMetadataService.get_lists_metadata(
+        account_id=account_id,
+        db_session=ctx.deps.db_session
+    )
+    
+    result = {
+        "directories": [],
+        "total_count": len(lists_metadata)
+    }
+    
+    for list_meta in lists_metadata:
+        # Load YAML schema
+        schema_data = await load_directory_schema(list_meta.schema_file)
+        entry_count = await get_directory_entry_count(
+            list_name=list_meta.list_name,
+            account_id=account_id,
+            db_session=ctx.deps.db_session
+        )
+        
+        directory_info = {
+            "list_name": list_meta.list_name,
+            "entry_type": list_meta.entry_type,
+            "entry_count": entry_count,
+            "description": schema_data.get("description", ""),
+            "use_cases": schema_data.get("use_cases", []),
+            "searchable_fields": list(schema_data.get("fields", {}).keys()),
+            "example_queries": schema_data.get("example_queries", [])
+        }
+        
+        result["directories"].append(directory_info)
+    
+    return json.dumps(result, indent=2)
+```
+
+**Benefits**:
+- No hardcoded examples in code
+- Metadata comes from YAML schemas (single source of truth)
+- Adding new directory = add YAML file (no code changes)
+- LLM sees fresh, accurate metadata every time
+
+---
+
+##### CHUNK-0026-3C-010-002: Simplify `search_directory()` Docstring
+
+**File**: `backend/app/agents/tools/directory_tools.py`
+
+**Updated Docstring** (remove specific examples):
+```python
+async def search_directory(
+    ctx: RunContext[SessionDependencies],
+    list_name: str,
+    query: Optional[str] = None,
+    tag: Optional[str] = None,
+    filters: Optional[Dict[str, str]] = None,
+) -> str:
+    """
+    Search a directory for structured data entries with exact fields.
+    
+    **IMPORTANT**: Call get_available_directories() FIRST to see what directories exist
+    and choose the right one for your query.
+    
+    This tool searches structured records with specific fields (names, specialties, 
+    departments, contact info, etc.). Each directory has different fields - use
+    get_available_directories() to see what's searchable.
+    
+    Args:
+        list_name: Directory name (get from get_available_directories())
+        query: Natural language search across all text fields
+        tag: Filter by tag (if directory supports tags)
+        filters: Exact field matches (e.g., {"specialty": "Cardiology"})
+    
+    Search Strategies:
+        1. query parameter: Searches across ALL text fields (names, descriptions, etc.)
+           - Best for: "Find X", "Who is...", "Search for..."
+           - Example: query="cardiology" searches names, specialties, departments
+        
+        2. filters parameter: Exact field matches (case-insensitive)
+           - Best for: Structured queries with known field names
+           - Example: filters={"department_name": "Billing"}
+        
+        3. Combined: Use both for precision
+           - Example: query="heart", filters={"language": "Spanish"}
+    
+    Returns:
+        JSON with matching entries or error message
+    """
+```
+
+**Key Changes**:
+- Remove ALL specific examples (doctors, phone numbers, etc.)
+- Focus on HOW to search (query vs filters)
+- Emphasize calling `get_available_directories()` first
+- Generic, applicable to ANY directory
+
+---
+
+##### CHUNK-0026-3C-010-003: Update `vector_search()` Docstring
+
+**File**: `backend/app/agents/tools/vector_tools.py`
+
+**Updated Docstring** (remove conflicting guidance):
+```python
+async def vector_search(
+    ctx: RunContext[SessionDependencies],
+    query: str,
+    filters: Optional[Dict[str, Any]] = None,
+    top_k: int = 5
+) -> str:
+    """
+    Semantic search over document content for explanations, descriptions, and knowledge.
+    
+    **USE THIS TOOL FOR:**
+    - "What is...", "Tell me about...", "Explain..." questions
+    - General information from documents and web pages
+    - Medical procedures, conditions, treatments, diseases
+    - Hospital policies, services, visitor information
+    - Educational content, guides, FAQs
+    
+    **DO NOT USE THIS TOOL FOR:**
+    - Finding specific people (doctors, staff) → use search_directory
+    - Department contact information → use search_directory
+    - Structured records with exact fields → use search_directory
+    - Anything requiring current/exact data from a database → use search_directory
+    
+    This tool searches through unstructured document text, NOT structured database records.
+    
+    Args:
+        query: Natural language question or search terms
+        filters: Optional metadata filters (e.g., {"content_type": "faq"})
+        top_k: Number of results to return (default: 5)
+    
+    Returns:
+        JSON with relevant document chunks
+    """
+```
+
+**Key Changes**:
+- Remove "Contact information: Always search to get accurate phone numbers, emails, and addresses"
+- Clarify this is for DOCUMENT content, not structured data
+- Explicit "DO NOT USE" section to prevent misuse
+
+---
+
+##### CHUNK-0026-3C-010-004: Update Directory YAML Schemas
+
+**Goal**: Ensure YAML schemas have complete metadata for `get_available_directories()`.
+
+**Files to Update**:
+- `backend/config/directory_schemas/medical_professional.yaml`
+- `backend/config/directory_schemas/phone_directory.yaml`
+- Any other directory schemas
+
+**Add Required Fields** (if missing):
+```yaml
+# At top of YAML file
+description: "Medical professionals including doctors, nurses, specialists with contact info and specialties"
+
+use_cases:
+  - "Finding a doctor by medical specialty (cardiology, nephrology, etc.)"
+  - "Finding a doctor by name"
+  - "Finding doctors who speak a specific language"
+  - "Getting doctor contact information and office location"
+
+example_queries:
+  - "I need a cardiologist"
+  - "Do you have kidney specialists?"
+  - "Who is Dr. Jane Smith?"
+  - "Find Spanish-speaking doctors"
+```
+
+**Benefits**:
+- Single source of truth
+- Non-technical users can update use cases
+- LLM sees accurate, current metadata
+
+---
+
+##### CHUNK-0026-3C-010-005: Update Prompt Modules (Remove Hardcoded Tool Examples)
+
+**File**: `backend/config/prompt_modules/system/tool_selection_hints.md`
+
+**Replace "MANDATORY Tool Call Examples"** with:
+```markdown
+## Critical: Tool Selection Rules
+
+### Rule 1: Discovery Pattern for Directory Tools
+
+**ALWAYS follow this pattern:**
+1. Call `get_available_directories()` to see what directories exist
+2. Review the metadata (use cases, searchable fields, example queries)
+3. Choose the appropriate directory
+4. Call `search_directory(list_name=...)` with your chosen directory
+
+**Why this pattern:**
+- Directories are dynamic (can be added/removed without code changes)
+- Metadata is always current and accurate
+- Prevents guessing which directory to use
+
+### Rule 2: Directory vs Vector Search
+
+**Use `search_directory` (after discovery) for:**
+- Finding specific people, products, services, or structured records
+- Any query requiring exact, current data from a database
+- Contact information (phone, email, location, hours)
+- Queries with structured attributes (specialty, department, category)
+
+**Use `vector_search` for:**
+- "What is...", "Tell me about...", "Explain..." questions
+- General knowledge from documents and web content
+- Medical procedures, conditions, treatments, policies
+- Educational content, FAQs, guides
+
+---
+
+## Example Workflow
+
+**Query**: "What's the cardiology department phone number?"
+
+**Step 1**: Call `get_available_directories()`
+```json
+{
+  "directories": [
+    {
+      "list_name": "doctors",
+      "entry_type": "medical_professional",
+      "entry_count": 124,
+      "description": "Medical professionals with contact info",
+      "use_cases": ["Finding doctors by specialty", "Getting doctor contact info"]
+    },
+    {
+      "list_name": "phone_directory",
+      "entry_type": "department_contact",
+      "entry_count": 11,
+      "description": "Hospital department phone numbers",
+      "use_cases": ["Finding department phone numbers", "Getting department hours"]
+    }
+  ]
+}
+```
+
+**Step 2**: Choose `phone_directory` (matches "department phone number")
+
+**Step 3**: Call `search_directory(list_name="phone_directory", query="cardiology")`
+
+---
+```
+
+**Key Changes**:
+- Replace hardcoded examples with discovery pattern
+- Show the workflow with actual tool calls
+- Keep pattern generic, applicable to any directory
+
+---
+
+##### CHUNK-0026-3C-010-006: Add DirectoryMetadataService
+
+**File**: `backend/app/services/directory_metadata_service.py` (NEW)
+
+```python
+from typing import List, Dict, Any
+from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
+import yaml
+import os
+from pathlib import Path
+
+class DirectoryMetadataService:
+    """Service for loading directory metadata from YAML schemas."""
+    
+    @staticmethod
+    async def get_lists_metadata(
+        account_id: UUID,
+        db_session: AsyncSession
+    ) -> List[DirectoryListMetadata]:
+        """Get list of available directories for an account."""
+        # Existing logic from prompt_generator.py
+        # Returns list of DirectoryListMetadata objects
+        pass
+    
+    @staticmethod
+    async def load_directory_schema(schema_file: str) -> Dict[str, Any]:
+        """Load and parse a directory YAML schema file."""
+        schema_path = Path(__file__).parent.parent.parent / "config" / "directory_schemas" / schema_file
+        
+        if not schema_path.exists():
+            return {}
+        
+        with open(schema_path, 'r') as f:
+            return yaml.safe_load(f)
+    
+    @staticmethod
+    async def get_directory_entry_count(
+        list_name: str,
+        account_id: UUID,
+        db_session: AsyncSession
+    ) -> int:
+        """Get count of entries in a directory."""
+        # Query directory_entries table
+        pass
+```
+
+---
+
+##### CHUNK-0026-3C-010-007: Testing Plan
+
+**Test 1: Discovery Pattern Works**
+1. Create new chat session
+2. Ask: "What's the cardiology department phone number?"
+3. Expected LLM behavior:
+   - Calls `get_available_directories()`
+   - Receives metadata showing `phone_directory` is for department contacts
+   - Calls `search_directory(list_name="phone_directory", query="cardiology")`
+4. Verify in admin UI:
+   - Tool Calls section shows TWO tool calls (discovery + search)
+   - Correct directory chosen
+
+**Test 2: Add New Directory (No Code Changes)**
+1. Create new YAML schema: `backend/config/directory_schemas/services.yaml`
+2. Add database entry linking schema to account
+3. Ask: "What services does the hospital offer?"
+4. Expected:
+   - `get_available_directories()` returns new `services` directory
+   - LLM chooses `services` based on metadata
+   - No Python code changes required
+
+**Test 3: Vector vs Directory Distinction**
+1. Ask: "What is cardiology?" (knowledge question)
+   - Expected: Uses `vector_search` (not directory)
+2. Ask: "Who is the cardiology specialist?" (person search)
+   - Expected: Uses `get_available_directories()` → `search_directory(list_name="doctors")`
+
+**Test 4: Backward Compatibility**
+- Old sessions should still work
+- Old docstrings don't break existing behavior
+- Gradual rollout possible
+
+---
+
+##### CHUNK-0026-3C-010-008: Migration Strategy
+
+**Phase 1: Add Discovery Tool (Non-Breaking)**
+1. Add `get_available_directories()` tool
+2. Add `DirectoryMetadataService`
+3. Update YAML schemas with metadata
+4. Test with existing agents (tool available but not used yet)
+
+**Phase 2: Update Prompt Modules**
+1. Update `tool_selection_hints.md` to teach discovery pattern
+2. Deploy to dev environment
+3. Test with real queries
+4. Monitor logfire for tool selection patterns
+
+**Phase 3: Simplify Tool Docstrings**
+1. Remove hardcoded examples from `search_directory()`
+2. Remove conflicting guidance from `vector_search()`
+3. Deploy to production
+4. Monitor for any regressions
+
+**Phase 4: Verification**
+1. Run test suite with 20+ queries covering all tool selection scenarios
+2. Verify admin UI shows correct tool call sequences
+3. Check logfire for any tool selection errors
+4. Document new pattern in `memorybank/architecture/agent-and-tool-design.md`
+
+---
+
+**Complexity**: High (12-16 hours)
+- New tool implementation: 4 hours
+- Service layer: 2 hours
+- YAML schema updates: 2 hours
+- Prompt module updates: 2 hours
+- Testing & debugging: 4 hours
+- Documentation: 2 hours
+
+**Files Created**:
+- `backend/app/services/directory_metadata_service.py` (NEW)
+
+**Files Modified**:
+- `backend/app/agents/tools/directory_tools.py` (add new tool, update docstring)
+- `backend/app/agents/tools/vector_tools.py` (update docstring)
+- `backend/config/prompt_modules/system/tool_selection_hints.md` (replace examples)
+- `backend/config/directory_schemas/medical_professional.yaml` (add metadata)
+- `backend/config/directory_schemas/phone_directory.yaml` (add metadata)
+
+**Benefits**:
+- ✅ No hardcoded logic in tool docstrings
+- ✅ Add new directories without code changes
+- ✅ LLM sees accurate, current metadata
+- ✅ Follows industry best practices (Context7, Postgres MCP patterns)
+- ✅ Scalable to 10s or 100s of directories
+- ✅ Non-technical users can update use cases in YAML
+
+**Trade-offs**:
+- ❌ Adds one extra tool call per query (discovery overhead)
+- ❌ Slightly more complex for LLM (2-step pattern vs direct call)
+- ❌ Requires LLM to follow pattern correctly (needs good prompt engineering)
+
+**Mitigation**:
+- Discovery results can be cached in session context (avoid repeated calls)
+- Strong prompt guidance in `tool_selection_hints.md`
+- Monitor adoption in logfire, iterate on prompts
 
 ---
 
@@ -2607,9 +3120,9 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-### Feature 0026-007: Professional Dashboard UI
+### FEATURE-0026-007: Professional Dashboard UI
 
-#### Task 0026-007-001: Create Shared Admin Stylesheet
+#### TASK-0026-007-001: Create Shared Admin Stylesheet
 
 **Goal**: Centralize common styles and avoid TailwindCSS class repetition.
 
@@ -2726,7 +3239,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-#### Task 0026-007-002: Add Navigation Header with Branding
+#### TASK-0026-007-002: Add Navigation Header with Branding
 
 **Goal**: Add a consistent header with branding, breadcrumbs, and quick stats.
 
@@ -2771,7 +3284,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-#### Task 0026-007-003: Polish Sessions List Page
+#### TASK-0026-007-003: Polish Sessions List Page
 
 **File**: `web/public/admin/sessions.html`
 
@@ -2902,7 +3415,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-#### Task 0026-007-004: Polish Session Detail Page
+#### TASK-0026-007-004: Polish Session Detail Page
 
 **File**: `web/public/admin/session.html`
 
@@ -3066,7 +3579,7 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-#### Task 0026-007-005: Add Loading States and Empty States
+#### TASK-0026-007-005: Add Loading States and Empty States
 
 **Goal**: Improve UX during data loading and when no data exists.
 
@@ -3101,7 +3614,7 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-#### Task 0026-007-006: Add Keyboard Shortcuts
+#### TASK-0026-007-006: Add Keyboard Shortcuts
 
 **Goal**: Power user features for navigation and actions.
 

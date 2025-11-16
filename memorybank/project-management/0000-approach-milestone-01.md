@@ -880,6 +880,7 @@ Execute in this order for optimal results:
 - 📋 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
 - 📋 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
 **>> You are here <<**
+  - TASK-0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern
   - 0025-004-004 - TASK - Implement Tool Calling Improvements (via Modular Prompts)
   - Includes lightweight modular prompts (Phase 5 Lite) for tool calling enhancements
   - Keyword hints, few-shot examples, Chain-of-Thought, structured docs
