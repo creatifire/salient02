@@ -74,7 +74,8 @@ class DirectorySection(BaseModel):
 class DirectoryDocsResult(BaseModel):
     """Complete result from directory docs generation with structured breakdown."""
     full_text: str = Field(description="Concatenated markdown for prompt assembly")
-    header_section: Optional[DirectorySection] = Field(None, description="Multi-directory header (if applicable)")
+    selection_hints_section: Optional[DirectorySection] = Field(None, description="Directory selection hints (multi-directory orchestration)")
+    schema_summary_section: Optional[DirectorySection] = Field(None, description="Directory schema summary (available directories)")
     directory_sections: List[DirectorySection] = Field(default_factory=list, description="Individual directory docs")
 
 
@@ -120,28 +121,34 @@ async def generate_directory_tool_docs(
     
     if not lists_metadata:
         logfire.warn('directory.no_lists_found', account_id=str(account_id))
-        return DirectoryDocsResult(full_text="", header_section=None, directory_sections=[])
+        return DirectoryDocsResult(
+            full_text="",
+            selection_hints_section=None,
+            schema_summary_section=None,
+            directory_sections=[]
+        )
     
     # Build documentation with structured breakdown
     all_text_parts: List[str] = []
     documented_lists: List[DirectoryListDocs] = []
     directory_sections: List[DirectorySection] = []
-    header_section: Optional[DirectorySection] = None
     list_summaries = []
     
-    # Start building header parts
-    header_text_parts = []
+    # For multi-level breakdown: separate selection hints from schema descriptions
+    selection_hints_section: Optional[DirectorySection] = None
+    schema_summary_section: Optional[DirectorySection] = None
     
-    # If multiple directories, load selection hints first, then add directory descriptions
+    # Selection hints content (from markdown file)
+    selection_hints_text = None
     if len(lists_metadata) > 1:
-        # Load multi-directory orchestration guidance from markdown file (has its own ## heading)
-        multi_dir_guidance = load_prompt_module("directory_selection_hints")
-        if multi_dir_guidance:
-            header_text_parts.append(multi_dir_guidance)
-        
-        # Now add directory descriptions under "Directory Tool" section
-        header_text_parts.append("\n## Directory Tool\n")
-        header_text_parts.append("You have access to multiple directories. Choose the appropriate directory based on the query:\n")
+        # Load multi-directory orchestration guidance from markdown file
+        selection_hints_text = load_prompt_module("directory_selection_hints")
+    
+    # Schema summary content (auto-generated directory descriptions)
+    schema_summary_parts = []
+    if len(lists_metadata) > 1:
+        schema_summary_parts.append("## Directory Tool\n")
+        schema_summary_parts.append("You have access to multiple directories. Choose the appropriate directory based on the query:\n")
         
         for list_meta in lists_metadata:
             try:
@@ -157,29 +164,27 @@ async def generate_directory_tool_docs(
                 )
                 entry_count = count_result.scalar_one()
                 
-                header_text_parts.append(f"\n### Directory: `{list_meta.list_name}` ({entry_count} {list_meta.entry_type}s)")
-                header_text_parts.append(f"**Contains**: {purpose.get('description', 'N/A')}")
+                schema_summary_parts.append(f"\n### Directory: `{list_meta.list_name}` ({entry_count} {list_meta.entry_type}s)")
+                schema_summary_parts.append(f"**Contains**: {purpose.get('description', 'N/A')}")
                 
                 if purpose.get('use_for'):
-                    header_text_parts.append("**Use for**:")
+                    schema_summary_parts.append("**Use for**:")
                     for use_case in purpose['use_for']:
-                        header_text_parts.append(f"- {use_case}")
+                        schema_summary_parts.append(f"- {use_case}")
                 
                 if purpose.get('example_queries'):
                     examples = ', '.join(f'"{q}"' for q in purpose['example_queries'][:3])
-                    header_text_parts.append(f"\n**Example queries**: {examples}")
+                    schema_summary_parts.append(f"\n**Example queries**: {examples}")
                 
                 if purpose.get('not_for'):
                     for exclusion in purpose['not_for']:
-                        header_text_parts.append(f"**Don't use for**: {exclusion}")
+                        schema_summary_parts.append(f"**Don't use for**: {exclusion}")
                 
-                header_text_parts.append("\n---")
+                schema_summary_parts.append("\n---")
             
             except Exception as e:
                 logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
                 continue
-        
-        # Note: header_section will be created AFTER the loop so we can include list summaries
     
     # Second pass: Build detailed tool documentation for each directory
     for list_meta in lists_metadata:
@@ -265,56 +270,81 @@ async def generate_directory_tool_docs(
             # Build directory-specific section content
             dir_text_parts = []
             
-            # For single directory, add search strategy details
+            # For single directory, add full search strategy details to full_text
             if len(lists_metadata) == 1 and search_strategy_text:
                 dir_text_parts.append(f"\n{search_strategy_text}")
+                all_text_parts.append('\n'.join(dir_text_parts))
             
-            # Create DirectorySection for this directory
-            if dir_text_parts:  # Only if there's actual content
-                dir_content = '\n'.join(dir_text_parts)
-                directory_sections.append(DirectorySection(
-                    name=f"directory: {list_meta.list_name}",
-                    content=dir_content,
-                    character_count=len(dir_content),
-                    metadata={
-                        "list_name": list_meta.list_name,
-                        "entry_count": entry_count,
-                        "entry_type": list_meta.entry_type,
-                        "schema_file": list_meta.schema_file
-                    }
-                ))
-                all_text_parts.append(dir_content)
+            # Create DirectorySection for breakdown (always create for debugging)
+            # For multi-directory: include search strategy in section (not in full_text)
+            # For single-directory: already added to full_text above
+            section_content_parts = []
+            if len(lists_metadata) > 1 and search_strategy_text:
+                # Multi-directory: Include strategy in section for breakdown visibility
+                section_content_parts.append(search_strategy_text)
+            elif len(lists_metadata) == 1 and search_strategy_text:
+                # Single-directory: Use same content as full_text
+                section_content_parts.append(search_strategy_text)
+            else:
+                # Fallback: basic directory info
+                section_content_parts.append(f"Directory `{list_meta.list_name}` contains {entry_count} {list_meta.entry_type}s")
+            
+            section_content = '\n'.join(section_content_parts)
+            directory_sections.append(DirectorySection(
+                name=f"directory: {list_meta.list_name}",
+                content=section_content,
+                character_count=len(section_content),
+                metadata={
+                    "list_name": list_meta.list_name,
+                    "entry_count": entry_count,
+                    "entry_type": list_meta.entry_type,
+                    "schema_file": list_meta.schema_file
+                }
+            ))
+            
+            # For multi-directory: also add detailed search strategy to full_text
+            if len(lists_metadata) > 1 and search_strategy_text:
+                all_text_parts.append(search_strategy_text)
             
         except Exception as e:
             logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
             continue
     
-    # Now complete the header section for multi-directory case
-    # Include the "Available" line as part of header content (must track every character!)
+    # Create structured sections for multi-directory case
     if len(lists_metadata) > 1:
-        # Build minimal prompt text - list available directories
+        # 1. Selection hints section (from markdown file)
+        if selection_hints_text:
+            selection_hints_section = DirectorySection(
+                name="directory_selection_hints",
+                content=selection_hints_text,
+                character_count=len(selection_hints_text),
+                metadata={
+                    "type": "module",
+                    "source": "directory_selection_hints.md"
+                }
+            )
+            all_text_parts.append(selection_hints_text)
+        
+        # 2. Schema summary section (auto-generated + Available line)
         if list_summaries:
             summary_text = "\n**Available**: " + ", ".join(list_summaries) + "\n"
-            header_text_parts.append(summary_text)
+            schema_summary_parts.append(summary_text)
         
-        # Create header section object (now with complete content including Available line)
-        header_text = '\n'.join(header_text_parts)
-        header_section = DirectorySection(
-            name="directory_docs_header",
-            content=header_text,
-            character_count=len(header_text),
+        schema_summary_text = '\n'.join(schema_summary_parts)
+        schema_summary_section = DirectorySection(
+            name="directory_schema_summary",
+            content=schema_summary_text,
+            character_count=len(schema_summary_text),
             metadata={
-                "type": "multi_directory_header",
+                "type": "container",
                 "directory_count": len(lists_metadata),
-                "source": "directory_selection_hints.md + auto-generated directory summaries"
+                "source": "auto-generated directory summaries"
             }
         )
-        all_text_parts.append(header_text)
+        all_text_parts.append(schema_summary_text)
     else:
-        # Single directory: just add the basic header to all_text_parts
-        all_text_parts.append('\n'.join(header_text_parts))
-        
-        # Still need to add Available line for single directory
+        # Single directory: simpler structure (no multi-level hierarchy)
+        # Just add available line if needed
         if list_summaries:
             summary_text = "\n**Available**: " + ", ".join(list_summaries) + "\n"
             all_text_parts.append(summary_text)
@@ -325,7 +355,8 @@ async def generate_directory_tool_docs(
     # Create DirectoryDocsResult with structured breakdown
     result = DirectoryDocsResult(
         full_text=full_text,
-        header_section=header_section,
+        selection_hints_section=selection_hints_section,
+        schema_summary_section=schema_summary_section,
         directory_sections=directory_sections
     )
     
@@ -342,7 +373,8 @@ async def generate_directory_tool_docs(
         'directory.documentation_generated',
         docs=generated_docs,
         section_count=len(directory_sections),
-        has_header=header_section is not None
+        has_selection_hints=selection_hints_section is not None,
+        has_schema_summary=schema_summary_section is not None
     )
     
     # ALSO log the actual prompt text for debugging

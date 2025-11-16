@@ -87,47 +87,95 @@ class PromptBreakdownService:
         total_chars += len(base_prompt)
         position += 1
         
-        # 3. Directory documentation (structured)
+        # 3. Directory documentation (3-level structure for multi-directory)
         # Note: A "\n\n" separator (2 chars) is added before directory_docs in simple_chat.py
         if directory_result:
             # Add separator characters that precede directory content
             total_chars += 2  # "\n\n" separator before directory_docs
             
-            header_position = None
-            
-            # 3a. Directory header (if multi-directory)
-            if directory_result.header_section:
-                header_position = position
-                header_section = directory_result.header_section
+            # Check if we have multi-directory structure (selection hints + schema summary)
+            if directory_result.selection_hints_section or directory_result.schema_summary_section:
+                # Create container section "directory_docs_header" (non-expandable)
+                container_position = position
                 breakdown["sections"].append({
-                    "name": header_section.name,
-                    "position": position,
-                    "characters": header_section.character_count,
-                    "source": header_section.metadata.get("source", "auto-generated"),
-                    "content": header_section.content,
-                    "type": "directory_header",
-                    "metadata": header_section.metadata
+                    "name": "directory_docs_header",
+                    "position": container_position,
+                    "characters": 0,  # Container has no content itself
+                    "source": "multi-directory structure",
+                    "content": "",
+                    "type": "container",
+                    "metadata": {"description": "Multi-directory documentation structure"}
                 })
-                total_chars += header_section.character_count
                 position += 1
-            
-            # 3b. Individual directory sections
-            for dir_section in directory_result.directory_sections:
-                section_dict = {
-                    "name": dir_section.name,
-                    "position": position,
-                    "characters": dir_section.character_count,
-                    "source": f"auto-generated ({dir_section.metadata.get('schema_file', 'N/A')})",
-                    "content": dir_section.content,
-                    "type": "directory",
-                    "metadata": dir_section.metadata
-                }
-                if header_position is not None:
-                    section_dict["parent_position"] = header_position
                 
-                breakdown["sections"].append(section_dict)
-                total_chars += dir_section.character_count
-                position += 1
+                # 3a. Selection hints section (child of container)
+                hints_position = None
+                if directory_result.selection_hints_section:
+                    hints_position = position
+                    hints_section = directory_result.selection_hints_section
+                    breakdown["sections"].append({
+                        "name": hints_section.name,
+                        "position": position,
+                        "characters": hints_section.character_count,
+                        "source": hints_section.metadata.get("source", "directory_selection_hints.md"),
+                        "content": hints_section.content,
+                        "type": hints_section.metadata.get("type", "module"),
+                        "parent_position": container_position,
+                        "metadata": hints_section.metadata
+                    })
+                    total_chars += hints_section.character_count
+                    position += 1
+                
+                # 3b. Schema summary section (child of container)
+                schema_position = None
+                if directory_result.schema_summary_section:
+                    schema_position = position
+                    schema_section = directory_result.schema_summary_section
+                    breakdown["sections"].append({
+                        "name": schema_section.name,
+                        "position": position,
+                        "characters": schema_section.character_count,
+                        "source": schema_section.metadata.get("source", "auto-generated"),
+                        "content": schema_section.content,
+                        "type": schema_section.metadata.get("type", "container"),
+                        "parent_position": container_position,
+                        "metadata": schema_section.metadata
+                    })
+                    total_chars += schema_section.character_count
+                    position += 1
+                
+                # 3c. Individual directory sections (children of schema_summary)
+                for dir_section in directory_result.directory_sections:
+                    section_dict = {
+                        "name": dir_section.name,
+                        "position": position,
+                        "characters": dir_section.character_count,
+                        "source": f"auto-generated ({dir_section.metadata.get('schema_file', 'N/A')})",
+                        "content": dir_section.content,
+                        "type": "directory",
+                        "metadata": dir_section.metadata
+                    }
+                    # Directories are children of schema_summary
+                    if schema_position is not None:
+                        section_dict["parent_position"] = schema_position
+                    
+                    breakdown["sections"].append(section_dict)
+                    total_chars += dir_section.character_count
+                    position += 1
+            else:
+                # Single directory: simpler structure (no hierarchy)
+                for dir_section in directory_result.directory_sections:
+                    breakdown["sections"].append({
+                        "name": dir_section.name,
+                        "position": position,
+                        "characters": dir_section.character_count,
+                        "source": f"auto-generated ({dir_section.metadata.get('schema_file', 'N/A')})",
+                        "content": dir_section.content,
+                        "type": "directory",
+                        "metadata": dir_section.metadata
+                    })
+                    total_chars += dir_section.character_count
+                    position += 1
         
         # 4. Additional modules
         # Note: A "\n\n" separator (2 chars) is added before modules,

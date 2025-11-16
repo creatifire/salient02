@@ -169,6 +169,16 @@
                 if (!breakdown || !breakdown.sections || breakdown.sections.length === 0) {
                     breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
                 } else {
+                    // Helper function: Calculate nesting depth by following parent chain
+                    const getNestingDepth = (section, allSections) => {
+                        if (section.parent_position === undefined) return 0;
+                        
+                        const parent = allSections.find(s => s.position === section.parent_position);
+                        if (!parent) return 1;
+                        
+                        return 1 + getNestingDepth(parent, allSections);
+                    };
+                    
                     let html = `
                         <h4 class="font-semibold mb-3">
                             Prompt Sections: ${breakdown.sections.length} modules, 
@@ -179,28 +189,36 @@
                     breakdown.sections.forEach((section, index) => {
                         const sectionId = `section-${requestId}-${index}`;
                         const hasContent = section.content && section.content.trim().length > 0;
-                        const isNested = section.parent_position !== undefined;
-                        const indentClass = isNested ? 'ml-6 border-l-2 border-gray-300 pl-3' : '';
+                        const isContainer = section.type === 'container';
+                        const depth = getNestingDepth(section, breakdown.sections);
+                        
+                        // Apply indentation based on depth using inline styles (Tailwind can't generate dynamic classes)
+                        const marginLeft = depth > 0 ? `style="margin-left: ${depth * 24}px;"` : '';
+                        const borderClass = depth > 0 ? 'border-l-2 border-gray-300 pl-3' : '';
                         
                         html += `
-                            <div class="mb-2 ${indentClass}">
+                            <div class="mb-2 ${borderClass}" ${marginLeft}>
                                 <!-- Clickable Header -->
                                 <button 
-                                    class="w-full text-left px-3 py-2 bg-gray-100 hover:bg-gray-200 
-                                           font-medium flex justify-between items-center rounded ${!hasContent ? 'opacity-50 cursor-not-allowed' : ''}"
+                                    class="w-full text-left px-3 py-2 ${isContainer ? 'bg-blue-50 text-blue-800' : 'bg-gray-100'} 
+                                           ${isContainer ? 'hover:bg-blue-100' : 'hover:bg-gray-200'}
+                                           font-medium flex justify-between items-center rounded 
+                                           ${!hasContent && !isContainer ? 'opacity-50 cursor-not-allowed' : ''}"
                                     onclick="toggleSection('${sectionId}', this)"
-                                    ${!hasContent ? 'disabled' : ''}>
+                                    ${!hasContent && !isContainer ? 'disabled' : ''}>
                                     <span class="flex items-center gap-2">
-                                        <span class="arrow text-gray-600">${hasContent ? '▶' : '○'}</span> 
-                                        <span class="font-mono text-sm">${section.name}</span>
+                                        <span class="arrow text-gray-600">
+                                            ${isContainer ? '📁' : hasContent ? '▶' : '○'}
+                                        </span> 
+                                        <span class="font-mono text-sm ${isContainer ? 'font-bold' : ''}">${section.name}</span>
                                     </span>
-                                    <span class="text-xs text-gray-600">
+                                    <span class="text-xs ${isContainer ? 'text-blue-600' : 'text-gray-600'}">
                                         (${section.position}) ${section.characters.toLocaleString()} chars
                                     </span>
                                 </button>
                                 
                                 <!-- Content (expandable) -->
-                                ${hasContent ? `
+                                ${hasContent && !isContainer ? `
                                     <div id="${sectionId}" class="hidden mt-2">
                                         <!-- Metadata bar -->
                                         <div class="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-t border border-gray-300">
@@ -213,6 +231,10 @@
                                             <pre class="text-xs whitespace-pre-wrap font-mono text-gray-800 
                                                        border-l-4 border-blue-400 pl-3 max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
                                         </div>
+                                    </div>
+                                ` : isContainer ? `
+                                    <div id="${sectionId}" class="hidden mt-1 px-3 py-1 text-xs text-blue-600 italic bg-blue-50 rounded">
+                                        ${section.metadata && section.metadata.description ? section.metadata.description : 'Container section - expand children to view content'}
                                     </div>
                                 ` : `
                                     <div class="px-3 py-2 text-xs text-gray-500 italic">
