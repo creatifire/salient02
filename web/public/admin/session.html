@@ -222,14 +222,25 @@
                                 ${hasContent && !isContainer ? `
                                     <div id="${sectionId}" class="hidden mt-2">
                                         <!-- Metadata bar -->
-                                        <div class="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-t border border-gray-300">
-                                            Source: ${section.source || 'N/A'}
-                                            ${section.metadata && section.metadata.entry_count ? 
-                                                ` | ${section.metadata.entry_count} ${section.metadata.entry_type || 'entries'}` : ''}
+                                        <div class="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-t border border-gray-300 flex justify-between items-center">
+                                            <div>
+                                                Source: ${section.source || 'N/A'}
+                                                ${section.metadata && section.metadata.entry_count ? 
+                                                    ` | ${section.metadata.entry_count} ${section.metadata.entry_type || 'entries'}` : ''}
+                                            </div>
+                                            <button 
+                                                onclick="copySectionContent('${sectionId}-content', event)"
+                                                class="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs flex items-center gap-1 transition"
+                                                title="Copy content to clipboard">
+                                                <svg width="12" height="12" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                                                    <path d="M14 12V2H4V0h12v12h-2zM0 4h12v12H0V4zm2 2v8h8V6H2z" fill-rule="evenodd"/>
+                                                </svg>
+                                                Copy
+                                            </button>
                                         </div>
                                         <!-- Content box -->
                                         <div class="px-3 py-2 bg-white border-x border-b border-gray-300 rounded-b">
-                                            <pre class="text-xs whitespace-pre-wrap font-mono text-gray-800 
+                                            <pre id="${sectionId}-content" class="text-xs whitespace-pre-wrap font-mono text-gray-800 
                                                        border-l-4 border-blue-400 pl-3 max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
                                         </div>
                                     </div>
@@ -359,6 +370,41 @@
                     console.error('Failed to copy:', err);
                     alert('Failed to copy to clipboard');
                 });
+            }
+        }
+        
+        // Copy section content to clipboard
+        function copySectionContent(elementId, event) {
+            const element = document.getElementById(elementId);
+            // Capture button reference BEFORE async operation (event.currentTarget becomes null in async callbacks)
+            const btn = event.currentTarget;
+            
+            if (element && btn) {
+                const text = element.textContent;
+                const originalText = btn.innerHTML;
+                
+                navigator.clipboard.writeText(text).then(() => {
+                    // Show temporary success message
+                    btn.innerHTML = `
+                        <svg width="12" height="12" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+                            <path d="M14 12V2H4V0h12v12h-2zM0 4h12v12H0V4zm2 2v8h8V6H2z" fill-rule="evenodd"/>
+                        </svg>
+                        Copied!
+                    `;
+                    btn.classList.add('bg-green-600');
+                    btn.classList.remove('bg-gray-600');
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.add('bg-gray-600');
+                        btn.classList.remove('bg-green-600');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    alert('Failed to copy to clipboard');
+                });
+            } else {
+                console.error('Copy failed: element or button not found', {elementId, element, btn});
+                alert('Failed to copy to clipboard');
             }
         }
         
