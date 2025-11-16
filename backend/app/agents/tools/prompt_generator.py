@@ -129,15 +129,20 @@ async def generate_directory_tool_docs(
     header_section: Optional[DirectorySection] = None
     list_summaries = []
     
-    # Start with common header
-    header_text_parts = ["## Directory Tool\n"]
+    # Start building header parts
+    header_text_parts = []
     
-    # If multiple directories, add selection guide
+    # If multiple directories, load selection hints first, then add directory descriptions
     if len(lists_metadata) > 1:
+        # Load multi-directory orchestration guidance from markdown file (has its own ## heading)
+        multi_dir_guidance = load_prompt_module("directory_selection_hints")
+        if multi_dir_guidance:
+            header_text_parts.append(multi_dir_guidance)
+        
+        # Now add directory descriptions under "Directory Tool" section
+        header_text_parts.append("\n## Directory Tool\n")
         header_text_parts.append("You have access to multiple directories. Choose the appropriate directory based on the query:\n")
-    
-    # First pass: Build directory selection guide (if multiple directories)
-    if len(lists_metadata) > 1:
+        
         for list_meta in lists_metadata:
             try:
                 schema = DirectoryImporter.load_schema(list_meta.schema_file)
@@ -173,11 +178,6 @@ async def generate_directory_tool_docs(
             except Exception as e:
                 logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
                 continue
-        
-        # Load multi-directory orchestration guidance from markdown file
-        multi_dir_guidance = load_prompt_module("directory_selection_hints")
-        if multi_dir_guidance:
-            header_text_parts.append(f"\n{multi_dir_guidance}\n")
         
         # Note: header_section will be created AFTER the loop so we can include list summaries
     
