@@ -62,11 +62,12 @@ class PromptBreakdownService:
         total_chars = 0
         
         # 1. Critical rules (if present, injected at top)
+        # Note: critical_rules includes the separator "\n\n---\n\n" (7 chars) added in simple_chat.py
         if critical_rules:
             breakdown["sections"].append({
                 "name": "tool_selection_hints.md",
                 "position": position,
-                "characters": len(critical_rules),
+                "characters": len(critical_rules),  # Already includes separator
                 "source": "tool_selection_hints.md",
                 "content": critical_rules,
                 "type": "module"
@@ -87,7 +88,11 @@ class PromptBreakdownService:
         position += 1
         
         # 3. Directory documentation (structured)
+        # Note: A "\n\n" separator (2 chars) is added before directory_docs in simple_chat.py
         if directory_result:
+            # Add separator characters that precede directory content
+            total_chars += 2  # "\n\n" separator before directory_docs
+            
             header_position = None
             
             # 3a. Directory header (if multi-directory)
@@ -125,8 +130,18 @@ class PromptBreakdownService:
                 position += 1
         
         # 4. Additional modules
+        # Note: A "\n\n" separator (2 chars) is added before modules,
+        # and "\n\n---\n\n" (7 chars) between each module in simple_chat.py
         if modules:
+            # Add separator before first module
+            total_chars += 2  # "\n\n" separator before combined modules
+            
+            module_count = 0
             for module_name, content in modules.items():
+                # Add inter-module separator (except before first module)
+                if module_count > 0:
+                    total_chars += 7  # "\n\n---\n\n" between modules
+                
                 breakdown["sections"].append({
                     "name": f"{module_name}.md",
                     "position": position,
@@ -137,6 +152,7 @@ class PromptBreakdownService:
                 })
                 total_chars += len(content)
                 position += 1
+                module_count += 1
         
         # Add summary
         breakdown["total_char_count"] = total_chars

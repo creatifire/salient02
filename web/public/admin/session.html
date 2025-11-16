@@ -166,26 +166,84 @@
                 const data = await response.json();
                 const breakdown = data.prompt_breakdown;
                 
-                if (!breakdown) {
+                if (!breakdown || !breakdown.sections || breakdown.sections.length === 0) {
                     breakdownDiv.innerHTML = '<p class="text-gray-500">No breakdown available</p>';
                 } else {
-                    breakdownDiv.innerHTML = `
-                        <p class="font-semibold mb-2">Prompt Sections (${breakdown.total_char_count.toLocaleString()} chars):</p>
-                        <ul class="space-y-2">
-                            ${breakdown.sections.map(section => `
-                                <li class="border-l-2 border-gray-300 pl-3 py-1">
-                                    <div class="font-mono text-xs font-semibold">${section.position}. ${section.name}</div>
-                                    <div class="text-xs text-gray-600">Source: ${section.source} | ${section.characters.toLocaleString()} chars</div>
-                                </li>
-                            `).join('')}
-                        </ul>
+                    let html = `
+                        <h4 class="font-semibold mb-3">
+                            Prompt Sections: ${breakdown.sections.length} modules, 
+                            ${breakdown.total_char_count.toLocaleString()} characters total
+                        </h4>
                     `;
+                    
+                    breakdown.sections.forEach((section, index) => {
+                        const sectionId = `section-${requestId}-${index}`;
+                        const hasContent = section.content && section.content.trim().length > 0;
+                        const isNested = section.parent_position !== undefined;
+                        const indentClass = isNested ? 'ml-6 border-l-2 border-gray-300 pl-3' : '';
+                        
+                        html += `
+                            <div class="mb-2 ${indentClass}">
+                                <!-- Clickable Header -->
+                                <button 
+                                    class="w-full text-left px-3 py-2 bg-gray-100 hover:bg-gray-200 
+                                           font-medium flex justify-between items-center rounded ${!hasContent ? 'opacity-50 cursor-not-allowed' : ''}"
+                                    onclick="toggleSection('${sectionId}', this)"
+                                    ${!hasContent ? 'disabled' : ''}>
+                                    <span class="flex items-center gap-2">
+                                        <span class="arrow text-gray-600">${hasContent ? '▶' : '○'}</span> 
+                                        <span class="font-mono text-sm">${section.name}</span>
+                                    </span>
+                                    <span class="text-xs text-gray-600">
+                                        (${section.position}) ${section.characters.toLocaleString()} chars
+                                    </span>
+                                </button>
+                                
+                                <!-- Content (expandable) -->
+                                ${hasContent ? `
+                                    <div id="${sectionId}" class="hidden mt-2">
+                                        <!-- Metadata bar -->
+                                        <div class="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-t border border-gray-300">
+                                            Source: ${section.source || 'N/A'}
+                                            ${section.metadata && section.metadata.entry_count ? 
+                                                ` | ${section.metadata.entry_count} ${section.metadata.entry_type || 'entries'}` : ''}
+                                        </div>
+                                        <!-- Content box -->
+                                        <div class="px-3 py-2 bg-white border-x border-b border-gray-300 rounded-b">
+                                            <pre class="text-xs whitespace-pre-wrap font-mono text-gray-800 
+                                                       border-l-4 border-blue-400 pl-3 max-h-96 overflow-y-auto">${escapeHtml(section.content)}</pre>
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <div class="px-3 py-2 text-xs text-gray-500 italic">
+                                        Content not captured for this section
+                                    </div>
+                                `}
+                            </div>
+                        `;
+                    });
+                    
+                    breakdownDiv.innerHTML = html;
                 }
                 
                 breakdownDiv.classList.remove('hidden');
             } catch (error) {
                 breakdownDiv.innerHTML = `<p class="text-red-600">Error loading breakdown: ${error.message}</p>`;
                 breakdownDiv.classList.remove('hidden');
+            }
+        }
+        
+        // Toggle section content visibility
+        function toggleSection(sectionId, buttonEl) {
+            const contentDiv = document.getElementById(sectionId);
+            const arrow = buttonEl.querySelector('.arrow');
+            
+            if (contentDiv.classList.contains('hidden')) {
+                contentDiv.classList.remove('hidden');
+                arrow.textContent = '▼';
+            } else {
+                contentDiv.classList.add('hidden');
+                arrow.textContent = '▶';
             }
         }
         

@@ -179,22 +179,7 @@ async def generate_directory_tool_docs(
         if multi_dir_guidance:
             header_text_parts.append(f"\n{multi_dir_guidance}\n")
         
-        # Create header section object (only for multi-directory)
-        header_text = '\n'.join(header_text_parts)
-        header_section = DirectorySection(
-            name="directory_docs_header",
-            content=header_text,
-            character_count=len(header_text),
-            metadata={
-                "type": "multi_directory_header",
-                "directory_count": len(lists_metadata),
-                "source": "directory_selection_hints.md + auto-generated directory summaries"
-            }
-        )
-        all_text_parts.append(header_text)
-    else:
-        # Single directory: just add the basic header to all_text_parts
-        all_text_parts.append('\n'.join(header_text_parts))
+        # Note: header_section will be created AFTER the loop so we can include list summaries
     
     # Second pass: Build detailed tool documentation for each directory
     for list_meta in lists_metadata:
@@ -304,10 +289,35 @@ async def generate_directory_tool_docs(
             logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
             continue
     
-    # Build minimal prompt text - list available directories
-    if list_summaries:
-        summary_text = "\n**Available**: " + ", ".join(list_summaries) + "\n"
-        all_text_parts.append(summary_text)
+    # Now complete the header section for multi-directory case
+    # Include the "Available" line as part of header content (must track every character!)
+    if len(lists_metadata) > 1:
+        # Build minimal prompt text - list available directories
+        if list_summaries:
+            summary_text = "\n**Available**: " + ", ".join(list_summaries) + "\n"
+            header_text_parts.append(summary_text)
+        
+        # Create header section object (now with complete content including Available line)
+        header_text = '\n'.join(header_text_parts)
+        header_section = DirectorySection(
+            name="directory_docs_header",
+            content=header_text,
+            character_count=len(header_text),
+            metadata={
+                "type": "multi_directory_header",
+                "directory_count": len(lists_metadata),
+                "source": "directory_selection_hints.md + auto-generated directory summaries"
+            }
+        )
+        all_text_parts.append(header_text)
+    else:
+        # Single directory: just add the basic header to all_text_parts
+        all_text_parts.append('\n'.join(header_text_parts))
+        
+        # Still need to add Available line for single directory
+        if list_summaries:
+            summary_text = "\n**Available**: " + ", ".join(list_summaries) + "\n"
+            all_text_parts.append(summary_text)
     
     # Assemble full text from all parts
     full_text = '\n\n'.join(all_text_parts)
