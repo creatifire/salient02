@@ -276,14 +276,10 @@ async def generate_directory_tool_docs(
                 all_text_parts.append('\n'.join(dir_text_parts))
             
             # Create DirectorySection for breakdown (always create for debugging)
-            # For multi-directory: include search strategy in section (not in full_text)
-            # For single-directory: already added to full_text above
+            # Store search_strategy_text in section for later assembly
             section_content_parts = []
-            if len(lists_metadata) > 1 and search_strategy_text:
-                # Multi-directory: Include strategy in section for breakdown visibility
-                section_content_parts.append(search_strategy_text)
-            elif len(lists_metadata) == 1 and search_strategy_text:
-                # Single-directory: Use same content as full_text
+            if search_strategy_text:
+                # Include strategy in section for breakdown visibility
                 section_content_parts.append(search_strategy_text)
             else:
                 # Fallback: basic directory info
@@ -298,13 +294,13 @@ async def generate_directory_tool_docs(
                     "list_name": list_meta.list_name,
                     "entry_count": entry_count,
                     "entry_type": list_meta.entry_type,
-                    "schema_file": list_meta.schema_file
+                    "schema_file": list_meta.schema_file,
+                    "has_search_strategy": bool(search_strategy_text)
                 }
             ))
             
-            # For multi-directory: also add detailed search strategy to full_text
-            if len(lists_metadata) > 1 and search_strategy_text:
-                all_text_parts.append(search_strategy_text)
+            # Note: For correct prompt order, search strategies are added to full_text
+            # AFTER schema_summary_section (see below)
             
         except Exception as e:
             logfire.error('directory.schema_load_error', list_name=list_meta.list_name, error=str(e))
@@ -342,6 +338,11 @@ async def generate_directory_tool_docs(
             }
         )
         all_text_parts.append(schema_summary_text)
+        
+        # Now add detailed search strategies for each directory (correct order: overview first, details second)
+        for dir_section in directory_sections:
+            if dir_section.metadata.get("has_search_strategy"):
+                all_text_parts.append(dir_section.content)
     else:
         # Single directory: simpler structure (no multi-level hierarchy)
         # Just add available line if needed
