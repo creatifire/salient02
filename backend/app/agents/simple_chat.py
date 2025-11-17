@@ -36,6 +36,8 @@ from ..services.prompt_breakdown_service import PromptBreakdownService
 from .chat_helpers import build_request_messages, build_response_body, extract_session_account_info, save_message_pair
 from .cost_calculator import calculate_streaming_costs, track_chat_request
 from .tools.toolsets import get_enabled_toolsets
+from .tools.directory_tools import get_available_directories, search_directory
+from .tools.vector_tools import vector_search
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -164,21 +166,23 @@ async def create_simple_chat_agent(
             cost_tracking="disabled"
         )
         
-        # Get enabled toolsets based on config
-        toolsets = get_enabled_toolsets(instance_config or {})
-        
-        # DEBUG: Extract all tool functions from toolsets for direct registration
+        # Build tools list based on agent configuration
         tools_list = []
-        for toolset in toolsets:
-            if hasattr(toolset, '_tools'):  # FunctionToolset stores tools in _tools
-                tools_list.extend(toolset._tools)
+        tools_config = (instance_config or {}).get("tools", {})
+        
+        # Add directory tools if enabled
+        if tools_config.get("directory", {}).get("enabled", False):
+            tools_list.extend([get_available_directories, search_directory])
+        
+        # Add vector search tool if enabled
+        if tools_config.get("vector_search", {}).get("enabled", False):
+            tools_list.append(vector_search)
         
         logfire.info(
             'agent.creation',
             agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
-            toolsets_count=len(toolsets),
-            tools_extracted_count=len(tools_list),
-            tool_names=[getattr(t, '__name__', str(t)) for t in tools_list],
+            tools_count=len(tools_list),
+            tool_names=[t.__name__ for t in tools_list],
             mode='fallback'
         )
         
@@ -193,7 +197,7 @@ async def create_simple_chat_agent(
             model_name_simple,
             deps_type=SessionDependencies,
             system_prompt=system_prompt,
-            tools=tools_list  # CHANGED: Pass tools list directly instead of toolsets
+            tools=tools_list  # Direct tool functions
         )
         
         return agent, prompt_breakdown, system_prompt
@@ -368,32 +372,33 @@ async def create_simple_chat_agent(
         usage_tracking="always_included"
     )
     
-    # Get enabled toolsets based on config
-    toolsets = get_enabled_toolsets(instance_config or {})
-    
-    # DEBUG: Extract all tool functions from toolsets for direct registration
+    # Build tools list based on agent configuration
     tools_list = []
-    for toolset in toolsets:
-        if hasattr(toolset, '_tools'):  # FunctionToolset stores tools in _tools
-            tools_list.extend(toolset._tools)
+    tools_config = (instance_config or {}).get("tools", {})
+    
+    # Add directory tools if enabled
+    if tools_config.get("directory", {}).get("enabled", False):
+        tools_list.extend([get_available_directories, search_directory])
+    
+    # Add vector search tool if enabled
+    if tools_config.get("vector_search", {}).get("enabled", False):
+        tools_list.append(vector_search)
     
     logfire.info(
         'agent.creation',
         agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
-        toolsets_count=len(toolsets),
-        tools_extracted_count=len(tools_list),
-        tool_names=[getattr(t, '__name__', str(t)) for t in tools_list],
-        toolsets_repr=[repr(ts) for ts in toolsets],
+        tools_count=len(tools_list),
+        tool_names=[t.__name__ for t in tools_list],
         mode='normal'
     )
     
     # Create agent with OpenRouterProvider (official pattern)
-    # Use `tools` parameter directly instead of `toolsets` to ensure compatibility
+    # Pass tools directly - NOT toolsets
     agent = Agent(
         model,
         deps_type=SessionDependencies,
         system_prompt=system_prompt,
-        tools=tools_list  # CHANGED: Pass tools list directly instead of toolsets
+        tools=tools_list  # Direct tool functions, not toolsets
     )
     
     return agent, prompt_breakdown, system_prompt
