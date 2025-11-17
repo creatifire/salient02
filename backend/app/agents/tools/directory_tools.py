@@ -15,9 +15,150 @@ Provides natural language search across multi-tenant directory lists
 from pydantic_ai import RunContext
 from ..base.dependencies import SessionDependencies
 from ...services.directory_service import DirectoryService
+from ...services.directory_importer import DirectoryImporter
 from ...database import get_database_service
+from ...models.directory import DirectoryList, DirectoryEntry
 from typing import Optional, Dict
+from sqlalchemy import select, func
 import logfire
+import json
+
+
+async def get_available_directories(
+    ctx: RunContext[SessionDependencies]
+) -> str:
+    """
+    Get metadata about available directory tools.
+    
+    **CALL THIS FIRST before using search_directory** to understand:
+    - What directories exist
+    - What data each contains
+    - When to use each directory
+    - What fields are searchable
+    - Example queries
+    
+    Returns JSON with directory metadata including:
+    - Directory name (list_name)
+    - Entry type (doctors, contacts, products, etc.)
+    - Entry count
+    - Use cases (when to use this directory)
+    - Searchable fields
+    - Example queries
+    
+    **Usage Pattern**:
+    1. User asks question
+    2. Call get_available_directories() to see options
+    3. Choose appropriate directory based on metadata
+    4. Call search_directory(list_name=...) with chosen directory
+    
+    Example:
+        User: "What's the cardiology department phone number?"
+        Step 1: get_available_directories()
+        Step 2: Review returned metadata, see phone_directory has department contacts
+        Step 3: search_directory(list_name="phone_directory", query="cardiology")
+    """
+    logfire.info('directory.get_available_called')
+    
+    # Get context from dependencies
+    agent_config = ctx.deps.agent_config
+    account_id = ctx.deps.account_id
+    
+    if not account_id:
+        logfire.error('directory.get_available_no_account')
+        return json.dumps({"error": "No account context available"})
+    
+    directory_config = agent_config.get("tools", {}).get("directory", {})
+    accessible_lists = directory_config.get("accessible_lists", [])
+    
+    if not accessible_lists:
+        logfire.warn('directory.no_accessible_lists_configured')
+        return json.dumps({
+            "directories": [],
+            "total_count": 0,
+            "message": "No directories configured for this account"
+        })
+    
+    # Create independent database session for this tool call
+    db_service = get_database_service()
+    async with db_service.get_session() as session:
+        # Get list metadata from database
+        result = await session.execute(
+            select(DirectoryList).where(
+                DirectoryList.account_id == account_id,
+                DirectoryList.list_name.in_(accessible_lists)
+            )
+        )
+        lists_metadata = result.scalars().all()
+        
+        if not lists_metadata:
+            logfire.warn('directory.no_lists_found', account_id=str(account_id))
+            return json.dumps({
+                "directories": [],
+                "total_count": 0,
+                "message": f"No directories found for account {account_id}"
+            })
+        
+        directories_info = []
+        
+        for list_meta in lists_metadata:
+            try:
+                # Get entry count
+                count_result = await session.execute(
+                    select(func.count(DirectoryEntry.id)).where(
+                        DirectoryEntry.directory_list_id == list_meta.id
+                    )
+                )
+                entry_count = count_result.scalar_one()
+                
+                # Load YAML schema
+                schema = DirectoryImporter.load_schema(list_meta.schema_file)
+                purpose = schema.get('directory_purpose', {})
+                
+                # Extract searchable fields
+                searchable_fields = []
+                if schema.get('searchable_fields'):
+                    searchable_fields = list(schema['searchable_fields'].keys())
+                
+                # Build directory info
+                directory_info = {
+                    "list_name": list_meta.list_name,
+                    "entry_type": list_meta.entry_type,
+                    "entry_count": entry_count,
+                    "description": purpose.get('description', ''),
+                    "use_cases": purpose.get('use_for', []),
+                    "searchable_fields": searchable_fields,
+                    "example_queries": purpose.get('example_queries', []),
+                    "not_for": purpose.get('not_for', [])
+                }
+                
+                directories_info.append(directory_info)
+                
+                logfire.info(
+                    'directory.metadata_loaded',
+                    list_name=list_meta.list_name,
+                    entry_count=entry_count
+                )
+                
+            except Exception as e:
+                logfire.error(
+                    'directory.metadata_load_error',
+                    list_name=list_meta.list_name,
+                    error=str(e)
+                )
+                # Continue with other directories even if one fails
+                continue
+        
+        result = {
+            "directories": directories_info,
+            "total_count": len(directories_info)
+        }
+        
+        logfire.info(
+            'directory.get_available_complete',
+            directories_count=len(directories_info)
+        )
+        
+        return json.dumps(result, indent=2)
 
 
 async def search_directory(

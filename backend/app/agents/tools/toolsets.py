@@ -6,15 +6,15 @@ Pydantic AI's native FunctionToolset for multi-tool support.
 """
 
 from pydantic_ai.toolsets import FunctionToolset
-from .directory_tools import search_directory
+from .directory_tools import search_directory, get_available_directories
 from .vector_tools import vector_search
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-# Directory toolset - wraps existing search_directory function
-directory_toolset = FunctionToolset(tools=[search_directory])
+# Directory toolset - wraps directory discovery and search functions
+directory_toolset = FunctionToolset(tools=[get_available_directories, search_directory])
 
 # Vector search toolset - wraps existing vector_search function
 vector_toolset = FunctionToolset(tools=[vector_search])
