@@ -363,10 +363,13 @@ async def create_simple_chat_agent(
     # Get enabled toolsets based on config
     toolsets = get_enabled_toolsets(instance_config or {})
     
+    # DEBUG: Log detailed toolset information
     logfire.info(
         'agent.creation',
         agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
         toolsets_count=len(toolsets),
+        toolsets_repr=[repr(ts) for ts in toolsets],
+        toolsets_types=[type(ts).__name__ for ts in toolsets],
         mode='normal'
     )
     
