@@ -2438,10 +2438,15 @@ Prompt Sections: 6 modules, 16,478 characters total
 - ✅ CHUNK-0026-3C-010-002: Simplify `search_directory()` Docstring (Commit: 28e33f6)
 - ✅ CHUNK-0026-3C-010-003: Update `vector_search()` Docstring (Commit: 28e33f6)
 - ✅ CHUNK-0026-3C-010-004: Update Directory YAML Schemas (Already complete - no changes needed)
-- ✅ CHUNK-0026-3C-010-005: Update Prompt Modules (Pending commit)
-- ⏳ CHUNK-0026-3C-010-006: Add DirectoryMetadataService (Optional refactor - may skip)
-- ⏳ CHUNK-0026-3C-010-007: Testing Plan
+- ✅ CHUNK-0026-3C-010-005: Update Prompt Modules (Commit: efd2db7)
+- 🔄 CHUNK-0026-3C-010-006: Add DirectoryMetadataService (DEFERRED - see note below)
+- ⏳ CHUNK-0026-3C-010-007: Testing Plan (In progress - manual testing)
 - ⏳ CHUNK-0026-3C-010-008: Migration Strategy
+
+**Note on CHUNK-006 (DirectoryMetadataService)**:
+- **Status**: Deferred - Not needed yet
+- **Reason**: Current implementation uses existing `DirectoryImporter` and inline DB queries in `get_available_directories()`. Code is clean and readable (~60 lines). Service layer would be premature abstraction with only one consumer.
+- **When to implement**: Add this service if we need directory metadata in admin UI, add caching, or find 2+ places that duplicate this logic.
 
 **Goal**: Fix tool selection issues by implementing a two-tool discovery pattern that eliminates hardcoded examples in tool docstrings, making the system adaptable to new directories without code changes.
 
