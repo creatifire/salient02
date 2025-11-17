@@ -167,10 +167,18 @@ async def create_simple_chat_agent(
         # Get enabled toolsets based on config
         toolsets = get_enabled_toolsets(instance_config or {})
         
+        # DEBUG: Extract all tool functions from toolsets for direct registration
+        tools_list = []
+        for toolset in toolsets:
+            if hasattr(toolset, '_tools'):  # FunctionToolset stores tools in _tools
+                tools_list.extend(toolset._tools)
+        
         logfire.info(
             'agent.creation',
             agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
             toolsets_count=len(toolsets),
+            tools_extracted_count=len(tools_list),
+            tool_names=[getattr(t, '__name__', str(t)) for t in tools_list],
             mode='fallback'
         )
         
@@ -185,7 +193,7 @@ async def create_simple_chat_agent(
             model_name_simple,
             deps_type=SessionDependencies,
             system_prompt=system_prompt,
-            toolsets=toolsets  # NEW: Pass toolsets list
+            tools=tools_list  # CHANGED: Pass tools list directly instead of toolsets
         )
         
         return agent, prompt_breakdown, system_prompt
@@ -363,22 +371,29 @@ async def create_simple_chat_agent(
     # Get enabled toolsets based on config
     toolsets = get_enabled_toolsets(instance_config or {})
     
-    # DEBUG: Log detailed toolset information
+    # DEBUG: Extract all tool functions from toolsets for direct registration
+    tools_list = []
+    for toolset in toolsets:
+        if hasattr(toolset, '_tools'):  # FunctionToolset stores tools in _tools
+            tools_list.extend(toolset._tools)
+    
     logfire.info(
         'agent.creation',
         agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
         toolsets_count=len(toolsets),
+        tools_extracted_count=len(tools_list),
+        tool_names=[getattr(t, '__name__', str(t)) for t in tools_list],
         toolsets_repr=[repr(ts) for ts in toolsets],
-        toolsets_types=[type(ts).__name__ for ts in toolsets],
         mode='normal'
     )
     
     # Create agent with OpenRouterProvider (official pattern)
+    # Use `tools` parameter directly instead of `toolsets` to ensure compatibility
     agent = Agent(
         model,
         deps_type=SessionDependencies,
         system_prompt=system_prompt,
-        toolsets=toolsets  # NEW: Pass toolsets list
+        tools=tools_list  # CHANGED: Pass tools list directly instead of toolsets
     )
     
     return agent, prompt_breakdown, system_prompt
