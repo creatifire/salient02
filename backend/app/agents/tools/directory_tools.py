@@ -169,45 +169,35 @@ async def search_directory(
     filters: Optional[Dict[str, str]] = None,
 ) -> str:
     """
-    Search directory for entries (doctors, drugs, products, consultants, etc.).
+    Search a directory for structured data entries with exact fields.
     
-    **CRITICAL: Parameter Selection Rules:**
-    - `query`: ONLY for searching doctor/entry NAMES (e.g., "Dr. Smith", "John")
-    - `filters`: MUST use for specialty, department, gender, or any JSONB field searches
-    - NEVER use `query` for medical specialties - always use `filters={"specialty": "..."}`
+    **IMPORTANT**: Call get_available_directories() FIRST to see what directories exist
+    and choose the right one for your query.
     
-    **For Medical Specialties:**
-    - User asks "urologists" → Use `filters={"specialty": "Urology"}` (NOT query="urologist")
-    - User asks "cardiologists" → Use `filters={"specialty": "Cardiology"}` (NOT query="cardiologist")
-    - User asks "heart doctors" → Use `filters={"specialty": "Cardiology"}` (NOT query="heart")
+    This tool searches structured records with specific fields (names, specialties,
+    departments, contact info, etc.). Each directory has different fields - use
+    get_available_directories() to see what's searchable.
     
     Args:
-        list_name: Which list to search (e.g., "doctors", "prescription_drugs", "electronics")
-        query: Name to search ONLY (e.g., "Dr. Smith", "John", "Mary") - partial match, case-insensitive
-               DO NOT use for specialties or departments - use filters instead
-        tag: Tag filter (language for medical, drug class for pharma, category for products)
-        filters: Type-specific JSONB filters as a dictionary - USE THIS for specialties, departments, etc.
-                 Examples: {"specialty": "Urology", "gender": "female"}
-                          {"specialty": "Cardiology"}  # For "cardiologists" queries
-                          {"department": "Emergency Medicine"}
-                          {"drug_class": "NSAID", "indications": "pain"}
-                          {"category": "Laptops", "brand": "Dell", "in_stock": "true"}
+        list_name: Directory name (get from get_available_directories())
+        query: Natural language search across all text fields
+        tag: Filter by tag (if directory supports tags)
+        filters: Exact field matches (e.g., {"specialty": "Cardiology"})
     
-    Examples:
-        # Medical professionals - ALWAYS use filters for specialty searches
-        search_directory(list_name="doctors", filters={"specialty": "Urology"})  # "what urologists"
-        search_directory(list_name="doctors", filters={"specialty": "Cardiology"})  # "heart doctors"
-        search_directory(list_name="doctors", filters={"specialty": "Cardiology", "gender": "female"}, tag="Spanish")
-        search_directory(list_name="doctors", query="smith", filters={"gender": "female"})  # Name search OK
-        search_directory(list_name="doctors", filters={"department": "Emergency Medicine", "specialty": "Pediatrics"})
+    Search Strategies:
+        1. query parameter: Searches across ALL text fields (names, descriptions, etc.)
+           - Best for: "Find X", "Who is...", "Search for..."
+           - Example: query="cardiology" searches names, specialties, departments
         
-        # Pharmaceuticals
-        search_directory(list_name="prescription_drugs", filters={"drug_class": "NSAID"})
-        search_directory(list_name="prescription_drugs", filters={"indications": "pain"}, tag="Over-the-counter")
+        2. filters parameter: Exact field matches (case-insensitive)
+           - Best for: Structured queries with known field names
+           - Example: filters={"department_name": "Billing"}
         
-        # Products
-        search_directory(list_name="electronics", filters={"category": "Laptops", "brand": "Dell"})
-        search_directory(list_name="electronics", query="macbook", filters={"in_stock": "true"})  # Name search OK
+        3. Combined: Use both for precision
+           - Example: query="heart", filters={"language": "Spanish"}
+    
+    Returns:
+        JSON with matching entries or error message
     """
     logfire.info(
         'directory.search_called',

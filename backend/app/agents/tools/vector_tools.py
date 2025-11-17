@@ -27,34 +27,35 @@ async def vector_search(
     max_results: Optional[int] = None
 ) -> str:
     """
-    Search the knowledge base for relevant information using vector similarity.
+    Semantic search over document content for explanations, descriptions, and knowledge.
     
-    **IMPORTANT: Use this tool for ANY question about the organization**, even if you think
-    you know the answer from general knowledge. This ensures responses are grounded in
-    actual organization content rather than hallucinated details.
+    **USE THIS TOOL FOR:**
+    - "What is...", "Tell me about...", "Explain..." questions
+    - General information from documents and web pages
+    - Product/service descriptions and capabilities
+    - Organization policies, procedures, and guidelines
+    - Educational content, guides, FAQs
+    - Technical documentation and explanations
     
-    Examples of when to use this tool:
-    - Product/service questions: "What products do you offer?", "How does your service work?"
-    - Organization capabilities: "What industries do you serve?", "What's your process?"
-    - Operational information: "What are your hours?", "Where are you located?"
-    - Pricing and offerings: "What packages are available?", "What's included?"
-    - Contact information: Always search to get accurate phone numbers, emails, and addresses
-    - Technical/domain questions: "What methods do you use?", "What's your approach?"
+    **DO NOT USE THIS TOOL FOR:**
+    - Finding specific people (doctors, staff, employees) → use search_directory
+    - Department contact information (phone, email, location) → use search_directory
+    - Structured records with exact fields → use search_directory
+    - Anything requiring current/exact data from a database → use search_directory
     
-    This tool searches pre-loaded content from vector databases (e.g., website content,
-    product documentation, knowledge bases) to find information relevant to the user's query.
+    This tool searches through unstructured document text (website content, PDFs, articles),
+    NOT structured database records. For structured data with specific fields, use
+    get_available_directories() to discover directories, then use search_directory().
     
-    Why always search first?
-    1. Provides organization-specific context and accurate details
-    2. Ensures accurate contact information (not hallucinated phone numbers/emails)
-    3. Grounds responses in actual published content from the organization
-    4. Gives up-to-date information about products, services, and policies
-    5. Works across all industries (healthcare, agriculture, tech, retail, services, etc.)
-    6. Scales from solo businesses to large enterprises
+    Why use this tool?
+    1. Provides organization-specific context from published content
+    2. Grounds responses in actual documents (not hallucinations)
+    3. Retrieves explanations, descriptions, and narrative content
+    4. Works across all content types (web pages, docs, guides)
     
     Args:
         ctx: Pydantic AI context with session dependencies
-        query: Natural language query to search for
+        query: Natural language question or search terms
         max_results: Maximum number of results to return (defaults to agent config)
     
     Returns:
