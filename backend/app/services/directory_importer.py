@@ -372,4 +372,365 @@ class DirectoryImporter:
             'contact_info': contact_info,
             'entry_data': entry_data
         }
+    
+    @staticmethod
+    def department_mapper(row: Dict) -> Dict:
+        """Map department CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - name (required)
+        - department_function (required)
+        - manager_name, staff_count, budget
+        - key_responsibilities (pipe-separated)
+        - phone, email, location (contact_info)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        contact_info = {}
+        if row.get('phone', '').strip():
+            contact_info['phone'] = row['phone'].strip()
+        if row.get('email', '').strip():
+            contact_info['email'] = row['email'].strip()
+        if row.get('location', '').strip():
+            contact_info['location'] = row['location'].strip()
+        
+        entry_data = {}
+        if row.get('department_function', '').strip():
+            entry_data['department_function'] = row['department_function'].strip()
+        if row.get('manager_name', '').strip():
+            entry_data['manager_name'] = row['manager_name'].strip()
+        if row.get('staff_count', '').strip():
+            try:
+                entry_data['staff_count'] = int(row['staff_count'])
+            except ValueError:
+                pass
+        if row.get('budget', '').strip():
+            entry_data['budget'] = row['budget'].strip()
+        if row.get('key_responsibilities', '').strip():
+            responsibilities = [r.strip() for r in row['key_responsibilities'].split('|') if r.strip()]
+            if responsibilities:
+                entry_data['key_responsibilities'] = responsibilities
+        
+        return {
+            'name': row.get('name', '').strip(),
+            'tags': tags,
+            'contact_info': contact_info,
+            'entry_data': entry_data
+        }
+    
+    @staticmethod
+    def service_mapper(row: Dict) -> Dict:
+        """Map service CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - name (required)
+        - service_type (required)
+        - service_category, duration, cost
+        - insurance_accepted (pipe-separated)
+        - preparation_required (TRUE/FALSE)
+        - preparation_instructions, recovery_time, prerequisites
+        - phone, email, location (contact_info)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        contact_info = {}
+        if row.get('phone', '').strip():
+            contact_info['phone'] = row['phone'].strip()
+        if row.get('email', '').strip():
+            contact_info['email'] = row['email'].strip()
+        if row.get('location', '').strip():
+            contact_info['location'] = row['location'].strip()
+        
+        entry_data = {}
+        if row.get('service_type', '').strip():
+            entry_data['service_type'] = row['service_type'].strip()
+        if row.get('service_category', '').strip():
+            entry_data['service_category'] = row['service_category'].strip()
+        if row.get('duration', '').strip():
+            entry_data['duration'] = row['duration'].strip()
+        if row.get('cost', '').strip():
+            entry_data['cost'] = row['cost'].strip()
+        if row.get('insurance_accepted', '').strip():
+            insurance = [i.strip() for i in row['insurance_accepted'].split('|') if i.strip()]
+            if insurance:
+                entry_data['insurance_accepted'] = insurance
+        if row.get('preparation_required', '').strip():
+            prep_value = row['preparation_required'].strip().upper()
+            entry_data['preparation_required'] = prep_value == 'TRUE'
+        if row.get('preparation_instructions', '').strip():
+            entry_data['preparation_instructions'] = row['preparation_instructions'].strip()
+        if row.get('recovery_time', '').strip():
+            entry_data['recovery_time'] = row['recovery_time'].strip()
+        if row.get('prerequisites', '').strip():
+            entry_data['prerequisites'] = row['prerequisites'].strip()
+        
+        return {
+            'name': row.get('name', '').strip(),
+            'tags': tags,
+            'contact_info': contact_info,
+            'entry_data': entry_data
+        }
+    
+    @staticmethod
+    def location_mapper(row: Dict) -> Dict:
+        """Map location CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - name (required)
+        - location_type (required)
+        - building_name, floor, room_number
+        - directions, parking_info
+        - accessibility_features (pipe-separated)
+        - hours
+        - phone, email (contact_info)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        contact_info = {}
+        if row.get('phone', '').strip():
+            contact_info['phone'] = row['phone'].strip()
+        if row.get('email', '').strip():
+            contact_info['email'] = row['email'].strip()
+        
+        entry_data = {}
+        if row.get('location_type', '').strip():
+            entry_data['location_type'] = row['location_type'].strip()
+        if row.get('building_name', '').strip():
+            entry_data['building_name'] = row['building_name'].strip()
+        if row.get('floor', '').strip():
+            entry_data['floor'] = row['floor'].strip()
+        if row.get('room_number', '').strip():
+            entry_data['room_number'] = row['room_number'].strip()
+        if row.get('directions', '').strip():
+            entry_data['directions'] = row['directions'].strip()
+        if row.get('parking_info', '').strip():
+            entry_data['parking_info'] = row['parking_info'].strip()
+        if row.get('accessibility_features', '').strip():
+            features = [f.strip() for f in row['accessibility_features'].split('|') if f.strip()]
+            if features:
+                entry_data['accessibility_features'] = features
+        if row.get('hours', '').strip():
+            entry_data['hours'] = row['hours'].strip()
+        
+        return {
+            'name': row.get('name', '').strip(),
+            'tags': tags,
+            'contact_info': contact_info,
+            'entry_data': entry_data
+        }
+    
+    @staticmethod
+    def faq_mapper(row: Dict) -> Dict:
+        """Map FAQ CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - question (required, used as name)
+        - answer (required)
+        - category
+        - related_links (pipe-separated)
+        - last_updated
+        - tags (comma-separated)
+        - keywords (pipe-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        entry_data = {}
+        if row.get('question', '').strip():
+            entry_data['question'] = row['question'].strip()
+        if row.get('answer', '').strip():
+            entry_data['answer'] = row['answer'].strip()
+        if row.get('category', '').strip():
+            entry_data['category'] = row['category'].strip()
+        if row.get('related_links', '').strip():
+            links = [l.strip() for l in row['related_links'].split('|') if l.strip()]
+            if links:
+                entry_data['related_links'] = links
+        if row.get('last_updated', '').strip():
+            entry_data['last_updated'] = row['last_updated'].strip()
+        if row.get('keywords', '').strip():
+            keywords = [k.strip() for k in row['keywords'].split('|') if k.strip()]
+            if keywords:
+                entry_data['keywords'] = keywords
+        
+        return {
+            'name': row.get('question', '').strip(),
+            'tags': tags,
+            'contact_info': {},
+            'entry_data': entry_data
+        }
+    
+    @staticmethod
+    def cross_sell_mapper(row: Dict) -> Dict:
+        """Map cross-sell CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - primary_item (required)
+        - suggested_item (required)
+        - relationship (required)
+        - reason, bundle_discount, bundle_price
+        - frequently_bought_together (TRUE/FALSE)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        entry_data = {}
+        if row.get('primary_item', '').strip():
+            entry_data['primary_item'] = row['primary_item'].strip()
+        if row.get('suggested_item', '').strip():
+            entry_data['suggested_item'] = row['suggested_item'].strip()
+        if row.get('relationship', '').strip():
+            entry_data['relationship'] = row['relationship'].strip()
+        if row.get('reason', '').strip():
+            entry_data['reason'] = row['reason'].strip()
+        if row.get('bundle_discount', '').strip():
+            entry_data['bundle_discount'] = row['bundle_discount'].strip()
+        if row.get('bundle_price', '').strip():
+            try:
+                entry_data['bundle_price'] = float(row['bundle_price'])
+            except ValueError:
+                entry_data['bundle_price'] = row['bundle_price'].strip()
+        if row.get('frequently_bought_together', '').strip():
+            fbt_value = row['frequently_bought_together'].strip().upper()
+            entry_data['frequently_bought_together'] = fbt_value == 'TRUE'
+        
+        # Name is combination of primary and suggested items
+        primary = row.get('primary_item', '').strip()
+        suggested = row.get('suggested_item', '').strip()
+        name = f"{primary} + {suggested}" if primary and suggested else primary or suggested
+        
+        return {
+            'name': name,
+            'tags': tags,
+            'contact_info': {},
+            'entry_data': entry_data
+        }
+    
+    @staticmethod
+    def up_sell_mapper(row: Dict) -> Dict:
+        """Map up-sell CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - base_item (required)
+        - premium_item (required)
+        - additional_features (pipe-separated, required)
+        - price_difference, value_proposition
+        - benefits (pipe-separated)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        entry_data = {}
+        if row.get('base_item', '').strip():
+            entry_data['base_item'] = row['base_item'].strip()
+        if row.get('premium_item', '').strip():
+            entry_data['premium_item'] = row['premium_item'].strip()
+        if row.get('additional_features', '').strip():
+            features = [f.strip() for f in row['additional_features'].split('|') if f.strip()]
+            if features:
+                entry_data['additional_features'] = features
+        if row.get('price_difference', '').strip():
+            entry_data['price_difference'] = row['price_difference'].strip()
+        if row.get('value_proposition', '').strip():
+            entry_data['value_proposition'] = row['value_proposition'].strip()
+        if row.get('benefits', '').strip():
+            benefits = [b.strip() for b in row['benefits'].split('|') if b.strip()]
+            if benefits:
+                entry_data['benefits'] = benefits
+        
+        # Name is base → premium
+        base = row.get('base_item', '').strip()
+        premium = row.get('premium_item', '').strip()
+        name = f"{base} → {premium}" if base and premium else base or premium
+        
+        return {
+            'name': name,
+            'tags': tags,
+            'contact_info': {},
+            'entry_data': entry_data
+        }
+    
+    @staticmethod
+    def competitive_sell_mapper(row: Dict) -> Dict:
+        """Map competitive-sell CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - competitor_product (required)
+        - our_product (required)
+        - differentiators (pipe-separated, required)
+        - price_comparison, value_proposition
+        - feature_comparison
+        - certifications (pipe-separated)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        entry_data = {}
+        if row.get('competitor_product', '').strip():
+            entry_data['competitor_product'] = row['competitor_product'].strip()
+        if row.get('our_product', '').strip():
+            entry_data['our_product'] = row['our_product'].strip()
+        if row.get('differentiators', '').strip():
+            diffs = [d.strip() for d in row['differentiators'].split('|') if d.strip()]
+            if diffs:
+                entry_data['differentiators'] = diffs
+        if row.get('price_comparison', '').strip():
+            entry_data['price_comparison'] = row['price_comparison'].strip()
+        if row.get('value_proposition', '').strip():
+            entry_data['value_proposition'] = row['value_proposition'].strip()
+        if row.get('feature_comparison', '').strip():
+            entry_data['feature_comparison'] = row['feature_comparison'].strip()
+        if row.get('certifications', '').strip():
+            certs = [c.strip() for c in row['certifications'].split('|') if c.strip()]
+            if certs:
+                entry_data['certifications'] = certs
+        
+        # Name is "Ours vs Competitor"
+        ours = row.get('our_product', '').strip()
+        competitor = row.get('competitor_product', '').strip()
+        name = f"{ours} vs {competitor}" if ours and competitor else ours or competitor
+        
+        return {
+            'name': name,
+            'tags': tags,
+            'contact_info': {},
+            'entry_data': entry_data
+        }
 
