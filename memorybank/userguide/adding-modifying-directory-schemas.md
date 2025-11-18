@@ -396,9 +396,221 @@ results.append(result)  # This line stays at the end
 
 ---
 
-## Part 3: Testing Your New Schema
+## Part 3: Creating CSV Mapper and Sample Data
 
-### Step 9: Create Test Data
+### Step 9: Create a CSV Mapper Function
+
+If you want to import data from CSV files, you need to create a mapper function.
+
+**File**: `backend/app/services/directory_importer.py`
+
+**Location**: Add at the end of the file (after existing mappers, around line 735)
+
+**Template**:
+
+```python
+@staticmethod
+def {schema_name}_mapper(row: Dict) -> Dict:
+    """Map {schema_name} CSV to DirectoryEntry fields.
+    
+    Expected CSV columns:
+    - name (required)
+    - {key_field} (required)
+    - {other_fields} (optional)
+    - phone, email, location (contact_info)
+    - tags (comma-separated)
+    
+    Returns:
+        Dict with name, tags, contact_info, entry_data
+    """
+    # Parse tags (comma-separated)
+    tags = []
+    if row.get('tags', '').strip():
+        tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+    
+    # Parse contact info
+    contact_info = {}
+    if row.get('phone', '').strip():
+        contact_info['phone'] = row['phone'].strip()
+    if row.get('email', '').strip():
+        contact_info['email'] = row['email'].strip()
+    if row.get('location', '').strip():
+        contact_info['location'] = row['location'].strip()
+    
+    # Parse entry-specific fields
+    entry_data = {}
+    if row.get('{key_field}', '').strip():
+        entry_data['{key_field}'] = row['{key_field}'].strip()
+    
+    # Handle arrays (pipe-separated)
+    if row.get('{array_field}', '').strip():
+        items = [i.strip() for i in row['{array_field}'].split('|') if i.strip()]
+        if items:
+            entry_data['{array_field}'] = items
+    
+    # Handle booleans (TRUE/FALSE)
+    if row.get('{boolean_field}', '').strip():
+        value = row['{boolean_field}'].strip().upper()
+        entry_data['{boolean_field}'] = value == 'TRUE'
+    
+    # Handle numbers
+    if row.get('{numeric_field}', '').strip():
+        try:
+            entry_data['{numeric_field}'] = int(row['{numeric_field}'])
+        except ValueError:
+            pass
+    
+    return {
+        'name': row.get('name', '').strip(),
+        'tags': tags,
+        'contact_info': contact_info,
+        'entry_data': entry_data
+    }
+```
+
+**Example for our `course` schema:**
+
+```python
+@staticmethod
+def course_mapper(row: Dict) -> Dict:
+    """Map course CSV to DirectoryEntry fields.
+    
+    Expected CSV columns:
+    - name (required)
+    - course_code (required)
+    - subject_area, duration, skill_level, format
+    - instructor_name, cost, schedule
+    - prerequisites (pipe-separated)
+    - credits, enrollment_limit (numeric)
+    - certification (TRUE/FALSE)
+    - phone, email, location (contact_info)
+    - tags (comma-separated)
+    
+    Returns:
+        Dict with name, tags, contact_info, entry_data
+    """
+    tags = []
+    if row.get('tags', '').strip():
+        tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+    
+    contact_info = {}
+    if row.get('phone', '').strip():
+        contact_info['phone'] = row['phone'].strip()
+    if row.get('email', '').strip():
+        contact_info['email'] = row['email'].strip()
+    if row.get('location', '').strip():
+        contact_info['location'] = row['location'].strip()
+    
+    entry_data = {}
+    if row.get('course_code', '').strip():
+        entry_data['course_code'] = row['course_code'].strip()
+    if row.get('subject_area', '').strip():
+        entry_data['subject_area'] = row['subject_area'].strip()
+    if row.get('duration', '').strip():
+        entry_data['duration'] = row['duration'].strip()
+    if row.get('skill_level', '').strip():
+        entry_data['skill_level'] = row['skill_level'].strip()
+    if row.get('format', '').strip():
+        entry_data['format'] = row['format'].strip()
+    if row.get('instructor_name', '').strip():
+        entry_data['instructor_name'] = row['instructor_name'].strip()
+    if row.get('cost', '').strip():
+        entry_data['cost'] = row['cost'].strip()
+    if row.get('schedule', '').strip():
+        entry_data['schedule'] = row['schedule'].strip()
+    
+    # Array: prerequisites (pipe-separated)
+    if row.get('prerequisites', '').strip():
+        prereqs = [p.strip() for p in row['prerequisites'].split('|') if p.strip()]
+        if prereqs:
+            entry_data['prerequisites'] = prereqs
+    
+    # Numeric: credits
+    if row.get('credits', '').strip():
+        try:
+            entry_data['credits'] = int(row['credits'])
+        except ValueError:
+            pass
+    
+    # Numeric: enrollment_limit
+    if row.get('enrollment_limit', '').strip():
+        try:
+            entry_data['enrollment_limit'] = int(row['enrollment_limit'])
+        except ValueError:
+            pass
+    
+    # Boolean: certification
+    if row.get('certification', '').strip():
+        cert_value = row['certification'].strip().upper()
+        entry_data['certification'] = cert_value == 'TRUE'
+    
+    return {
+        'name': row.get('name', '').strip(),
+        'tags': tags,
+        'contact_info': contact_info,
+        'entry_data': entry_data
+    }
+```
+
+### Step 10: Register the Mapper
+
+**File**: `backend/scripts/seed_directory.py`
+
+**Location**: MAPPERS dictionary (around line 43)
+
+Add your mapper to the MAPPERS dictionary:
+
+```python
+MAPPERS = {
+    'medical_professional': DirectoryImporter.medical_professional_mapper,
+    'pharmaceutical': DirectoryImporter.pharmaceutical_mapper,
+    'product': DirectoryImporter.product_mapper,
+    'contact_information': DirectoryImporter.contact_information_mapper,
+    'department': DirectoryImporter.department_mapper,
+    'service': DirectoryImporter.service_mapper,
+    'location': DirectoryImporter.location_mapper,
+    'faq': DirectoryImporter.faq_mapper,
+    'cross_sell': DirectoryImporter.cross_sell_mapper,
+    'up_sell': DirectoryImporter.up_sell_mapper,
+    'competitive_sell': DirectoryImporter.competitive_sell_mapper,
+    'course': DirectoryImporter.course_mapper,  # <-- Add your mapper here
+}
+```
+
+### Step 11: Create a Sample CSV
+
+**File**: `backend/scripts/sample_directory_csvs/{schema_name}_sample.csv`
+
+Create a sample CSV file with at least 3-5 example rows showing all important fields.
+
+**CSV Format Guidelines**:
+- First row: Header with column names
+- Use double quotes for text with commas or special characters
+- Pipe `|` separator for multi-value fields (arrays)
+- Comma `,` separator for tags
+- `TRUE`/`FALSE` for boolean fields (case-insensitive)
+- Plain numbers for numeric fields (no quotes, no commas)
+
+**Example for `course_sample.csv`:**
+
+```csv
+name,course_code,subject_area,duration,skill_level,format,instructor_name,prerequisites,cost,credits,schedule,enrollment_limit,certification,phone,email,location,tags
+"Introduction to Python Programming",CS101,Computer Science,8 weeks,Beginner,Online,"Dr. Jane Smith",,$ 299,3,"Tuesdays and Thursdays, 6-8 PM",,TRUE,555-0101,cs101@university.edu,,"Programming, Computer Science, Beginner"
+"Advanced Machine Learning",CS401,Computer Science,12 weeks,Advanced,Hybrid,"Dr. Robert Chen","CS301 - Intermediate ML|MATH205 - Linear Algebra","$599",4,"Mondays 6-9 PM (online) + Saturday labs (in-person)",20,TRUE,555-0102,cs401@university.edu,"Tech Building, Room 305","Programming, Computer Science, Advanced, AI"
+"Data Analysis with Python",CS201,Computer Science,6 weeks,Intermediate,Online,"Dr. Sarah Lee","CS101 - Intro to Python","$399",3,"Wednesdays 7-9 PM",,TRUE,555-0103,cs201@university.edu,,"Programming, Data Science, Intermediate"
+```
+
+**Key Points**:
+- Empty fields (like `prerequisites` for CS101): Leave blank, no quotes
+- Multi-value fields (like `prerequisites` for CS401): Use pipe separator `"CS301|MATH205"`
+- Tags: Comma-separated in one column `"Tag1, Tag2, Tag3"`
+- Boolean: `TRUE` or `FALSE` (or leave empty for false/null)
+
+---
+
+## Part 4: Testing Your New Schema
+
+### Step 12: Create Test Data
 
 **Option A: Use the database directly**
 
@@ -510,7 +722,7 @@ if __name__ == "__main__":
     asyncio.run(test_schema_search())
 ```
 
-### Step 10: Run Your Test
+### Step 13: Run Your Test
 
 ```bash
 cd backend
@@ -525,9 +737,9 @@ python tests/manual/test_course_search.py
 
 ---
 
-## Part 4: Update Agent Configuration
+## Part 5: Update Agent Configuration
 
-### Step 11: Add Schema to Agent Config
+### Step 14: Add Schema to Agent Config
 
 **File**: `backend/config/agent_configs/{account}/{agent}/config.yaml`
 
@@ -543,7 +755,7 @@ tools:
       - courses  # <-- Add your new schema here
 ```
 
-### Step 12: Test with Real Agent
+### Step 15: Test with Real Agent
 
 Start your application and test queries:
 
@@ -555,7 +767,7 @@ Start your application and test queries:
 
 ---
 
-## Part 5: Modifying Existing Schemas
+## Part 6: Modifying Existing Schemas
 
 ### To Add a New Optional Field
 
@@ -602,15 +814,32 @@ if entry.entry_data.get('accreditation'):
 
 When adding a new schema, ensure:
 
+**Schema Definition (Part 1)**:
 - [ ] Schema YAML created in `backend/config/directory_schemas/`
 - [ ] All required fields documented
 - [ ] All optional fields documented
 - [ ] Search strategy includes examples and synonyms
 - [ ] `not_for` section disambiguates from other schemas
-- [ ] Handler added to `directory_tools.py`
+
+**Code Support (Part 2)**:
+- [ ] Handler added to `directory_tools.py` (around line 306)
 - [ ] All important fields included in handler
 - [ ] Boolean/numeric fields use `is not None` check
+
+**CSV Import Support (Part 3)**:
+- [ ] CSV mapper function created in `backend/app/services/directory_importer.py` (around line 735)
+- [ ] Mapper handles tags (comma-separated), contact info, and entry_data fields
+- [ ] Mapper handles arrays (pipe-separated), booleans (TRUE/FALSE), and numeric fields
+- [ ] Mapper registered in `backend/scripts/seed_directory.py` MAPPERS dictionary (line 43)
+- [ ] Sample CSV created in `backend/scripts/sample_directory_csvs/{schema_name}_sample.csv`
+- [ ] Sample CSV has 3-5 example rows with all important fields
+
+**Testing (Part 4)**:
 - [ ] Test script created and passes
+- [ ] JSON structure verified
+- [ ] All schema fields present in output
+
+**Configuration (Part 5)**:
 - [ ] Agent config updated to include new directory
 - [ ] Real queries tested with agent
 - [ ] User guide updated if public-facing

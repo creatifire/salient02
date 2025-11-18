@@ -535,13 +535,89 @@ description: "Emergency services"
 
 **Check**: Ensure optional fields you want displayed are actually filled in the data.
 
+## Importing Data from CSV Files
+
+All 11 directory schemas support CSV import through built-in mapper functions.
+
+### Available Import Mappers
+
+**Files**:
+- Mapper functions: `backend/app/services/directory_importer.py`
+- Mapper registry: `backend/scripts/seed_directory.py` (MAPPERS dictionary, line 43)
+- Sample CSVs: `backend/scripts/sample_directory_csvs/`
+
+**Supported Schemas**:
+1. `medical_professional` - Medical professional mapper
+2. `contact_information` - Contact information mapper
+3. `pharmaceutical` - Pharmaceutical mapper
+4. `product` - Product mapper
+5. `department` - Department mapper
+6. `service` - Service mapper
+7. `location` - Location mapper
+8. `faq` - FAQ mapper
+9. `cross_sell` - Cross-sell mapper
+10. `up_sell` - Up-sell mapper
+11. `competitive_sell` - Competitive-sell mapper
+
+### CSV Import Command
+
+```bash
+python backend/scripts/seed_directory.py \
+    --account {account_name} \
+    --list {directory_name} \
+    --entry-type {schema_type} \
+    --csv {path_to_csv} \
+    --mapper {mapper_name} \
+    --description "{directory description}"
+```
+
+**Example: Importing doctors**:
+```bash
+python backend/scripts/seed_directory.py \
+    --account hospital \
+    --list doctors \
+    --entry-type medical_professional \
+    --csv backend/data/wyckoff/wyckoff_doctors.csv \
+    --mapper medical_professional \
+    --description "Medical professionals directory"
+```
+
+### CSV Format Guidelines
+
+- **First row**: Header with column names
+- **Multi-value fields**: Use pipe `|` separator (e.g., `"Value1|Value2|Value3"`)
+- **Tags**: Comma-separated in single column (e.g., `"Tag1, Tag2, Tag3"`)
+- **Booleans**: Use `TRUE` or `FALSE` (case-insensitive)
+- **Numbers**: Plain numbers, no quotes or commas (e.g., `299` not `"$299"`)
+- **Empty fields**: Leave blank, no quotes needed
+
+### Sample CSV Files
+
+Reference sample CSV files for each schema in:
+```
+backend/scripts/sample_directory_csvs/{schema_name}_sample.csv
+```
+
+These samples show:
+- Required column headers
+- Multi-value field formatting (pipe-separated)
+- Boolean and numeric field formats
+- Contact information fields
+- Tags formatting
+
+---
+
 ## Getting Help
 
 For schema-specific questions or custom schema requirements, contact your Salient administrator or refer to:
 - `backend/config/directory_schemas/*.yaml` - Full schema definitions
+- `backend/scripts/sample_directory_csvs/` - Sample CSV files for all schemas
+- `backend/app/services/directory_importer.py` - CSV mapper implementations
+- `memorybank/userguide/adding-modifying-directory-schemas.md` - Developer guide for creating new schemas
 - `memorybank/architecture/directory-search-tool.md` - Technical details
 
 ## Version History
 
+- **v1.1** (2025-01-18): Added CSV import documentation and mapper file references
 - **v1.0** (2025-01-18): Initial guide with 11 schemas
 
