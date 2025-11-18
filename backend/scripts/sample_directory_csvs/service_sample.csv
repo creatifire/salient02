@@ -1,0 +1,6 @@
+name,service_type,service_category,duration,cost,insurance_accepted,preparation_required,preparation_instructions,recovery_time,prerequisites,phone,email,location,tags
+Cardiac Stress Test,Diagnostic,Cardiology,45-60 minutes,$350-$500,"Medicare|BlueCross|Aetna|UnitedHealthcare",TRUE,"Wear comfortable clothing, avoid caffeine 24 hours before test, fast 3 hours before",Immediate - resume normal activities,,555-2345,cardiology@hospital.org,"Building B, Cardiology Lab","Cardiology, Diagnostic"
+MRI Scan,Diagnostic,Radiology,30-90 minutes,$800-$2500,"Medicare|BlueCross|Aetna|Cigna|Humana",TRUE,"Remove all metal objects, inform staff of any implants or pacemakers, arrive 15 minutes early",Immediate - no restrictions,,555-3456,radiology@hospital.org,"Building A, Imaging Center","Radiology, Imaging"
+Physical Therapy Session,Treatment,Rehabilitation,60 minutes,$150-$200,"Medicare|Most major insurance",FALSE,,Varies by condition,Physician referral required,555-4567,rehab@hospital.org,"Building C, Floor 1","Rehabilitation, Therapy"
+Annual Wellness Visit,Preventive,Primary Care,30-45 minutes,$0-$200 (free with most insurance),"Medicare|Most major insurance",FALSE,"Bring medication list, prepare questions for doctor",None,,555-1234,primarycare@hospital.org,"Building A, Floor 2","Primary Care, Prevention"
+

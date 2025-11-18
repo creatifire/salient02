@@ -1,0 +1,6 @@
+name,location_type,building_name,floor,room_number,directions,parking_info,accessibility_features,hours,phone,email,tags
+Cardiology Lab 3,Lab,Medical Center West,2nd Floor,W-203,Take west elevators to floor 2 and turn left,Visitor parking in Lot C,"Wheelchair accessible|Elevator access",Mon-Fri 7AM-7PM,555-2345,cardiology@hospital.org,"Cardiology, Clinical"
+Emergency Room,Emergency Care,Main Hospital Building,Ground Floor,ER-100,Main entrance - immediately on right,Emergency parking at main entrance,"Wheelchair accessible|Automatic doors|24-hour access",24/7,555-9111,emergency@hospital.org,"Emergency, Critical Care"
+MRI Suite,Imaging Center,Diagnostic Building,Ground Floor,D-105,Enter through Diagnostic Building main entrance and follow signs,Parking in Lots A and B,"Wheelchair accessible|Elevator access|Wide doorways",Mon-Fri 7AM-10PM | Sat-Sun 8AM-6PM,555-3456,radiology@hospital.org,"Radiology, Imaging"
+Cafeteria,Dining,Main Hospital Building,1st Floor,Cafeteria,Take main elevators to floor 1 or use stairs from lobby,Visitor parking in Lots A-D,"Wheelchair accessible|Accessible seating|Multiple payment options",Mon-Sun 6AM-8PM,555-6000,dining@hospital.org,"Dining, Amenities"
+

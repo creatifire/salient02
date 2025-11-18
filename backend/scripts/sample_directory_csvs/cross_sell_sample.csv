@@ -1,0 +1,7 @@
+primary_item,suggested_item,relationship,reason,bundle_discount,bundle_price,frequently_bought_together,tags
+Blood Pressure Monitor,Blood Pressure Cuff Replacement,Compatible accessories,Spare cuffs extend monitor life and hygiene,15%,89.99,TRUE,"Medical Equipment, Accessories"
+Pulse Oximeter,AAA Batteries (4-pack),Required accessories,Device requires 2 AAA batteries for operation,10%,156.99,TRUE,"Diagnostic Equipment, Batteries"
+Wheelchair Standard,Wheelchair Cushion,Comfort accessories,Cushion increases comfort for extended use,20%,339.99,TRUE,"Mobility Aid, Comfort"
+Digital Thermometer,Thermometer Probe Covers (100-pack),Hygiene accessories,Disposable covers maintain hygiene between uses,10%,87.99,TRUE,"Diagnostic Equipment, Hygiene"
+Hospital Bed,Bed Side Rails,Safety accessories,Additional side rails provide extra patient safety,15%,5199.99,FALSE,"Medical Equipment, Safety"
+
