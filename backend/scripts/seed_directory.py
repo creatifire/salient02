@@ -52,6 +52,7 @@ MAPPERS = {
     'cross_sell': DirectoryImporter.cross_sell_mapper,
     'up_sell': DirectoryImporter.up_sell_mapper,
     'competitive_sell': DirectoryImporter.competitive_sell_mapper,
+    'classes': DirectoryImporter.classes_mapper,
 }
 
 

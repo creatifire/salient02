@@ -1,0 +1,356 @@
+# Schema metadata
+entry_type: "classes"
+version: "1.0"
+description: "Classes, seminars, workshops, and educational events"
+
+# Purpose and use cases
+directory_purpose: |
+  This directory contains information about classes (recurring activities) and seminars
+  (one-time events) including schedules, costs, instructors, and registration details.
+  
+  Use this directory when users ask about:
+  - Available classes or training sessions
+  - Class schedules, dates, and times
+  - Instructor information
+  - Class costs and registration
+  - Prerequisites and requirements
+  - Learning objectives and outcomes
+  - Certification or continuing education credits
+
+# Searchable fields (for LLM guidance)
+searchable_fields:
+  - event_type         # Class (recurring) vs Seminar (one-time)
+  - instructor_name    # Find by instructor
+  - days_of_week       # Find by schedule
+  - delivery_format    # In-person, online, hybrid
+  - cost_type          # Free vs paid
+  - target_audience    # Audience filter
+  - timezone           # By timezone
+  - description        # Search class description
+  - learning_objectives # Search by what students will learn
+  - program_name       # Find classes in a program/series
+
+# Required fields
+required_fields:
+  name:
+    type: string
+    description: "Event name (e.g., 'Introduction to Meditation', 'Financial Planning Seminar')"
+  
+  event_type:
+    type: string
+    description: "Type of event: 'class' (recurring) or 'seminar' (one-time)"
+
+# Optional fields
+optional_fields:
+  # Program/Series
+  program_name:
+    type: string
+    description: "Name of program or series this class belongs to (e.g., 'Meditation Mastery Series')"
+  
+  # Scheduling - Basic
+  start_date:
+    type: string
+    description: "First occurrence date (ISO format: YYYY-MM-DD)"
+  
+  end_date:
+    type: string
+    description: "Last occurrence date for recurring classes (ISO format: YYYY-MM-DD)"
+  
+  days_of_week:
+    type: array
+    items: string
+    description: "For recurring classes: days of week (e.g., ['Monday', 'Wednesday', 'Friday'])"
+  
+  time_of_day:
+    type: string
+    description: "Time slot (e.g., '6:00 PM - 7:30 PM', '10:00 AM - 12:00 PM')"
+  
+  duration:
+    type: string
+    description: "Duration per session (e.g., '90 minutes', '2 hours', '3 hours')"
+  
+  timezone:
+    type: string
+    description: "Timezone (e.g., 'America/New_York', 'America/Los_Angeles', 'UTC')"
+  
+  session_count:
+    type: number
+    description: "Total number of sessions for recurring classes (e.g., 8)"
+  
+  # Cost
+  cost_type:
+    type: string
+    description: "Pricing model: 'free', 'paid', 'donation'"
+  
+  price:
+    type: number
+    description: "Regular price (if paid)"
+  
+  early_bird_price:
+    type: number
+    description: "Discounted early registration price"
+  
+  registration_fee:
+    type: number
+    description: "Separate one-time registration fee"
+  
+  payment_required:
+    type: boolean
+    description: "Whether payment is required to attend"
+  
+  # Logistics
+  instructor_name:
+    type: string
+    description: "Instructor or facilitator name"
+  
+  delivery_format:
+    type: string
+    description: "Delivery format: 'in_person', 'online', 'hybrid'"
+  
+  venue:
+    type: string
+    description: "Physical location or online platform (e.g., 'Room 205', 'Zoom', 'Community Center')"
+  
+  capacity:
+    type: number
+    description: "Maximum number of attendees"
+  
+  registration_required:
+    type: boolean
+    description: "Whether pre-registration is required"
+  
+  registration_deadline:
+    type: string
+    description: "Last date to register (ISO format: YYYY-MM-DD)"
+  
+  enrollment_status:
+    type: string
+    description: "Current status: 'open', 'waitlist', 'full', 'cancelled'"
+  
+  # Content
+  description:
+    type: string
+    description: "Detailed description of what the event covers"
+  
+  target_audience:
+    type: string
+    description: "Who should attend (e.g., 'Beginners', 'Adults 18+', 'Healthcare professionals')"
+  
+  prerequisites:
+    type: array
+    items: string
+    description: "Required prior knowledge or completed classes"
+  
+  learning_objectives:
+    type: array
+    items: string
+    description: "What attendees will learn or achieve"
+  
+  materials_provided:
+    type: array
+    items: string
+    description: "What materials or resources are included"
+  
+  materials_required:
+    type: array
+    items: string
+    description: "What attendees need to bring or prepare"
+  
+  certificate_offered:
+    type: boolean
+    description: "Whether a certificate of completion is provided"
+  
+  continuing_education_credits:
+    type: string
+    description: "CE credits offered (e.g., '2.5 CEUs', '4 CME credits')"
+
+# Contact information (available on all schemas)
+contact_fields:
+  phone:
+    type: string
+    description: "Registration phone number"
+  email:
+    type: string
+    description: "Registration or instructor email"
+  location:
+    type: string
+    description: "Physical address (if in-person)"
+  product_url:
+    type: string
+    description: "Registration or info webpage"
+
+# Search strategy
+search_strategy:
+  natural_language: |
+    When users ask about classes or events:
+    
+    1. Identify event type: recurring class vs one-time seminar
+    2. Look for schedule preferences (day of week, time, duration)
+    3. Consider cost preferences (free vs paid)
+    4. Match delivery format (in-person, online, hybrid)
+    5. Check target audience and prerequisites
+    6. Search by instructor if mentioned
+    7. Look for program/series if part of a sequence
+  
+  synonym_mappings:
+    class:
+      - "course"
+      - "training"
+      - "program"
+      - "workshop"
+    
+    seminar:
+      - "event"
+      - "talk"
+      - "presentation"
+      - "workshop"
+      - "webinar"
+    
+    online:
+      - "virtual"
+      - "remote"
+      - "zoom"
+      - "web-based"
+      - "distance learning"
+    
+    in_person:
+      - "on-site"
+      - "in person"
+      - "face-to-face"
+      - "classroom"
+    
+    free:
+      - "no cost"
+      - "complimentary"
+      - "no charge"
+    
+    beginner:
+      - "introduction"
+      - "intro"
+      - "basics"
+      - "fundamentals"
+      - "101"
+    
+    advanced:
+      - "expert"
+      - "professional"
+      - "master"
+      - "201"
+      - "301"
+  
+  example_queries:
+    - "What meditation classes do you offer?"
+    - "Are there any free seminars this month?"
+    - "What classes can I take online on weekends?"
+    - "Do you have any beginner yoga classes?"
+    - "What are the prerequisites for advanced financial planning?"
+    - "Can I get continuing education credits?"
+
+# When NOT to use this schema
+not_for:
+  - "Don't use for finding instructor contact info (use medical_professional or contact_information)"
+  - "Don't use for facility locations (use location)"
+  - "Don't use for general FAQs about classes (use faq)"
+  - "Don't use for products or equipment sales (use product)"
+
+# Examples
+examples:
+  - name: "Introduction to Meditation"
+    event_type: "class"
+    program_name: "Mindfulness Series"
+    start_date: "2025-02-03"
+    end_date: "2025-03-24"
+    days_of_week: ["Monday", "Wednesday"]
+    time_of_day: "6:00 PM - 7:30 PM"
+    duration: "90 minutes"
+    timezone: "America/New_York"
+    session_count: 8
+    cost_type: "paid"
+    price: 150.00
+    early_bird_price: 120.00
+    instructor_name: "Sarah Chen"
+    delivery_format: "hybrid"
+    venue: "Community Center Room 3 / Zoom"
+    capacity: 25
+    registration_required: true
+    registration_deadline: "2025-01-27"
+    enrollment_status: "open"
+    description: "Learn fundamental meditation techniques to reduce stress and improve focus"
+    target_audience: "Adults, all experience levels welcome"
+    prerequisites: []
+    learning_objectives:
+      - "Learn basic meditation techniques"
+      - "Develop a daily practice"
+      - "Reduce stress and improve focus"
+    certificate_offered: true
+    contact_info:
+      phone: "555-234-5678"
+      email: "meditation@center.org"
+      location: "123 Main St, Community Center"
+      product_url: "https://center.org/classes/meditation-101"
+  
+  - name: "Financial Planning for Retirement"
+    event_type: "seminar"
+    start_date: "2025-02-15"
+    time_of_day: "2:00 PM - 4:00 PM"
+    duration: "2 hours"
+    timezone: "America/Chicago"
+    cost_type: "free"
+    price: 0
+    payment_required: false
+    instructor_name: "Robert Martinez, CFP"
+    delivery_format: "online"
+    venue: "Zoom Webinar"
+    capacity: 100
+    registration_required: true
+    registration_deadline: "2025-02-14"
+    enrollment_status: "open"
+    description: "Learn essential strategies for retirement planning, including 401(k) optimization, IRA conversions, and Social Security timing"
+    target_audience: "Adults 50+ preparing for retirement"
+    prerequisites: []
+    learning_objectives:
+      - "Understand retirement account options"
+      - "Learn Social Security optimization strategies"
+      - "Create a personalized retirement timeline"
+    materials_provided: ["PDF workbook", "Retirement calculator spreadsheet"]
+    certificate_offered: false
+    contact_info:
+      email: "seminars@financialgroup.com"
+      product_url: "https://financialgroup.com/seminars/retirement"
+  
+  - name: "Advanced Wound Care Techniques"
+    event_type: "class"
+    start_date: "2025-03-10"
+    end_date: "2025-03-12"
+    days_of_week: ["Monday", "Tuesday", "Wednesday"]
+    time_of_day: "8:00 AM - 5:00 PM"
+    duration: "8 hours per day"
+    timezone: "America/Los_Angeles"
+    session_count: 3
+    cost_type: "paid"
+    price: 495.00
+    early_bird_price: 445.00
+    registration_fee: 50.00
+    instructor_name: "Dr. Jennifer Kim, CWON"
+    delivery_format: "in_person"
+    venue: "Medical Training Center, Building A"
+    capacity: 30
+    registration_required: true
+    registration_deadline: "2025-02-28"
+    enrollment_status: "open"
+    target_audience: "RNs, LPNs, Wound Care Specialists"
+    prerequisites: ["Current nursing license", "Basic wound care training"]
+    learning_objectives:
+      - "Master advanced wound assessment techniques"
+      - "Learn evidence-based treatment protocols"
+      - "Practice hands-on debridement skills"
+    materials_provided: ["Course manual", "Practice supplies", "Lunch"]
+    materials_required: ["Scrubs", "Closed-toe shoes", "Current nursing license"]
+    certificate_offered: true
+    continuing_education_credits: "24 contact hours (2.4 CEUs)"
+    contact_info:
+      phone: "555-789-0123"
+      email: "training@medcenter.org"
+      location: "456 Hospital Drive, Medical Training Center"
+      product_url: "https://medcenter.org/training/wound-care"
+

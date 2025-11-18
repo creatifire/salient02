@@ -733,4 +733,146 @@ class DirectoryImporter:
             'contact_info': {},
             'entry_data': entry_data
         }
+    
+    @staticmethod
+    def classes_mapper(row: Dict) -> Dict:
+        """Map classes/seminars CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - name (required)
+        - event_type (required: 'class' or 'seminar')
+        - program_name, start_date, end_date, days_of_week (pipe-separated)
+        - time_of_day, duration, timezone, session_count (numeric)
+        - cost_type, price, early_bird_price, registration_fee (numeric)
+        - payment_required (TRUE/FALSE), instructor_name, delivery_format
+        - venue, capacity (numeric), registration_required (TRUE/FALSE)
+        - registration_deadline, enrollment_status, description
+        - target_audience, prerequisites (pipe-separated)
+        - learning_objectives (pipe-separated), materials_provided (pipe-separated)
+        - materials_required (pipe-separated)
+        - certificate_offered (TRUE/FALSE), continuing_education_credits
+        - phone, email, location (contact_info), product_url (contact_info)
+        - tags (comma-separated)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        tags = []
+        if row.get('tags', '').strip():
+            tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+        
+        contact_info = {}
+        if row.get('phone', '').strip():
+            contact_info['phone'] = row['phone'].strip()
+        if row.get('email', '').strip():
+            contact_info['email'] = row['email'].strip()
+        if row.get('location', '').strip():
+            contact_info['location'] = row['location'].strip()
+        if row.get('product_url', '').strip():
+            contact_info['product_url'] = row['product_url'].strip()
+        
+        entry_data = {}
+        
+        # Event identification
+        if row.get('event_type', '').strip():
+            entry_data['event_type'] = row['event_type'].strip()
+        if row.get('program_name', '').strip():
+            entry_data['program_name'] = row['program_name'].strip()
+        
+        # Scheduling
+        if row.get('start_date', '').strip():
+            entry_data['start_date'] = row['start_date'].strip()
+        if row.get('end_date', '').strip():
+            entry_data['end_date'] = row['end_date'].strip()
+        if row.get('days_of_week', '').strip():
+            days = [d.strip() for d in row['days_of_week'].split('|') if d.strip()]
+            if days:
+                entry_data['days_of_week'] = days
+        if row.get('time_of_day', '').strip():
+            entry_data['time_of_day'] = row['time_of_day'].strip()
+        if row.get('duration', '').strip():
+            entry_data['duration'] = row['duration'].strip()
+        if row.get('timezone', '').strip():
+            entry_data['timezone'] = row['timezone'].strip()
+        if row.get('session_count', '').strip():
+            try:
+                entry_data['session_count'] = int(row['session_count'])
+            except ValueError:
+                pass
+        
+        # Cost
+        if row.get('cost_type', '').strip():
+            entry_data['cost_type'] = row['cost_type'].strip()
+        if row.get('price', '').strip():
+            try:
+                entry_data['price'] = float(row['price'])
+            except ValueError:
+                pass
+        if row.get('early_bird_price', '').strip():
+            try:
+                entry_data['early_bird_price'] = float(row['early_bird_price'])
+            except ValueError:
+                pass
+        if row.get('registration_fee', '').strip():
+            try:
+                entry_data['registration_fee'] = float(row['registration_fee'])
+            except ValueError:
+                pass
+        if row.get('payment_required', '').strip():
+            payment_value = row['payment_required'].strip().upper()
+            entry_data['payment_required'] = payment_value == 'TRUE'
+        
+        # Logistics
+        if row.get('instructor_name', '').strip():
+            entry_data['instructor_name'] = row['instructor_name'].strip()
+        if row.get('delivery_format', '').strip():
+            entry_data['delivery_format'] = row['delivery_format'].strip()
+        if row.get('venue', '').strip():
+            entry_data['venue'] = row['venue'].strip()
+        if row.get('capacity', '').strip():
+            try:
+                entry_data['capacity'] = int(row['capacity'])
+            except ValueError:
+                pass
+        if row.get('registration_required', '').strip():
+            reg_value = row['registration_required'].strip().upper()
+            entry_data['registration_required'] = reg_value == 'TRUE'
+        if row.get('registration_deadline', '').strip():
+            entry_data['registration_deadline'] = row['registration_deadline'].strip()
+        if row.get('enrollment_status', '').strip():
+            entry_data['enrollment_status'] = row['enrollment_status'].strip()
+        
+        # Content
+        if row.get('description', '').strip():
+            entry_data['description'] = row['description'].strip()
+        if row.get('target_audience', '').strip():
+            entry_data['target_audience'] = row['target_audience'].strip()
+        if row.get('prerequisites', '').strip():
+            prereqs = [p.strip() for p in row['prerequisites'].split('|') if p.strip()]
+            if prereqs:
+                entry_data['prerequisites'] = prereqs
+        if row.get('learning_objectives', '').strip():
+            objectives = [o.strip() for o in row['learning_objectives'].split('|') if o.strip()]
+            if objectives:
+                entry_data['learning_objectives'] = objectives
+        if row.get('materials_provided', '').strip():
+            materials_prov = [m.strip() for m in row['materials_provided'].split('|') if m.strip()]
+            if materials_prov:
+                entry_data['materials_provided'] = materials_prov
+        if row.get('materials_required', '').strip():
+            materials_req = [m.strip() for m in row['materials_required'].split('|') if m.strip()]
+            if materials_req:
+                entry_data['materials_required'] = materials_req
+        if row.get('certificate_offered', '').strip():
+            cert_value = row['certificate_offered'].strip().upper()
+            entry_data['certificate_offered'] = cert_value == 'TRUE'
+        if row.get('continuing_education_credits', '').strip():
+            entry_data['continuing_education_credits'] = row['continuing_education_credits'].strip()
+        
+        return {
+            'name': row.get('name', '').strip(),
+            'tags': tags,
+            'contact_info': contact_info,
+            'entry_data': entry_data
+        }
 

@@ -462,6 +462,75 @@ async def search_directory(
                 if entry.entry_data.get('certifications'):
                     result["certifications"] = entry.entry_data['certifications']
             
+            elif entry_type == "classes":
+                # Event identification
+                if entry.entry_data.get('event_type'):
+                    result["event_type"] = entry.entry_data['event_type']
+                if entry.entry_data.get('program_name'):
+                    result["program_name"] = entry.entry_data['program_name']
+                
+                # Scheduling
+                if entry.entry_data.get('start_date'):
+                    result["start_date"] = entry.entry_data['start_date']
+                if entry.entry_data.get('end_date'):
+                    result["end_date"] = entry.entry_data['end_date']
+                if entry.entry_data.get('days_of_week'):
+                    result["days_of_week"] = entry.entry_data['days_of_week']
+                if entry.entry_data.get('time_of_day'):
+                    result["time"] = entry.entry_data['time_of_day']
+                if entry.entry_data.get('duration'):
+                    result["duration"] = entry.entry_data['duration']
+                if entry.entry_data.get('timezone'):
+                    result["timezone"] = entry.entry_data['timezone']
+                if entry.entry_data.get('session_count') is not None:
+                    result["session_count"] = entry.entry_data['session_count']
+                
+                # Cost
+                if entry.entry_data.get('cost_type'):
+                    result["cost_type"] = entry.entry_data['cost_type']
+                if entry.entry_data.get('price') is not None:
+                    result["price"] = entry.entry_data['price']
+                if entry.entry_data.get('early_bird_price') is not None:
+                    result["early_bird_price"] = entry.entry_data['early_bird_price']
+                if entry.entry_data.get('registration_fee') is not None:
+                    result["registration_fee"] = entry.entry_data['registration_fee']
+                if entry.entry_data.get('payment_required') is not None:
+                    result["payment_required"] = entry.entry_data['payment_required']
+                
+                # Logistics
+                if entry.entry_data.get('instructor_name'):
+                    result["instructor"] = entry.entry_data['instructor_name']
+                if entry.entry_data.get('delivery_format'):
+                    result["format"] = entry.entry_data['delivery_format']
+                if entry.entry_data.get('venue'):
+                    result["venue"] = entry.entry_data['venue']
+                if entry.entry_data.get('capacity') is not None:
+                    result["capacity"] = entry.entry_data['capacity']
+                if entry.entry_data.get('registration_required') is not None:
+                    result["registration_required"] = entry.entry_data['registration_required']
+                if entry.entry_data.get('registration_deadline'):
+                    result["registration_deadline"] = entry.entry_data['registration_deadline']
+                if entry.entry_data.get('enrollment_status'):
+                    result["enrollment_status"] = entry.entry_data['enrollment_status']
+                
+                # Content
+                if entry.entry_data.get('description'):
+                    result["description"] = entry.entry_data['description']
+                if entry.entry_data.get('target_audience'):
+                    result["target_audience"] = entry.entry_data['target_audience']
+                if entry.entry_data.get('prerequisites'):
+                    result["prerequisites"] = entry.entry_data['prerequisites']
+                if entry.entry_data.get('learning_objectives'):
+                    result["learning_objectives"] = entry.entry_data['learning_objectives']
+                if entry.entry_data.get('materials_provided'):
+                    result["materials_provided"] = entry.entry_data['materials_provided']
+                if entry.entry_data.get('materials_required'):
+                    result["materials_required"] = entry.entry_data['materials_required']
+                if entry.entry_data.get('certificate_offered') is not None:
+                    result["certificate_offered"] = entry.entry_data['certificate_offered']
+                if entry.entry_data.get('continuing_education_credits'):
+                    result["ce_credits"] = entry.entry_data['continuing_education_credits']
+            
             results.append(result)
         
         return json.dumps({"entries": results, "total": len(results)}, indent=2)
