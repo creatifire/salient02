@@ -329,8 +329,8 @@ class DirectoryImporter:
         }
     
     @staticmethod
-    def phone_directory_mapper(row: Dict) -> Dict:
-        """Map phone directory CSV to DirectoryEntry fields.
+    def contact_information_mapper(row: Dict) -> Dict:
+        """Map contact information CSV to DirectoryEntry fields.
         
         Expected CSV columns:
         - department_name (required)
