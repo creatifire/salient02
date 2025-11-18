@@ -45,19 +45,19 @@
       "use_cases": ["Finding doctors by specialty", "Getting doctor contact info"]
     },
     {
-      "list_name": "phone_directory",
-      "entry_type": "department_contact",
+      "list_name": "contact_information",
+      "entry_type": "contact_information",
       "entry_count": 11,
-      "description": "Hospital department phone numbers",
+      "description": "Hospital department contact information (phone, email, fax, location)",
       "use_cases": ["Finding department phone numbers", "Getting department hours"]
     }
   ]
 }
 ```
 
-**Step 2**: Choose `phone_directory` (matches "department phone number")
+**Step 2**: Choose `contact_information` (matches "department phone number")
 
-**Step 3**: Call `search_directory(list_name="phone_directory", query="cardiology")`
+**Step 3**: Call `search_directory(list_name="contact_information", query="cardiology")`
 
 ---
 

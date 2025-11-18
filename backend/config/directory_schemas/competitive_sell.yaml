@@ -1,0 +1,190 @@
+entry_type: competitive_sell
+schema_version: "1.0"
+description: "Schema for competitive positioning - comparing our offerings to competitors"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Competitive comparisons showing advantages of our products/services over competitors"
+  
+  use_for:
+    - "Responding to competitor mentions"
+    - "Highlighting our competitive advantages"
+    - "Addressing 'why choose us' questions"
+    - "Converting customers considering competitors"
+  
+  example_queries:
+    - "How does your MRI compare to Hospital X?"
+    - "Why choose you instead of Competitor Y?"
+    - "What makes your service better than others?"
+  
+  not_for:
+    - "Premium upgrades (use up_sell)"
+    - "Complementary products (use cross_sell)"
+
+required_fields:
+  - competitor_product
+  - our_product
+  - differentiators
+
+optional_fields:
+  - price_comparison
+  - feature_comparison
+  - quality_comparison
+  - value_proposition
+  - testimonials
+  - certifications
+  - awards
+  - conversion_talking_points
+
+fields:
+  competitor_product:
+    type: string
+    description: "Competitor's product or service name"
+    examples:
+      - "Hospital X Basic MRI"
+      - "Competitor Y Home BP Monitor"
+      - "Generic Wheelchair Model Z"
+  
+  our_product:
+    type: string
+    description: "Our equivalent or superior product/service"
+    examples:
+      - "Advanced 3T MRI with AI Enhancement"
+      - "Omron 10 Series Clinical-Grade Monitor"
+      - "Drive Medical Titanium Sport Wheelchair"
+  
+  differentiators:
+    type: array
+    description: "Key advantages over competitor"
+    examples:
+      - ["Higher image resolution", "Faster scan time", "More comfortable", "Board-certified radiologists on-site"]
+      - ["Clinical-grade accuracy", "5-year warranty vs 1-year", "Bluetooth connectivity", "Validated by American Heart Association"]
+  
+  price_comparison:
+    type: text
+    description: "How pricing compares"
+    examples:
+      - "Similar price ($2,500) but includes contrast and consultation - competitor charges $500 extra for these"
+      - "10% more expensive but includes 5-year warranty and lifetime support (competitor: 1-year warranty, no support)"
+  
+  feature_comparison:
+    type: text
+    description: "Detailed feature-by-feature comparison"
+    examples:
+      - "Our MRI: 3 Tesla strength, 30-minute scan, open design | Competitor: 1.5 Tesla, 60-minute scan, closed tunnel"
+      - "Our monitor: Clinical-grade (98% accuracy), unlimited memory, app integration | Competitor: Home-grade (92% accuracy), 60 readings, no connectivity"
+  
+  quality_comparison:
+    type: text
+    description: "Quality and reliability differences"
+    examples:
+      - "Our radiologists are board-certified with 15+ years experience. Images reviewed within 24 hours. 99.2% diagnostic accuracy rate."
+      - "Clinical-grade device validated by American Heart Association. Used in hospitals. 5-year warranty. Competitor: consumer-grade, no medical validation, 1-year warranty."
+  
+  value_proposition:
+    type: text
+    description: "Overall value message"
+    examples:
+      - "While similarly priced, our MRI delivers faster results, higher quality images, and immediate expert consultation - giving you peace of mind and faster diagnosis."
+      - "Yes, we're $30 more, but you get hospital-grade accuracy, 5x longer warranty, and connectivity features that help you manage your health better long-term."
+  
+  testimonials:
+    type: array
+    description: "Customer testimonials comparing to competitor"
+    examples:
+      - ["I switched from Hospital X and the difference was night and day - results in 24 hours vs 5 days", "More comfortable MRI experience and clearer explanation of results"]
+      - ["I tried the cheaper competitor brand first - returned it after a week. This one is accurate and reliable"]
+  
+  certifications:
+    type: array
+    description: "Our certifications/validations vs competitor"
+    examples:
+      - ["ACR accredited", "Radiology Business Management Association Gold Standard", "Joint Commission certified"]
+      - ["FDA approved", "American Heart Association validated", "Clinically tested", "Hospital-grade certification"]
+  
+  awards:
+    type: array
+    description: "Awards and recognition"
+    examples:
+      - ["Best Diagnostic Center 2023 - Brooklyn", "5-star patient satisfaction rating"]
+      - ["Top Product 2024 - Medical Device Journal", "Consumers' Choice Award"]
+  
+  conversion_talking_points:
+    type: array
+    description: "Key points for sales conversations"
+    examples:
+      - ["Emphasize board-certified radiologists vs technicians", "Highlight 24-hour turnaround", "Mention open MRI design for claustrophobia"]
+      - ["Clinical-grade accuracy matters for treatment decisions", "5-year warranty = long-term value", "App connectivity helps track trends your doctor needs"]
+
+tags_usage:
+  description: "Competitive advantage categories"
+  examples:
+    - "Better Quality"
+    - "Faster Service"
+    - "Better Value"
+    - "Higher Accuracy"
+
+contact_info_fields:
+  phone:
+    description: "Sales line to discuss competitive advantages"
+  
+  product_url:
+    description: "Link to detailed comparison page"
+
+searchable_fields:
+  competitor_product:
+    type: string
+    description: "Competitor product name"
+  
+  our_product:
+    type: string
+    description: "Our product name"
+  
+  differentiators:
+    type: array
+    description: "Key advantages (searchable)"
+
+search_strategy:
+  synonym_mappings_heading: "Competitive Comparison Queries"
+  
+  guidance: |
+    **When customer mentions competitor:**
+    1. Search by COMPETITOR_PRODUCT name
+    2. Emphasize DIFFERENTIATORS (what makes us better)
+    3. Use VALUE_PROPOSITION to frame pricing
+    4. Share TESTIMONIALS from customers who switched
+    5. Mention CERTIFICATIONS and AWARDS for credibility
+    6. Be factual, not negative about competitor
+  
+  examples:
+    - user_query: "How do you compare to Hospital X?"
+      tool_calls:
+        - 'search_directory(list_name="competitive_sell", query="Hospital X")'
+    
+    - user_query: "Why should I choose you instead of Competitor Y?"
+      tool_calls:
+        - 'search_directory(list_name="competitive_sell", query="Competitor Y")'
+
+# Example entry
+example:
+  name: "Our Clinical Monitor vs Generic Home Monitor"
+  tags:
+    - "Higher Accuracy"
+    - "Better Value"
+    - "Medical Grade"
+  contact_info:
+    phone: "800-555-0199"
+    product_url: "https://hospital.org/products/bp-monitor-comparison"
+  entry_data:
+    competitor_product: "Generic Home Blood Pressure Monitor (Drugstore Brand)"
+    our_product: "Omron 10 Series Clinical-Grade Monitor"
+    differentiators: ["Clinical-grade accuracy (98% vs 92%)", "Validated by American Heart Association", "5-year warranty vs 1-year", "Unlimited memory vs 60 readings", "Bluetooth connectivity with doctor-approved app", "Used in hospitals and clinics"]
+    price_comparison: "Our monitor is $79 vs competitor's $49. The extra $30 gets you clinical-grade accuracy (difference matters for treatment decisions), 5-year warranty (replacement would cost more), and connectivity features that help manage your health long-term."
+    feature_comparison: "Ours: Clinical accuracy 98%, Irregular heartbeat detection, Multi-user (2 people), Bluetooth + app, Unlimited memory, 5-year warranty | Competitor: Home accuracy 92%, Basic readings only, Single user, No connectivity, 60 readings max, 1-year warranty"
+    quality_comparison: "Our monitor is clinically validated and used in hospitals nationwide. It's the same technology your doctor uses. Competitor monitors are consumer-grade, not validated for medical use, and may miss important irregular heartbeat patterns."
+    value_proposition: "For $30 more ($79 vs $49), you get hospital-grade accuracy that your doctor can trust, 5x longer warranty, unlimited tracking, and the ability to share data with your healthcare team. This is an investment in accurate, long-term health monitoring - not just a gadget."
+    testimonials: ["I bought the cheaper one first - readings were inconsistent. Got this one and my doctor said it's the same brand they use", "Paid more but worth it for peace of mind knowing the readings are accurate"]
+    certifications: ["FDA approved", "American Heart Association validated", "Clinically tested in 5 major hospitals", "Meets ESH accuracy standards"]
+    awards: ["Top Blood Pressure Monitor 2024 - Consumer Reports", "Best Medical Device - Health Magazine"]
+    conversion_talking_points: ["Accuracy matters for medication decisions", "5-year warranty offsets higher initial cost", "Same monitor hospitals use", "AHA validation = trusted by doctors", "App lets you share data your doctor actually needs"]
+

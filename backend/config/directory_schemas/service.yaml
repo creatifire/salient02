@@ -1,0 +1,245 @@
+entry_type: service
+schema_version: "1.0"
+description: "Schema for medical services, procedures, and clinical offerings"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Medical services, procedures, and clinical offerings available"
+  
+  use_for:
+    - "Finding available medical services and procedures"
+    - "Getting service descriptions and requirements"
+    - "Checking service costs and insurance coverage"
+    - "Understanding preparation requirements"
+    - "Finding service locations and hours"
+  
+  example_queries:
+    - "Do you offer MRI services?"
+    - "What physical therapy services are available?"
+    - "How much does a colonoscopy cost?"
+    - "What do I need to do before an ultrasound?"
+  
+  not_for:
+    - "Finding specific doctors (use doctors)"
+    - "Scheduling appointments (use contact_information)"
+    - "Pharmaceutical services (use pharmaceuticals)"
+
+required_fields:
+  - service_type
+
+optional_fields:
+  - service_category
+  - duration
+  - cost
+  - insurance_accepted
+  - preparation_required
+  - preparation_instructions
+  - prerequisites
+  - what_to_expect
+  - recovery_time
+  - follow_up_required
+  - risks
+  - benefits
+  - alternatives
+
+fields:
+  service_type:
+    type: string
+    description: "Type or category of service"
+    examples:
+      - "Diagnostic Imaging"
+      - "Physical Therapy"
+      - "Laboratory Services"
+      - "Surgical Procedures"
+      - "Wellness Programs"
+  
+  service_category:
+    type: string
+    description: "Broader service category"
+    examples:
+      - "Diagnostic"
+      - "Therapeutic"
+      - "Preventive"
+      - "Emergency"
+  
+  duration:
+    type: string
+    description: "Typical service duration"
+    examples:
+      - "30-45 minutes"
+      - "2-3 hours"
+      - "Ongoing (6 weeks)"
+  
+  cost:
+    type: string
+    description: "Service cost or price range"
+    examples:
+      - "$150-$300"
+      - "$2,500"
+      - "Varies by insurance"
+  
+  insurance_accepted:
+    type: array
+    description: "Insurance providers accepted"
+    examples:
+      - ["Medicare", "Medicaid", "Blue Cross", "United Healthcare"]
+      - ["Most major insurance"]
+  
+  preparation_required:
+    type: boolean
+    description: "Whether preparation is needed"
+    examples:
+      - true
+      - false
+  
+  preparation_instructions:
+    type: text
+    description: "How to prepare for the service"
+    examples:
+      - "Fast for 8 hours before procedure. Drink only water. Bring list of current medications."
+      - "Wear comfortable clothing. Arrive 15 minutes early for paperwork."
+  
+  prerequisites:
+    type: array
+    description: "Requirements before service can be provided"
+    examples:
+      - ["Physician referral required", "Pre-authorization needed"]
+      - ["Must complete health questionnaire"]
+  
+  what_to_expect:
+    type: text
+    description: "What happens during the service"
+    examples:
+      - "You'll lie on a table that slides into the MRI machine. The scan takes 30-60 minutes. You'll hear loud tapping sounds."
+  
+  recovery_time:
+    type: string
+    description: "Expected recovery or rest period"
+    examples:
+      - "Resume normal activities immediately"
+      - "1-2 days rest recommended"
+      - "2-4 weeks recovery"
+  
+  follow_up_required:
+    type: boolean
+    description: "Whether follow-up appointment needed"
+    examples:
+      - true
+      - false
+  
+  risks:
+    type: array
+    description: "Potential risks or complications"
+    examples:
+      - ["Minimal risk", "Rare allergic reaction to contrast dye"]
+      - ["Infection risk", "Bleeding", "Anesthesia complications"]
+  
+  benefits:
+    type: array
+    description: "Benefits of the service"
+    examples:
+      - ["Accurate diagnosis", "Non-invasive", "Quick results"]
+      - ["Pain relief", "Improved mobility", "Better quality of life"]
+  
+  alternatives:
+    type: array
+    description: "Alternative services or treatments"
+    examples:
+      - ["CT scan", "X-ray", "Ultrasound"]
+      - ["Medication management", "Surgery", "Lifestyle changes"]
+
+tags_usage:
+  description: "Service categories and types"
+  source_column: "service_type"
+  examples:
+    - "Diagnostic"
+    - "Therapy"
+    - "Preventive"
+
+contact_info_fields:
+  phone:
+    description: "Service scheduling phone number"
+  
+  email:
+    description: "Service inquiries email"
+  
+  location:
+    description: "Where service is provided"
+
+searchable_fields:
+  service_type:
+    type: string
+    description: "Type of service"
+  
+  service_category:
+    type: string
+    description: "Service category"
+  
+  insurance_accepted:
+    type: array
+    description: "Insurance providers (searchable)"
+
+search_strategy:
+  synonym_mappings_heading: "Medical Service Synonyms"
+  
+  guidance: |
+    **When users ask about services:**
+    1. Search by SERVICE NAME (e.g., "MRI", "physical therapy")
+    2. Search by SERVICE TYPE or CATEGORY (e.g., "diagnostic imaging")
+    3. Include cost and insurance info in response
+  
+  synonym_mappings:
+    - lay_terms: ["MRI", "magnetic resonance", "scan"]
+      formal_terms: ["MRI", "Magnetic Resonance Imaging"]
+    
+    - lay_terms: ["PT", "physical therapy", "rehab"]
+      formal_terms: ["Physical Therapy", "Rehabilitation Services"]
+    
+    - lay_terms: ["blood test", "lab work", "blood work"]
+      formal_terms: ["Laboratory Services", "Blood Testing"]
+    
+    - lay_terms: ["x-ray", "xray", "radiograph"]
+      formal_terms: ["X-Ray", "Radiography"]
+    
+    - lay_terms: ["ultrasound", "sonogram"]
+      formal_terms: ["Ultrasound", "Sonography"]
+  
+  examples:
+    - user_query: "Do you offer MRI services?"
+      tool_calls:
+        - 'search_directory(list_name="services", query="MRI")'
+    
+    - user_query: "What physical therapy is available?"
+      tool_calls:
+        - 'search_directory(list_name="services", query="physical therapy")'
+    
+    - user_query: "Lab services that accept Medicare?"
+      tool_calls:
+        - 'search_directory(list_name="services", query="laboratory", filters={"insurance_accepted": "Medicare"})'
+
+# Example entry
+example:
+  name: "MRI (Magnetic Resonance Imaging)"
+  tags:
+    - "Diagnostic Imaging"
+    - "Radiology"
+  contact_info:
+    phone: "718-963-2200"
+    email: "imaging@hospital.org"
+    location: "Imaging Center - Building C, 1st Floor"
+  entry_data:
+    service_type: "Diagnostic Imaging"
+    service_category: "Diagnostic"
+    duration: "30-60 minutes"
+    cost: "$800-$2,500"
+    insurance_accepted: ["Medicare", "Medicaid", "Blue Cross", "Aetna", "United Healthcare"]
+    preparation_required: true
+    preparation_instructions: "Remove all metal objects. Inform staff if you have implants, pacemaker, or claustrophobia. Fasting may be required for certain scans."
+    prerequisites: ["Physician referral", "Pre-authorization from insurance"]
+    what_to_expect: "You'll lie on a padded table that slides into the MRI machine. Must remain still. Machine makes loud tapping/knocking sounds. Scan takes 30-60 minutes."
+    recovery_time: "None - resume normal activities immediately"
+    follow_up_required: true
+    risks: ["Minimal", "Rare allergic reaction to contrast dye if used", "Not suitable for patients with certain metal implants"]
+    benefits: ["Detailed images of soft tissues", "No radiation exposure", "Non-invasive", "Accurate diagnosis"]
+    alternatives: ["CT scan", "X-ray", "Ultrasound"]
+

@@ -1,0 +1,233 @@
+entry_type: pharmaceutical
+schema_version: "1.0"
+description: "Schema for pharmaceutical drugs, medications, and prescriptions"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Pharmaceutical drugs and medications with dosage information"
+  
+  use_for:
+    - "Finding medications by drug class or generic name"
+    - "Getting dosage forms and administration methods"
+    - "Understanding drug indications and uses"
+    - "Finding contraindications and warnings"
+    - "Checking drug interactions"
+  
+  example_queries:
+    - "What antibiotics do you have?"
+    - "Tell me about Lisinopril"
+    - "What blood pressure medications are available?"
+    - "Do you have aspirin in liquid form?"
+  
+  not_for:
+    - "Prescription filling or pharmacy services (use contact_information)"
+    - "Medical advice about which drug to take (use doctors)"
+
+required_fields:
+  - drug_class
+
+optional_fields:
+  - generic_name
+  - brand_names
+  - dosage_forms
+  - strengths
+  - indications
+  - contraindications
+  - side_effects
+  - interactions
+  - administration
+  - pregnancy_category
+  - controlled_substance_class
+
+fields:
+  drug_class:
+    type: string
+    description: "Therapeutic drug class or category"
+    examples:
+      - "Antibiotics"
+      - "Antihypertensives"
+      - "Analgesics"
+      - "Antidiabetics"
+      - "Cardiovascular"
+  
+  generic_name:
+    type: string
+    description: "Generic (nonproprietary) drug name"
+    examples:
+      - "Lisinopril"
+      - "Metformin"
+      - "Amoxicillin"
+      - "Atorvastatin"
+  
+  brand_names:
+    type: array
+    description: "Common brand names for this drug"
+    examples:
+      - ["Prinivil", "Zestril"]
+      - ["Glucophage"]
+      - ["Amoxil", "Moxatag"]
+  
+  dosage_forms:
+    type: array
+    description: "Available forms of administration"
+    examples:
+      - ["tablet", "capsule"]
+      - ["liquid", "suspension"]
+      - ["injection", "IV"]
+      - ["topical", "cream", "ointment"]
+  
+  strengths:
+    type: array
+    description: "Available dosage strengths"
+    examples:
+      - ["5mg", "10mg", "20mg", "40mg"]
+      - ["500mg", "750mg", "1000mg"]
+  
+  indications:
+    type: text
+    description: "Medical conditions this drug treats"
+    examples:
+      - "Treatment of hypertension and heart failure"
+      - "Type 2 diabetes management"
+      - "Bacterial infections"
+  
+  contraindications:
+    type: text
+    description: "Conditions where drug should not be used"
+    examples:
+      - "Pregnancy, severe renal impairment"
+      - "Known allergy to penicillin"
+  
+  side_effects:
+    type: text
+    description: "Common adverse effects"
+    examples:
+      - "Dizziness, dry cough, fatigue"
+      - "Nausea, diarrhea, headache"
+  
+  interactions:
+    type: text
+    description: "Drug-drug or drug-food interactions"
+    examples:
+      - "May increase lithium levels. Avoid NSAIDs."
+      - "Take on empty stomach. Avoid alcohol."
+  
+  administration:
+    type: string
+    description: "How the drug should be taken"
+    examples:
+      - "Take once daily in the morning"
+      - "Take with food"
+      - "Do not crush or chew"
+  
+  pregnancy_category:
+    type: string
+    description: "FDA pregnancy safety category"
+    examples:
+      - "Category C"
+      - "Category B"
+      - "Contraindicated in pregnancy"
+  
+  controlled_substance_class:
+    type: string
+    description: "DEA schedule if controlled"
+    examples:
+      - "Schedule II"
+      - "Schedule IV"
+      - "Not controlled"
+
+tags_usage:
+  description: "Drug classes and categories for filtering"
+  source_column: "drug_class"
+  examples:
+    - "Antibiotics"
+    - "Pain Relief"
+    - "Heart Medication"
+
+contact_info_fields:
+  product_url:
+    description: "Link to detailed drug information or manufacturer website"
+  
+  location:
+    description: "Pharmacy location where available"
+
+searchable_fields:
+  drug_class:
+    type: string
+    description: "Therapeutic class (Antibiotics, Antihypertensives, etc.)"
+  
+  generic_name:
+    type: string
+    description: "Generic drug name"
+  
+  brand_names:
+    type: array
+    description: "Brand names (searchable)"
+  
+  indications:
+    type: text
+    description: "What conditions it treats"
+  
+  dosage_forms:
+    type: array
+    description: "Available forms (tablet, liquid, etc.)"
+
+search_strategy:
+  synonym_mappings_heading: "Drug & Condition Synonyms"
+  
+  guidance: |
+    **When users ask about medications:**
+    1. Search by drug CLASS first (e.g., "antibiotics", "blood pressure meds")
+    2. Search by GENERIC name if specific drug mentioned
+    3. Search by BRAND name if user uses brand name
+    4. Search by INDICATION if they describe a condition
+  
+  synonym_mappings:
+    - lay_terms: ["blood pressure meds", "BP medication", "hypertension drugs"]
+      formal_terms: ["Antihypertensives"]
+    
+    - lay_terms: ["pain meds", "pain killer", "pain reliever"]
+      formal_terms: ["Analgesics", "Pain Relief"]
+    
+    - lay_terms: ["antibiotics", "infection medicine"]
+      formal_terms: ["Antibiotics", "Antimicrobials"]
+    
+    - lay_terms: ["diabetes medication", "sugar medicine"]
+      formal_terms: ["Antidiabetics", "Hypoglycemic Agents"]
+    
+    - lay_terms: ["heart medication", "cardiac drugs"]
+      formal_terms: ["Cardiovascular", "Cardiac"]
+  
+  examples:
+    - user_query: "What antibiotics do you have?"
+      tool_calls:
+        - 'search_directory(list_name="pharmaceuticals", filters={"drug_class": "Antibiotics"})'
+    
+    - user_query: "Tell me about Lisinopril"
+      tool_calls:
+        - 'search_directory(list_name="pharmaceuticals", query="Lisinopril")'
+    
+    - user_query: "Blood pressure medications available?"
+      tool_calls:
+        - 'search_directory(list_name="pharmaceuticals", filters={"drug_class": "Antihypertensives"})'
+
+# Example entry
+example:
+  name: "Lisinopril"
+  tags:
+    - "Antihypertensives"
+    - "ACE Inhibitors"
+  contact_info:
+    product_url: "https://www.drugs.com/lisinopril.html"
+  entry_data:
+    drug_class: "Antihypertensives"
+    generic_name: "Lisinopril"
+    brand_names: ["Prinivil", "Zestril"]
+    dosage_forms: ["tablet"]
+    strengths: ["2.5mg", "5mg", "10mg", "20mg", "40mg"]
+    indications: "Treatment of hypertension, heart failure, and acute myocardial infarction"
+    contraindications: "Pregnancy, history of angioedema with ACE inhibitors"
+    side_effects: "Dizziness, dry cough, fatigue, headache"
+    administration: "Take once daily, with or without food"
+    pregnancy_category: "Category D (Contraindicated)"
+

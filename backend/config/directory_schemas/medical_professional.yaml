@@ -25,7 +25,7 @@ directory_purpose:
     - "Are there Spanish-speaking doctors?"
   
   not_for:
-    - "General hospital department phone numbers (use phone_directory)"
+    - "General hospital department phone numbers (use contact_information)"
     - "Hospital services information (use services)"
 
 # Required fields that must be present in entry_data JSONB

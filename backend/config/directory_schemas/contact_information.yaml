@@ -1,22 +1,25 @@
-entry_type: phone_directory
+entry_type: contact_information
 schema_version: "1.0"
-description: "Schema for hospital department phone numbers and contact information"
+description: "Schema for department and service contact information (phone, email, fax, location, hours)"
 
 # Directory purpose for multi-directory selection
 directory_purpose:
-  description: "Hospital department phone numbers and contact information"
+  description: "Department and service contact information - phone, email, location, hours"
   
   use_for:
     - "Finding phone numbers for hospital departments"
+    - "Finding email addresses for services"
     - "Getting hours of operation for departments"
     - "Finding contact information for administrative services"
     - "Scheduling appointments or reaching billing"
+    - "Getting fax numbers for medical records"
   
   example_queries:
     - "What's the emergency room number?"
-    - "How do I schedule an appointment?"
+    - "How do I email the appointments department?"
     - "Who can I call about my bill?"
     - "What's the main hospital number?"
+    - "What are the radiology department hours?"
   
   not_for:
     - "Finding a specific doctor by name or specialty (use doctors)"
@@ -41,6 +44,8 @@ fields:
       - "Emergency Department"
       - "Appointments"
       - "Billing"
+      - "Radiology"
+      - "Medical Records"
   
   service_type:
     type: string
@@ -64,6 +69,7 @@ fields:
     examples:
       - "24/7"
       - "Mon-Fri 8am-8pm"
+      - "Mon-Fri 9am-5pm, Sat 9am-1pm"
 
 tags_usage:
   description: "Service categories for filtering"
@@ -94,35 +100,53 @@ searchable_fields:
 
 search_strategy:
   # Custom heading for prompt generation
-  synonym_mappings_heading: "Medical Term Mappings (Lay → Formal)"
+  synonym_mappings_heading: "Department & Service Contact Synonyms"
   
   guidance: |
     **When users ask about contacting departments:**
     1. Search by department NAME using the `query` parameter (not filters!)
-       Example: search_directory(list_name="phone_directory", query="Cardiology")
+       Example: search_directory(list_name="contact_information", query="Cardiology")
     2. Search by service_type using `filters` ONLY if searching by category
-       Example: search_directory(list_name="phone_directory", filters={"service_type": "Emergency Services"})
+       Example: search_directory(list_name="contact_information", filters={"service_type": "Emergency Services"})
     3. Always include hours_of_operation in response
+    4. If user asks for email/fax/phone specifically, ensure that field is in the result
   
   synonym_mappings:
-    - lay_terms: ["ER", "emergency room", "emergency"]
+    - lay_terms: ["ER", "emergency room", "emergency", "emergency dept"]
       formal_terms: ["Emergency Department"]
-    - lay_terms: ["appointments", "schedule", "booking"]
-      formal_terms: ["Appointments"]
-    - lay_terms: ["billing", "bill", "payment", "insurance"]
-      formal_terms: ["Billing Department"]
+      note: "User may say 'emergency room' but database has 'Emergency Department'"
+    
+    - lay_terms: ["appointments", "schedule", "scheduling", "booking"]
+      formal_terms: ["Appointments", "Scheduling"]
+    
+    - lay_terms: ["billing", "bill", "payment", "insurance", "financial"]
+      formal_terms: ["Billing Department", "Financial Services"]
+    
+    - lay_terms: ["medical records", "records", "health records"]
+      formal_terms: ["Medical Records", "Health Information Management"]
+    
+    - lay_terms: ["radiology", "x-ray", "imaging", "MRI", "CT scan"]
+      formal_terms: ["Radiology", "Diagnostic Imaging"]
   
   examples:
     - user_query: "What's the emergency room number?"
       tool_calls:
-        - 'search_directory(list_name="phone_directory", query="Emergency Department")'
+        - 'search_directory(list_name="contact_information", query="Emergency Department")'
+    
     - user_query: "How do I schedule an appointment?"
       tool_calls:
-        - 'search_directory(list_name="phone_directory", query="Appointments")'
+        - 'search_directory(list_name="contact_information", query="Appointments")'
+    
     - user_query: "What's the cardiology phone number?"
       tool_calls:
-        - 'search_directory(list_name="phone_directory", query="Cardiology")'
+        - 'search_directory(list_name="contact_information", query="Cardiology")'
+    
     - user_query: "Show me all emergency services contact info"
       tool_calls:
-        - 'search_directory(list_name="phone_directory", filters={"service_type": "Emergency Services"})'
+        - 'search_directory(list_name="contact_information", filters={"service_type": "Emergency Services"})'
+    
+    - user_query: "What's the email for medical records?"
+      tool_calls:
+        - 'search_directory(list_name="contact_information", query="Medical Records")'
+
 

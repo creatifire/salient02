@@ -1,0 +1,219 @@
+entry_type: department
+schema_version: "1.0"
+description: "Schema for internal organizational departments and administrative units"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Internal organizational structure - departments, teams, and administrative units"
+  
+  use_for:
+    - "Finding department information and responsibilities"
+    - "Understanding organizational structure"
+    - "Locating department leadership and staff"
+    - "Getting department budgets and metrics"
+    - "Finding reporting relationships"
+  
+  example_queries:
+    - "Who manages the IT department?"
+    - "What does the Quality Assurance department do?"
+    - "How many people work in Human Resources?"
+    - "What's the budget for the Marketing department?"
+  
+  not_for:
+    - "Public-facing department contact info (use contact_information)"
+    - "Individual employee details (use employees or doctors)"
+
+required_fields:
+  - department_function
+
+optional_fields:
+  - parent_department
+  - manager_name
+  - staff_count
+  - budget
+  - cost_center
+  - established_date
+  - mission_statement
+  - key_responsibilities
+  - reporting_structure
+  - performance_metrics
+
+fields:
+  department_function:
+    type: string
+    description: "Primary function or purpose of department"
+    examples:
+      - "Clinical Operations"
+      - "Information Technology"
+      - "Human Resources"
+      - "Finance & Accounting"
+      - "Quality Assurance"
+  
+  parent_department:
+    type: string
+    description: "Higher-level department this reports to"
+    examples:
+      - "Clinical Services"
+      - "Corporate"
+      - "Operations"
+  
+  manager_name:
+    type: string
+    description: "Department head or manager"
+    examples:
+      - "John Smith, Director of IT"
+      - "Mary Johnson, VP Human Resources"
+  
+  staff_count:
+    type: integer
+    description: "Number of employees in department"
+    examples:
+      - 15
+      - 45
+      - 120
+  
+  budget:
+    type: string
+    description: "Annual department budget"
+    examples:
+      - "$1.2M"
+      - "$500K"
+      - "$3.5M annually"
+  
+  cost_center:
+    type: string
+    description: "Accounting cost center code"
+    examples:
+      - "CC-1200"
+      - "IT-INFRA-01"
+  
+  established_date:
+    type: string
+    description: "When department was established"
+    examples:
+      - "January 2020"
+      - "2015"
+  
+  mission_statement:
+    type: text
+    description: "Department's mission and purpose"
+    examples:
+      - "To provide reliable IT infrastructure and support services to all hospital staff"
+  
+  key_responsibilities:
+    type: array
+    description: "Main responsibilities and duties"
+    examples:
+      - ["Network management", "Help desk support", "Security", "Infrastructure maintenance"]
+      - ["Recruitment", "Benefits administration", "Employee relations", "Training"]
+  
+  reporting_structure:
+    type: text
+    description: "Reporting hierarchy and relationships"
+    examples:
+      - "Reports to: Chief Information Officer (CIO)\nManages: Infrastructure Team (8), Application Support (5), Help Desk (3)"
+  
+  performance_metrics:
+    type: array
+    description: "Key performance indicators"
+    examples:
+      - ["System uptime: 99.9%", "Ticket response time: < 2 hours", "User satisfaction: 4.5/5"]
+      - ["Time to hire: 25 days", "Employee retention: 92%", "Training completion: 98%"]
+
+tags_usage:
+  description: "Department categories and functions"
+  source_column: "department_function"
+  examples:
+    - "Clinical"
+    - "Administrative"
+    - "Support Services"
+    - "Corporate"
+
+contact_info_fields:
+  phone:
+    description: "Department internal phone/extension"
+  
+  email:
+    description: "Department email address"
+  
+  location:
+    description: "Physical office location"
+
+searchable_fields:
+  department_function:
+    type: string
+    description: "Department function or type"
+  
+  manager_name:
+    type: string
+    description: "Department manager (searchable)"
+  
+  key_responsibilities:
+    type: array
+    description: "Responsibilities (searchable)"
+  
+  parent_department:
+    type: string
+    description: "Parent department"
+
+search_strategy:
+  synonym_mappings_heading: "Department Function Synonyms"
+  
+  guidance: |
+    **When users ask about internal departments:**
+    1. Search by FUNCTION or TYPE (e.g., "IT", "Human Resources")
+    2. Search by MANAGER NAME if asking about leadership
+    3. Search by RESPONSIBILITY if asking about specific functions
+  
+  synonym_mappings:
+    - lay_terms: ["IT", "tech", "technology", "computers"]
+      formal_terms: ["Information Technology", "IT Department"]
+    
+    - lay_terms: ["HR", "people", "hiring", "recruitment"]
+      formal_terms: ["Human Resources", "Talent Acquisition"]
+    
+    - lay_terms: ["QA", "quality"]
+      formal_terms: ["Quality Assurance", "Quality Management"]
+    
+    - lay_terms: ["finance", "accounting", "billing"]
+      formal_terms: ["Finance & Accounting", "Financial Services"]
+    
+    - lay_terms: ["facilities", "maintenance", "building"]
+      formal_terms: ["Facilities Management", "Plant Operations"]
+  
+  examples:
+    - user_query: "Who manages the IT department?"
+      tool_calls:
+        - 'search_directory(list_name="departments", query="Information Technology")'
+    
+    - user_query: "What does Quality Assurance do?"
+      tool_calls:
+        - 'search_directory(list_name="departments", query="Quality Assurance")'
+    
+    - user_query: "How many people work in HR?"
+      tool_calls:
+        - 'search_directory(list_name="departments", query="Human Resources")'
+
+# Example entry
+example:
+  name: "Information Technology"
+  tags:
+    - "Support Services"
+    - "Technology"
+  contact_info:
+    phone: "x5500"
+    email: "it-support@hospital.org"
+    location: "Administration Building, 2nd Floor"
+  entry_data:
+    department_function: "Information Technology"
+    parent_department: "Operations"
+    manager_name: "John Smith, Director of IT"
+    staff_count: 16
+    budget: "$1.8M"
+    cost_center: "CC-1200"
+    established_date: "2010"
+    mission_statement: "To provide reliable, secure IT infrastructure and support services enabling excellent patient care and efficient hospital operations"
+    key_responsibilities: ["Network infrastructure management", "Application support", "Security and compliance", "Help desk services", "Hardware/software procurement"]
+    reporting_structure: "Reports to: Chief Information Officer\nManages: Infrastructure Team (8), Application Support (5), Help Desk (3)"
+    performance_metrics: ["System uptime: 99.95%", "Ticket response time: < 1 hour", "User satisfaction: 4.7/5", "Security incidents: 0 major"]
+

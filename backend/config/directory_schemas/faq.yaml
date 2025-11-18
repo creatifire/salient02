@@ -1,0 +1,175 @@
+entry_type: faq
+schema_version: "1.0"
+description: "Schema for frequently asked questions and answers"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Frequently asked questions with answers for common inquiries"
+  
+  use_for:
+    - "Finding answers to common questions"
+    - "Understanding policies and procedures"
+    - "Getting quick information on common topics"
+    - "Self-service customer support"
+  
+  example_queries:
+    - "What are your visiting hours?"
+    - "Do you accept my insurance?"
+    - "How do I get my medical records?"
+    - "What should I bring to my appointment?"
+  
+  not_for:
+    - "Complex medical questions (use doctors or services)"
+    - "Specific department contact info (use contact_information)"
+
+required_fields:
+  - answer
+
+optional_fields:
+  - question
+  - category
+  - related_links
+  - last_updated
+  - keywords
+  - popularity_score
+
+fields:
+  question:
+    type: string
+    description: "The question being asked"
+    note: "If not provided, use 'name' field as the question"
+  
+  answer:
+    type: text
+    description: "The answer to the question"
+    examples:
+      - "Visiting hours are 9am-8pm daily. Please check with the nurse station for ICU visiting hours which may be restricted."
+  
+  category:
+    type: string
+    description: "Category or topic of the FAQ"
+    examples:
+      - "Visiting Information"
+      - "Billing & Insurance"
+      - "Patient Services"
+      - "Medical Records"
+      - "Appointments"
+  
+  related_links:
+    type: array
+    description: "Links to related information"
+    examples:
+      - ["https://hospital.org/insurance", "https://hospital.org/payment-options"]
+      - ["https://hospital.org/medical-records-request"]
+  
+  last_updated:
+    type: string
+    description: "When this FAQ was last updated"
+    examples:
+      - "2024-11-15"
+      - "November 2024"
+  
+  keywords:
+    type: array
+    description: "Keywords for improved searchability"
+    examples:
+      - ["visiting", "hours", "guests", "family"]
+      - ["insurance", "billing", "payment", "coverage"]
+  
+  popularity_score:
+    type: integer
+    description: "How frequently this question is asked (1-100)"
+    examples:
+      - 95
+      - 60
+      - 30
+
+tags_usage:
+  description: "FAQ categories for filtering"
+  source_column: "category"
+  examples:
+    - "Visiting"
+    - "Billing"
+    - "Appointments"
+    - "Medical Records"
+
+contact_info_fields:
+  phone:
+    description: "Phone number for related inquiries"
+  
+  email:
+    description: "Email for related questions"
+
+searchable_fields:
+  question:
+    type: string
+    description: "The question text (searchable)"
+  
+  answer:
+    type: text
+    description: "The answer text (searchable)"
+  
+  category:
+    type: string
+    description: "FAQ category"
+  
+  keywords:
+    type: array
+    description: "Search keywords"
+
+search_strategy:
+  synonym_mappings_heading: "Common Question Patterns"
+  
+  guidance: |
+    **When users ask questions:**
+    1. Search by KEYWORDS from the user's question
+    2. Search by CATEGORY if broader topic mentioned
+    3. Match question intent, not exact wording
+    4. Always provide full answer text
+  
+  synonym_mappings:
+    - lay_terms: ["visiting", "visit", "guests", "family visiting"]
+      formal_terms: ["Visiting Information", "Visitor Policy"]
+    
+    - lay_terms: ["insurance", "coverage", "payment", "billing", "costs"]
+      formal_terms: ["Billing & Insurance", "Payment Options"]
+    
+    - lay_terms: ["records", "medical records", "health records", "documents"]
+      formal_terms: ["Medical Records", "Health Information"]
+    
+    - lay_terms: ["appointment", "scheduling", "book", "schedule"]
+      formal_terms: ["Appointments", "Scheduling"]
+    
+    - lay_terms: ["parking", "where to park"]
+      formal_terms: ["Parking Information"]
+  
+  examples:
+    - user_query: "What are your visiting hours?"
+      tool_calls:
+        - 'search_directory(list_name="faqs", query="visiting hours")'
+    
+    - user_query: "Do you accept my insurance?"
+      tool_calls:
+        - 'search_directory(list_name="faqs", filters={"category": "Billing & Insurance"})'
+    
+    - user_query: "How do I get my medical records?"
+      tool_calls:
+        - 'search_directory(list_name="faqs", query="medical records")'
+
+# Example entry
+example:
+  name: "What are the visiting hours?"
+  tags:
+    - "Visiting Information"
+    - "Patient Services"
+  contact_info:
+    phone: "718-963-7000"
+  entry_data:
+    question: "What are the visiting hours?"
+    answer: "General visiting hours are 9:00 AM to 8:00 PM daily. For patient safety and rest, we ask that visitors limit their stay and keep noise levels low. ICU visiting hours may be restricted - please check with the nurse station. Children under 12 must be accompanied by an adult."
+    category: "Visiting Information"
+    related_links: ["https://wyckoffhospital.org/visiting-information", "https://wyckoffhospital.org/patient-family-guide"]
+    last_updated: "2024-11-15"
+    keywords: ["visiting", "hours", "guests", "family", "ICU", "visitors"]
+    popularity_score: 95
+

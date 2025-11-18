@@ -79,6 +79,7 @@
   - ✅ TASK-0026-3C-007: Add "View Full Assembled Prompt" UI toggle
   - ✅ TASK-0026-3C-008: Update frontend to render nested sections with CSS indentation
   - ✅ TASK-0026-3C-009: Add multi-level nested expandable sections for directory breakdown
+  - TASK-0026-3C-011: Update Pydantic AI to 1.19.0 and Review All Dependencies
   - 🚧 TASK-0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern (5/8 chunks complete)
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
@@ -2429,6 +2430,59 @@ Prompt Sections: 6 modules, 16,478 characters total
 
 ---
 
+#### TASK-0026-3C-011: Update Pydantic AI to 1.19.0 and Review All Dependencies
+
+**Status**: PROPOSED
+
+**Goal**: Update pydantic-ai to latest version (1.19.0) to enable Pydantic AI Gateway support and review all other dependencies in `requirements.txt` for updates.
+
+**Why This Matters**:
+- Pydantic AI 1.19.0 adds native support for Pydantic AI Gateway (required for investigation Phase 2C)
+- Gateway support enables unified LLM access with built-in cost tracking and observability
+- Dependency updates ensure security patches and bug fixes
+
+**Tasks**:
+1. ✅ Update `requirements.txt` with pydantic-ai==1.19.0
+2. ✅ Run `pip install -U pydantic-ai==1.19.0`
+3. ✅ Test Pydantic AI Gateway support with Phase 2C investigation (successful)
+4. ⏳ Review and update other dependencies in `requirements.txt`:
+   - Check FastAPI, Uvicorn, SQLAlchemy, Alembic versions
+   - Review Pydantic, Logfire, Pinecone versions
+   - Update httpx, OpenAI, and other LLM-related libs
+   - Document breaking changes (if any)
+5. ⏳ Test core functionality after upgrades:
+   - Simple chat agent (streaming and non-streaming)
+   - Directory tools and vector search
+   - Database operations (Alembic migrations)
+   - Admin UI (sessions list and detail)
+   - Logfire instrumentation
+6. ⏳ Update any code affected by API changes
+7. ✅ Run investigation Phase 2C with new Pydantic AI Gateway support (completed successfully)
+
+**Breaking Changes to Watch**:
+- Pydantic AI 0.8.1 → 1.19.0 may have API changes
+- Review migration guide: https://ai.pydantic.dev/upgrade-guide/
+- Test all agent initialization patterns
+- Verify tool registration still works
+- Check if `RunContext` API changed
+
+**Testing Checklist**:
+- [ ] Simple chat agent works (both `/chat` and `/stream`)
+- [ ] Tool calls still work (directory_tools, vector_search)
+- [ ] Prompt breakdown still captured correctly
+- [ ] Admin UI displays sessions and prompt inspector
+- [ ] Logfire instrumentation working
+- [ ] Database migrations run successfully
+- [ ] Cost tracking still accurate
+
+**Files to Review**:
+- `requirements.txt` (update versions)
+- `backend/app/agents/simple_chat.py` (Agent initialization)
+- `backend/app/agents/tools/` (tool registration)
+- `backend/tests/manual/` (manual tests)
+
+---
+
 #### Task 0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern
 
 **Status**: IN PROGRESS
@@ -2440,13 +2494,27 @@ Prompt Sections: 6 modules, 16,478 characters total
 - ✅ CHUNK-0026-3C-010-004: Update Directory YAML Schemas (Already complete - no changes needed)
 - ✅ CHUNK-0026-3C-010-005: Update Prompt Modules (Commit: efd2db7)
 - 🔄 CHUNK-0026-3C-010-006: Add DirectoryMetadataService (DEFERRED - see note below)
-- ⏳ CHUNK-0026-3C-010-007: Testing Plan (In progress - manual testing)
+- ✅ CHUNK-0026-3C-010-007: Testing Plan (Investigation 001 - Phase 2D complete)
 - ⏳ CHUNK-0026-3C-010-008: Migration Strategy
 
 **Note on CHUNK-006 (DirectoryMetadataService)**:
 - **Status**: Deferred - Not needed yet
 - **Reason**: Current implementation uses existing `DirectoryImporter` and inline DB queries in `get_available_directories()`. Code is clean and readable (~60 lines). Service layer would be premature abstraction with only one consumer.
 - **When to implement**: Add this service if we need directory metadata in admin UI, add caching, or find 2+ places that duplicate this logic.
+
+**Note on CHUNK-007 (Testing Results - Investigation 001)**:
+- **Investigation**: `memorybank/project-management/investigate-001-tool-calling.md`
+- **Test Script**: `backend/investigate/tool-calling/tool_calling_wyckoff.py`
+- **Phase 2D Results (Real Wyckoff Tools + Real LLM)**:
+  - ✅ Discovery pattern: 80% success (4/5 tests called `get_available_directories()` first)
+  - ✅ Directory selection: 100% accuracy when tools called
+  - ✅ Production tools working: Database queries execute successfully
+  - ✅ Data validation: Confirmed tools return correct data from database
+  - ⚠️ LLM interpretation issues: Tools return data correctly but LLM misinterprets results
+- **Key Finding**: This is an **LLM behavior issue, not a code/tool issue**
+  - Tools are correctly implemented and return accurate data
+  - Discovery pattern works as designed
+  - Remaining issues require LLM-level solutions (better prompts, structured output, or different model)
 
 **Goal**: Fix tool selection issues by implementing a two-tool discovery pattern that eliminates hardcoded examples in tool docstrings, making the system adaptable to new directories without code changes.
 
