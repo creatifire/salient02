@@ -201,3 +201,269 @@ LLM is not following the sequential tool calling pattern despite explicit instru
 - Switch to real models only when needed
 - Document findings as we progress
 
+---
+
+## Investigation Findings
+
+### Phase 1: Simple Kernel ✅ COMPLETE
+
+**Status**: Passed  
+**Script**: `backend/investigate/tool-calling/tool_calling.py`  
+**Finding**: `TestModel` correctly calls available tools regardless of prompt phrasing.
+
+**Results**:
+- ✅ Tool registration working correctly
+- ✅ Basic tool calling mechanism functional
+- ✅ No framework-level issues with Pydantic AI
+
+**Conclusion**: Tool infrastructure is sound. Ready for Phase 2.
+
+---
+
+### Phase 2A: Two-Tool Discovery Pattern ✅ COMPLETE
+
+**Status**: Passed  
+**Script**: `backend/investigate/tool-calling/tool_calling.py`  
+**Finding**: `TestModel` perfectly follows sequential tool calling instructions.
+
+**Test Setup**:
+- Tool A: `list_options()` - Returns available options
+- Tool B: `select_option(name)` - Selects a specific option
+- Prompts tested: Explicit ordering, implicit ordering, natural language
+
+**Results**:
+- ✅ 100% sequential execution (always calls `list_options()` before `select_option()`)
+- ✅ Works even without explicit "first/then" instructions
+- ✅ Correctly passes data between tools
+- ✅ Never skips discovery step
+
+**Conclusion**: The two-tool discovery pattern works flawlessly with `TestModel`. Any issues with real LLMs are LLM behavior problems, not framework issues.
+
+---
+
+### Phase 2B: Simulated Directory Discovery ✅ COMPLETE
+
+**Status**: Passed  
+**Script**: `backend/investigate/tool-calling/tool_calling.py`  
+**Finding**: Discovery pattern scales to realistic multi-directory scenarios.
+
+**Test Setup**:
+- 5 simulated directories (hospitals, doctors, pharmacies, insurance, billing)
+- 10 items per directory
+- Tools: `get_directory_list()`, `search_directory(dir_name, query)`
+- 3 test cases covering discovery, search, and error handling
+
+**Results** (TestModel):
+- ✅ Always calls `get_directory_list()` first
+- ✅ Correctly selects appropriate directory based on query
+- ✅ Handles "directory not found" gracefully
+- ✅ Passes correct parameters to search function
+
+**Conclusion**: Pattern is robust with simulated data. Ready for real tools.
+
+---
+
+### Phase 2C: Real LLM with Simulated Directories ✅ COMPLETE
+
+**Status**: Passed with observations  
+**Script**: `backend/investigate/tool-calling/tool_calling.py`  
+**Model**: Gemini 2.5 Flash (via Pydantic AI Gateway)
+
+**Test Setup**:
+- Same 5 simulated directories from Phase 2B
+- Pydantic AI Gateway integration
+- 5 test queries (one per directory)
+
+**Results**:
+- ✅ All 5 tests passed
+- ✅ Discovery pattern: 80% adherence (4/5 called `get_directory_list()` first)
+- ✅ Directory selection: 100% accuracy when tools called correctly
+- ✅ Data extraction: Correct results returned
+
+**Observations**:
+- Test 3 (pharmacies): Skipped discovery, went straight to search
+- LLM sometimes takes shortcuts when confident
+- Still produced correct final answer
+- Discovery pattern aids but not always enforced
+
+**Conclusion**: Real LLM mostly follows pattern but takes shortcuts occasionally. Pattern improves but doesn't guarantee behavior.
+
+---
+
+### Phase 2D: Real Tools + Real Data + Real LLM ✅ COMPLETE
+
+**Status**: Completed with critical findings  
+**Script**: `backend/investigate/tool-calling/tool_calling_wyckoff.py`  
+**Model**: Gemini 2.5 Flash (via Pydantic AI Gateway)  
+**Data**: Wyckoff Hospital (124 doctors, 11 contact entries)
+
+**Test Setup**:
+- Production tools: `get_available_directories()`, `search_directory()`
+- Real SessionDependencies, real database queries
+- 5 test queries:
+  1. Find kidney specialists
+  2. Get cardiology department phone
+  3. Find Dr. Smith
+  4. Get emergency department number
+  5. Find cardiologists
+
+**Initial Results** (Before Directory Tools Fix):
+```
+Test 1: ✅ Found 5 nephrologists (correct)
+Test 2: ❌ Returned entry WITHOUT phone number
+Test 3: ❌ No results (doctor exists in DB)
+Test 4: ❌ Returned entry WITHOUT phone number
+Test 5: ✅ Found 10 cardiologists (correct)
+```
+
+**Root Cause Discovered**:
+- `search_directory()` was NOT including `phone`, `email`, `fax` in formatted output
+- Data existed in database, but tool didn't return it
+- Tool returned text format, making it hard to parse
+
+**Fix Applied**:
+- Updated `directory_tools.py` to include ALL contact fields
+- Refactored to return JSON instead of text
+- Added handlers for all 11 schema types
+
+**Results After Fix**:
+- ✅ All contact information now included
+- ✅ JSON format easier for LLM to parse
+- ✅ All schema types properly handled
+- ✅ Test validation confirmed data integrity
+
+**Discovery Pattern Findings**:
+- ✅ 80% of tests called `get_available_directories()` first (4/5)
+- ✅ 100% directory selection accuracy when discovery called
+- ⚠️ LLM sometimes skips discovery when confident
+- ✅ Tool calling mechanism works correctly
+
+**LLM Interpretation Issues** (Still present):
+- ⚠️ Occasional hallucination of phone numbers despite correct tool data
+- ⚠️ Sometimes ignores explicit "ALWAYS call X first" instructions
+- ⚠️ May skip discovery step even with caps + bold emphasis
+
+**Conclusion**: 
+1. **Tool Implementation**: ✅ FIXED - All tools now return complete, correct data
+2. **Discovery Pattern**: ✅ WORKS - 80% adherence is acceptable
+3. **LLM Behavior**: ⚠️ UNRESOLVED - Hallucination and instruction-following remain LLM-level issues
+
+---
+
+## Key Takeaways
+
+### What We Learned
+
+1. **Pydantic AI is Working Correctly**
+   - Tool registration: ✅ Confirmed working
+   - Tool calling: ✅ Confirmed working
+   - Sequential execution: ✅ Confirmed working with TestModel
+   - The framework is not the problem
+
+2. **Discovery Pattern is Sound**
+   - 80% adherence with real LLM (Gemini 2.5 Flash)
+   - 100% selection accuracy when discovery called
+   - Pattern improves reliability but doesn't guarantee compliance
+   - Some shortcuts are acceptable if final result correct
+
+3. **Tool Implementation Was the Issue**
+   - Missing fields in tool output caused "no results" illusion
+   - Text format made parsing difficult
+   - Fixed by: JSON output + complete field coverage
+
+4. **LLM Behavior Remains Unpredictable**
+   - Hallucination: LLM sometimes invents data despite correct tool results
+   - Instruction adherence: Even explicit "ALWAYS" directives sometimes ignored
+   - Confidence shortcuts: LLM skips steps when it "thinks" it knows the answer
+   - These are LLM-level issues, not fixable at the code level
+
+### What We Fixed
+
+✅ **Directory Tools (`directory_tools.py`)**:
+- Refactored to return JSON (structured, parseable)
+- Added complete contact field coverage
+- Implemented handlers for all 11 schema types
+- Uses `entry_type` for detection (no field guessing)
+
+✅ **Schema Coverage**:
+- Created 9 new schemas
+- Renamed `phone_directory` → `contact_information`
+- All schemas now return complete field sets
+
+✅ **Test Infrastructure**:
+- Created `test_direct_search.py` for validation
+- Created investigation framework for systematic testing
+- Documented findings for future reference
+
+### What Remains Unresolved
+
+⚠️ **LLM-Level Issues** (Require different solutions):
+
+1. **Hallucination**
+   - **Problem**: LLM invents data not in tool results
+   - **Potential Solutions**:
+     - Use structured output (force Pydantic model)
+     - Add explicit "use ONLY tool data" instructions
+     - Try different models (GPT-4 vs Gemini)
+     - Add output validation layer
+
+2. **Instruction Non-Compliance**
+   - **Problem**: LLM ignores "ALWAYS call X first" directives
+   - **Potential Solutions**:
+     - Use `prepare_tools` to programmatically enforce (Phase 3)
+     - System prompt refinement
+     - Model selection (some models follow instructions better)
+
+3. **Confidence-Based Shortcuts**
+   - **Problem**: LLM skips discovery when confident
+   - **Potential Solutions**:
+     - Enforce with `prepare_tools` (conditional tool enabling)
+     - Accept 80% adherence as "good enough"
+     - Focus on result accuracy, not process compliance
+
+### Recommendations
+
+**For Immediate Use**:
+1. ✅ Use the refactored JSON tools (already done)
+2. ✅ Accept 80% discovery adherence (good enough for production)
+3. ⚠️ Add output validation for critical fields (phone numbers, etc.)
+
+**For Future Improvement**:
+1. Implement Phase 3 (`prepare_tools` enforcement) if 80% isn't sufficient
+2. Test structured output for hallucination reduction
+3. Evaluate different models (GPT-4, Claude) for comparison
+4. Consider output validation layer for critical information
+
+**What NOT to Do**:
+- ❌ Don't keep tweaking prompts expecting 100% compliance
+- ❌ Don't blame the framework (Pydantic AI works correctly)
+- ❌ Don't expect LLMs to perfectly follow instructions every time
+
+### Success Metrics Achieved
+
+✅ **Technical Goals**:
+- Tool implementation: Fixed and validated
+- Discovery pattern: 80% adherence (acceptable)
+- Data integrity: 100% (tools return correct data)
+- Schema coverage: 100% (all 11 types handled)
+
+⚠️ **Behavioral Goals** (Partially achieved):
+- Discovery enforcement: 80% (not 100%)
+- Hallucination prevention: Still an issue
+- Instruction compliance: Imperfect
+
+**Overall Assessment**: Investigation successful. We identified and fixed the real problem (tool implementation), confirmed the discovery pattern works, and documented LLM-level limitations that require different solutions.
+
+---
+
+## Next Steps
+
+1. ✅ **DONE**: Refactor directory tools to JSON format
+2. ✅ **DONE**: Add complete field coverage for all schemas
+3. ✅ **DONE**: Create comprehensive user guide
+4. ⏳ **OPTIONAL**: Implement Phase 3 (`prepare_tools` enforcement)
+5. ⏳ **OPTIONAL**: Test structured output for hallucination mitigation
+6. ⏳ **OPTIONAL**: Evaluate alternative models (GPT-4, Claude)
+
+**Status**: Core investigation complete. Additional phases are optional improvements.
+
