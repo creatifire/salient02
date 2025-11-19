@@ -1,43 +1,33 @@
-## Directory Selection Hints
+## Directory Selection Guide
 
-### Multi-Directory Orchestration
+### Discovery Pattern (REQUIRED)
 
-**If a query involves multiple aspects**:
-1. Search the most specific directory first
-2. Combine results if relevant to the query
-3. Example: 'I need a cardiologist, what's the phone number?'
-   - First: Search `doctors` for cardiologists → Get doctor's contact info
-   - Then: If scheduling mentioned, check `contact_information` for appointments
+**Always call `get_available_directories()` first** before searching:
+```python
+# Step 1: Discover what's available
+get_available_directories()
+# Returns: ["doctors", "contact_information"] with descriptions
 
----
+# Step 2: Search the appropriate directory
+search_directory(list_name="doctors", filters={"specialty": "Cardiology"})
+```
 
-**Pattern: Department/Service + Phone/Number**
+### When to Use Each Directory
 
-When the query mentions BOTH a department/service name AND phone/number/contact:
-- ✅ Use `contact_information` (contains department contact information)
-- ❌ Don't use `doctors` (contains individual medical professionals)
+**`contact_information`** - Use for department/service phone numbers:
+- "cardiology department phone" → `contact_information`
+- "emergency room number" → `contact_information`
+- "billing department" → `contact_information`
 
-Examples:
-- "pediatrics department phone" → search `contact_information` for "Pediatrics"
-- "emergency department number" → search `contact_information` for "Emergency Department"
-- "billing department contact" → search `contact_information` for "Billing"
+**`doctors`** - Use for medical professionals:
+- "find a cardiologist" → `doctors`
+- "Dr. Smith" → `doctors`
+- "Spanish-speaking doctors" → `doctors`
+- "cardiologist phone number" → `doctors` (doctor's personal contact)
 
-**Pattern: Doctor/Specialty Name**
+### Multi-Directory Queries
 
-When the query mentions a doctor's name OR medical specialty:
-- ✅ Use `doctors` (contains medical professional info)
-- ❌ Don't use `contact_information`
-
-Examples:
-- "find a cardiologist" → search `doctors` for specialty
-- "Dr. Smith" → search `doctors` for name
-
-**Pattern: Doctor's Contact Info**
-
-When the query asks for a specific doctor's phone/contact:
-- ✅ Use `doctors` (doctor records include contact_info)
-- ❌ Don't search `contact_information` (doesn't list individual doctors)
-
-Example:
-- "cardiologist phone number" → search `doctors` for cardiology, return contact_info
+If query involves multiple aspects, search the most specific directory first:
+- "I need a cardiologist, what's the phone number?"
+  → Search `doctors` first (doctor's contact info is in their profile)
 
