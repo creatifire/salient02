@@ -42,6 +42,9 @@ backend/logs/
 *.log
 *.jsonl
 
+# Test outputs
+backend/investigate/tool-calling/test_outputs/
+
 # Data files
 backend/data/
 

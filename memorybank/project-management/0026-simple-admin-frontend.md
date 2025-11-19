@@ -79,8 +79,8 @@
   - ✅ TASK-0026-3C-007: Add "View Full Assembled Prompt" UI toggle
   - ✅ TASK-0026-3C-008: Update frontend to render nested sections with CSS indentation
   - ✅ TASK-0026-3C-009: Add multi-level nested expandable sections for directory breakdown
-  - TASK-0026-3C-011: Update Pydantic AI to 1.19.0 and Review All Dependencies
   - 🚧 TASK-0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern (5/8 chunks complete)
+  - TASK-0026-3C-011: Update Pydantic AI to 1.19.0 and Review All Dependencies
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
 ### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)

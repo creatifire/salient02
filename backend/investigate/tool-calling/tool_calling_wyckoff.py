@@ -262,9 +262,9 @@ async def run_phase2d():
     # Define test cases based on real Wyckoff data
     test_cases = [
         (1, "I need a cardiologist", "doctors", "Timothy Akojenu", "Cardiology"),
-        (2, "What's the cardiology department phone number?", "phone_directory", "718-963-2000", "Cardiology dept"),
+        (2, "What's the cardiology department phone number?", "contact_information", "718-963-2000", "Cardiology dept"),
         (3, "Find Dr. Premila Bhat", "doctors", "Premila Bhat", "Dr. Bhat"),
-        (4, "What's the emergency room number?", "phone_directory", "718-963-7272", "Emergency"),
+        (4, "What's the emergency room number?", "contact_information", "718-963-7272", "Emergency"),
         (5, "Find a gastroenterology doctor", "doctors", "Raghav Bansal", "Gastroenterology"),
     ]
     
