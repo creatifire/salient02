@@ -64,7 +64,7 @@ tools:
 
 context_management:
   history_limit: 50
-  context_window_tokens: 8000
+  context_window_tokens: 128000
   summarization:
     enabled: true
     trigger_threshold: 10
