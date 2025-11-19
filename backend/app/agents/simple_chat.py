@@ -25,7 +25,7 @@ Unauthorized copying of this file is strictly prohibited.
 
 
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, SystemPromptPart, UserPromptPart, TextPart
 from .openrouter import OpenRouterModel, create_openrouter_provider_with_cost_tracking
 from .base.dependencies import SessionDependencies
 from ..config import load_config
@@ -491,6 +491,29 @@ async def simple_chat(
     # Pass instance_config and account_id for multi-tenant support and directory docs generation
     agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
+    # CRITICAL FIX: Inject system prompt into message history
+    # When Pydantic AI sees message_history, it expects the first ModelRequest to include SystemPromptPart
+    # Our database doesn't store system prompts, so we must inject it here
+    if message_history and len(message_history) > 0:
+        first_msg = message_history[0]
+        if isinstance(first_msg, ModelRequest):
+            # Check if SystemPromptPart is already present
+            has_system_prompt = any(isinstance(part, SystemPromptPart) for part in first_msg.parts)
+            
+            if not has_system_prompt:
+                # Inject SystemPromptPart at the beginning of the first message
+                system_prompt_part = SystemPromptPart(content=system_prompt)
+                # Create new ModelRequest with SystemPromptPart prepended
+                new_parts = [system_prompt_part] + list(first_msg.parts)
+                message_history[0] = ModelRequest(parts=new_parts)
+                
+                logfire.info(
+                    'agent.message_history.system_prompt_injected',
+                    session_id=session_id,
+                    original_parts_count=len(first_msg.parts),
+                    new_parts_count=len(new_parts)
+                )
+    
     # Extract requested model for debugging
     config_to_use = instance_config if instance_config is not None else load_config()
     requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
@@ -506,6 +529,16 @@ async def simple_chat(
         
         # Pure Pydantic AI agent execution
         start_time = datetime.now(UTC)
+        
+        # DEBUG: Log message_history details
+        logfire.info(
+            'agent.run.message_history_debug',
+            session_id=session_id,
+            message_history_length=len(message_history),
+            message_history_types=[type(m).__name__ for m in message_history],
+            message_history_first_parts=[type(p).__name__ for p in message_history[0].parts] if message_history and hasattr(message_history[0], 'parts') else [],
+            current_message_preview=message[:100]
+        )
         
         try:
             # Execute agent with Pydantic AI
@@ -868,6 +901,30 @@ async def simple_chat_stream(
     
     # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
     agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    
+    # CRITICAL FIX: Inject system prompt into message history (same as non-streaming path)
+    # When Pydantic AI sees message_history, it expects the first ModelRequest to include SystemPromptPart
+    # Our database doesn't store system prompts, so we must inject it here
+    if message_history and len(message_history) > 0:
+        first_msg = message_history[0]
+        if isinstance(first_msg, ModelRequest):
+            # Check if SystemPromptPart is already present
+            has_system_prompt = any(isinstance(part, SystemPromptPart) for part in first_msg.parts)
+            
+            if not has_system_prompt:
+                # Inject SystemPromptPart at the beginning of the first message
+                system_prompt_part = SystemPromptPart(content=system_prompt)
+                # Create new ModelRequest with SystemPromptPart prepended
+                new_parts = [system_prompt_part] + list(first_msg.parts)
+                message_history[0] = ModelRequest(parts=new_parts)
+                
+                logfire.info(
+                    'agent.message_history.system_prompt_injected',
+                    session_id=session_id,
+                    original_parts_count=len(first_msg.parts),
+                    new_parts_count=len(new_parts),
+                    streaming=True
+                )
     
     # Extract requested model for logging
     config_to_use = instance_config if instance_config is not None else load_config()
