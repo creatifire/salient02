@@ -1,5 +1,14 @@
 ## Directory Selection Guide
 
+### Valid Directories (ONLY these exist!)
+
+**There are EXACTLY 2 directories available:**
+1. **`doctors`** - Medical professionals directory
+2. **`contact_information`** - Department contact directory
+
+**No other directories exist. Do not use or invent names like:**
+❌ "healthcare_providers", "departments", "services", "providers", etc.
+
 ### Discovery Pattern (REQUIRED)
 
 **Always call `get_available_directories()` first** before searching:
@@ -8,7 +17,7 @@
 get_available_directories()
 # Returns: ["doctors", "contact_information"] with descriptions
 
-# Step 2: Search the appropriate directory
+# Step 2: Search the appropriate directory (use EXACT name from step 1)
 search_directory(list_name="doctors", filters={"specialty": "Cardiology"})
 ```
 
