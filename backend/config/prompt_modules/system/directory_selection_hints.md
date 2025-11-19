@@ -21,18 +21,81 @@ get_available_directories()
 search_directory(list_name="doctors", filters={"specialty": "Cardiology"})
 ```
 
-### When to Use Each Directory
+### Common Request Examples
 
-**`contact_information`** - Use for department/service phone numbers:
-- "cardiology department phone" → `contact_information`
-- "emergency room number" → `contact_information`
-- "billing department" → `contact_information`
+#### `contact_information` Directory Examples
 
-**`doctors`** - Use for medical professionals:
-- "find a cardiologist" → `doctors`
-- "Dr. Smith" → `doctors`
-- "Spanish-speaking doctors" → `doctors`
-- "cardiologist phone number" → `doctors` (doctor's personal contact)
+**1. "What's the cardiology department phone number?"**
+```python
+get_available_directories()
+search_directory(list_name="contact_information", query="cardiology")
+# Returns: department name, phone, email, hours, location
+```
+
+**2. "How do I reach the emergency room?"**
+```python
+get_available_directories()
+search_directory(list_name="contact_information", query="emergency")
+# Returns: emergency department contact info
+```
+
+**3. "What's the billing department number?"**
+```python
+get_available_directories()
+search_directory(list_name="contact_information", filters={"service_type": "billing"})
+# Returns: billing department contact details
+```
+
+**4. "Where is the radiology department located?"**
+```python
+get_available_directories()
+search_directory(list_name="contact_information", query="radiology")
+# Returns: location, phone, hours
+```
+
+**5. "What are the hours for the pharmacy?"**
+```python
+get_available_directories()
+search_directory(list_name="contact_information", query="pharmacy")
+# Returns: hours_of_operation, phone, location
+```
+
+#### `doctors` Directory Examples
+
+**1. "Find me a cardiologist"**
+```python
+get_available_directories()
+search_directory(list_name="doctors", filters={"specialty": "Cardiology"})
+# Returns: list of cardiologists with name, specialty, languages, contact info
+```
+
+**2. "Do you have Spanish-speaking doctors?"**
+```python
+get_available_directories()
+search_directory(list_name="doctors", tag="Spanish")
+# Returns: all doctors who speak Spanish, with their specialties
+```
+
+**3. "I need a gastroenterologist who speaks Hindi"**
+```python
+get_available_directories()
+search_directory(list_name="doctors", filters={"specialty": "Gastroenterology"}, tag="Hindi")
+# Returns: Hindi-speaking gastroenterologists
+```
+
+**4. "Find Dr. Patel"**
+```python
+get_available_directories()
+search_directory(list_name="doctors", query="Patel")
+# Returns: all doctors with "Patel" in their name
+```
+
+**5. "What heart doctors do you have?"**
+```python
+get_available_directories()
+search_directory(list_name="doctors", filters={"specialty": "Cardiology"})
+# Returns: cardiologists with full details including languages spoken
+```
 
 ### Multi-Directory Queries
 
