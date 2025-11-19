@@ -885,7 +885,8 @@ Execute in this order for optimal results:
   - Includes lightweight modular prompts (Phase 5 Lite) for tool calling enhancements
   - Keyword hints, few-shot examples, Chain-of-Thought, structured docs
   - Validates modular approach before full Phase 5 investment
-
+  - 0025-005 - Configurable assembly order
+  
 **Deferred**:
 - ⚠️ Phase 4B - Prompt Caching (limited LLM provider support)
 - ⚠️ Phase 6 - MCP Server Integration (future consideration)
