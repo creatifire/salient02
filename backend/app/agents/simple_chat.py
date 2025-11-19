@@ -200,7 +200,7 @@ async def create_simple_chat_agent(
             tools=tools_list  # Direct tool functions
         )
         
-        return agent, prompt_breakdown, system_prompt
+        return agent, prompt_breakdown, system_prompt, tools_list
     
     # PHASE 4A: Load critical tool selection rules FIRST (before everything else)
     # This ensures LLM sees tool selection guidance before tool descriptions
@@ -401,12 +401,12 @@ async def create_simple_chat_agent(
         tools=tools_list  # Direct tool functions, not toolsets
     )
     
-    return agent, prompt_breakdown, system_prompt
+    return agent, prompt_breakdown, system_prompt, tools_list
 
 async def get_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> tuple[Agent, dict, str]:  # Return agent, prompt_breakdown, and system_prompt
+) -> tuple[Agent, dict, str, list]:  # Return agent, prompt_breakdown, system_prompt, and tools_list
     """
     Create a fresh chat agent instance.
     
@@ -417,14 +417,17 @@ async def get_chat_agent(
     Args:
         instance_config: Optional instance-specific configuration for multi-tenant support
         account_id: Optional account ID for multi-tenant directory documentation generation
+        
+    Returns:
+        tuple: (Agent instance, prompt_breakdown dict, system_prompt str, tools_list)
     """
     # Always create fresh agent to pick up latest configuration
     # This ensures config changes work reliably in production
-    agent, prompt_breakdown, system_prompt = await create_simple_chat_agent(
+    agent, prompt_breakdown, system_prompt, tools_list = await create_simple_chat_agent(
         instance_config=instance_config,
         account_id=account_id
     )
-    return agent, prompt_breakdown, system_prompt
+    return agent, prompt_breakdown, system_prompt, tools_list
 
 async def simple_chat(
     message: str, 
@@ -486,7 +489,7 @@ async def simple_chat(
     
     # Get the agent (Fixed: await async function)
     # Pass instance_config and account_id for multi-tenant support and directory docs generation
-    agent, prompt_breakdown, system_prompt = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for debugging
     config_to_use = instance_config if instance_config is not None else load_config()
@@ -668,6 +671,11 @@ async def simple_chat(
                     agent_type=agent_type
                 )
             
+                # Format tools for request_body (capture tool names sent to LLM)
+                tools_for_tracking = None
+                if tools_list:
+                    tools_for_tracking = [{"type": "function", "function": {"name": tool.__name__}} for tool in tools_list]
+            
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
                     provider="openrouter",
@@ -676,7 +684,8 @@ async def simple_chat(
                         "messages": request_messages,
                         "model": requested_model,
                         "temperature": model_settings.get("temperature"),
-                        "max_tokens": model_settings.get("max_tokens")
+                        "max_tokens": model_settings.get("max_tokens"),
+                        "tools": tools_for_tracking
                     },
                     response_body=response_body_full,
                     tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
@@ -858,7 +867,7 @@ async def simple_chat_stream(
         )
     
     # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
-    agent, prompt_breakdown, system_prompt = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # Extract requested model for logging
     config_to_use = instance_config if instance_config is not None else load_config()
@@ -1160,6 +1169,11 @@ async def simple_chat_stream(
                     agent_type=agent_type
                 )
                 
+                # Format tools for request_body (capture tool names sent to LLM)
+                tools_for_tracking = None
+                if tools_list:
+                    tools_for_tracking = [{"type": "function", "function": {"name": tool.__name__}} for tool in tools_list]
+                
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
                     provider="openrouter",
@@ -1169,7 +1183,8 @@ async def simple_chat_stream(
                         "model": requested_model,
                         "temperature": model_settings.get("temperature"),
                         "max_tokens": model_settings.get("max_tokens"),
-                        "stream": True
+                        "stream": True,
+                        "tools": tools_for_tracking
                     },
                     response_body=response_body_full,
                     tokens={
