@@ -63,7 +63,7 @@ tools:
     summary_model: "moonshotai/kimi-k2-0905"
 
 context_management:
-  history_limit: 50
+  history_limit: 200
   context_window_tokens: 128000
   summarization:
     enabled: true
