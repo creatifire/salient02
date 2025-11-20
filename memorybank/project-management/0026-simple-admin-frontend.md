@@ -12,7 +12,7 @@
 - ✅ Prompt breakdown viewer (module composition)
 - ✅ LLM metadata display (model, tokens, cost, latency)
 - ✅ Tool call inspection
-- ✅ Response Quality UI (ready for Epic 0027)
+- ✅ Response Quality UI (ready for Epic 0027 - deprioritized)
 
 ---
 
@@ -27,7 +27,7 @@
 
 **Examples**:
 - `FEATURE-0026-010`: Feature 010 in Epic 0026
-- `TASK-0026-007-001`: Task 001 in Feature 007 of Epic 0026
+- `TASK-0026-012-001`: Task 001 in Feature 007 of Epic 0026
 - `CHUNK-0026-3C-010-001`: First chunk of TASK-0026-3C-010
 
 ---
@@ -83,18 +83,7 @@
   - ✅ TASK-0026-3C-011: Update Pydantic AI to 1.19.0 and Review All Dependencies (COMPLETE - all testing done)
 - **Goal**: Show each prompt module independently, break out directory sections for multi-tool debugging, and view the complete assembled prompt as sent to LLM
 
-### 📋 **Phase 4: UI Polish & Layout Improvements** (PLANNED)
-- ⏳ FEATURE-0026-007: Professional dashboard UI (HTMX + TailwindCSS)
-  - TASK-0026-007-001: Create shared admin.css stylesheet
-  - TASK-0026-007-002: Add navigation header with branding
-  - TASK-0026-007-003: Polish sessions list (stats cards, improved filters/table)
-  - TASK-0026-007-004: Polish session detail (metadata card, message styling, prompt breakdown)
-  - TASK-0026-007-005: Add loading/empty states
-  - TASK-0026-007-006: Add keyboard shortcuts
-  
-**Note**: Phase 4 updated post-Phase 3C to work with HTMX + Vanilla JS architecture (no build step, pure TailwindCSS utilities). See detailed plan below after Phase 3C.
-
-### 📋 **Phase 5: Refactor simple_chat.py for Maintainability** (PROPOSED)
+### 📋 **Phase 4: Refactor simple_chat.py for Maintainability** (PROPOSED)
 - ⏳ FEATURE-0026-010: Extract Services (Modularization)
   - CHUNK-0026-010-001: Create CostTrackingService (~300 lines extracted)
   - CHUNK-0026-010-002: Enhance MessagePersistenceService (~200 lines extracted)
@@ -105,7 +94,18 @@
   - CHUNK-0026-011-001: Consolidate duplicate code (~400 lines eliminated)
 - **Additional Cleanup**: Extract logging helpers, improve type hints, consolidate error handling
 - **Goal**: Reduce simple_chat.py from 1,386 lines to ~700 lines across 7 focused, testable modules
-- **Estimate**: 25-32 hours over 3 weeks
+
+### 📋 **Phase 5: UI Polish & Layout Improvements** (PLANNED)
+- ⏳ FEATURE-0026-012: Professional dashboard UI (HTMX + TailwindCSS)
+  - TASK-0026-012-001: Create shared admin.css stylesheet
+  - TASK-0026-012-002: Add navigation header with branding
+  - TASK-0026-012-003: Polish sessions list (stats cards, improved filters/table)
+  - TASK-0026-012-004: Polish session detail (metadata card, message styling, prompt breakdown)
+  - TASK-0026-012-005: Add loading/empty states
+  - TASK-0026-012-006: Add keyboard shortcuts
+
+
+
 
 **Commits**:
 - `5cae767` - Phase 0-2 implementation (14 files changed)
@@ -119,7 +119,7 @@
 - No authentication required (localhost debugging tool)
 - Sessions list, detail view, prompt breakdown, tool calls all working
 - Session creation bug fixed (no more "vapid sessions")
-- Response Quality UI ready for Epic 0027 (reasoning chains & confidence scores)
+- Response Quality UI ready for Epic 0027 (reasoning chains & confidence scores - Epic 0027 now deprioritized, will follow after Phase 4 refactoring)
 
 **Next Steps**:
 1. **Phase 3C** (Optional): Implement structured prompt breakdown
@@ -3888,9 +3888,9 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-### FEATURE-0026-007: Professional Dashboard UI
+### FEATURE-0026-012: Professional Dashboard UI
 
-#### TASK-0026-007-001: Create Shared Admin Stylesheet
+#### TASK-0026-012-001: Create Shared Admin Stylesheet
 
 **Goal**: Centralize common styles and avoid TailwindCSS class repetition.
 
@@ -4007,7 +4007,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-#### TASK-0026-007-002: Add Navigation Header with Branding
+#### TASK-0026-012-002: Add Navigation Header with Branding
 
 **Goal**: Add a consistent header with branding, breadcrumbs, and quick stats.
 
@@ -4052,7 +4052,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-#### TASK-0026-007-003: Polish Sessions List Page
+#### TASK-0026-012-003: Polish Sessions List Page
 
 **File**: `web/public/admin/sessions.html`
 
@@ -4183,7 +4183,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 ---
 
-#### TASK-0026-007-004: Polish Session Detail Page
+#### TASK-0026-012-004: Polish Session Detail Page
 
 **File**: `web/public/admin/session.html`
 
@@ -4347,7 +4347,7 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-#### TASK-0026-007-005: Add Loading States and Empty States
+#### TASK-0026-012-005: Add Loading States and Empty States
 
 **Goal**: Improve UX during data loading and when no data exists.
 
@@ -4382,7 +4382,7 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-#### TASK-0026-007-006: Add Keyboard Shortcuts
+#### TASK-0026-012-006: Add Keyboard Shortcuts
 
 **Goal**: Power user features for navigation and actions.
 
@@ -4562,9 +4562,13 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-## Phase 5: Refactor simple_chat.py for Maintainability
+## Phase 4: Refactor simple_chat.py for Maintainability
 
 **Status**: PROPOSED
+
+**Rationale**: Ensure code maintainability before UI cleanup. Technical debt must be addressed before adding new features to prevent compounding complexity.
+
+**Critical Constraint**: ⚠️ **Must preserve prompt monitoring functionality** - All prompt breakdown capture, assembled_prompt storage, and Admin UI display capabilities must continue working after refactoring.
 
 **Goal**: Refactor the 1,386-line `simple_chat.py` into modular, testable, maintainable components by extracting services and consolidating duplicate code.
 
@@ -4583,6 +4587,16 @@ function toggleSection(sectionId, buttonEl) {
 - ❌ Hard to understand (mixing concerns)
 - ❌ Prone to bugs (duplicate code can drift)
 - ❌ Difficult onboarding (new developers overwhelmed)
+
+**Testing Strategy**: Manual verification after each chunk
+- ✅ Non-streaming chat works (via curl or Postman)
+- ✅ Streaming chat works (via browser/widget)
+- ✅ Directory tools called correctly
+- ✅ Vector search works
+- ✅ Prompt breakdown captured (check Admin UI)
+- ✅ Cost tracking accurate (check database)
+- ✅ Multi-turn conversations work (SystemPromptPart injection)
+- ✅ All existing endpoints return expected responses
 
 ---
 
@@ -4774,6 +4788,16 @@ completion_cost = cost_data['completion_cost']
 real_cost = cost_data['total_cost']
 ```
 
+**Verification Checklist**:
+- [ ] CostTrackingService created with all methods
+- [ ] Cost extraction works for non-streaming responses
+- [ ] Cost calculation works for streaming responses
+- [ ] Fallback pricing loads correctly
+- [ ] Token counts accurate (compare before/after)
+- [ ] Cost values match OpenRouter values
+- [ ] Admin UI shows correct cost data
+- [ ] No cost tracking errors in logs
+
 ---
 
 #### CHUNK-0026-010-002: Enhance MessagePersistenceService
@@ -4804,6 +4828,16 @@ await message_service.save_message_pair(
     user_message=message, assistant_message=response_text, result=result
 )
 ```
+
+**Verification Checklist**:
+- [ ] MessageService.save_message_pair() method created
+- [ ] Tool calls extracted correctly from result
+- [ ] User and assistant messages saved as pair
+- [ ] Tool call metadata stored in message.meta
+- [ ] Messages visible in Admin UI
+- [ ] Tool calls visible in Admin UI
+- [ ] Session timeline shows correct message order
+- [ ] **Prompt breakdown still captured and visible**
 
 ---
 
@@ -4839,6 +4873,19 @@ result = await AgentExecutionService.execute_agent(
 )
 ```
 
+**Verification Checklist**:
+- [ ] AgentExecutionService created with both methods
+- [ ] setup_execution_context() returns all required values
+- [ ] SystemPromptPart injection still works correctly
+- [ ] Agent executes successfully (non-streaming)
+- [ ] Agent executes successfully (streaming)
+- [ ] Multi-turn conversations work
+- [ ] **Prompt breakdown returned correctly**
+- [ ] **System prompt returned correctly**
+- [ ] Tools list returned correctly
+- [ ] Directory tools work
+- [ ] Vector search works
+
 ---
 
 #### CHUNK-0026-010-004: Create ConfigurationService
@@ -4866,6 +4913,17 @@ if instance_config is not None:
 config = await ConfigurationService.resolve_multi_tenant_config(
     instance_config, account_id
 )
+```
+
+**Verification Checklist**:
+- [ ] ConfigurationService created with all methods
+- [ ] Config loading works for default agents
+- [ ] Config loading works with instance overrides
+- [ ] Model settings cascade correctly
+- [ ] Multi-tenant resolution works
+- [ ] All config values accessible
+- [ ] No config loading errors
+- [ ] Agent initialization uses correct config
 model_settings = config['model_settings']
 tracking_model = config['tracking_model']
 ```
@@ -4888,6 +4946,28 @@ tracking_model = config['tracking_model']
 
 **Expected Result**: `simple_chat.py` reduced from 1,386 lines to ~700-800 lines
 
+**Verification Checklist** (comprehensive end-to-end):
+- [ ] File size reduced to ~700-800 lines
+- [ ] All imports updated correctly
+- [ ] Non-streaming chat works (test via curl)
+- [ ] Streaming chat works (test via browser)
+- [ ] Directory tools called correctly
+- [ ] Vector search works
+- [ ] **Prompt breakdown captured in llm_requests table**
+- [ ] **Assembled prompt stored in llm_requests table**
+- [ ] **Admin UI displays prompt breakdown correctly**
+- [ ] **Admin UI displays full assembled prompt**
+- [ ] **All prompt sections visible (tool hints, system prompt, directory docs)**
+- [ ] Cost tracking accurate (check database)
+- [ ] Token counts correct
+- [ ] Messages saved correctly
+- [ ] Tool calls captured in message.meta
+- [ ] Multi-turn conversations work
+- [ ] SystemPromptPart injection working
+- [ ] No errors in logs
+- [ ] No regressions in any endpoint
+- [ ] All Phase 4 Testing Strategy items pass
+
 ---
 
 ### FEATURE-0026-011: Merge Streaming/Non-Streaming
@@ -4900,10 +4980,86 @@ tracking_model = config['tracking_model']
 
 **Proposed Solution**: Single function with `streaming` flag
 
-#### CHUNK-0026-011-001: Merge Functions
-**Complexity**: Medium (3-4 hours)
+#### CHUNK-0026-011-001: Merge Streaming/Non-Streaming Functions
+**Complexity**: Medium-High (8-10 hours, broken into 5 sub-chunks)
 
-**New Signature**:
+**Risk Level**: HIGH - Consolidating ~400 lines with high potential for breaking changes
+
+**Sub-Chunks**:
+
+##### CHUNK-0026-011-001-A: Extract Common Logic into Helpers
+**Time**: 2 hours | **Lines**: ~100
+
+Extract shared setup code into helper functions:
+- Agent creation and configuration loading
+- Message history loading and SystemPromptPart injection  
+- Prompt breakdown generation
+
+**Verification Checklist**:
+- [ ] Helper functions created and tested independently
+- [ ] No duplicate code remains
+- [ ] All existing tests pass
+- [ ] Prompt breakdown still captured correctly
+- [ ] Admin UI shows all prompt sections
+
+##### CHUNK-0026-011-001-B: Create Unified Request/Response Handlers
+**Time**: 3 hours | **Lines**: ~150
+
+Create standardized handlers for both paths:
+- Request validation and setup
+- LLM request tracking initialization
+- Response formatting and metadata extraction
+
+**Verification Checklist**:
+- [ ] Request handlers work for both streaming/non-streaming
+- [ ] Response builders maintain all existing fields
+- [ ] Cost tracking still accurate
+- [ ] Token counts match expected values
+- [ ] LLM request metadata captured
+
+##### CHUNK-0026-011-001-C: Refactor simple_chat() to Use Unified Handlers
+**Time**: 1.5 hours | **Lines**: ~75
+
+Update non-streaming path to use new handlers while preserving all functionality.
+
+**Verification Checklist**:
+- [ ] Non-streaming chat returns same response structure
+- [ ] All fields present (response, usage, llm_request_id)
+- [ ] Cost tracking works
+- [ ] Messages saved to database
+- [ ] Prompt breakdown visible in Admin UI
+- [ ] Directory tools work
+- [ ] Vector search works
+
+##### CHUNK-0026-011-001-D: Refactor simple_chat_stream() to Use Unified Handlers
+**Time**: 1.5 hours | **Lines**: ~75
+
+Update streaming path to use new handlers while preserving SSE format.
+
+**Verification Checklist**:
+- [ ] Streaming chat maintains SSE format
+- [ ] Chunks arrive in real-time
+- [ ] "done" event fires correctly
+- [ ] Cost tracking works for streams
+- [ ] Messages saved to database
+- [ ] Prompt breakdown visible in Admin UI
+- [ ] Directory tools work in streaming mode
+
+##### CHUNK-0026-011-001-E: Remove Duplicate Code and Final Cleanup
+**Time**: 1 hour | **Lines**: ~50 eliminated
+
+Remove remaining duplicated logic and consolidate error handling.
+
+**Verification Checklist**:
+- [ ] No duplicate code remains
+- [ ] Both paths share maximum code
+- [ ] Error handling consistent
+- [ ] All manual tests pass (see Phase 4 Testing Strategy)
+- [ ] No regressions in existing functionality
+
+---
+
+**Original Signature** (for reference):
 ```python
 async def simple_chat(
     message: str,
