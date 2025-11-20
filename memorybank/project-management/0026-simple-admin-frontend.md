@@ -94,6 +94,19 @@
   
 **Note**: Phase 4 updated post-Phase 3C to work with HTMX + Vanilla JS architecture (no build step, pure TailwindCSS utilities). See detailed plan below after Phase 3C.
 
+### 📋 **Phase 5: Refactor simple_chat.py for Maintainability** (PROPOSED)
+- ⏳ FEATURE-0026-010: Extract Services (Modularization)
+  - CHUNK-0026-010-001: Create CostTrackingService (~300 lines extracted)
+  - CHUNK-0026-010-002: Enhance MessagePersistenceService (~200 lines extracted)
+  - CHUNK-0026-010-003: Create AgentExecutionService (~150 lines extracted)
+  - CHUNK-0026-010-004: Create ConfigurationService (~100 lines extracted)
+  - CHUNK-0026-010-005: Update simple_chat.py to use all services (integration)
+- ⏳ FEATURE-0026-011: Merge Streaming/Non-Streaming
+  - CHUNK-0026-011-001: Consolidate duplicate code (~400 lines eliminated)
+- **Additional Cleanup**: Extract logging helpers, improve type hints, consolidate error handling
+- **Goal**: Reduce simple_chat.py from 1,386 lines to ~700 lines across 7 focused, testable modules
+- **Estimate**: 25-32 hours over 3 weeks
+
 **Commits**:
 - `5cae767` - Phase 0-2 implementation (14 files changed)
 - `304f32e` - Phase 3A documentation (session auth - later deprecated)
