@@ -875,4 +875,140 @@ class DirectoryImporter:
             'contact_info': contact_info,
             'entry_data': entry_data
         }
+    
+    @staticmethod
+    def experts_mapper(row: Dict) -> Dict:
+        """Map experts CSV to DirectoryEntry fields.
+        
+        Expected CSV columns:
+        - name (required)
+        - provider_type (required: tutor, consultant, coach, contractor, freelancer)
+        - expertise, years_of_experience (numeric)
+        - hourly_rate, fixed_price, retainer, per_session_cost (numeric)
+        - availability (JSON string), location_type
+        - certifications (pipe-separated), education
+        - professional_associations (pipe-separated)
+        - subjects (pipe-separated), levels (pipe-separated)
+        - bio, portfolio (pipe-separated)
+        - languages (comma-separated, also goes to tags)
+        - phone, email, website, location (contact_info)
+        
+        Returns:
+            Dict with name, tags, contact_info, entry_data
+        """
+        # Parse tags from languages (comma-separated)
+        tags = []
+        if row.get('languages', '').strip():
+            tags = [lang.strip() for lang in row['languages'].split(',') if lang.strip()]
+        
+        # Parse contact info
+        contact_info = {}
+        if row.get('phone', '').strip():
+            contact_info['phone'] = row['phone'].strip()
+        if row.get('email', '').strip():
+            contact_info['email'] = row['email'].strip()
+        if row.get('website', '').strip():
+            contact_info['website'] = row['website'].strip()
+        if row.get('location', '').strip():
+            contact_info['location'] = row['location'].strip()
+        
+        # Parse entry-specific fields
+        entry_data = {}
+        
+        # Required field
+        if row.get('provider_type', '').strip():
+            entry_data['provider_type'] = row['provider_type'].strip()
+        
+        # Basic info
+        if row.get('expertise', '').strip():
+            entry_data['expertise'] = row['expertise'].strip()
+        if row.get('years_of_experience', '').strip():
+            try:
+                entry_data['years_of_experience'] = int(row['years_of_experience'])
+            except ValueError:
+                pass
+        
+        # Pricing fields (numeric)
+        if row.get('hourly_rate', '').strip():
+            try:
+                entry_data['hourly_rate'] = float(row['hourly_rate'])
+            except ValueError:
+                pass
+        if row.get('fixed_price', '').strip():
+            try:
+                entry_data['fixed_price'] = float(row['fixed_price'])
+            except ValueError:
+                pass
+        if row.get('retainer', '').strip():
+            try:
+                entry_data['retainer'] = float(row['retainer'])
+            except ValueError:
+                pass
+        if row.get('per_session_cost', '').strip():
+            try:
+                entry_data['per_session_cost'] = float(row['per_session_cost'])
+            except ValueError:
+                pass
+        
+        # Availability (JSON string)
+        if row.get('availability', '').strip():
+            try:
+                import json
+                entry_data['availability'] = json.loads(row['availability'])
+            except (ValueError, json.JSONDecodeError):
+                # If not valid JSON, store as string
+                entry_data['availability'] = row['availability'].strip()
+        
+        # Location type
+        if row.get('location_type', '').strip():
+            entry_data['location_type'] = row['location_type'].strip()
+        
+        # Certifications (pipe-separated array)
+        if row.get('certifications', '').strip():
+            certs = [c.strip() for c in row['certifications'].split('|') if c.strip()]
+            if certs:
+                entry_data['certifications'] = certs
+        
+        # Education
+        if row.get('education', '').strip():
+            entry_data['education'] = row['education'].strip()
+        
+        # Professional associations (pipe-separated array)
+        if row.get('professional_associations', '').strip():
+            assocs = [a.strip() for a in row['professional_associations'].split('|') if a.strip()]
+            if assocs:
+                entry_data['professional_associations'] = assocs
+        
+        # Tutor-specific: subjects (pipe-separated array)
+        if row.get('subjects', '').strip():
+            subjects = [s.strip() for s in row['subjects'].split('|') if s.strip()]
+            if subjects:
+                entry_data['subjects'] = subjects
+        
+        # Tutor-specific: levels (pipe-separated array)
+        if row.get('levels', '').strip():
+            levels = [l.strip() for l in row['levels'].split('|') if l.strip()]
+            if levels:
+                entry_data['levels'] = levels
+        
+        # Bio
+        if row.get('bio', '').strip():
+            entry_data['bio'] = row['bio'].strip()
+        
+        # Portfolio (pipe-separated array of URLs)
+        if row.get('portfolio', '').strip():
+            portfolio = [p.strip() for p in row['portfolio'].split('|') if p.strip()]
+            if portfolio:
+                entry_data['portfolio'] = portfolio
+        
+        # Languages (also stored in entry_data for filtering)
+        if tags:
+            entry_data['languages'] = tags
+        
+        return {
+            'name': row.get('name', '').strip(),
+            'tags': tags,
+            'contact_info': contact_info,
+            'entry_data': entry_data
+        }
 

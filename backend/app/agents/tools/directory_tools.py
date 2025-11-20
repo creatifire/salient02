@@ -531,6 +531,55 @@ async def search_directory(
                 if entry.entry_data.get('continuing_education_credits'):
                     result["ce_credits"] = entry.entry_data['continuing_education_credits']
             
+            elif entry_type == "experts":
+                # Provider identification
+                if entry.entry_data.get('provider_type'):
+                    result["provider_type"] = entry.entry_data['provider_type']
+                if entry.entry_data.get('expertise'):
+                    result["expertise"] = entry.entry_data['expertise']
+                
+                # Experience
+                if entry.entry_data.get('years_of_experience') is not None:
+                    result["years_of_experience"] = entry.entry_data['years_of_experience']
+                
+                # Pricing
+                if entry.entry_data.get('hourly_rate') is not None:
+                    result["hourly_rate"] = entry.entry_data['hourly_rate']
+                if entry.entry_data.get('fixed_price') is not None:
+                    result["fixed_price"] = entry.entry_data['fixed_price']
+                if entry.entry_data.get('retainer') is not None:
+                    result["retainer"] = entry.entry_data['retainer']
+                if entry.entry_data.get('per_session_cost') is not None:
+                    result["per_session_cost"] = entry.entry_data['per_session_cost']
+                
+                # Availability and location
+                if entry.entry_data.get('availability'):
+                    result["availability"] = entry.entry_data['availability']
+                if entry.entry_data.get('location_type'):
+                    result["location_type"] = entry.entry_data['location_type']
+                
+                # Credentials
+                if entry.entry_data.get('certifications'):
+                    result["certifications"] = entry.entry_data['certifications']
+                if entry.entry_data.get('education'):
+                    result["education"] = entry.entry_data['education']
+                if entry.entry_data.get('professional_associations'):
+                    result["professional_associations"] = entry.entry_data['professional_associations']
+                
+                # Tutor-specific fields
+                if entry.entry_data.get('subjects'):
+                    result["subjects"] = entry.entry_data['subjects']
+                if entry.entry_data.get('levels'):
+                    result["levels"] = entry.entry_data['levels']
+                
+                # Additional info
+                if entry.entry_data.get('bio'):
+                    result["bio"] = entry.entry_data['bio']
+                if entry.entry_data.get('portfolio'):
+                    result["portfolio"] = entry.entry_data['portfolio']
+                if entry.entry_data.get('languages'):
+                    result["languages"] = entry.entry_data['languages']
+            
             results.append(result)
         
         return json.dumps({"entries": results, "total": len(results)}, indent=2)
