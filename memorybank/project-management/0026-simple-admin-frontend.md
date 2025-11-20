@@ -4509,6 +4509,601 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
+---
+
+## Phase 5: Refactor simple_chat.py for Maintainability
+
+**Status**: PROPOSED
+
+**Goal**: Refactor the 1,386-line `simple_chat.py` into modular, testable, maintainable components by extracting services and consolidating duplicate code.
+
+**Problem Statement**: 
+`simple_chat.py` has grown to nearly 1,400 lines with significant complexity:
+- **Duplicate logic** (~400 lines): `simple_chat()` and `simple_chat_stream()` do 90% identical setup
+- **Embedded cost tracking** (~300 lines): OpenRouter details extraction, genai-prices calculation, fallback pricing
+- **Embedded message persistence** (~200 lines): Saving messages, extracting tool calls, session validation
+- **Configuration loading** (~150 lines): Multi-tenant branching, model settings cascade
+- **Extensive logging** (~200 lines): Debug statements scattered throughout
+- **Mixed responsibilities**: Single file handles agent creation, execution, tracking, persistence, and error handling
+
+**Impact**:
+- ❌ Hard to test (too many responsibilities)
+- ❌ Hard to modify (changes ripple across functions)
+- ❌ Hard to understand (mixing concerns)
+- ❌ Prone to bugs (duplicate code can drift)
+- ❌ Difficult onboarding (new developers overwhelmed)
+
+---
+
+### FEATURE-0026-010: Extract Services (Modularization)
+
+**Goal**: Extract cohesive responsibilities into dedicated service classes.
+
+**Proposed Services**:
+
+#### 1. `CostTrackingService` 
+**Location**: `backend/app/services/cost_tracking_service.py`
+
+**Responsibility**: All LLM cost calculation and extraction logic
+
+**Methods**:
+```python
+class CostTrackingService:
+    @staticmethod
+    def extract_costs_from_result(result: Any, model: str) -> dict:
+        """Extract costs from Pydantic AI result (non-streaming)."""
+        
+    @staticmethod
+    async def calculate_streaming_costs(
+        usage_data: Any, 
+        model: str
+    ) -> dict:
+        """Calculate costs for streaming responses using genai-prices."""
+        
+    @staticmethod
+    def get_fallback_pricing(model: str) -> Optional[dict]:
+        """Load fallback pricing from YAML config."""
+```
+
+**Benefits**:
+- ✅ Single responsibility (cost calculation only)
+- ✅ Testable in isolation
+- ✅ Reusable across agents
+- ✅ Centralized fallback pricing logic
+
+**Lines Extracted**: ~300 lines from `simple_chat.py`
+
+---
+
+#### 2. `MessagePersistenceService` (Enhancement)
+**Location**: `backend/app/services/message_service.py` (already exists, needs enhancement)
+
+**Responsibility**: All message CRUD operations with tool call extraction
+
+**New Methods**:
+```python
+class MessageService:
+    async def save_message_pair(
+        self,
+        session_id: UUID,
+        agent_instance_id: UUID,
+        llm_request_id: Optional[UUID],
+        user_message: str,
+        assistant_message: str,
+        result: Any  # Pydantic AI result for tool extraction
+    ) -> tuple[UUID, UUID]:
+        """Save user + assistant messages as a pair with tool calls."""
+        
+    @staticmethod
+    def extract_tool_calls(result: Any) -> list[dict]:
+        """Extract tool calls from Pydantic AI result."""
+```
+
+**Benefits**:
+- ✅ Atomic message pair saves (both or neither)
+- ✅ Tool call extraction centralized
+- ✅ Reduces code in `simple_chat.py`
+- ✅ Already has session validation logic
+
+**Lines Extracted**: ~200 lines from `simple_chat.py`
+
+---
+
+#### 3. `AgentExecutionService`
+**Location**: `backend/app/services/agent_execution_service.py`
+
+**Responsibility**: Orchestrate agent execution with proper setup/teardown
+
+**Methods**:
+```python
+class AgentExecutionService:
+    @staticmethod
+    async def setup_execution_context(
+        session_id: str,
+        instance_config: Optional[dict],
+        account_id: Optional[UUID]
+    ) -> tuple[Agent, SessionDependencies, dict, str, list]:
+        """
+        Setup complete execution context.
+        
+        Returns:
+            (agent, deps, prompt_breakdown, system_prompt, tools_list)
+        """
+        
+    @staticmethod
+    async def execute_agent(
+        agent: Agent,
+        message: str,
+        deps: SessionDependencies,
+        message_history: List[ModelMessage],
+        system_prompt: str,
+        streaming: bool = False
+    ) -> Any:
+        """Execute agent with proper history injection."""
+```
+
+**Benefits**:
+- ✅ Reusable setup logic
+- ✅ Encapsulates SystemPromptPart injection
+- ✅ Single place for execution patterns
+- ✅ Easy to add execution middleware
+
+**Lines Extracted**: ~150 lines from `simple_chat.py`
+
+---
+
+#### 4. `ConfigurationService`
+**Location**: `backend/app/services/configuration_service.py`
+
+**Responsibility**: Centralize all configuration loading and cascading
+
+**Methods**:
+```python
+class ConfigurationService:
+    @staticmethod
+    async def get_agent_config(
+        agent_name: str,
+        instance_config: Optional[dict] = None
+    ) -> dict:
+        """Get agent config with instance override."""
+        
+    @staticmethod
+    async def get_model_settings(
+        agent_name: str,
+        instance_config: Optional[dict] = None
+    ) -> dict:
+        """Get model settings with cascade."""
+        
+    @staticmethod
+    def resolve_multi_tenant_config(
+        instance_config: Optional[dict],
+        account_id: Optional[UUID]
+    ) -> dict:
+        """Resolve config for multi-tenant vs single-tenant."""
+```
+
+**Benefits**:
+- ✅ Configuration logic in one place
+- ✅ Easy to test configuration cascade
+- ✅ Clearer separation of concerns
+- ✅ Supports future config sources (DB, env vars)
+
+**Lines Extracted**: ~100 lines from `simple_chat.py`
+
+---
+
+### Implementation Plan: FEATURE-0026-010
+
+#### CHUNK-0026-010-001: Create CostTrackingService
+**Complexity**: Medium (3-4 hours)
+
+**Steps**:
+1. Create `backend/app/services/cost_tracking_service.py`
+2. Extract cost extraction logic from `simple_chat.py` lines 570-610
+3. Extract streaming cost calculation from lines 1019-1110
+4. Extract fallback pricing logic from lines 1053-1089
+5. Add comprehensive tests in `backend/tests/services/test_cost_tracking_service.py`
+
+**Before** (in `simple_chat.py`):
+```python
+# 40 lines of cost extraction scattered in simple_chat()
+if usage_data:
+    prompt_tokens = getattr(usage_data, 'input_tokens', 0)
+    # ... more extraction ...
+    vendor_cost = latest_message.provider_details.get('cost')
+    # ... more logic ...
+```
+
+**After**:
+```python
+# In simple_chat.py - clean and simple
+cost_data = CostTrackingService.extract_costs_from_result(result, requested_model)
+prompt_cost = cost_data['prompt_cost']
+completion_cost = cost_data['completion_cost']
+real_cost = cost_data['total_cost']
+```
+
+---
+
+#### CHUNK-0026-010-002: Enhance MessagePersistenceService
+**Complexity**: Medium (2-3 hours)
+
+**Steps**:
+1. Add `save_message_pair()` method to `MessageService`
+2. Add `extract_tool_calls()` static method
+3. Update `simple_chat.py` to use new methods
+4. Add tests for tool call extraction
+
+**Before** (in `simple_chat.py`):
+```python
+# 60+ lines for saving messages
+await message_service.save_message(...)  # User message
+tool_calls_meta = []
+if result.all_messages():
+    for msg in result.all_messages():
+        # ... extract tool calls ...
+await message_service.save_message(...)  # Assistant message with meta
+```
+
+**After**:
+```python
+# In simple_chat.py - one line
+await message_service.save_message_pair(
+    session_id, agent_instance_id, llm_request_id,
+    user_message=message, assistant_message=response_text, result=result
+)
+```
+
+---
+
+#### CHUNK-0026-010-003: Create AgentExecutionService
+**Complexity**: Medium (3-4 hours)
+
+**Steps**:
+1. Create `backend/app/services/agent_execution_service.py`
+2. Extract `setup_execution_context()` from lines 456-492
+3. Extract `execute_agent()` with SystemPromptPart injection (lines 494-545)
+4. Update both `simple_chat()` and `simple_chat_stream()` to use service
+5. Add tests
+
+**Before** (duplicate in both functions):
+```python
+# 50 lines of setup in simple_chat()
+session_deps = await SessionDependencies.create(...)
+message_history = await load_conversation_history(...)
+agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(...)
+# SystemPromptPart injection logic (20 lines)
+```
+
+**After**:
+```python
+# In both simple_chat() and simple_chat_stream()
+agent, deps, prompt_breakdown, system_prompt, tools_list = \
+    await AgentExecutionService.setup_execution_context(
+        session_id, instance_config, account_id
+    )
+
+result = await AgentExecutionService.execute_agent(
+    agent, message, deps, message_history, system_prompt, streaming=False
+)
+```
+
+---
+
+#### CHUNK-0026-010-004: Create ConfigurationService
+**Complexity**: Low (2-3 hours)
+
+**Steps**:
+1. Create `backend/app/services/configuration_service.py`
+2. Move config cascade logic from `config_loader.py`
+3. Add multi-tenant resolution logic
+4. Update `simple_chat.py` to use service
+5. Add tests
+
+**Before**:
+```python
+# Scattered config loading
+from .config_loader import get_agent_model_settings
+model_settings = await get_agent_model_settings("simple_chat")
+# ... later ...
+if instance_config is not None:
+    tracking_model = instance_config.get("model_settings", {}).get("model", ...)
+```
+
+**After**:
+```python
+config = await ConfigurationService.resolve_multi_tenant_config(
+    instance_config, account_id
+)
+model_settings = config['model_settings']
+tracking_model = config['tracking_model']
+```
+
+---
+
+#### CHUNK-0026-010-005: Update simple_chat.py to Use Services
+**Complexity**: High (4-6 hours) - Integration work
+
+**Steps**:
+1. Import all new services
+2. Replace cost tracking with `CostTrackingService`
+3. Replace message saving with `MessagePersistenceService.save_message_pair()`
+4. Replace setup with `AgentExecutionService.setup_execution_context()`
+5. Replace execution with `AgentExecutionService.execute_agent()`
+6. Replace config loading with `ConfigurationService`
+7. Remove extracted code (should reduce file by ~600 lines)
+8. Run full test suite
+9. Verify all functionality works
+
+**Expected Result**: `simple_chat.py` reduced from 1,386 lines to ~700-800 lines
+
+---
+
+### FEATURE-0026-011: Merge Streaming/Non-Streaming
+
+**Goal**: Consolidate duplicate setup code between `simple_chat()` and `simple_chat_stream()`.
+
+**Current Problem**: 90% of code is identical, only difference is execution:
+- Non-streaming: `agent.run()`
+- Streaming: `agent.run_stream()`
+
+**Proposed Solution**: Single function with `streaming` flag
+
+#### CHUNK-0026-011-001: Merge Functions
+**Complexity**: Medium (3-4 hours)
+
+**New Signature**:
+```python
+async def simple_chat(
+    message: str,
+    session_id: str,
+    agent_instance_id: Optional[int] = None,
+    account_id: Optional[UUID] = None,
+    message_history: Optional[List[ModelMessage]] = None,
+    instance_config: Optional[dict] = None,
+    streaming: bool = False  # NEW flag
+) -> Union[dict, AsyncGenerator]:
+    """
+    Simple chat function with optional streaming.
+    
+    Args:
+        streaming: If True, returns async generator for SSE streaming.
+                   If False, returns dict with complete response.
+    
+    Returns:
+        dict (if streaming=False): Complete response with usage data
+        AsyncGenerator (if streaming=True): SSE event generator
+    """
+```
+
+**Implementation**:
+```python
+async def simple_chat(message, session_id, ..., streaming=False):
+    # Common setup (done once)
+    agent, deps, breakdown, prompt, tools = await AgentExecutionService.setup_execution_context(...)
+    
+    # Branch based on streaming flag
+    if streaming:
+        return _execute_streaming(agent, message, deps, ...)
+    else:
+        return _execute_non_streaming(agent, message, deps, ...)
+
+async def _execute_non_streaming(agent, message, deps, ...) -> dict:
+    """Execute non-streaming request."""
+    result = await agent.run(message, deps=deps, message_history=...)
+    # Cost tracking, message saving, return dict
+    return {
+        'response': response_text,
+        'usage': usage_obj,
+        'llm_request_id': str(llm_request_id),
+        ...
+    }
+
+async def _execute_streaming(agent, message, deps, ...) -> AsyncGenerator:
+    """Execute streaming request."""
+    async with agent.run_stream(message, deps=deps, message_history=...) as result:
+        async for chunk in result.stream_text(delta=True):
+            yield {"event": "message", "data": chunk}
+        # Cost tracking, message saving
+        yield {"event": "done", "data": ""}
+```
+
+**Benefits**:
+- ✅ Eliminate ~400 lines of duplicate code
+- ✅ Changes only need to be made once
+- ✅ Easier to test (test setup separately from execution)
+- ✅ More maintainable
+
+**Migration**:
+- Update API endpoints to pass `streaming=True/False`
+- Keep old function names as deprecated wrappers (for backward compatibility)
+- Remove wrappers after verification
+
+---
+
+### Additional Cleanup Opportunities
+
+#### CLEANUP-001: Extract Logging Helpers
+**Complexity**: Low (1-2 hours)
+
+**Create**: `backend/app/utils/logging_helpers.py`
+
+```python
+def log_agent_execution(session_id: str, model: str, tokens: dict, cost: float, latency_ms: int):
+    """Centralized logging for agent execution."""
+    logfire.info(
+        'agent.execution',
+        session_id=session_id,
+        model=model,
+        prompt_tokens=tokens['prompt'],
+        completion_tokens=tokens['completion'],
+        total_tokens=tokens['total'],
+        cost=cost,
+        latency_ms=latency_ms
+    )
+
+def log_cost_tracking_failure(error: Exception, context: dict):
+    """Centralized logging for cost tracking failures."""
+    logfire.error(
+        'cost_tracking_failed',
+        error_type=type(error).__name__,
+        error_message=str(error),
+        **context
+    )
+```
+
+**Lines Removed**: ~100 lines of scattered logfire calls
+
+---
+
+#### CLEANUP-002: Extract Request/Response Builders
+**Complexity**: Low (1 hour)
+
+These already exist in `chat_helpers.py` but aren't fully used:
+- Ensure all request/response building uses helpers
+- Remove duplicate logic
+- Add missing helper for tool formatting
+
+---
+
+#### CLEANUP-003: Type Hints Improvement
+**Complexity**: Low (2 hours)
+
+**Add proper return type hints**:
+```python
+from typing import Union, AsyncGenerator, TypedDict
+
+class ChatResponse(TypedDict):
+    response: str
+    usage: UsageData
+    llm_request_id: Optional[str]
+    cost_tracking: dict
+    session_continuity: dict
+
+async def simple_chat(...) -> Union[ChatResponse, AsyncGenerator]:
+    """..."""
+```
+
+**Benefits**:
+- ✅ Better IDE autocomplete
+- ✅ Catch type errors at development time
+- ✅ Self-documenting code
+
+---
+
+#### CLEANUP-004: Error Handling Consolidation
+**Complexity**: Medium (2-3 hours)
+
+**Create**: `backend/app/utils/error_handlers.py`
+
+```python
+class AgentExecutionError(Exception):
+    """Base exception for agent execution errors."""
+
+class CostTrackingError(Exception):
+    """Exception for cost tracking failures."""
+
+def handle_agent_error(
+    error: Exception,
+    session_id: str,
+    partial_chunks: Optional[list] = None
+) -> dict:
+    """Centralized error handling with partial response support."""
+```
+
+**Benefits**:
+- ✅ Consistent error responses
+- ✅ Proper error hierarchies
+- ✅ Easier error tracking
+
+---
+
+### Final Architecture (After Refactoring)
+
+```
+backend/app/agents/
+└── simple_chat.py (~700 lines, down from 1,386)
+    ├── simple_chat() - Main entry point (~150 lines)
+    ├── _execute_non_streaming() - Non-streaming execution (~100 lines)
+    ├── _execute_streaming() - Streaming execution (~150 lines)
+    ├── create_simple_chat_agent() - Agent creation (~250 lines)
+    └── Supporting functions (~50 lines)
+
+backend/app/services/
+├── cost_tracking_service.py (NEW, ~200 lines)
+├── agent_execution_service.py (NEW, ~150 lines)
+├── configuration_service.py (NEW, ~100 lines)
+└── message_service.py (ENHANCED, +100 lines)
+
+backend/app/utils/
+├── logging_helpers.py (NEW, ~100 lines)
+└── error_handlers.py (NEW, ~100 lines)
+```
+
+**Total Lines**: ~1,550 lines (split across 7 files instead of 1)
+
+**Maintainability Gains**:
+- ✅ Each file has single responsibility
+- ✅ Services are independently testable
+- ✅ Changes isolated to relevant files
+- ✅ Easier code review (smaller diffs)
+- ✅ Better separation of concerns
+
+---
+
+### Implementation Timeline
+
+| Feature | Chunks | Complexity | Est. Hours | Priority |
+|---------|--------|------------|------------|----------|
+| **FEATURE-0026-010** | 5 | High | 16-20 | High |
+| CHUNK-001: CostTrackingService | 1 | Medium | 3-4 | Must |
+| CHUNK-002: MessagePersistenceService | 1 | Medium | 2-3 | Must |
+| CHUNK-003: AgentExecutionService | 1 | Medium | 3-4 | Must |
+| CHUNK-004: ConfigurationService | 1 | Low | 2-3 | Should |
+| CHUNK-005: Integration | 1 | High | 4-6 | Must |
+| **FEATURE-0026-011** | 1 | Medium | 3-4 | High |
+| CHUNK-001: Merge Streaming | 1 | Medium | 3-4 | Should |
+| **Additional Cleanup** | 4 | Low-Med | 6-8 | Nice-to-have |
+| **TOTAL** | 10 | - | **25-32 hours** | - |
+
+**Recommended Approach**:
+1. **Week 1**: FEATURE-0026-010 (Chunks 001-004) - Extract services
+2. **Week 2**: FEATURE-0026-010 (Chunk 005) + Testing - Integration
+3. **Week 3**: FEATURE-0026-011 - Merge streaming + Additional cleanup
+
+**Risk Mitigation**:
+- ✅ Create feature branch for refactoring
+- ✅ Keep old code as comments during transition
+- ✅ Run full test suite after each chunk
+- ✅ Deploy to dev environment for smoke testing
+- ✅ Monitor Logfire for any regressions
+
+---
+
+### Success Criteria
+
+**Code Quality**:
+- ✅ `simple_chat.py` reduced to < 800 lines
+- ✅ All services have > 80% test coverage
+- ✅ No duplicate code between streaming/non-streaming
+- ✅ All functions have proper type hints
+- ✅ Cyclomatic complexity < 10 per function
+
+**Functionality**:
+- ✅ All existing tests pass
+- ✅ No functional regressions
+- ✅ Performance unchanged (< 5% difference)
+- ✅ Cost tracking accuracy maintained
+- ✅ Logfire metrics unchanged
+
+**Maintainability**:
+- ✅ New developer can understand flow in < 30 minutes
+- ✅ Adding new feature touches < 3 files
+- ✅ Bug fixes isolated to single service
+- ✅ Clear separation of concerns
+
+---
+
 ## Related Documents
 
 - `memorybank/architecture/agent-and-tool-design.md`
