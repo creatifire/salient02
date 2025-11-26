@@ -453,98 +453,131 @@ async def simple_chat(
     Returns:
         dict with response, messages, new_messages, and usage data
     """
-    # Get history_limit from agent-first configuration cascade
-    from .config_loader import get_agent_history_limit
-    default_history_limit = await get_agent_history_limit("simple_chat")
+    # REFACTOR (CHUNK-0026-010-003): Use AgentExecutionService for setup
+    from ..services.agent_execution_service import get_agent_execution_service
     
-    # Create session dependencies with agent config for tools
-    session_deps = await SessionDependencies.create(
-        session_id=session_id,
-        user_id=None,  # Optional for simple chat
-        history_limit=default_history_limit
-    )
-    # Add agent-specific fields for tool access
-    session_deps.agent_config = instance_config
-    session_deps.agent_instance_id = agent_instance_id
+    execution_service = get_agent_execution_service()
+    agent, session_deps, prompt_breakdown, system_prompt, tools_list, message_history, requested_model = \
+        await execution_service.setup_execution_context(
+            session_id=session_id,
+            agent_name="simple_chat",
+            agent_instance_id=agent_instance_id,
+            account_id=account_id,
+            instance_config=instance_config,
+            message_history=message_history
+        )
     
-    # CRITICAL: Ensure account_id is a Python primitive (not SQLAlchemy expression)
-    # This prevents Logfire serialization errors when Pydantic AI instruments tool calls
-    if account_id is not None:
-        # Convert to Python UUID (simplified)
-        session_deps.account_id = UUID(str(account_id)) if account_id and not isinstance(account_id, UUID) else account_id
-    else:
-        session_deps.account_id = None
-    
-    # Load model settings using centralized cascade (Fixed: comprehensive cascade)
+    # Load model_settings for cost tracking (still needed for LLM request tracking)
     from .config_loader import get_agent_model_settings
     model_settings = await get_agent_model_settings("simple_chat")
     
-    # Load conversation history if not provided (TASK 0017-003)
-    if message_history is None:
-        # Use centralized cascade function for consistent behavior
-        message_history = await load_conversation_history(
-            session_id=session_id,
-            max_messages=None  # load_conversation_history will use get_agent_history_limit internally
-        )
-    
-    # Get the agent (Fixed: await async function)
-    # Pass instance_config and account_id for multi-tenant support and directory docs generation
-    agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
-    
-    # CRITICAL FIX: Inject system prompt into message history
-    # When Pydantic AI sees message_history, it expects the first ModelRequest to include SystemPromptPart
-    # Our database doesn't store system prompts, so we must inject it here
-    if message_history and len(message_history) > 0:
-        first_msg = message_history[0]
-        if isinstance(first_msg, ModelRequest):
-            # Check if SystemPromptPart is already present
-            has_system_prompt = any(isinstance(part, SystemPromptPart) for part in first_msg.parts)
-            
-            if not has_system_prompt:
-                # Inject SystemPromptPart at the beginning of the first message
-                system_prompt_part = SystemPromptPart(content=system_prompt)
-                # Create new ModelRequest with SystemPromptPart prepended
-                new_parts = [system_prompt_part] + list(first_msg.parts)
-                message_history[0] = ModelRequest(parts=new_parts)
-                
-                logfire.info(
-                    'agent.message_history.system_prompt_injected',
-                    session_id=session_id,
-                    original_parts_count=len(first_msg.parts),
-                    new_parts_count=len(new_parts)
-                )
-    
-    # Extract requested model for debugging
-    config_to_use = instance_config if instance_config is not None else load_config()
-    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    # OLD CODE (kept for comparison during refactor):
+    # # Get history_limit from agent-first configuration cascade
+    # from .config_loader import get_agent_history_limit
+    # default_history_limit = await get_agent_history_limit("simple_chat")
+    # 
+    # # Create session dependencies with agent config for tools
+    # session_deps = await SessionDependencies.create(
+    #     session_id=session_id,
+    #     user_id=None,  # Optional for simple chat
+    #     history_limit=default_history_limit
+    # )
+    # # Add agent-specific fields for tool access
+    # session_deps.agent_config = instance_config
+    # session_deps.agent_instance_id = agent_instance_id
+    # 
+    # # CRITICAL: Ensure account_id is a Python primitive (not SQLAlchemy expression)
+    # # This prevents Logfire serialization errors when Pydantic AI instruments tool calls
+    # if account_id is not None:
+    #     # Convert to Python UUID (simplified)
+    #     session_deps.account_id = UUID(str(account_id)) if account_id and not isinstance(account_id, UUID) else account_id
+    # else:
+    #     session_deps.account_id = None
+    # 
+    # # Load model settings using centralized cascade (Fixed: comprehensive cascade)
+    # from .config_loader import get_agent_model_settings
+    # model_settings = await get_agent_model_settings("simple_chat")
+    # 
+    # # Load conversation history if not provided (TASK 0017-003)
+    # if message_history is None:
+    #     # Use centralized cascade function for consistent behavior
+    #     message_history = await load_conversation_history(
+    #         session_id=session_id,
+    #         max_messages=None  # load_conversation_history will use get_agent_history_limit internally
+    #     )
+    # 
+    # # Get the agent (Fixed: await async function)
+    # # Pass instance_config and account_id for multi-tenant support and directory docs generation
+    # agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    # 
+    # # CRITICAL FIX: Inject system prompt into message history
+    # # When Pydantic AI sees message_history, it expects the first ModelRequest to include SystemPromptPart
+    # # Our database doesn't store system prompts, so we must inject it here
+    # if message_history and len(message_history) > 0:
+    #     first_msg = message_history[0]
+    #     if isinstance(first_msg, ModelRequest):
+    #         # Check if SystemPromptPart is already present
+    #         has_system_prompt = any(isinstance(part, SystemPromptPart) for part in first_msg.parts)
+    #         
+    #         if not has_system_prompt:
+    #             # Inject SystemPromptPart at the beginning of the first message
+    #             system_prompt_part = SystemPromptPart(content=system_prompt)
+    #             # Create new ModelRequest with SystemPromptPart prepended
+    #             new_parts = [system_prompt_part] + list(first_msg.parts)
+    #             message_history[0] = ModelRequest(parts=new_parts)
+    #             
+    #             logfire.info(
+    #                 'agent.message_history.system_prompt_injected',
+    #                 session_id=session_id,
+    #                 original_parts_count=len(first_msg.parts),
+    #                 new_parts_count=len(new_parts)
+    #             )
+    # 
+    # # Extract requested model for debugging
+    # config_to_use = instance_config if instance_config is not None else load_config()
+    # requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
     
     # Get database session for tools (directory_search, etc.) - wrap execution in context manager
     from ..database import get_database_service
     db_service = get_database_service()
+    
+    # Track start time for error handling (execution service provides latency_ms on success)
+    start_time = datetime.now(UTC)
     
     async with db_service.get_session() as db_session:
         # BUG-0023-001: db_session no longer assigned to dependencies
         # Tools create their own sessions via get_db_session() to eliminate concurrent operation errors
         # This db_session is still used for non-tool operations (session loading, directory docs generation)
         
-        # Pure Pydantic AI agent execution
-        start_time = datetime.now(UTC)
-        
-        # DEBUG: Log message_history details
-        logfire.info(
-            'agent.run.message_history_debug',
-            session_id=session_id,
-            message_history_length=len(message_history),
-            message_history_types=[type(m).__name__ for m in message_history],
-            message_history_first_parts=[type(p).__name__ for p in message_history[0].parts] if message_history and hasattr(message_history[0], 'parts') else [],
-            current_message_preview=message[:100]
-        )
-        
         try:
-            # Execute agent with Pydantic AI
-            result = await agent.run(message, deps=session_deps, message_history=message_history)
-            end_time = datetime.now(UTC)
-            latency_ms = int((end_time - start_time).total_seconds() * 1000)
+            # REFACTOR (CHUNK-0026-010-003): Use AgentExecutionService for execution
+            result, latency_ms = await execution_service.execute_agent(
+                agent=agent,
+                message=message,
+                session_deps=session_deps,
+                message_history=message_history,
+                session_id=session_id,
+                streaming=False
+            )
+            
+            # OLD CODE (kept for comparison during refactor):
+            # # Pure Pydantic AI agent execution
+            # start_time = datetime.now(UTC)
+            # 
+            # # DEBUG: Log message_history details
+            # logfire.info(
+            #     'agent.run.message_history_debug',
+            #     session_id=session_id,
+            #     message_history_length=len(message_history),
+            #     message_history_types=[type(m).__name__ for m in message_history],
+            #     message_history_first_parts=[type(p).__name__ for p in message_history[0].parts] if message_history and hasattr(message_history[0], 'parts') else [],
+            #     current_message_preview=message[:100]
+            # )
+            # 
+            # # Execute agent with Pydantic AI
+            # result = await agent.run(message, deps=session_deps, message_history=message_history)
+            # end_time = datetime.now(UTC)
+            # latency_ms = int((end_time - start_time).total_seconds() * 1000)
             
             # Extract response and usage data
             try:
@@ -898,30 +931,49 @@ async def simple_chat_stream(
     """
     import json
     
-    # Get history_limit from agent-first configuration cascade
-    from .config_loader import get_agent_history_limit
-    default_history_limit = await get_agent_history_limit("simple_chat")
+    # REFACTOR (CHUNK-0026-010-003): Use AgentExecutionService for setup
+    from ..services.agent_execution_service import get_agent_execution_service
     
-    # Create session dependencies with agent config for tools
-    session_deps = await SessionDependencies.create(
-        session_id=session_id,
-        user_id=None,
-        history_limit=default_history_limit
-    )
-    # Add agent-specific fields for tool access
-    session_deps.agent_config = instance_config
-    session_deps.agent_instance_id = agent_instance_id
-    session_deps.account_id = account_id  # Multi-tenant: for directory tool data isolation
-    
-    # Load conversation history if not provided
-    if message_history is None:
-        message_history = await load_conversation_history(
+    execution_service = get_agent_execution_service()
+    agent, session_deps, prompt_breakdown, system_prompt, tools_list, message_history, requested_model = \
+        await execution_service.setup_execution_context(
             session_id=session_id,
-            max_messages=None
+            agent_name="simple_chat",
+            agent_instance_id=agent_instance_id,
+            account_id=account_id,
+            instance_config=instance_config,
+            message_history=message_history
         )
     
-    # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
-    agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    # Load model_settings for cost tracking (still needed for LLM request tracking)
+    from .config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
+    
+    # OLD CODE (kept for comparison during refactor):
+    # # Get history_limit from agent-first configuration cascade
+    # from .config_loader import get_agent_history_limit
+    # default_history_limit = await get_agent_history_limit("simple_chat")
+    # 
+    # # Create session dependencies with agent config for tools
+    # session_deps = await SessionDependencies.create(
+    #     session_id=session_id,
+    #     user_id=None,
+    #     history_limit=default_history_limit
+    # )
+    # # Add agent-specific fields for tool access
+    # session_deps.agent_config = instance_config
+    # session_deps.agent_instance_id = agent_instance_id
+    # session_deps.account_id = account_id  # Multi-tenant: for directory tool data isolation
+    # 
+    # # Load conversation history if not provided
+    # if message_history is None:
+    #     message_history = await load_conversation_history(
+    #         session_id=session_id,
+    #         max_messages=None
+    #     )
+    # 
+    # # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
+    # agent, prompt_breakdown, system_prompt, tools_list = await get_chat_agent(instance_config=instance_config, account_id=account_id)
     
     # CRITICAL FIX: Inject system prompt into message history (same as non-streaming path)
     # When Pydantic AI sees message_history, it expects the first ModelRequest to include SystemPromptPart
@@ -947,15 +999,18 @@ async def simple_chat_stream(
                     streaming=True
                 )
     
-    # Extract requested model for logging
-    config_to_use = instance_config if instance_config is not None else load_config()
-    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    # OLD CODE (removed - requested_model now from setup_execution_context()):
+    # # Extract requested model for logging
+    # config_to_use = instance_config if instance_config is not None else load_config()
+    # requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
     
     chunks = []
     start_time = datetime.now(UTC)
     
     try:
-        # Execute agent with streaming
+        # NOTE: Streaming execution uses agent.run_stream() directly with async context manager
+        # AgentExecutionService.execute_agent() with streaming=True could be used, but the
+        # current pattern with async context manager is more explicit for streaming use case
         logfire.info(
             'agent.streaming.start',
             session_id=session_id,
