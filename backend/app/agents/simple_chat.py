@@ -745,45 +745,66 @@ async def simple_chat(
                 message_service = MessageService()
             
                 try:
-                    # Save user message (link to LLM request for cost attribution)
-                    await message_service.save_message(
+                    # REFACTOR (CHUNK-0026-010-002): Use new save_message_pair() method
+                    user_msg_id, assistant_msg_id = await message_service.save_message_pair(
                         session_id=UUID(session_id),
                         agent_instance_id=agent_instance_id,
                         llm_request_id=llm_request_id,
-                        role="human",
-                        content=message
+                        user_message=message,
+                        assistant_message=response_text,
+                        result=result  # Automatically extracts tool calls
                     )
-                
-                    # Extract tool calls from result for admin debugging
-                    tool_calls_meta = []
-                    if result.all_messages():
-                        from pydantic_ai.messages import ToolCallPart, ToolReturnPart
-                        for msg in result.all_messages():
-                            if hasattr(msg, 'parts'):
-                                for part in msg.parts:
-                                    if isinstance(part, ToolCallPart):
-                                        tool_calls_meta.append({
-                                            "tool_name": part.tool_name,
-                                            "args": part.args
-                                        })
-                
-                    # Save assistant response (link to same LLM request) with tool calls
-                    await message_service.save_message(
-                        session_id=UUID(session_id),
-                        agent_instance_id=agent_instance_id,
-                        llm_request_id=llm_request_id,
-                        role="assistant",
-                        content=response_text,
-                        metadata={"tool_calls": tool_calls_meta} if tool_calls_meta else None
-                    )
-                
+                    
                     logfire.info(
                         'agent.messages.saved',
                         session_id=session_id,
                         agent_instance_id=agent_instance_id,
+                        user_message_id=str(user_msg_id),
+                        assistant_message_id=str(assistant_msg_id),
                         user_message_length=len(message),
                         assistant_message_length=len(response_text)
                     )
+                    
+                    # OLD CODE (kept for comparison during refactor):
+                    # # Save user message (link to LLM request for cost attribution)
+                    # await message_service.save_message(
+                    #     session_id=UUID(session_id),
+                    #     agent_instance_id=agent_instance_id,
+                    #     llm_request_id=llm_request_id,
+                    #     role="human",
+                    #     content=message
+                    # )
+                    # 
+                    # # Extract tool calls from result for admin debugging
+                    # tool_calls_meta = []
+                    # if result.all_messages():
+                    #     from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+                    #     for msg in result.all_messages():
+                    #         if hasattr(msg, 'parts'):
+                    #             for part in msg.parts:
+                    #                 if isinstance(part, ToolCallPart):
+                    #                     tool_calls_meta.append({
+                    #                         "tool_name": part.tool_name,
+                    #                         "args": part.args
+                    #                     })
+                    # 
+                    # # Save assistant response (link to same LLM request) with tool calls
+                    # await message_service.save_message(
+                    #     session_id=UUID(session_id),
+                    #     agent_instance_id=agent_instance_id,
+                    #     llm_request_id=llm_request_id,
+                    #     role="assistant",
+                    #     content=response_text,
+                    #     metadata={"tool_calls": tool_calls_meta} if tool_calls_meta else None
+                    # )
+                    #
+                    # logfire.info(
+                    #     'agent.messages.saved',
+                    #     session_id=session_id,
+                    #     agent_instance_id=agent_instance_id,
+                    #     user_message_length=len(message),
+                    #     assistant_message_length=len(response_text)
+                    # )
                 except Exception as msg_error:
                     logfire.exception(
                         'agent.messages.save_failed',
@@ -1282,43 +1303,60 @@ async def simple_chat_stream(
             
             message_service = get_message_service()
             
-            # Save user message (link to LLM request for cost attribution)
-            await message_service.save_message(
+            # REFACTOR (CHUNK-0026-010-002): Use new save_message_pair() method
+            user_msg_id, assistant_msg_id = await message_service.save_message_pair(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
                 llm_request_id=llm_request_id,
-                role="human",
-                content=message
-            )
-            
-            # Extract tool calls from result for admin debugging
-            tool_calls_meta = []
-            if result.all_messages():
-                from pydantic_ai.messages import ToolCallPart, ToolReturnPart
-                for msg in result.all_messages():
-                    if hasattr(msg, 'parts'):
-                        for part in msg.parts:
-                            if isinstance(part, ToolCallPart):
-                                tool_calls_meta.append({
-                                    "tool_name": part.tool_name,
-                                    "args": part.args
-                                })
-            
-            # Save assistant response (link to same LLM request) with tool calls
-            await message_service.save_message(
-                session_id=UUID(session_id),
-                agent_instance_id=agent_instance_id,
-                llm_request_id=llm_request_id,
-                role="assistant",
-                content=response_text,
-                metadata={"tool_calls": tool_calls_meta} if tool_calls_meta else None
+                user_message=message,
+                assistant_message=response_text,
+                result=result  # Automatically extracts tool calls
             )
             
             logfire.info(
                 'agent.streaming.messages_saved',
-                session_id=session_id,
-                completion_status="complete"
+                user_message_id=str(user_msg_id),
+                assistant_message_id=str(assistant_msg_id)
             )
+            
+            # OLD CODE (kept for comparison during refactor):
+            # # Save user message (link to LLM request for cost attribution)
+            # await message_service.save_message(
+            #     session_id=UUID(session_id),
+            #     agent_instance_id=agent_instance_id,
+            #     llm_request_id=llm_request_id,
+            #     role="human",
+            #     content=message
+            # )
+            # 
+            # # Extract tool calls from result for admin debugging
+            # tool_calls_meta = []
+            # if result.all_messages():
+            #     from pydantic_ai.messages import ToolCallPart, ToolReturnPart
+            #     for msg in result.all_messages():
+            #         if hasattr(msg, 'parts'):
+            #             for part in msg.parts:
+            #                 if isinstance(part, ToolCallPart):
+            #                     tool_calls_meta.append({
+            #                         "tool_name": part.tool_name,
+            #                         "args": part.args
+            #                     })
+            # 
+            # # Save assistant response (link to same LLM request) with tool calls
+            # await message_service.save_message(
+            #     session_id=UUID(session_id),
+            #     agent_instance_id=agent_instance_id,
+            #     llm_request_id=llm_request_id,
+            #     role="assistant",
+            #     content=response_text,
+            #     metadata={"tool_calls": tool_calls_meta} if tool_calls_meta else None
+            # )
+            # 
+            # logfire.info(
+            #     'agent.streaming.messages_saved',
+            #     session_id=session_id,
+            #     completion_status="complete"
+            # )
             
             # Yield completion event
             yield {"event": "done", "data": ""}
