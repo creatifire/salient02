@@ -44,6 +44,7 @@ backend/logs/
 
 # Test outputs
 backend/investigate/tool-calling/test_outputs/
+backend/test_results/
 
 # Data files
 backend/data/
