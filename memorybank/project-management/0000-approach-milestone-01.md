@@ -173,12 +173,10 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 
 - ✅ 0025-001 - Pydantic AI Native Toolsets (Phase 1)
 - ✅ 0025-002 - Phone Directory Prerequisites (Phase 2)
-- 📋 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
-- 📋 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
+- ✅ 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
+- 🔄 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
 
 **>> You are here <<**
-- FEATURE-0026-010: Extract Services (Modularization)
-- TASK-0026-3C-010: Implement Dynamic Directory Discovery Tool Pattern
 - 0025-004-004 - Implement Tool Calling Improvements (via Modular Prompts)
 
 - ⏸️ Phase 4B - Prompt Caching (limited LLM provider support)
