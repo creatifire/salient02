@@ -197,6 +197,37 @@ Epic 0017-012
 - 📋 0017-008-001 - Mailgun Integration
 - 📋 0017-008-002 - Email Summary Agent Tool
 
+### Priority 8A: Admin Frontend UI Polish & Prompt Engineering Tool 📋
+Epic 0026 - Simple Admin Frontend
+
+- 📋 FEATURE-0026-012 - Professional Dashboard UI
+  - 📋 TASK-0026-012-001 - Create Shared Admin Stylesheet
+  - 📋 TASK-0026-012-002 - Add Navigation Header with Branding
+  - 📋 TASK-0026-012-003 - Polish Sessions List Page
+  - 📋 TASK-0026-012-004 - Polish Session Detail Page
+  - 📋 TASK-0026-012-005 - Add Loading States and Empty States
+  - 📋 TASK-0026-012-006 - Add Keyboard Shortcuts
+- 📋 FEATURE-0026-013 - Session & Config Loading (Foundation)
+  - 📋 TASK-0026-013-001 - Session Selection
+  - 📋 TASK-0026-013-002 - Account/Agent Selection
+  - 📋 TASK-0026-013-003 - Load Prompt Configuration
+- 📋 FEATURE-0026-014 - Prompt Module Editor (Core Editing)
+  - 📋 TASK-0026-014-001 - Critical Rules Editor
+  - 📋 TASK-0026-014-002 - Base Prompt Editor
+  - 📋 TASK-0026-014-003 - Directory Schema Selector
+  - 📋 TASK-0026-014-004 - Prompt Modules Selector
+- 📋 FEATURE-0026-015 - Preview Assembled Prompt (Validation)
+  - 📋 TASK-0026-015-001 - Assemble Prompt API
+  - 📋 TASK-0026-015-002 - Preview Display
+- 📋 FEATURE-0026-016 - Execute Prompt (Testing)
+  - 📋 TASK-0026-016-001 - Test Message Input
+  - 📋 TASK-0026-016-002 - Execute Prompt API
+  - 📋 TASK-0026-016-003 - Response Display
+- 📋 FEATURE-0026-017 - Save Variants (Optional Enhancement)
+  - 📋 TASK-0026-017-001 - Variant Storage
+  - 📋 TASK-0026-017-002 - Variant Management UI
+  - 📋 TASK-0026-017-003 - Compare Variants
+
 ### Priority 9: Multi-Provider Infrastructure 📋
 - 📋 0022-001-002-01 - Provider factory and base infrastructure
 - 📋 0022-001-002-02 - Config schema and validation
