@@ -185,10 +185,6 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
   - ✅ 0025-004-004-005 - Integrate Module Loading into simple_chat
   - 📋 0025-004-004-006 - Measure and Validate Improvements
 
-- ⏸️ Phase 4B - Prompt Caching (limited LLM provider support)
-- ⏸️ Phase 6 - MCP Server Integration
-- 🔍 Phase 5 - Full Modular Prompts (under strong consideration)
-
 ### Priority 6: Profile Fields Configuration & Database Schema 📋
 - 📋 0017-006-001 - Profile Fields YAML Configuration
 - 📋 0017-006-002 - Migrate Profiles Table to JSONB
