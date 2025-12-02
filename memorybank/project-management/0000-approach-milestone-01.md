@@ -177,7 +177,13 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 - 🔄 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
 
 **>> You are here <<**
-- 0025-004-004 - Implement Tool Calling Improvements (via Modular Prompts)
+- 🔄 0025-004-004 - Implement Tool Calling Improvements (via Modular Prompts)
+  - ✅ 0025-004-004-001 - Diagnostic Test with Alternative Model
+  - ✅ 0025-004-004-002 - Quick Fix - Keyword Hints Module
+  - ✅ 0025-004-004-003 - Create Prompt Module Infrastructure
+  - 📋 0025-004-004-004 - Create Research-Backed Module Files
+  - ✅ 0025-004-004-005 - Integrate Module Loading into simple_chat
+  - 📋 0025-004-004-006 - Measure and Validate Improvements
 
 - ⏸️ Phase 4B - Prompt Caching (limited LLM provider support)
 - ⏸️ Phase 6 - MCP Server Integration
