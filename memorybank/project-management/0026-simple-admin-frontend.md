@@ -121,6 +121,28 @@
   - TASK-0026-012-005: Add loading/empty states
   - TASK-0026-012-006: Add keyboard shortcuts
 
+### 📋 **Phase 6: Prompt Engineering Tool** (PLANNED)
+- ⏳ FEATURE-0026-013: Session & Config Loading (Foundation)
+  - TASK-0026-013-001: Session Selection (Backend API + Frontend Dropdown)
+  - TASK-0026-013-002: Account/Agent Selection (Backend APIs + Frontend Cascading Dropdowns)
+  - TASK-0026-013-003: Load Prompt Configuration (Backend Config API + Frontend Display)
+- ⏳ FEATURE-0026-014: Prompt Module Editor (Core Editing)
+  - TASK-0026-014-001: Critical Rules Editor (Backend Module API + Frontend Textarea)
+  - TASK-0026-014-002: Base Prompt Editor (Frontend Textarea + Token Counter)
+  - TASK-0026-014-003: Directory Schema Selector (Backend Schemas API + Frontend Checkboxes)
+  - TASK-0026-014-004: Prompt Modules Selector (Frontend Multi-Select + Add Module)
+- ⏳ FEATURE-0026-015: Preview Assembled Prompt (Validation)
+  - TASK-0026-015-001: Assemble Prompt API (Backend Assembly Logic + Cost Estimation)
+  - TASK-0026-015-002: Preview Display (Frontend Render + Copy Button)
+- ⏳ FEATURE-0026-016: Execute Prompt (Testing)
+  - TASK-0026-016-001: Test Message Input (Frontend Textarea + History Loader)
+  - TASK-0026-016-002: Execute Prompt API (Backend LLM Execution)
+  - TASK-0026-016-003: Response Display (Frontend Response + Metadata)
+- ⏳ FEATURE-0026-017: Save Variants (Optional Enhancement)
+  - TASK-0026-017-001: Variant Storage (Backend Database + APIs)
+  - TASK-0026-017-002: Variant Management UI (Frontend Save/Load/Delete)
+  - TASK-0026-017-003: Compare Variants (Backend Diff + Frontend Side-by-Side)
+
 
 
 
@@ -3879,9 +3901,9 @@ WHERE created_at < NOW() - INTERVAL '30 days'
   AND meta->'prompt_breakdown'->'sections' IS NOT NULL;
 ```
 
-## Phase 4: UI Polish & Layout Improvements
+## Phase 5: UI Polish & Layout Improvements
 
-**Status**: PLANNED (Post Phase 3C)
+**Status**: PLANNED (Post Phase 3C & Phase 4)
 
 **Goal**: Transform the functional HTMX admin UI into a polished, professional debugging tool with better visual hierarchy, improved readability, and modern design elements.
 
@@ -3889,17 +3911,48 @@ WHERE created_at < NOW() - INTERVAL '30 days'
 
 ---
 
-### Context: What Changed in Phase 3C
+### Context: Current State (Phase 3B Complete)
 
-Phase 3C made architectural decisions that impact Phase 4:
+**Files Implemented**:
+- `web/public/admin/sessions.html` - Sessions list with filters
+- `web/public/admin/view-session.html` - Session detail with prompt breakdown
+- `web/public/admin/edit-session.html` - Prompt engineering tool (mockup)
 
-| Aspect | Phase 3B | Phase 3C Impact | Phase 4 Consideration |
+**Already Implemented** (Phase 3B):
+- ✅ HTMX v2.0.7 + TailwindCSS CDN (no build step)
+- ✅ Basic styling with cards and shadows
+- ✅ Account/Agent filter dropdowns
+- ✅ Session table with clickable rows
+- ✅ View/Edit icons (SVG) in actions column
+- ✅ Prompt breakdown with nested directory sections
+- ✅ Tool calls display (yellow boxes)
+- ✅ LLM metadata display (purple boxes - tokens, cost, latency)
+- ✅ Response quality placeholders (green boxes)
+- ✅ Basic loading states (text-based)
+- ✅ Copy button on admin UI
+
+**Still TODO** (Phase 5):
+- ❌ Shared `admin.css` stylesheet (currently inline Tailwind only)
+- ❌ Navigation header with branding/breadcrumbs
+- ❌ Stats cards on sessions page
+- ❌ Metadata card on session detail
+- ❌ Enhanced loading states with animations
+- ❌ Keyboard shortcuts
+- ❌ Improved visual polish (gradients, hover states, transitions)
+
+---
+
+### Phase 3C Impact on Phase 5
+
+Phase 3C added nested prompt sections which impact Phase 5 polish:
+
+| Aspect | Phase 3B | Phase 3C Impact | Phase 5 Consideration |
 |--------|----------|-----------------|----------------------|
 | **Architecture** | HTMX + Vanilla JS | Added nested prompt sections | Polish nested UI, improve indentation |
-| **Files** | 2 HTML files | Same (sessions.html, session.html) | In-place polish, no new files |
+| **Files** | 2 HTML files | Same (sessions.html, view-session.html) | In-place polish, no new files |
 | **Styling** | TailwindCSS CDN | Same | Pure utility classes, no build |
 | **Components** | Vanilla JS functions | Same | Extract shared CSS snippets |
-| **Prompt Breakdown** | Flat list | Nested hierarchy (directories) | Visual polish for nested items |
+| **Prompt Breakdown** | Flat list | 3-level nested hierarchy | Visual polish for nested items |
 
 **Key Constraint**: No build step, no component frameworks - pure HTML + TailwindCSS + vanilla JS.
 
@@ -4028,7 +4081,7 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 **Goal**: Add a consistent header with branding, breadcrumbs, and quick stats.
 
-**Apply to**: Both `sessions.html` and `session.html`
+**Apply to**: Both `sessions.html` and `view-session.html`
 
 **Add before existing header**:
 ```html
@@ -4073,9 +4126,11 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 **File**: `web/public/admin/sessions.html`
 
-**Changes**:
+**Current State**: Basic filters and table already implemented in Phase 3B.
 
-1. **Add Summary Stats Cards** (above filters):
+**Changes to Add**:
+
+1. **Add Summary Stats Cards** (above existing filters):
 ```html
 <!-- Summary Stats -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -4202,9 +4257,11 @@ Phase 3C made architectural decisions that impact Phase 4:
 
 #### TASK-0026-012-004: Polish Session Detail Page
 
-**File**: `web/public/admin/session.html`
+**File**: `web/public/admin/view-session.html`
 
-**Changes**:
+**Current State**: Basic message cards with prompt breakdown already implemented in Phase 3B/3C.
+
+**Changes to Add**:
 
 1. **Add Session Metadata Card** (after header):
 ```html
@@ -4523,17 +4580,22 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-### File Changes Summary
+### File Changes Summary - Phase 5
 
-**Files Modified**:
+**Files to Modify**:
 1. `web/public/admin/admin.css` (NEW) - Shared stylesheet
 2. `web/public/admin/sessions.html` - Add header, stats cards, polished filters, improved table
-3. `web/public/admin/session.html` - Add header, metadata card, polished messages, improved prompt breakdown
+3. `web/public/admin/view-session.html` - Add header, metadata card, polished messages, improved prompt breakdown
 4. Both HTML files - Add keyboard shortcuts, help modal
 
-**Total Changes**: 3 files (1 new, 2 modified)
+**Already Existing** (from Phase 3B):
+- `web/public/admin/sessions.html` - Basic filters and table
+- `web/public/admin/view-session.html` - Basic message cards and prompt breakdown
+- `web/public/admin/edit-session.html` - Mockup (Phase 6 implementation)
 
-**Lines Added**: ~600 lines (CSS + HTML improvements)
+**Total Changes**: 3 files (1 new, 2 enhanced)
+
+**Est. Lines to Add**: ~600 lines (CSS + HTML improvements)
 
 **No Backend Changes**: This is pure frontend polish
 
@@ -4552,9 +4614,9 @@ function toggleSection(sectionId, buttonEl) {
 
 ---
 
-### Future Enhancements (Post-Phase 4)
+### Future Enhancements (Post-Phase 5)
 
-**Phase 5 (Optional)**:
+**Future Optional Features**:
 - **Dark Mode**: Toggle between light/dark themes (pure CSS variables)
 - **Export**: Download session as JSON or markdown
 - **Search**: Full-text search across sessions
@@ -4563,6 +4625,26 @@ function toggleSection(sectionId, buttonEl) {
 - **Pagination**: Next/Previous buttons for large datasets
 - **Real-time**: Auto-refresh with HTMX polling
 - **Syntax Highlighting**: Use Prism.js for code in prompts
+
+---
+
+### Phase 5 Implementation Priority
+
+**HIGH Priority** (Core Polish):
+- ✅ TASK-001: Shared admin.css (centralize styles) - ~2 hours
+- ✅ TASK-002: Navigation header with branding - ~3 hours
+- ✅ TASK-005: Loading/empty states - ~2 hours
+
+**MEDIUM Priority** (Nice-to-Have):
+- ⏸️ TASK-003: Stats cards on sessions list - ~4 hours
+- ⏸️ TASK-004: Session detail enhancements - ~5 hours
+
+**LOW Priority** (Can defer):
+- ⏸️ TASK-006: Keyboard shortcuts - ~2 hours
+
+**Estimated Total**: 18-20 hours for HIGH + MEDIUM priority items
+
+**Recommendation**: Complete Phase 4 (Refactoring) before starting Phase 5 polish.
 
 ---
 
@@ -4576,6 +4658,439 @@ function toggleSection(sectionId, buttonEl) {
 - SQLAlchemy (installed)
 
 ---
+
+## Phase 6: Prompt Engineering Tool
+
+**Status**: PLANNED
+
+**Goal**: Build interactive prompt engineering tool at `/admin/edit-session.html` to enable manual inspection, editing, and testing of prompt configurations.
+
+**Purpose**: Allow prompt engineers to:
+- Load existing session configurations
+- Edit prompt modules inline
+- Preview assembled prompts
+- Execute test messages with modified prompts
+- Compare results across prompt variations
+- Save successful variants for A/B testing
+
+**Architecture**: HTMX + Vanilla JS (consistent with Phase 3B), no build step required.
+
+---
+
+### FEATURE-0026-013: Session & Config Loading (Foundation)
+
+**Priority**: HIGH (Must-Have for MVP)
+
+**Goal**: Establish foundation by loading sessions, accounts, agents, and their prompt configurations.
+
+---
+
+#### TASK-0026-013-001: Session Selection
+
+**CHUNK-0026-013-001-001: Backend - Recent Sessions API**
+- Create `GET /api/admin/sessions/recent?limit=10`
+- Return: `[{id, account_slug, agent_slug, created_at, message_count}]`
+- Order by `created_at DESC`
+
+**CHUNK-0026-013-001-002: Frontend - Session Selector**
+- Populate `#session-selector` dropdown on page load via HTMX
+- Options: "New Session" + recent sessions
+- Display: "Session {id} - {account}/{agent} ({message_count} msgs)"
+
+**CHUNK-0026-013-001-003: Integration - Load Session Details**
+- On session selection, fetch session metadata
+- Auto-populate account and agent dropdowns with session's values
+- Load session's prompt configuration automatically
+
+---
+
+#### TASK-0026-013-002: Account/Agent Selection
+
+**CHUNK-0026-013-002-001: Backend - Accounts List API**
+- Create `GET /api/admin/accounts`
+- Return: `[{slug, name}]` (all accounts)
+
+**CHUNK-0026-013-002-002: Backend - Agents List API**
+- Create `GET /api/admin/accounts/{slug}/agents`
+- Return: `[{slug, name, agent_type}]` (agents for account)
+
+**CHUNK-0026-013-002-003: Frontend - Account Dropdown**
+- Populate `#account-selector` on page load
+- Use HTMX `hx-trigger="load"` to fetch accounts
+
+**CHUNK-0026-013-002-004: Frontend - Agent Dropdown (Cascading)**
+- When account selected, trigger HTMX request to load agents
+- Clear and repopulate `#agent-selector`
+- Handle "No agents" case gracefully
+
+---
+
+#### TASK-0026-013-003: Load Prompt Configuration
+
+**CHUNK-0026-013-003-001: Backend - Prompt Config API**
+- Create `GET /api/admin/agents/{slug}/prompt-config`
+- Return full config structure:
+  ```json
+  {
+    "critical_rules": "content...",
+    "base_prompt": "content...",
+    "directory_schemas": [{name, enabled}],
+    "prompt_modules": [{name, enabled}],
+    "available_modules": ["module1.md", "module2.md"]
+  }
+  ```
+- Use existing `get_chat_agent()` logic to build config
+
+**CHUNK-0026-013-003-002: Frontend - Fetch Config**
+- When agent selected, call prompt-config API
+- Store config in JavaScript for editing
+
+**CHUNK-0026-013-003-003: Frontend - Populate Modules UI**
+- Render critical rules in textarea
+- Render base prompt in textarea
+- Populate directory schema checkboxes
+- Populate prompt modules multi-select
+- Add character counters to each section
+
+---
+
+### FEATURE-0026-014: Prompt Module Editor (Core Editing)
+
+**Priority**: HIGH (Must-Have for MVP)
+
+**Goal**: Enable inline editing of all prompt components with real-time feedback.
+
+---
+
+#### TASK-0026-014-001: Critical Rules Editor
+
+**CHUNK-0026-014-001-001: Backend - Module Content API**
+- Create `GET /api/admin/prompt-modules/{name}`
+- Return: `{name, content, char_count, source_file}`
+- Support reading from `backend/config/prompt_modules/`
+
+**CHUNK-0026-014-001-002: Frontend - Textarea Renderer**
+- Render critical rules content in editable textarea
+- Set initial value from loaded config
+- Auto-resize textarea to fit content
+
+**CHUNK-0026-014-001-003: Frontend - Character/Token Counter**
+- Add live counter below textarea: "4,435 chars (~1,109 tokens)"
+- Update on every keystroke
+- Use simple token estimation: `chars / 4`
+
+---
+
+#### TASK-0026-014-002: Base Prompt Editor
+
+**CHUNK-0026-014-002-001: Frontend - Base Prompt Textarea**
+- Reuse Module Content API from CHUNK-014-001-001
+- Render in separate textarea
+- Add character/token counter
+
+**CHUNK-0026-014-002-002: Frontend - Syntax Highlighting (Optional)**
+- Add basic markdown syntax highlighting (if time permits)
+- Use lightweight library or skip for MVP
+
+---
+
+#### TASK-0026-014-003: Directory Schema Selector
+
+**CHUNK-0026-014-003-001: Backend - Directory Schemas API**
+- Create `GET /api/admin/accounts/{id}/directory-schemas`
+- Return: `[{list_name, entry_type, entry_count, enabled}]`
+- Use existing `DirectoryImporter` to get metadata
+
+**CHUNK-0026-014-003-002: Frontend - Checkbox List**
+- Render directory schemas as checkboxes
+- Show: "☑ Medical Professional (New) - 45 entries"
+- Pre-check enabled schemas from config
+
+**CHUNK-0026-014-003-003: Frontend - Handle Selection**
+- Track checked schemas in JavaScript array
+- Update assembled prompt preview when selection changes
+
+---
+
+#### TASK-0026-014-004: Prompt Modules Selector
+
+**CHUNK-0026-014-004-001: Frontend - Available Modules List**
+- Render available modules from config as multi-select
+- Show currently enabled modules pre-selected
+- Display: "tool_selection_hints.md (1,566 chars)"
+
+**CHUNK-0026-014-004-002: Frontend - Module Selection Handler**
+- Track selected modules in JavaScript array
+- Allow add/remove
+- Update preview when selection changes
+
+**CHUNK-0026-014-004-003: Frontend - Add Module Modal**
+- "Add Module" button opens simple modal
+- List all available modules from `available_modules` array
+- Add selected module to list
+
+---
+
+### FEATURE-0026-015: Preview Assembled Prompt (Validation)
+
+**Priority**: HIGH (Must-Have for MVP)
+
+**Goal**: Show complete assembled prompt before execution for validation.
+
+---
+
+#### TASK-0026-015-001: Assemble Prompt API
+
+**CHUNK-0026-015-001-001: Backend - Assembly Endpoint**
+- Create `POST /api/admin/prompts/assemble`
+- Accept: `{critical_rules, base_prompt, directory_schemas[], modules[], test_message?}`
+- Return assembled prompt using production logic
+
+**CHUNK-0026-015-001-002: Backend - Reuse Production Assembly**
+- Use `PromptBreakdownService` to assemble in same order as production
+- Use `generate_directory_tool_docs()` for directory sections
+- Return structured breakdown + full text
+
+**CHUNK-0026-015-001-003: Backend - Cost Estimation**
+- Calculate character count, estimate tokens
+- Estimate cost: `estimated_tokens * model_pricing`
+- Return: `{assembled_prompt, char_count, est_tokens, est_cost}`
+
+---
+
+#### TASK-0026-015-002: Preview Display
+
+**CHUNK-0026-015-002-001: Frontend - Preview Button Handler**
+- "Preview Prompt" button calls assemble API
+- Show loading state during API call
+- Handle errors gracefully
+
+**CHUNK-0026-015-002-002: Frontend - Render Assembled Prompt**
+- Display in right pane `#preview-container`
+- Show: "15,406 chars (~3,852 tokens) - Est. Cost: $0.0008"
+- Render full assembled text in `<pre>` with scrolling
+
+**CHUNK-0026-015-002-003: Frontend - Copy Button**
+- Add "Copy to Clipboard" button
+- Copy assembled prompt text
+- Show success feedback ("✅ Copied!")
+
+---
+
+### FEATURE-0026-016: Execute Prompt (Testing)
+
+**Priority**: HIGH (Must-Have for MVP)
+
+**Goal**: Execute test messages with modified prompts and display LLM responses.
+
+---
+
+#### TASK-0026-016-001: Test Message Input
+
+**CHUNK-0026-016-001-001: Frontend - Message Textarea**
+- Render `#test-message` textarea
+- Validate: minimum 1 character
+- Character counter: "142 chars"
+
+**CHUNK-0026-016-001-002: Frontend - Load from History**
+- "Use from History" button
+- Fetch recent user messages from selected session
+- Simple modal with message list, click to populate
+
+**CHUNK-0026-016-001-003: Frontend - Message Validation**
+- Disable "Execute" button if message empty
+- Show validation errors inline
+
+---
+
+#### TASK-0026-016-002: Execute Prompt API
+
+**CHUNK-0026-016-002-001: Backend - Execution Endpoint**
+- Create `POST /api/admin/prompts/execute`
+- Accept: `{assembled_prompt, test_message, model, agent_slug}`
+- Create temporary agent with modified prompt
+
+**CHUNK-0026-016-002-002: Backend - Execute with Real LLM**
+- Use agent config's model (or override)
+- Execute `agent.run(test_message)`
+- Track cost using `CostTrackingService`
+
+**CHUNK-0026-016-002-003: Backend - Return Execution Results**
+- Return: `{response, usage: {input_tokens, output_tokens, total_tokens}, cost: {input, output, total}, latency_ms, tool_calls[]}`
+- Include tool call details if any
+- Handle errors and return error details
+
+---
+
+#### TASK-0026-016-003: Response Display
+
+**CHUNK-0026-016-003-001: Frontend - Execute Button Handler**
+- "Execute Prompt" button triggers API call
+- Show loading state: "Executing..."
+- Disable button during execution
+
+**CHUNK-0026-016-003-002: Frontend - Display LLM Response**
+- Render response in right pane `#response-container`
+- Show response text in blue-themed box
+- Auto-scroll to response
+
+**CHUNK-0026-016-003-003: Frontend - Display Metadata**
+- Show execution metadata below response:
+  - "Latency: 2,453ms"
+  - "Tokens: 1,594 (Input: 842, Output: 752)"
+  - "Cost: $0.0036 (Input: $0.0008, Output: $0.0028)"
+- If tool calls present, show in yellow box (like admin UI)
+
+**CHUNK-0026-016-003-004: Frontend - Error Handling**
+- Catch API errors gracefully
+- Display error messages in red box
+- Show partial response if available
+- Log errors to console for debugging
+
+---
+
+### FEATURE-0026-017: Save Variants (Optional Enhancement)
+
+**Priority**: MEDIUM (Nice-to-Have)
+
+**Goal**: Save successful prompt variations for A/B testing and iteration.
+
+---
+
+#### TASK-0026-017-001: Variant Storage
+
+**CHUNK-0026-017-001-001: Backend - Database Schema**
+- Create `prompt_variants` table:
+  ```sql
+  CREATE TABLE prompt_variants (
+    id UUID PRIMARY KEY,
+    agent_slug VARCHAR NOT NULL,
+    variant_name VARCHAR NOT NULL,
+    description TEXT,
+    modules_json JSONB NOT NULL,
+    created_by VARCHAR,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(agent_slug, variant_name)
+  );
+  ```
+- Add index on `(agent_slug, created_at DESC)`
+
+**CHUNK-0026-017-001-002: Backend - Save Variant API**
+- Create `POST /api/admin/prompts/variants`
+- Accept: `{agent_slug, variant_name, description, modules: {critical_rules, base_prompt, directory_schemas[], prompt_modules[]}}`
+- Validate variant_name uniqueness for agent
+
+**CHUNK-0026-017-001-003: Backend - List Variants API**
+- Create `GET /api/admin/agents/{slug}/variants`
+- Return: `[{id, variant_name, description, created_at}]`
+- Order by `created_at DESC`
+
+---
+
+#### TASK-0026-017-002: Variant Management UI
+
+**CHUNK-0026-017-002-001: Frontend - Save Variant UI**
+- "Save as Variant" button in left pane
+- Opens modal: name input + description textarea
+- Validate name (required, alphanumeric + underscores)
+
+**CHUNK-0026-017-002-002: Frontend - Variant Selector**
+- Add dropdown above prompt modules: "Load Variant"
+- Populate from list variants API
+- Show: "Variant Name (created 2 days ago)"
+
+**CHUNK-0026-017-002-003: Frontend - Load Variant**
+- On variant selection, fetch variant data
+- Replace current edits with variant modules
+- Show confirmation if unsaved changes exist
+
+**CHUNK-0026-017-002-004: Frontend - Delete Variant**
+- "Delete" button next to each variant in selector
+- Confirm before deletion: "Delete variant '{name}'?"
+- Call `DELETE /api/admin/prompts/variants/{id}`
+
+---
+
+#### TASK-0026-017-003: Compare Variants
+
+**CHUNK-0026-017-003-001: Backend - Compare API**
+- Create `GET /api/admin/prompts/variants/compare?variant1={id}&variant2={id}`
+- Return diff structure: `{differences: [{section, variant1_value, variant2_value}]}`
+- Compare each module section
+
+**CHUNK-0026-017-003-002: Frontend - Comparison View**
+- "Compare" button opens side-by-side view
+- Select two variants to compare
+- Show differences highlighted
+
+**CHUNK-0026-017-003-003: Frontend - Highlight Differences**
+- Red highlight for removed text
+- Green highlight for added text
+- Use simple text diff algorithm (or library)
+
+---
+
+## Testing Strategy - Phase 6
+
+### Manual Testing Checklist
+
+**FEATURE-013 (Loading)**:
+- [ ] Page loads without errors
+- [ ] Account dropdown populates
+- [ ] Agent dropdown updates when account changes
+- [ ] Prompt config loads when agent selected
+- [ ] Session selector shows recent sessions
+
+**FEATURE-014 (Editing)**:
+- [ ] Critical rules textarea editable
+- [ ] Base prompt textarea editable
+- [ ] Character counters update in real-time
+- [ ] Directory checkboxes toggle
+- [ ] Prompt modules multi-select works
+
+**FEATURE-015 (Preview)**:
+- [ ] Preview button assembles prompt correctly
+- [ ] Assembled prompt displays in right pane
+- [ ] Character/token counts accurate
+- [ ] Copy button works
+- [ ] Preview updates when modules changed
+
+**FEATURE-016 (Execute)**:
+- [ ] Test message validates correctly
+- [ ] Execute button triggers LLM call
+- [ ] Response displays correctly
+- [ ] Metadata shows tokens/cost/latency
+- [ ] Tool calls display if present
+- [ ] Errors handled gracefully
+
+**FEATURE-017 (Variants)**:
+- [ ] Save variant creates new record
+- [ ] Variant selector populates
+- [ ] Load variant replaces current edits
+- [ ] Delete variant works
+- [ ] Compare shows differences
+
+---
+
+## Implementation Timeline - Phase 6
+
+| Feature | Tasks | Chunks | Complexity | Est. Hours | Priority |
+|---------|-------|--------|------------|------------|----------|
+| **FEATURE-013** | 3 | 10 | Medium | 12-15 | HIGH |
+| **FEATURE-014** | 4 | 9 | Medium | 10-12 | HIGH |
+| **FEATURE-015** | 2 | 6 | Low | 6-8 | HIGH |
+| **FEATURE-016** | 3 | 10 | Medium | 12-15 | HIGH |
+| **FEATURE-017** | 3 | 10 | Medium | 10-12 | MEDIUM |
+| **Total** | 15 | 45 | - | **50-62 hours** | - |
+
+**Recommended Schedule**:
+- Week 1: FEATURE-013 (foundation) + FEATURE-014 (editor) = 22-27 hours
+- Week 2: FEATURE-015 (preview) + FEATURE-016 (execute) = 18-23 hours
+- Week 3: FEATURE-017 (variants) + testing/polish = 10-12 hours
+
+**MVP Scope** (if time-constrained):
+- Include: FEATURES 013-016 (40-50 hours)
+- Defer: FEATURE-017 (variants) to future iteration
 
 ---
 
