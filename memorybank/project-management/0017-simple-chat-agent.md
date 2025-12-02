@@ -16,8 +16,8 @@ flowchart TD
     User["👤 User"] --> FastAPI["📡 FastAPI Endpoint"]
     
     %% Configuration System
-    AgentConfig["🎛️ simple_chat/config.yaml"] --> Agent["🤖 Pydantic AI Agent"]
-    ProfileFields["📋 profile_fields.yaml"] --> Agent
+    AgentConfig["🎛️ {account}/{instance}/config.yaml"] --> Agent["🤖 Pydantic AI Agent"]
+    ProfileConfig["📋 {account}/{instance}/profile.yaml"] --> Agent
     SystemPromptFile["📝 system_prompt.md"] --> Agent
     GlobalConfig["⚙️ app.yaml (fallback)"] --> Agent
     
@@ -3067,15 +3067,195 @@ Implement backend-controlled per-agent cookie naming to ensure proper session is
 ### 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
 **Status**: Planned
 
-Configure dynamic profile fields via YAML and migrate profiles table to JSONB storage.
+Configure dynamic profile fields per agent instance via separate profile.yaml file (following directory_schemas pattern) and migrate profiles table to JSONB storage.
 
-- [ ] 0017-006-001 - TASK - Profile Fields YAML Configuration
-  - [ ] 0017-006-001-01 - CHUNK - Create profile_fields.yaml structure
+**Pattern**: Similar to how directory schemas are defined in `backend/config/directory_schemas/*.yaml`, profile schemas are defined per-instance in `backend/config/agent_configs/{account}/{instance}/profile.yaml`.
+
+- [ ] 0017-006-001 - TASK - Profile Tool Enable/Disable in Agent Config
+  - [ ] 0017-006-001-01 - CHUNK - Add profile_capture enable switch to config.yaml
     - SUB-TASKS:
-      - Define fields with name, type, required, validation, description
-      - Support email and phone field types for simple-chat
-      - Configuration loaded via agent config loader
-    - STATUS: Planned — Profile fields defined externally
+      - Add `tools.profile_capture.enabled` boolean to agent instance config.yaml
+      - Follow same pattern as other tools (vector_search, directory, web_search)
+      - Configuration loaded via agent config loader (per-agent-instance)
+    - STATUS: Planned — Profile tool enabled/disabled per agent instance
+    - LOCATION: `backend/config/agent_configs/{account_slug}/{instance_slug}/config.yaml`
+    - EXAMPLE CONFIG STRUCTURE:
+      ```yaml
+      tools:
+        profile_capture:
+          enabled: true
+      
+  - [ ] 0017-006-001-02 - CHUNK - Create profile schema loader helper (following DirectoryImporter pattern)
+    - SUB-TASKS:
+      - Create ProfileSchemaLoader class similar to DirectoryImporter.load_schema()
+      - Load profile.yaml from agent instance folder
+      - Validate YAML structure and required fields
+      - Return structured profile schema dict
+      - Handle missing file gracefully (if profile_capture disabled)
+    - STATUS: Planned — Profile schema loader following directory schema pattern
+  
+  - [ ] 0017-006-001-03 - CHUNK - Create profile.yaml file structure (following directory_schemas pattern)
+    - SUB-TASKS:
+      - Create profile.yaml file in agent instance folder
+      - Follow same structural pattern as directory_schemas/*.yaml files
+      - Include metadata (profile_version, description)
+      - Define required_fields and optional_fields lists
+      - Define fields section with type, validation, description, examples
+      - Add semantic_hints per field (what to look for)
+      - Add capture_hints section for modular prompt integration
+      - Add examples showing when/how to capture each field
+    - STATUS: Planned — Profile fields defined in separate file following directory schema pattern
+    - LOCATION: `backend/config/agent_configs/{account_slug}/{instance_slug}/profile.yaml`
+    - PATTERN: Similar to `backend/config/directory_schemas/*.yaml` structure
+    - EXAMPLE PROFILE.YAML STRUCTURE:
+      ```yaml
+      profile_version: "1.0"
+      description: "Profile fields for simple-chat agent - contact information capture"
+      
+      # Required fields that must be captured
+      required_fields:
+        - email
+      
+      # Optional fields that may be captured
+      optional_fields:
+        - phone
+      
+      # Field definitions with validation and semantic guidance
+      fields:
+        email:
+          type: email
+          required: true
+          validation: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+          description: "User's email address for follow-up communication"
+          examples:
+            - "user@example.com"
+            - "john.doe@company.org"
+          semantic_hints: |
+            Look for email addresses when user mentions:
+            - Wanting to receive information via email
+            - Requesting email summaries or follow-ups
+            - Providing contact information
+            - Asking about email notifications
+            - Saying "send it to me" or "email me"
+        
+        phone:
+          type: phone
+          required: false
+          validation: "^\\+?[1-9]\\d{1,14}$"
+          description: "User's phone number (optional)"
+          examples:
+            - "718-963-7272"
+            - "+1-718-963-7272"
+          semantic_hints: |
+            Look for phone numbers when user mentions:
+            - Appointment scheduling needs
+            - Urgent contact requirements
+            - Phone call preferences
+            - Contact information sharing
+            - Saying "call me" or "text me"
+      
+      # Guidance for LLM on when/how to capture profile information
+      capture_hints: |
+        Capture user contact information naturally during conversation.
+        
+        **When to capture email:**
+        - User requests follow-up information or email summaries
+        - User asks to be notified about something
+        - User provides email address voluntarily
+        - Conversation context suggests email would be useful
+        
+        **When to capture phone:**
+        - User needs appointment scheduling
+        - User requests urgent contact
+        - User provides phone number voluntarily
+        - Conversation context suggests phone contact would be useful
+        
+        **How to capture:**
+        - Be conversational and explain why the information is needed
+        - Don't be pushy - only ask when contextually relevant
+        - Validate format before storing
+        - Confirm captured information back to user
+      
+      # Example scenarios for LLM guidance
+      examples:
+        - user_query: "Can you email me more information?"
+          action: "Capture email address - user explicitly requested email"
+          tool_call: 'capture_profile_field(field="email", value="user@example.com")'
+        
+        - user_query: "I'd like to schedule an appointment"
+          action: "Capture phone number - needed for appointment scheduling"
+          tool_call: 'capture_profile_field(field="phone", value="718-963-7272")'
+        
+        - user_query: "My email is john@example.com"
+          action: "Capture email - user provided voluntarily"
+          tool_call: 'capture_profile_field(field="email", value="john@example.com")'
+  
+  - [ ] 0017-006-001-04 - CHUNK - Create profile.yaml for hospital sites (Wyckoff & Wind River)
+    - SUB-TASKS:
+      - Create profile.yaml for `wyckoff/wyckoff_info_chat1/`
+      - Create profile.yaml for `windriver/windriver_info_chat1/`
+      - Define fields: relationship_to_patient, health_issue, mailing_address, email, phone
+      - Add semantic hints for each field (when to capture)
+      - Add capture_hints specific to hospital visitor context
+      - Include examples for hospital visitor scenarios
+    - STATUS: Planned — Hospital visitor profile capture
+    - LOCATIONS:
+      - `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/profile.yaml`
+      - `backend/config/agent_configs/windriver/windriver_info_chat1/profile.yaml`
+    - EXAMPLE FIELDS:
+      - `relationship_to_patient`: Self, Parent, Guardian, Spouse, Other
+      - `health_issue`: Primary health concern or reason for visit
+      - `mailing_address`: Full address for mailings/appointments
+      - `email`: Contact email (required)
+      - `phone`: Contact phone (required)
+      - `preferred_contact_method`: Email, Phone, Text
+      - `insurance_provider`: Optional - for appointment scheduling
+      - `preferred_appointment_time`: Morning, Afternoon, Evening
+  
+  - [ ] 0017-006-001-05 - CHUNK - Create profile.yaml for Prepexcellence (student prep site)
+    - SUB-TASKS:
+      - Create profile.yaml for `prepexcellence/prepexcel_info_chat1/`
+      - Define fields: relationship_to_student, mailing_address, email, phone, current_grade, colleges_interested_in
+      - Add semantic hints for each field (when to capture)
+      - Add capture_hints specific to student prep/college counseling context
+      - Include examples for student intake scenarios
+    - STATUS: Planned — Student prep profile capture
+    - LOCATION: `backend/config/agent_configs/prepexcellence/prepexcel_info_chat1/profile.yaml`
+    - EXAMPLE FIELDS:
+      - `relationship_to_student`: Parent, Guardian, Student (self), Other
+      - `mailing_address`: Full address for materials/communications
+      - `email`: Contact email (required)
+      - `phone`: Contact phone (required)
+      - `current_grade`: Current grade level (9, 10, 11, 12, etc.)
+      - `colleges_interested_in`: List of colleges/universities student is considering
+      - `student_name`: Name of the student
+      - `test_prep_needs`: SAT, ACT, AP exams, etc.
+      - `college_major_interest`: Intended major or field of study
+      - `application_deadline_urgency`: Timeline for college applications
+      - `budget_range`: Optional - for program recommendations
+  
+  - [ ] 0017-006-001-06 - CHUNK - Create profile.yaml for Agrofresh (agrotech company)
+    - SUB-TASKS:
+      - Create profile.yaml for `agrofresh/agro_info_chat1/`
+      - Define fields: name, email, phone, products_interested_in, produce_types, delivery_location, urgency
+      - Add semantic hints for each field (when to capture)
+      - Add capture_hints specific to agrotech/agricultural product inquiries
+      - Include examples for product inquiry and order scenarios
+    - STATUS: Planned — Agrotech customer profile capture
+    - LOCATION: `backend/config/agent_configs/agrofresh/agro_info_chat1/profile.yaml`
+    - EXAMPLE FIELDS:
+      - `name`: Full name (required)
+      - `email`: Contact email (required)
+      - `phone`: Contact phone (required)
+      - `products_interested_in`: Specific products or product categories
+      - `produce_types`: Types of produce (fruits, vegetables, grains, etc.)
+      - `delivery_location`: Full address for product delivery
+      - `urgency`: Immediate, Within week, Within month, Just browsing
+      - `business_type`: Farm, Restaurant, Retail, Distributor, Individual
+      - `order_quantity`: Estimated quantity needed
+      - `growing_season`: Current season or planned growing season
+      - `organic_preference`: Organic, Conventional, Either
+      - `contact_preference`: Email, Phone, Text, In-person visit
   
 - [ ] 0017-006-002 - TASK - Migrate Profiles Table to JSONB
   - [ ] 0017-006-002-01 - CHUNK - Add JSONB fields to profiles table
@@ -3106,11 +3286,26 @@ Implement agent tool to capture and validate profile information during conversa
 - [ ] 0017-012-001 - TASK - Profile Capture Agent Tool
   - [ ] 0017-012-001-01 - CHUNK - Implement @agent.tool for profile capture
     - SUB-TASKS:
-      - Tool validates captured data against profile_fields.yaml
+      - Check if profile_capture tool is enabled in agent instance config.yaml
+      - Load profile.yaml file from agent instance folder (similar to DirectoryImporter.load_schema pattern)
+      - Path: `backend/config/agent_configs/{account_slug}/{instance_slug}/profile.yaml`
+      - Tool reads field definitions from profile.yaml (required_fields, optional_fields, fields section)
+      - Tool validates captured data against configured field definitions (validation regex)
       - Stores data in captured_profile_fields JSONB
       - Checks required_fields_updated_at and refreshes if stale (24h)
       - Returns validation results to agent
     - STATUS: Planned — Agent captures profile during conversation
+    - PATTERN: Follows same loading pattern as directory schemas (DirectoryImporter.load_schema)
+  
+  - [ ] 0017-012-001-02 - CHUNK - Integrate Profile Capture Hints into Modular Prompts
+    - SUB-TASKS:
+      - Load capture_hints and semantic_hints from agent instance profile.yaml
+      - Create profile_capture_hints.md module file (or inject directly)
+      - Integrate hints into prompt assembly via PromptBreakdownService
+      - Include semantic hints per field to guide LLM on what to look for
+      - Include capture_hints to guide LLM on when/how to use profile capture tool
+      - Follow same pattern as tool_selection_hints.md and directory_selection_hints.md
+    - STATUS: Planned — Hints guide LLM profile capture behavior
 
 ## Priority 2E: Email Summary with Mailgun
 

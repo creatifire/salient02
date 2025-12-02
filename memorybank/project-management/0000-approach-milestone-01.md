@@ -176,7 +176,6 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 - ✅ 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
 - 🔄 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
 
-**>> You are here <<**
 - 🔄 0025-004-004 - Implement Tool Calling Improvements (via Modular Prompts)
   - ✅ 0025-004-004-001 - Diagnostic Test with Alternative Model
   - ✅ 0025-004-004-002 - Quick Fix - Keyword Hints Module
@@ -185,13 +184,25 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
   - ✅ 0025-004-004-005 - Integrate Module Loading into simple_chat
   - 📋 0025-004-004-006 - Measure and Validate Improvements
 
+**>> You are here <<**
 ### Priority 6: Profile Fields Configuration & Database Schema 📋
-- 📋 0017-006-001 - Profile Fields YAML Configuration
+Epic 0017-006
+- 📋 0017-006-001 - Profile Tool Enable/Disable in Agent Config
+  - 📋 0017-006-001-01 - Add profile_capture enable switch to config.yaml
+  - 📋 0017-006-001-02 - Create profile schema loader helper (following DirectoryImporter pattern)
+  - 📋 0017-006-001-03 - Create profile.yaml file structure (following directory_schemas pattern)
+  - 📋 0017-006-001-04 - Create profile.yaml for hospital sites (Wyckoff & Wind River)
+  - 📋 0017-006-001-05 - Create profile.yaml for Prepexcellence (student prep site)
+  - 📋 0017-006-001-06 - Create profile.yaml for Agrofresh (agrotech company)
 - 📋 0017-006-002 - Migrate Profiles Table to JSONB
+  - 📋 0017-006-002-01 - Add JSONB fields to profiles table
+  - 📋 0017-006-002-02 - Remove hardcoded profile columns
 
 ### Priority 7: Profile Capture Tool 📋
 Epic 0017-012
 - 📋 0017-012-001 - Profile Capture Agent Tool
+  - 📋 0017-012-001-01 - Implement @agent.tool for profile capture
+  - 📋 0017-012-001-02 - Integrate Profile Capture Hints into Modular Prompts
 
 ### Priority 8: Email Summary Tool with Mailgun 📋
 - 📋 0017-008-001 - Mailgun Integration
