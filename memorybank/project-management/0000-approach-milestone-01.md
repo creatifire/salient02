@@ -218,6 +218,7 @@ FEATURE 0017-012 - Profile Capture Tool
 
 ### Priority 9: OTP Authentication 📋
 - 📋 0017-011-001 - OTP Authentication System
+- TBD - Closed (Requiring Sign-In) Chat Sessions or Open Chat Sessions
 
 ### Priority 9A: Test Suite Cleanup & Maintenance 📋
 TASK 0099-001 - Test Suite Audit and Cleanup
