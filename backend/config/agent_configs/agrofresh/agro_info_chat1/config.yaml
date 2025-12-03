@@ -18,6 +18,10 @@ model_settings:
   max_tokens: 2000
 
 tools:
+  profile_capture:
+    enabled: true
+    schema_file: "profile.yaml"  # Profile schema for agricultural customer information
+  
   vector_search:
     enabled: true  # Enabled - vector data loaded for AgroFresh website content
     max_results: 5
