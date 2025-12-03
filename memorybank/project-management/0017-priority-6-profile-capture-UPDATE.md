@@ -68,20 +68,20 @@ If instance-level profile.yaml exists, use it. Otherwise, fall back to system de
 ---
 
 - [ ] 0017-006-001 - TASK - Profile Schema Infrastructure
-  - [ ] 0017-006-001-01 - CHUNK - Add profile_capture config to agent config.yaml
+  - [x] 0017-006-001-01 - CHUNK - Add profile_capture config to agent config.yaml
     - SUB-TASKS:
       - Add `tools.profile_capture.enabled` boolean to agent config.yaml
       - Add `tools.profile_capture.schema_file` (default: "profile.yaml")
       - Follow same pattern as other tools (vector_search, directory)
       - Configuration loaded via agent config loader (per-agent-instance)
     - AUTOMATED-TESTS:
-      - `test_profile_config_loads()` - Verify profile config loads from agent YAML
-      - `test_profile_config_defaults()` - Verify default schema_file is "profile.yaml"
-      - `test_profile_disabled_by_default()` - Verify tool disabled unless explicitly enabled
+      - `test_profile_config_loads()` - Verify profile config loads from agent YAML ✅
+      - `test_profile_config_defaults()` - Verify default schema_file is "profile.yaml" ✅
+      - `test_profile_disabled_by_default()` - Verify tool disabled unless explicitly enabled ✅
     - MANUAL-TESTS:
-      - Review config.yaml structure for all agent instances
-      - Test config loading: `python -c "from app.services.config_loader import get_agent_config; print(get_agent_config('wyckoff/wyckoff_info_chat1'))"`
-    - STATUS: Planned — Profile tool enabled/disabled per agent instance
+      - Review config.yaml structure for all agent instances ✅
+      - Test config loading: `python -c "from app.services.config_loader import get_agent_config; print(get_agent_config('wyckoff/wyckoff_info_chat1'))"` ✅
+    - STATUS: ✅ Complete (commit d8252e2) — Profile tool enabled/disabled per agent instance
     - LOCATION: `backend/config/agent_configs/{account_slug}/{instance_slug}/config.yaml`
     - EXAMPLE CONFIG:
       ```yaml
