@@ -91,7 +91,7 @@ If instance-level profile.yaml exists, use it. Otherwise, fall back to system de
           schema_file: "profile.yaml"  # Default - can be customized
       ```
   
-  - [ ] 0017-006-001-02 - CHUNK - Create ProfileSchemaLoader class
+  - [x] 0017-006-001-02 - CHUNK - Create ProfileSchemaLoader class
     - **PURPOSE**: Load and validate profile.yaml with file-level cascade
     - **DESIGN RATIONALE**: See [CLARIFICATIONS.md - Question 5](PRIORITY-6-CLARIFICATIONS.md#5-field-type-validation-) for validation approach and class design decisions
     

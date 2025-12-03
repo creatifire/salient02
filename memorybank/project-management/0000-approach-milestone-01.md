@@ -192,7 +192,7 @@ See [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-captur
 FEATURE 0017-006 - Profile Configuration Infrastructure
 - 📋 0017-006-001 - Profile Schema Infrastructure
   - ✅ 0017-006-001-01 - Add profile_capture config to agent config.yaml
-  - 📋 0017-006-001-02 - Create ProfileSchemaLoader class
+  - ✅ 0017-006-001-02 - Create ProfileSchemaLoader class
   - 📋 0017-006-001-03 - Create system default profile.yaml
   - 📋 0017-006-001-04 - Create profile.yaml for hospital sites (Wyckoff & Wind River)
   - 📋 0017-006-001-05 - Create profile.yaml for PrepExcellence

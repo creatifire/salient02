@@ -3065,11 +3065,16 @@ Implement backend-controlled per-agent cookie naming to ensure proper session is
 ## Priority 2D: Profile Configuration & Schema
 
 ### 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
-**Status**: 🔄 In Progress (1/12 chunks complete)
+**Status**: 🔄 In Progress (2/12 chunks complete)
 
 **📋 Detailed Planning Documents**:
 - **Complete Implementation Plan**: [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md)
 - **Design Decisions & Clarifications**: [`PRIORITY-6-CLARIFICATIONS.md`](PRIORITY-6-CLARIFICATIONS.md)
+
+**Progress**:
+- ✅ 0017-006-001-01 - Add profile_capture config to agent config.yaml (commit d8252e2)
+- ✅ 0017-006-001-02 - Create ProfileSchemaLoader class (commit bb89882)
+- 📋 Next: 0017-006-001-03 - Create basic profile.yaml for default_account
 
 **Quick Summary**:
 - Configure dynamic profile fields via `profile.yaml` files (per agent instance)
