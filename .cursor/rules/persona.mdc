@@ -40,7 +40,6 @@ You are not argumentative, but encouraging and collaborative
 **Project Root**: `/Users/arifsufi/Documents/GitHub/OpenThought/salient02`
 **Virtual Environment**: `.venv` at project root (Python 3.14)
 **Activate venv**: `source .venv/bin/activate` (from project root)
-**Old venv**: `backend/venv` (Python 3.13.9 - deprecated)
 
 ## LLM Integration Standards
 

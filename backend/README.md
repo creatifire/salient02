@@ -58,7 +58,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Important**: Use `.venv` at the project root, NOT `backend/venv`.
+**Important**: Always use `.venv` at the project root.
 
 ### Manual Backend Startup
 
@@ -107,12 +107,12 @@ cd /path/to/salient02 && source .venv/bin/activate && uvicorn backend.app.main:a
 ```bash
 # DON'T DO THIS - will cause ModuleNotFoundError:
 cd backend                    # ❌ Wrong directory
-source venv/bin/activate      # ❌ Wrong virtual environment
+source backend/venv/bin/activate      # ❌ Wrong - no venv here
 uvicorn app.main:app --reload # ❌ Wrong module path
 ```
 
 **Why this fails:**
-- Wrong virtual environment (`backend/venv` instead of `.venv` at root)
+- Wrong virtual environment (only `.venv` at project root exists)
 - Wrong module path (`app.main:app` instead of `backend.app.main:app`)  
 - Wrong working directory for config file paths
 
@@ -129,7 +129,7 @@ uvicorn app.main:app --reload # ❌ Wrong module path
    - You're using the wrong module path
    - From project root, use `backend.app.main:app` not `app.main:app`
 
-3. **Import errors**: Make sure you're using the `.venv` at project root, not `backend/venv`
+3. **Import errors**: Make sure you're using the `.venv` at project root
 
 4. **Port already in use**: Add `--port 8001` or kill existing uvicorn processes
 

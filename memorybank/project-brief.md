@@ -71,7 +71,6 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 **Project Root Location:**
 - Project root: `/Users/arifsufi/Documents/GitHub/OpenThought/salient02`
 - Virtual environment: `.venv` (located at project root - Python 3.14)
-- Old venv: `backend/venv` (Python 3.13.9 - deprecated, use `.venv` instead)
 
 **Backend Execution Convention:**
 - Backend is **always run from project root** (where `.venv` is located)
