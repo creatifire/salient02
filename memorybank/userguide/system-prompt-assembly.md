@@ -422,6 +422,119 @@ This breakdown is stored in the `llm_requests` table for analysis.
 
 ---
 
+## Caching and Performance
+
+### System Prompt is NOT Cached
+
+**IMPORTANT**: The system prompt is assembled **fresh for every single request**. There is no caching at the session level or agent level.
+
+#### Why No Caching?
+
+From the codebase comments:
+> "Global caching disabled for production reliability. Configuration changes take effect immediately after server restart without requiring session cookie clearing or cache invalidation."
+
+**Design Decision**:
+```python
+async def get_chat_agent():
+    """Create a fresh chat agent instance."""
+    # Always create fresh agent to pick up latest configuration
+    agent = await create_simple_chat_agent()
+    return agent
+```
+
+#### What Happens on Every Request
+
+1. **Load prompt files** - 4-5 file reads (`tool_selection_hints.md`, `system_prompt.md`, modules)
+2. **Query database** - Live query for directory metadata (entry counts, available tags)
+3. **Parse schema files** - Load YAML schemas for enabled directories
+4. **Assemble prompt** - Concatenate all components in correct order
+5. **Create agent** - New Pydantic AI Agent instance with assembled prompt
+6. **Process request** - Execute user query
+7. **Discard agent** - Agent not reused for next request
+
+#### Performance Impact
+
+| Component | Time per Request | Notes |
+|-----------|------------------|-------|
+| **Load prompt files** | ~5-10ms | File I/O for markdown files |
+| **Database query** | ~10-50ms | Directory list metadata + entry counts |
+| **Parse schema YAML** | ~5-10ms | Load directory schemas |
+| **String assembly** | ~1ms | Concatenate components |
+| **Total Assembly Overhead** | **~20-70ms** | Per request |
+| **LLM Request Time** | ~500-3000ms | For comparison |
+| **Assembly % of Total** | **~1-5%** | Minimal overhead |
+
+#### Benefits of Fresh Assembly
+
+✅ **Configuration changes immediate** - Edit `system_prompt.md`, restart server, changes take effect  
+✅ **No cache invalidation complexity** - No need to track when to clear cache  
+✅ **Always current directory data** - Entry counts and tags are always live  
+✅ **Simpler debugging** - No "clear cache and try again" troubleshooting  
+✅ **Memory efficient** - No large prompt cache in memory  
+✅ **Multi-tenant safe** - Each account/agent gets fresh assembly
+
+#### Dynamic Components Stay Fresh
+
+The **directory documentation** (Position 3) benefits most from fresh assembly:
+
+```markdown
+## Available Directory: doctors
+**Total entries**: 42 doctors  ← Queried from database LIVE
+**Available Language Tags**: English, Spanish, Hindi...  ← From actual entries
+```
+
+If cached, these could become stale when:
+- New entries added to directories
+- Entries removed or updated
+- Language tags change
+- Schema fields modified
+
+#### When Changes Take Effect
+
+| Change Type | When It Takes Effect |
+|-------------|---------------------|
+| **Edit system_prompt.md** | After server restart |
+| **Add/edit prompt module** | After server restart |
+| **Change agent config.yaml** | After server restart |
+| **Add directory entry** | Immediately (live query) |
+| **Update directory schema** | After server restart |
+| **Enable/disable tools** | After server restart |
+
+**Note**: "After server restart" means you need to restart the uvicorn backend server. Frontend-only changes (widget, pages) don't require backend restart.
+
+#### Could Caching Be Added?
+
+Yes, with these considerations:
+
+**Potential Caching Strategy**:
+```python
+_agent_cache: Dict[str, tuple[Agent, datetime]] = {}
+_cache_ttl = 300  # 5 minutes
+
+async def get_chat_agent_cached(instance_config, account_id):
+    cache_key = f"{account_id}:{instance_config['instance_name']}"
+    
+    if cache_key in _agent_cache:
+        agent, cached_at = _agent_cache[cache_key]
+        if (datetime.now(UTC) - cached_at).seconds < _cache_ttl:
+            return agent  # Use cached
+    
+    # Cache miss or expired - create fresh
+    agent = await create_simple_chat_agent(instance_config, account_id)
+    _agent_cache[cache_key] = (agent, datetime.now(UTC))
+    return agent
+```
+
+**When to Consider Caching**:
+- Request volume >100 req/sec per agent
+- Profiling shows assembly is a bottleneck
+- Directory data rarely changes
+- Need to implement proper cache invalidation
+
+**Current Recommendation**: No caching needed. The ~20-70ms overhead is minimal compared to LLM request time (~500-3000ms).
+
+---
+
 ## Configuration Examples
 
 ### Minimal Configuration (No Modules)
