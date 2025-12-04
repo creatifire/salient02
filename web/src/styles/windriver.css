@@ -1,4 +1,4 @@
-/* Windriver Hospital - Green/Teal Healthcare Theme */
+/* Wind River Hospital - Green/Teal Healthcare Theme */
 
 :root {
   --windriver-primary: #2E7D32;     /* Forest Green */
@@ -17,7 +17,7 @@
   color: white;
 }
 
-/* Override color variables for Windriver Hospital */
+/* Override color variables for Wind River Hospital */
 body {
   --color-secondary-foreground: white;
 }
