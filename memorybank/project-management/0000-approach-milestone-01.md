@@ -220,6 +220,9 @@ FEATURE 0017-012 - Profile Capture Tool
 - 📋 0017-011-001 - OTP Authentication System
 - TBD - Closed (Requiring Sign-In) Chat Sessions or Open Chat Sessions
 
+### Priority TBD: "Next Steps" Prompt Module at the Agent-Instance Level
+- TBD - Add hints to the system prompt how to close each interaction.
+
 ### Priority 9A: Test Suite Cleanup & Maintenance 📋
 TASK 0099-001 - Test Suite Audit and Cleanup
 - 📋 0099-001-001 - CHUNK - Audit and categorize all existing tests
