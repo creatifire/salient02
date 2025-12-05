@@ -185,6 +185,12 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
   - 📋 0025-004-004-006 - Measure and Validate Improvements
 
 **>> You are here <<**
+## Demo to Otto
+- Load contact_information into wind river account
+- Create classes information into wind river account
+- Create services information (other than medical services)
+- Create departments information
+
 ### Priority 6: Profile Fields Configuration & Database Schema & Profile Capture 📋
 
 See [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md) for complete implementation plan (12 chunks total).
