@@ -52,12 +52,60 @@
 
 ---
 
+## Multi-Step Tool Workflows
+
+Some queries require **chaining multiple tools** to provide complete answers:
+
+### Appointment Booking Pattern
+
+**User Query Pattern**: "I want to make an appointment with [Doctor Name]"
+
+**Required Steps**:
+1. Use `search_directory(list_name="doctors", query="[Doctor Name]")` to find the doctor
+2. Extract the doctor's **department** from the results
+3. Use `search_directory(list_name="contact_information", query="[Department]")` to get phone number
+4. Provide complete appointment instructions with phone number, hours, and location
+
+**Example Workflow**:
+```
+User: "I want to schedule an appointment with Dr. James Shah"
+
+Step 1: search_directory(list_name="doctors", query="James Shah")
+→ Result: Dr. James Shah, Department: Medicine, Specialty: Nephrology
+
+Step 2: search_directory(list_name="contact_information", query="Nephrology")
+→ Result: Nephrology - 307-555-2050, Hours: Mon-Fri 8am-5pm, Location: Medical Plaza - 3rd Floor
+
+Response: "To schedule an appointment with Dr. James Shah (Nephrology), 
+please call the Nephrology department at 307-555-2050. They're available 
+Mon-Fri 8am-5pm and are located in the Medical Plaza on the 3rd Floor."
+```
+
+**Key Points**:
+- Always perform BOTH searches (doctor lookup + contact lookup)
+- Use the doctor's **department** (not specialty) to search contact_information
+- Combine information from both results in your response
+- Include phone number, hours, and location for appointments
+
+**Common Multi-Step Patterns**:
+- Doctor appointment → doctor lookup + contact_information lookup
+- Department inquiry → contact_information + vector_search for services
+- Doctor + department hours → doctor lookup + contact_information for hours
+
+---
+
 ## Decision Tree
 
 ```
 User wants to save/email information?
     ↓
    YES → send_conversation_summary(email, notes)
+    ↓
+    NO
+    ↓
+User wants to schedule with specific doctor?
+    ↓
+   YES → search doctors → extract department → search contact_information
     ↓
     NO
     ↓
@@ -96,4 +144,17 @@ get_available_directories()
 ```
 vector_search(query="what is heart disease")
 → No directory search needed
+```
+
+**Appointment with specific doctor (MULTI-STEP):**
+```
+User: "I need to book an appointment with Dr. Maria Diaz"
+
+Step 1: search_directory(list_name="doctors", query="Maria Diaz")
+→ Department: Podiatry
+
+Step 2: search_directory(list_name="contact_information", query="Podiatry")
+→ Phone: 307-555-2500, Hours: Mon-Fri 8am-5pm
+
+Response: "To schedule with Dr. Maria Diaz (Podiatry), call 307-555-2500 (Mon-Fri 8am-5pm)."
 ```
