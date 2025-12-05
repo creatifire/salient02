@@ -26,6 +26,9 @@ model_settings:
   max_tokens: 2000
 
 tools:
+  email_summary:
+    enabled: true  # Demo feature - allows users to request conversation summaries via email
+  
   profile_capture:
     enabled: true
     schema_file: "profile.yaml"  # Profile schema for hospital visitor information

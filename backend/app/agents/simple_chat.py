@@ -38,6 +38,7 @@ from .cost_calculator import calculate_streaming_costs, track_chat_request
 from .tools.toolsets import get_enabled_toolsets
 from .tools.directory_tools import get_available_directories, search_directory
 from .tools.vector_tools import vector_search
+from .tools.email_tools import send_conversation_summary
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -177,6 +178,16 @@ async def create_simple_chat_agent(
         # Add vector search tool if enabled
         if tools_config.get("vector_search", {}).get("enabled", False):
             tools_list.append(vector_search)
+        
+        # Add email summary tool if enabled
+        if tools_config.get("email_summary", {}).get("enabled", False):
+            tools_list.append(send_conversation_summary)
+            logfire.info(
+                'agent.tool.registered',
+                tool='send_conversation_summary',
+                agent=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+                demo_mode=True
+            )
         
         logfire.info(
             'agent.creation',
@@ -383,6 +394,16 @@ async def create_simple_chat_agent(
     # Add vector search tool if enabled
     if tools_config.get("vector_search", {}).get("enabled", False):
         tools_list.append(vector_search)
+    
+    # Add email summary tool if enabled
+    if tools_config.get("email_summary", {}).get("enabled", False):
+        tools_list.append(send_conversation_summary)
+        logfire.info(
+            'agent.tool.registered',
+            tool='send_conversation_summary',
+            agent=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+            demo_mode=True
+        )
     
     logfire.info(
         'agent.creation',

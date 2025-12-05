@@ -60,9 +60,9 @@ flowchart TD
 
 ---
 
-## 0028-001 - FEATURE - Demo Email Summary Tool
+## 0028-001 - FEATURE - Email Summary Tool
 
-### 0028-001-001 - TASK - Email Summary Tool Implementation
+### 0028-001-001 - TASK - Demo Email Summary Tool Implementation
 
 - [ ] 0028-001-001-01 - CHUNK - Create email_tools.py with demo tool
   
