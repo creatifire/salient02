@@ -25,10 +25,10 @@ flowchart TD
     User["👤 User"] --> Agent["🤖 Pydantic AI Agent"]
     
     %% Agent Decision
-    Agent --> DecideEmail{"User requests\nsummary?"}
+    Agent --> DecideEmail{"User requests<br>summary?"}
     
     %% Email Tool Flow
-    DecideEmail -->|Yes| EmailCheck{"Has email\naddress?"}
+    DecideEmail -->|Yes| EmailCheck{"Has email<br>address?"}
     EmailCheck -->|No| AskEmail["Ask for email"]
     EmailCheck -->|Yes| EmailTool["📧 send_conversation_summary() tool"]
     AskEmail --> EmailTool
@@ -38,17 +38,17 @@ flowchart TD
     EmailTool --> ReturnMsg["✓ Confirmation Message"]
     
     %% Logging Details
-    LogEvent --> LogDetails["Log:\n- Session ID\n- Email address\n- Summary notes\n- Timestamp\n- demo_mode: true"]
+    LogEvent --> LogDetails["Log:<br>- Session ID<br>- Email address<br>- Summary notes<br>- Timestamp<br>- demo_mode: true"]
     
     %% Response Flow
     ReturnMsg --> Agent
     Agent --> User
     
     %% System Prompt
-    SystemPrompt["📝 System Prompt\nGuidance"] -.-> Agent
+    SystemPrompt["📝 System Prompt<br>Guidance"] -.-> Agent
     
     %% Future Extension
-    EmailTool -.->|Future| RealEmail["📬 Real Email\nIntegration"]
+    EmailTool -.->|Future| RealEmail["📬 Real Email<br>Integration"]
     
     style EmailTool fill:#e1f5e1
     style LogEvent fill:#fff3cd
