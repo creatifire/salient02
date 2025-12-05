@@ -12,6 +12,14 @@ description: "Healthcare information and doctor search assistant for Wind River 
 prompts:
   system_prompt_file: "./system_prompt.md"
 
+# Prompt modules configuration (Phase 4A)
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - tool_selection_hints       # NEW - choose correct tool (directory vs vector vs email)
+      # directory_selection_hints automatically included in directory header when directory tools enabled
+
 model_settings:
   model: "openai/gpt-4o-mini"  # Fast, reliable OpenAI model with excellent tool support
   temperature: 0.3
