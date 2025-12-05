@@ -48,8 +48,8 @@ tools:
       dimensions: 1536
   
   directory:
-    enabled: true  # ENABLED - Wind River doctor profiles from directory_lists
-    accessible_lists: ["doctors"]  # Lists this agent can search
+    enabled: true  # ENABLED - Wind River doctor profiles and contact information from directory_lists
+    accessible_lists: ["doctors", "contact_information"]  # Lists this agent can search
     max_results: 10  # Maximum entries to return per search
     search_mode: "fts"  # Search mode: exact | substring | fts (full-text search with ranking)
   
