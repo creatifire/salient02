@@ -4,18 +4,12 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Epic 0028 - Email Summary Tool (Demo Feature)
-> **Last Updated**: December 4, 2025
+> **Last Updated**: December 5, 2025
+> **Supersedes**: Epic 0017-008 (Email Summary Tool with Mailgun)
 
 Implement demo email summary tool that creates the illusion of sending conversation summaries without actual email integration.
 
-## Purpose
-
-Create a convincing demo feature that allows users to request conversation summaries "via email" while:
-- Demonstrating tool calling capabilities
-- Providing professional user experience
-- Logging feature requests for analytics
-- Avoiding email infrastructure complexity during demo phase
-- Maintaining extensibility for future real email integration
+Demo email summary tool with lightweight logging, maintaining extensibility for future Mailgun integration.
 
 ## Architecture Overview
 
@@ -58,45 +52,21 @@ flowchart TD
 
 ## Design Decisions
 
-### Why Lightweight Tool (Option 3)?
+**Lightweight tool with logging** - No filesystem clutter, fast response, easy upgrade path to real email.
 
-**Chosen Approach**: Hybrid - Lightweight tool with logging
+**Rejected**: Prompt-only (inconsistent), file-writing tool (unnecessary complexity).
 
-✅ **Advantages**:
-- Demonstrates tool calling (impressive for demos)
-- Professional user experience (feels real)
-- Analytics tracking (measure feature interest)
-- No filesystem clutter (just logs)
-- Easy to upgrade to real email later
-- Consistent phrasing every time
-- Fast (no file I/O)
-
-❌ **Rejected Alternatives**:
-1. **Prompt-only** - LLM may not follow instructions consistently
-2. **File-writing tool** - Unnecessary filesystem management
-
-### Security & Privacy
-
-- ✅ **Email addresses logged** - For demo analytics only
-- ✅ **No actual email sent** - Demo mode clearly indicated
-- ✅ **Logfire retention** - Logs expire naturally
-- ✅ **No PII storage** - Email addresses in logs only, not database
-- ⚠️ **Future consideration** - When implementing real email, add consent tracking
+**Privacy**: Email addresses logged for demo analytics only. No PII in database. Future: add consent tracking for production.
 
 ---
 
 ## 0028-001 - FEATURE - Demo Email Summary Tool
 
-**Status**: 📋 Planned
-
-Implement lightweight email summary tool with Logfire logging.
-
 ### 0028-001-001 - TASK - Email Summary Tool Implementation
 
 - [ ] 0028-001-001-01 - CHUNK - Create email_tools.py with demo tool
-  - **PURPOSE**: Implement lightweight tool that logs email requests without sending actual emails
   
-  - **FILE LOCATION**: `backend/app/agents/tools/email_tools.py`
+  **FILE**: `backend/app/agents/tools/email_tools.py`
   
   - **IMPLEMENTATION**:
     ```python
@@ -212,14 +182,10 @@ Implement lightweight email summary tool with Logfire logging.
     - Check docstring clarity and examples
     - Verify email validation logic
     - Test that function signature is correct for @agent.tool
-  
-  - STATUS: Planned — Core tool implementation
-  - PRIORITY: High — Foundation for feature
 
 - [ ] 0028-001-001-02 - CHUNK - Register tool in agent configuration
-  - **PURPOSE**: Make email summary tool available to agents that need it
   
-  - **CONFIGURATION STRUCTURE**:
+  **CONFIGURATION**:
     ```yaml
     # backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml
     
@@ -295,14 +261,10 @@ Implement lightweight email summary tool with Logfire logging.
     - Verify tool available (check LLM request body for tool definitions)
     - Test agent WITHOUT email_summary enabled
     - Verify tool NOT available for that agent
-  
-  - STATUS: Planned — Tool registration
-  - PRIORITY: High — Required for agent access
 
 - [ ] 0028-001-001-03 - CHUNK - Update system prompt with email guidance
-  - **PURPOSE**: Teach agent when and how to use email summary tool
   
-  - **SYSTEM PROMPT ADDITIONS**:
+  **SYSTEM PROMPT ADDITIONS**:
     ```markdown
     ## Sending Conversation Summaries
     
@@ -335,7 +297,7 @@ Implement lightweight email summary tool with Logfire logging.
     - Any attachments or materials (e.g., "department brochure and parking directions")
     ```
   
-  - **FILE TO UPDATE**: `backend/config/agent_configs/windriver/windriver_info_chat1/system_prompt.md`
+  **FILE**: `backend/config/agent_configs/windriver/windriver_info_chat1/system_prompt.md`
   
   - SUB-TASKS:
     - Add "Sending Conversation Summaries" section to Wind River system prompt
@@ -359,14 +321,10 @@ Implement lightweight email summary tool with Logfire logging.
     - Verify agent calls send_conversation_summary tool
     - Test agent offers summaries proactively when appropriate
     - Verify agent doesn't over-suggest emails (not pushy)
-  
-  - STATUS: Planned — Agent prompt engineering
-  - PRIORITY: High — Guides agent behavior
 
 - [ ] 0028-001-001-04 - CHUNK - End-to-end testing and validation
-  - **PURPOSE**: Comprehensive testing of email summary feature from user perspective
   
-  - **TEST SCENARIOS**:
+  **TEST SCENARIOS**:
     
     **Scenario 1: User requests summary**
     ```
@@ -469,24 +427,16 @@ Implement lightweight email summary tool with Logfire logging.
       - Test AgroFresh agent (email_summary disabled)
       - Verify tool NOT available
       - Ask for summary, verify agent can't send email
-  
-  - STATUS: Planned — Final validation
-  - PRIORITY: High — Required for demo readiness
 
 ---
 
-## 0028-002 - FEATURE - Analytics and Monitoring
-
-**Status**: 📋 Planned (Optional)
-
-Track email summary requests for feature usage analytics.
+## 0028-002 - FEATURE - Analytics and Monitoring (Optional)
 
 ### 0028-002-001 - TASK - Email Request Analytics Dashboard
 
 - [ ] 0028-002-001-01 - CHUNK - Create Logfire query dashboard
-  - **PURPOSE**: Monitor email summary feature usage and user demand
   
-  - **METRICS TO TRACK**:
+  **METRICS**:
     - Total email summary requests (count)
     - Requests per agent instance
     - Unique email addresses (approximate user count)
@@ -532,161 +482,660 @@ Track email summary requests for feature usage analytics.
     - Add alerts for unusual activity (spike in requests)
     - Document how to access analytics
     - Export sample reports for stakeholders
+
+---
+
+## 0028-003 - FEATURE - Real Email Integration with Mailgun (Future)
+
+**Supersedes**: 0017-008
+
+Production-ready email integration: Mailgun API, conversation summarization, HTML templates, consent tracking.
+
+### 0028-003-001 - TASK - Mailgun Service Integration
+
+- [ ] 0028-003-001-01 - CHUNK - Create MailgunService class
   
-  - STATUS: Planned — Business intelligence
-  - PRIORITY: Low — Optional enhancement
-
----
-
-## Future: Real Email Integration
-
-**Status**: 🔮 Future Work (Not in Scope)
-
-When demo phase concludes, replace demo tool with real email integration.
-
-### Migration Path
-
-**Step 1: Add Mailgun Integration**
-- Create `MailgunService` class
-- Add Mailgun API credentials to config
-- Implement actual email sending
-
-**Step 2: Update Email Tool**
-- Keep same function signature
-- Add environment check: `if os.getenv('MAILGUN_ENABLED')`
-- Route to real email or demo based on environment
-
-**Step 3: Add Consent Tracking**
-- Update profiles table with email consent field
-- Check consent before sending email
-- Add opt-out mechanism
-
-**Step 4: Email Templates**
-- Design HTML email templates
-- Add conversation summary generation
-- Include relevant attachments/links
-
-**Example Future Implementation**:
-```python
-async def send_conversation_summary(
-    ctx: RunContext[SessionDependencies],
-    email_address: str,
-    summary_notes: str = ""
-) -> str:
+  **FILE**: `backend/app/services/mailgun_service.py`
+  
+  - **IMPLEMENTATION**:
+    ```python
     """
-    Send conversation summary via email.
-    Supports both demo mode and real email sending.
-    """
-    session_id = ctx.deps.session_id
+    Mailgun email service for sending conversation summaries.
     
-    # Check if real email is enabled
-    if os.getenv('MAILGUN_ENABLED'):
-        # Real email path
-        from app.services.mailgun_service import get_mailgun_service
+    Handles email sending, template rendering, and delivery tracking.
+    """
+    
+    import os
+    import logfire
+    from typing import Optional, List
+    from dataclasses import dataclass
+    import aiohttp
+    
+    @dataclass
+    class EmailResult:
+        success: bool
+        message_id: Optional[str] = None
+        error: Optional[str] = None
+    
+    class MailgunService:
+        """Service for sending emails via Mailgun API."""
         
-        mailgun = get_mailgun_service()
+        def __init__(
+            self,
+            api_key: Optional[str] = None,
+            domain: Optional[str] = None,
+            from_email: Optional[str] = None
+        ):
+            self.api_key = api_key or os.getenv('MAILGUN_API_KEY')
+            self.domain = domain or os.getenv('MAILGUN_DOMAIN')
+            self.from_email = from_email or os.getenv('MAILGUN_FROM_EMAIL')
+            
+            if not all([self.api_key, self.domain, self.from_email]):
+                raise ValueError("Mailgun credentials not configured")
+            
+            self.base_url = f"https://api.mailgun.net/v3/{self.domain}"
         
-        # Generate summary from conversation history
-        summary = await generate_conversation_summary(session_id)
-        
-        # Send via Mailgun
-        result = await mailgun.send_email(
-            to=email_address,
-            subject="Your Conversation Summary",
-            html_body=summary,
-            attachments=[]
-        )
-        
-        if result.success:
+        async def send_email(
+            self,
+            to: str,
+            subject: str,
+            html_body: str,
+            text_body: Optional[str] = None,
+            attachments: Optional[List[str]] = None
+        ) -> EmailResult:
+            """Send email via Mailgun API."""
+            
             logfire.info(
-                'email.summary.sent',
+                'mailgun.send_email.start',
+                to=to,
+                subject=subject,
+                has_attachments=bool(attachments)
+            )
+            
+            try:
+                data = {
+                    'from': self.from_email,
+                    'to': to,
+                    'subject': subject,
+                    'html': html_body
+                }
+                
+                if text_body:
+                    data['text'] = text_body
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{self.base_url}/messages",
+                        auth=aiohttp.BasicAuth('api', self.api_key),
+                        data=data
+                    ) as response:
+                        if response.status == 200:
+                            result_data = await response.json()
+                            message_id = result_data.get('id')
+                            
+                            logfire.info(
+                                'mailgun.send_email.success',
+                                to=to,
+                                message_id=message_id
+                            )
+                            
+                            return EmailResult(
+                                success=True,
+                                message_id=message_id
+                            )
+                        else:
+                            error_text = await response.text()
+                            logfire.error(
+                                'mailgun.send_email.failed',
+                                to=to,
+                                status=response.status,
+                                error=error_text
+                            )
+                            
+                            return EmailResult(
+                                success=False,
+                                error=f"Mailgun API error: {response.status}"
+                            )
+            
+            except Exception as e:
+                logfire.error(
+                    'mailgun.send_email.exception',
+                    to=to,
+                    error=str(e)
+                )
+                
+                return EmailResult(
+                    success=False,
+                    error=str(e)
+                )
+    
+    # Singleton instance
+    _mailgun_service: Optional[MailgunService] = None
+    
+    def get_mailgun_service() -> MailgunService:
+        """Get or create Mailgun service singleton."""
+        global _mailgun_service
+        
+        if _mailgun_service is None:
+            _mailgun_service = MailgunService()
+        
+        return _mailgun_service
+    ```
+  
+  - SUB-TASKS:
+    - Create `backend/app/services/mailgun_service.py` file
+    - Implement `MailgunService` class with async email sending
+    - Add Mailgun API authentication (API key, domain)
+    - Implement `send_email()` method with error handling
+    - Add singleton `get_mailgun_service()` function
+    - Add comprehensive logging (start, success, failure)
+    - Handle Mailgun API errors gracefully
+    - Add email validation
+  
+  - AUTOMATED-TESTS: `backend/tests/unit/test_mailgun_service.py`
+    - `test_mailgun_service_initialization()` - Test service creation with credentials
+    - `test_send_email_success()` - Mock successful email send
+    - `test_send_email_failure()` - Mock API failure handling
+    - `test_missing_credentials()` - Test error when credentials missing
+    - `test_get_mailgun_service_singleton()` - Test singleton pattern
+  
+  - MANUAL-TESTS:
+    - Set environment variables: MAILGUN_API_KEY, MAILGUN_DOMAIN, MAILGUN_FROM_EMAIL
+    - Test service initialization
+    - Send test email via Mailgun (use test mode domain)
+    - Verify email received
+    - Check Mailgun dashboard for delivery logs
+
+- [ ] 0028-003-001-02 - CHUNK - Add Mailgun configuration to app.yaml
+  
+  **CONFIGURATION**:
+    ```yaml
+    # backend/config/app.yaml
+    
+    email:
+      enabled: false  # Feature flag: false = demo mode, true = real email
+      provider: "mailgun"
+      
+      mailgun:
+        api_key_env: "MAILGUN_API_KEY"  # Environment variable name
+        domain_env: "MAILGUN_DOMAIN"     # e.g., "mg.example.com"
+        from_email_env: "MAILGUN_FROM_EMAIL"  # e.g., "noreply@example.com"
+        
+      # Email sending behavior
+      retry_attempts: 3
+      retry_delay_seconds: 5
+      timeout_seconds: 30
+    ```
+  
+  - SUB-TASKS:
+    - Add `email` section to `backend/config/app.yaml`
+    - Document environment variable names
+    - Add feature flag: `email.enabled`
+    - Add retry and timeout settings
+    - Update `.env.example` with Mailgun variables
+    - Document configuration in `backend/README.md`
+
+### 0028-003-002 - TASK - Conversation Summarization Engine
+
+- [ ] 0028-003-002-01 - CHUNK - Create conversation summary generator
+  
+  **FILE**: `backend/app/services/conversation_summary_service.py`
+  
+  **CONFIGURATION REQUIREMENTS**:
+  
+  Add to `config.yaml`:
+  ```yaml
+  email:
+    enabled: false
+    summarization:
+      model: "openai/gpt-4o-mini"  # LLM for summarization (fast, cost-effective)
+      prompt_file: "email_summarization_prompt.md"  # Follows cascade: instance → account → system → none
+      max_messages: 100  # Conversation history limit
+  ```
+  
+  **PROMPT FILE CASCADE** (agent-instance → account → system → none):
+  - `backend/config/agent_configs/{account}/{instance}/email_summarization_prompt.md`
+  - `backend/config/prompt_modules/accounts/{account}/email_summarization_prompt.md`
+  - `backend/config/prompt_modules/system/email_summarization_prompt.md`
+  
+  **IMPLEMENTATION**:
+    ```python
+    """
+    Conversation summary generation service.
+    
+    Generates intelligent, contextual summaries of chat conversations
+    using LLM to extract key points, decisions, and information shared.
+    """
+    
+    import logfire
+    from typing import List, Optional
+    from uuid import UUID
+    from pydantic_ai import Agent
+    
+    from ..models.message import Message
+    from ..services.message_service import get_message_service
+    
+    class ConversationSummaryService:
+        """Service for generating conversation summaries."""
+        
+        def __init__(self, config: dict):
+            # Load summarization configuration
+            email_config = config.get('email', {})
+            summarization_config = email_config.get('summarization', {})
+            
+            # Get model and prompt file from config
+            model = summarization_config.get('model', 'openai/gpt-4o-mini')
+            prompt_file = summarization_config.get('prompt_file', 'email_summarization_prompt.md')
+            
+            # Load summarization prompt with cascade
+            from ..agents.tools.prompt_modules import load_prompt_module
+            system_prompt = load_prompt_module(prompt_file) or self._get_default_prompt()
+            
+            # Create dedicated summarization agent
+            self.agent = Agent(
+                model,
+                system_prompt=system_prompt
+            )
+            
+            self.max_messages = summarization_config.get('max_messages', 100)
+        
+        def _get_default_prompt(self) -> str:
+            """Fallback prompt if no cascade file found."""
+            return """You are a conversation summarizer.
+            
+            Generate concise, accurate summaries of chat conversations.
+            Focus on:
+            - Key information shared
+            - Questions asked and answered
+            - Decisions made or recommendations given
+            - Action items or next steps
+            - Important details (names, numbers, dates)
+            
+            Format the summary in clear sections with bullet points.
+            Be professional but friendly."""
+        
+        async def generate_summary(
+            self,
+            session_id: UUID,
+            summary_notes: Optional[str] = None
+        ) -> str:
+            """
+            Generate HTML summary of conversation.
+            
+            Args:
+                session_id: Session UUID
+                summary_notes: Optional context about what to emphasize
+            
+            Returns:
+                HTML-formatted summary
+            """
+            logfire.info(
+                'conversation.summary.generate_start',
+                session_id=str(session_id),
+                has_notes=bool(summary_notes)
+            )
+            
+            # Load conversation history
+            message_service = get_message_service()
+            messages = await message_service.get_session_messages(
+                session_id=session_id,
+                limit=100  # Last 100 messages
+            )
+            
+            if not messages:
+                return "<p>No conversation history found.</p>"
+            
+            # Format conversation for LLM
+            conversation_text = self._format_conversation(messages)
+            
+            # Generate summary with LLM
+            prompt = f"""Summarize this conversation:
+
+{conversation_text}
+
+{f"Focus especially on: {summary_notes}" if summary_notes else ""}
+
+Generate an HTML summary with sections and bullet points."""
+            
+            result = await self.agent.run(prompt)
+            summary_html = result.output
+            
+            logfire.info(
+                'conversation.summary.generate_complete',
+                session_id=str(session_id),
+                message_count=len(messages),
+                summary_length=len(summary_html)
+            )
+            
+            return summary_html
+        
+        def _format_conversation(self, messages: List[Message]) -> str:
+            """Format messages for LLM summarization."""
+            lines = []
+            for msg in messages:
+                role = "User" if msg.role in ("user", "human") else "Assistant"
+                lines.append(f"{role}: {msg.content}")
+            
+            return "\n\n".join(lines)
+    
+    # Singleton instance
+    _summary_service: Optional[ConversationSummaryService] = None
+    
+    def get_conversation_summary_service() -> ConversationSummaryService:
+        """Get or create conversation summary service singleton."""
+        global _summary_service
+        
+        if _summary_service is None:
+            from ...config import load_config
+            config = load_config()
+            _summary_service = ConversationSummaryService(config)
+        
+        return _summary_service
+    ```
+  
+  - SUB-TASKS:
+    - Create `backend/app/services/conversation_summary_service.py`
+    - Implement `ConversationSummaryService` class
+    - Add configuration loading (model, prompt_file, max_messages)
+    - Load summarization prompt with cascade (instance → account → system)
+    - Create default fallback prompt
+    - Create dedicated Pydantic AI agent for summarization
+    - Implement `generate_summary()` method
+    - Format conversation history for LLM
+    - Handle empty conversations gracefully
+    - Add cost tracking for summary generation
+    - Add logging for monitoring
+  
+  - AUTOMATED-TESTS: `backend/tests/unit/test_conversation_summary.py`
+    - `test_generate_summary()` - Mock LLM, test summary generation
+    - `test_empty_conversation()` - Handle no messages
+    - `test_summary_with_notes()` - Test with summary_notes context
+    - `test_conversation_formatting()` - Test message formatting
+  
+  - MANUAL-TESTS:
+    - Create test conversation (5-10 messages)
+    - Generate summary via service
+    - Review summary quality and accuracy
+    - Test with different conversation types
+    - Verify HTML output is valid
+
+- [ ] 0028-003-002-02 - CHUNK - Create HTML email templates
+  
+  **FILE**: `backend/app/templates/email/conversation_summary.html`
+  
+  - **TEMPLATE EXAMPLE**:
+    ```html
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Your Conversation Summary</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 8px 8px 0 0;
+                text-align: center;
+            }
+            .content {
+                background: #f9f9f9;
+                padding: 30px;
+                border-radius: 0 0 8px 8px;
+            }
+            .summary-section {
+                background: white;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 6px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .footer {
+                text-align: center;
+                padding: 20px;
+                color: #666;
+                font-size: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Your Conversation Summary</h1>
+            <p>{{ agent_name }}</p>
+        </div>
+        
+        <div class="content">
+            <div class="summary-section">
+                {{ summary_html }}
+            </div>
+            
+            <p style="margin-top: 30px;">
+                <strong>Session Date:</strong> {{ session_date }}<br>
+                <strong>Messages:</strong> {{ message_count }}
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>This summary was generated from your conversation.</p>
+            <p>If you have questions, please reply to this email.</p>
+        </div>
+    </body>
+    </html>
+    ```
+  
+  - SUB-TASKS:
+    - Create `backend/app/templates/email/` directory
+    - Design HTML email template (responsive, professional)
+    - Add Jinja2 template rendering
+    - Create template rendering service
+    - Add branding customization per agent
+    - Test email rendering in multiple clients (Gmail, Outlook, Apple Mail)
+    - Add plain text fallback template
+  
+  - AUTOMATED-TESTS: `backend/tests/unit/test_email_templates.py`
+    - `test_template_rendering()` - Test Jinja2 rendering
+    - `test_template_variables()` - Test all template variables
+    - `test_html_validity()` - Test HTML is valid
+  
+  - MANUAL-TESTS:
+    - Render template with sample data
+    - Test in email client preview tools
+    - Verify responsive design (mobile/desktop)
+    - Check appearance in Gmail, Outlook, Apple Mail
+
+### 0028-003-003 - TASK - Update Email Tool for Production
+
+- [ ] 0028-003-003-01 - CHUNK - Add environment-based routing to email tool
+  
+  **UPDATED IMPLEMENTATION**:
+    ```python
+    # backend/app/agents/tools/email_tools.py
+    
+    import logfire
+    import os
+    from datetime import datetime, UTC
+    from typing import Optional
+    from pydantic_ai import RunContext
+    
+    from ..base.dependencies import SessionDependencies
+    from ...config import load_config
+    
+    async def send_conversation_summary(
+        ctx: RunContext[SessionDependencies],
+        email_address: str,
+        summary_notes: str = ""
+    ) -> str:
+        """
+        Send conversation summary via email.
+        
+        Supports both demo mode and real email sending based on configuration.
+        
+        Args:
+            ctx: Run context with session dependencies
+            email_address: Recipient email address
+            summary_notes: Optional notes about what to include
+        
+        Returns:
+            Confirmation message for the user
+        """
+        session_id = ctx.deps.session_id
+        
+        # Validate email format
+        if not email_address or '@' not in email_address:
+            return (
+                "I need a valid email address to send the summary. "
+                "Could you please provide your email address?"
+            )
+        
+        # Check if real email is enabled
+        config = load_config()
+        email_enabled = config.get('email', {}).get('enabled', False)
+        
+        if email_enabled:
+            # REAL EMAIL PATH
+            from app.services.mailgun_service import get_mailgun_service
+            from app.services.conversation_summary_service import get_conversation_summary_service
+            
+            logfire.info(
+                'email.summary.real_start',
                 session_id=session_id,
                 email=email_address,
-                message_id=result.message_id
+                notes=summary_notes
             )
-            return f"✓ Your summary has been sent to {email_address}"
+            
+            # Generate conversation summary
+            summary_service = get_conversation_summary_service()
+            summary_html = await summary_service.generate_summary(
+                session_id=UUID(session_id),
+                summary_notes=summary_notes
+            )
+            
+            # Send via Mailgun
+            mailgun = get_mailgun_service()
+            result = await mailgun.send_email(
+                to=email_address,
+                subject="Your Conversation Summary",
+                html_body=summary_html
+            )
+            
+            if result.success:
+                logfire.info(
+                    'email.summary.sent',
+                    session_id=session_id,
+                    email=email_address,
+                    message_id=result.message_id
+                )
+                return (
+                    f"✓ Your conversation summary has been sent to {email_address}. "
+                    f"You should receive it within a few minutes."
+                )
+            else:
+                logfire.error(
+                    'email.summary.failed',
+                    session_id=session_id,
+                    email=email_address,
+                    error=result.error
+                )
+                return (
+                    "I encountered an error sending the email. "
+                    "Please try again or contact support if the problem persists."
+                )
+        
         else:
-            logfire.error(
-                'email.summary.failed',
+            # DEMO MODE PATH (current implementation)
+            logfire.info(
+                'email.summary.demo',
                 session_id=session_id,
                 email=email_address,
-                error=result.error
+                notes=summary_notes,
+                timestamp=datetime.now(UTC).isoformat(),
+                demo_mode=True,
+                message="Demo email tool called - no actual email sent"
             )
-            return "Sorry, there was an error sending the email. Please try again."
-    else:
-        # Demo mode (current implementation)
-        logfire.info('email.summary.demo', ...)
-        return "✓ Your conversation summary has been queued..."
-```
+            
+            return (
+                f"✓ Your conversation summary has been queued to {email_address}. "
+                f"You'll receive it in your inbox within the next few minutes. "
+                f"The summary will include key discussion points and any relevant attachments."
+            )
+    ```
+  
+  - SUB-TASKS:
+    - Update `send_conversation_summary()` with environment check
+    - Add real email path integration
+    - Maintain demo mode path (backward compatible)
+    - Add error handling for email failures
+    - Update logging for both paths
+    - Test routing logic (demo vs real)
+    - Update docstrings
+  
+  - AUTOMATED-TESTS: `backend/tests/integration/test_email_tool_routing.py`
+    - `test_demo_mode_routing()` - Test when email.enabled = false
+    - `test_real_email_routing()` - Test when email.enabled = true
+    - `test_email_failure_handling()` - Test error cases
+    - `test_environment_switching()` - Test config changes
+  
+  - MANUAL-TESTS:
+    - Set `email.enabled: false`, test demo mode
+    - Set `email.enabled: true`, test real email
+    - Toggle configuration, verify routing changes
+    - Test error scenarios (invalid credentials, API failures)
 
----
+### 0028-003-004 - TASK - Email Consent and Compliance
 
-## Testing Summary
+- [ ] 0028-003-004-01 - CHUNK - Add email consent tracking
+  
+  **DATABASE MIGRATION**:
+    ```sql
+    -- Add email_consent to profiles table
+    ALTER TABLE profiles
+    ADD COLUMN email_consent BOOLEAN DEFAULT FALSE,
+    ADD COLUMN email_consent_date TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN email_opt_out BOOLEAN DEFAULT FALSE,
+    ADD COLUMN email_opt_out_date TIMESTAMP WITH TIME ZONE;
+    
+    CREATE INDEX idx_profiles_email_consent ON profiles(email_consent);
+    ```
+  
+  - **CONSENT CHECK**:
+    ```python
+    # In send_conversation_summary():
+    
+    # Check consent before sending
+    profile = await get_or_create_profile(session_id, email_address)
+    
+    if not profile.email_consent:
+        return (
+            "I need your consent to send you emails. "
+            "Would you like to receive a conversation summary? "
+            "Reply 'yes' to consent to receive this email."
+        )
+    
+    if profile.email_opt_out:
+        return (
+            "You've opted out of receiving emails. "
+            "If you'd like to receive summaries again, please let me know."
+        )
+    
+    # Proceed with email sending...
+    ```
+  
+  - SUB-TASKS:
+    - Create database migration for consent fields
+    - Add consent checking logic to email tool
+    - Implement consent capture flow
+    - Add opt-out mechanism
+    - Add unsubscribe link to email templates
+    - Document consent requirements
+    - Add logging for consent actions
 
-**AUTOMATED-TESTS** (18 tests total):
-- **Unit Tests**: `test_email_tools.py` (6 tests - tool implementation)
-- **Unit Tests**: `test_email_tool_registration.py` (4 tests - agent configuration)
-- **Unit Tests**: `test_email_prompt.py` (3 tests - system prompt)
-- **Integration Tests**: `test_email_summary_e2e.py` (6 tests - end-to-end validation)
-
-**MANUAL-TESTS**:
-- Tool implementation review (code quality, Pydantic AI compatibility)
-- Agent configuration testing (enabled vs disabled)
-- System prompt validation (clarity, token count)
-- End-to-end user scenarios (5 scenarios)
-- Logfire event verification (structure, queryability)
-- Cross-agent testing (isolation validation)
-
-**DOCUMENTATION UPDATES**:
-- System prompt updates (Wind River agent)
-- Agent configuration documentation (email_summary tool)
-- Analytics dashboard documentation (Logfire queries)
-
----
-
-## Definition of Done
-
-- ✅ Email summary tool implemented and tested
-- ✅ Tool registered for Wind River agent
-- ✅ System prompt updated with email guidance
-- ✅ All 5 test scenarios pass
-- ✅ Logfire events logged correctly
-- ✅ Professional user experience (feels real)
-- ✅ Analytics queries documented
-- ✅ Future migration path documented
-- ✅ No filesystem clutter (logs only)
-- ✅ Fast response time (<100ms tool execution)
-
----
-
-## Benefits
-
-**Demo Phase**:
-- ✅ Demonstrates tool calling capabilities
-- ✅ Professional user experience
-- ✅ Analytics on feature demand
-- ✅ No email infrastructure complexity
-- ✅ No costs (no actual email sending)
-- ✅ Fast implementation (<4 hours)
-
-**Future Production**:
-- ✅ Easy migration path to real email
-- ✅ Same function signature maintained
-- ✅ Existing agent prompts still valid
-- ✅ User experience unchanged
-- ✅ Just flip environment variable
-
----
-
-## Timeline Estimate
-
-**Total Effort**: ~3-4 hours
-
-- 0028-001-001-01: Create email tool (1 hour)
-- 0028-001-001-02: Register tool (30 minutes)
-- 0028-001-001-03: Update system prompt (30 minutes)
-- 0028-001-001-04: End-to-end testing (1-2 hours)
-
-**Optional**:
-- 0028-002-001-01: Analytics dashboard (1 hour)
 
