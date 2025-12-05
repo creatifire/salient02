@@ -3112,19 +3112,15 @@ File Cascade:
 ## Priority 2E: Email Summary Tool with Mailgun
 
 ### 0017-008 - FEATURE - Email Summary Tool with Mailgun
-**Status**: Planned
+**Status**: ⚠️ **SUPERSEDED BY EPIC 0028** — See [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
 
-Implement agent tool to generate conversation summary and email via Mailgun.
+**NOTE**: This feature has been moved to its own epic (Epic 0028) with a comprehensive implementation plan. Epic 0028 implements a demo email tool first (lightweight, no actual email sending) with a clear migration path to real Mailgun integration in the future.
 
-- [ ] 0017-008-001 - TASK - Mailgun Integration
-  - [ ] 0017-008-001-01 - CHUNK - Set up Mailgun API integration
-    - SUB-TASKS:
-      - Add Mailgun API credentials to configuration
-      - Create MailgunService class for API calls
-      - Implement send_email method
-      - Add error handling and logging
-    - STATUS: Planned — Mailgun integration foundation
+**Original placeholder tasks** (superseded):
+- [ ] 0017-008-001 - TASK - Mailgun Integration → **See Epic 0028 "Future: Real Email Integration" section**
   
+**New implementation location**: [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
+
 ---
 
 ## Priority 2F: Profile Capture Tool
