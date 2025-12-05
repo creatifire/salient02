@@ -209,12 +209,35 @@ FEATURE 0017-012 - Profile Capture Tool
 - 📋 0017-012-002 - Update User Guide in Memorybank
   - 📋 0017-012-002-01 - Document profile capture feature
 
-### Priority 7: Opening Message
-- TBD - The message to be displayed when a new chat session is started 📋
+## BUG-0017-011: Directory selection hints hardcoded instead of configurable
+## BUG-0017-012: Inconsistent Configuration Cascade Patterns Across All Config Files
 
-### Priority 8: Email Summary Tool with Mailgun 📋
-- 📋 0017-008-001 - Mailgun Integration
-- 📋 0017-008-002 - Email Summary Agent Tool
+### Priority 7: Opening Message
+- Epic 29 - The message to be displayed when a new chat session is started 📋
+
+### Priority 8: Email Summary Tool (Demo + Future Mailgun) 📋
+**Epic 0028** - [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
+
+**Current Scope - Demo Implementation**:
+- 📋 0028-001 - Demo Email Summary Tool (lightweight, no actual email)
+  - 0028-001-001-01 - Create email_tools.py with demo tool
+  - 0028-001-001-02 - Register tool in agent configuration
+  - 0028-001-001-03 - Update system prompt with email guidance
+  - 0028-001-001-04 - End-to-end testing and validation
+- 📋 0028-002 - Analytics and Monitoring (optional)
+
+**Future Scope - Real Email Integration** (supersedes 0017-008):
+- 🔮 0028-003 - Real Email Integration with Mailgun
+  - 0028-003-001 - Mailgun Service Integration
+    - 0028-003-001-01 - Create MailgunService class
+    - 0028-003-001-02 - Add Mailgun configuration to app.yaml
+  - 0028-003-002 - Conversation Summarization Engine
+    - 0028-003-002-01 - Create conversation summary generator
+    - 0028-003-002-02 - Create HTML email templates
+  - 0028-003-003 - Update Email Tool for Production
+    - 0028-003-003-01 - Add environment-based routing to email tool
+  - 0028-003-004 - Email Consent and Compliance
+    - 0028-003-004-01 - Add email consent tracking
 
 ### Priority 9: OTP Authentication 📋
 - 📋 0017-011-001 - OTP Authentication System
