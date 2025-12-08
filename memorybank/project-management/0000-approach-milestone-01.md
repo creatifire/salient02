@@ -210,6 +210,9 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 - 📋 0030-001-001 - TASK - Demo Appointment Scheduling Tool Implementation
   - Status: PLANNED - Epic 0030 documentation complete, ready to implement
 
+- BUG-0017-011: Directory selection hints hardcoded instead of configurable
+- BUG-0017-012: Inconsistent Configuration Cascade Patterns Across All Config Files
+
 ### Priority 6: Profile Fields Configuration & Database Schema & Profile Capture 📋
 
 See [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md) for complete implementation plan (12 chunks total).
@@ -233,9 +236,6 @@ FEATURE 0017-012 - Profile Capture Tool
   - 📋 0017-012-001-02 - Integrate profile hints into system prompt assembly
 - 📋 0017-012-002 - Update User Guide in Memorybank
   - 📋 0017-012-002-01 - Document profile capture feature
-
-## BUG-0017-011: Directory selection hints hardcoded instead of configurable
-## BUG-0017-012: Inconsistent Configuration Cascade Patterns Across All Config Files
 
 ### Priority 7: Opening Message
 - Epic 29 - The message to be displayed when a new chat session is started 📋
