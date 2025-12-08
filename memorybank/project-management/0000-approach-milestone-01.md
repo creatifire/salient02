@@ -186,10 +186,29 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 
 **>> You are here <<**
 ## Demo to Otto
-- Load contact_information into wind river account
-- Create classes information into wind river account
-- Create services information (other than medical services)
-- Create departments information
+- ✅ Load contact_information into wind river account
+  - CSV file: `backend/data/windriver/windriver_contact_information.csv` (40 departments/services)
+  - Schema: `backend/config/directory_schemas/contact_information.yaml`
+  - Accessible via: `config.yaml` - `accessible_lists: ["doctors", "contact_information"]`
+  - Status: COMPLETED - Data loaded and searchable
+- 📋 Create classes information into wind river account
+  - Schema exists: `backend/config/directory_schemas/classes.yaml`
+  - CSV needed: `backend/data/windriver/windriver_classes.csv`
+  - Status: PENDING - Need to create CSV data and load
+- 📋 Create services information (other than medical services)
+  - Schema exists: `backend/config/directory_schemas/service.yaml`
+  - CSV needed: `backend/data/windriver/windriver_services.csv`
+  - Status: PENDING - Need to create CSV data and load
+- 📋 Create departments information
+  - Schema exists: `backend/config/directory_schemas/department.yaml`
+  - CSV needed: `backend/data/windriver/windriver_departments.csv`
+  - Status: PENDING - Need to create CSV data and load
+- ✅ 0028-001-001 - TASK - Demo Email Summary Tool Implementation
+  - Status: COMPLETED - All 4 chunks implemented and tested
+- 📋 0028-001-001-05 - CHUNK - Standardize email_summary config across all agents
+  - Status: PENDING - Add to 6 agent configs (disabled by default)
+- 📋 0030-001-001 - TASK - Demo Appointment Scheduling Tool Implementation
+  - Status: PLANNED - Epic 0030 documentation complete, ready to implement
 
 ### Priority 6: Profile Fields Configuration & Database Schema & Profile Capture 📋
 
@@ -221,15 +240,16 @@ FEATURE 0017-012 - Profile Capture Tool
 ### Priority 7: Opening Message
 - Epic 29 - The message to be displayed when a new chat session is started 📋
 
-### Priority 8: Email Summary Tool (Demo + Future Mailgun) 📋
+### Priority 8A: Email Summary Tool (Demo + Future Mailgun) 🔄
 **Epic 0028** - [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
 
 **Current Scope - Demo Implementation**:
-- 📋 0028-001 - Demo Email Summary Tool (lightweight, no actual email)
-  - 0028-001-001-01 - Create email_tools.py with demo tool
-  - 0028-001-001-02 - Register tool in agent configuration
-  - 0028-001-001-03 - Update system prompt with email guidance
-  - 0028-001-001-04 - End-to-end testing and validation
+- 🔄 0028-001 - Demo Email Summary Tool (lightweight, no actual email)
+  - ✅ 0028-001-001-01 - Create email_tools.py with demo tool
+  - ✅ 0028-001-001-02 - Register tool in agent configuration
+  - ✅ 0028-001-001-03 - Update system prompt with email guidance
+  - ✅ 0028-001-001-04 - End-to-end testing and validation
+  - 📋 0028-001-001-05 - Standardize email_summary config across all agents
 - 📋 0028-002 - Analytics and Monitoring (optional)
 
 **Future Scope - Real Email Integration** (supersedes 0017-008):
@@ -244,6 +264,24 @@ FEATURE 0017-012 - Profile Capture Tool
     - 0028-003-003-01 - Add environment-based routing to email tool
   - 0028-003-004 - Email Consent and Compliance
     - 0028-003-004-01 - Add email consent tracking
+
+### Priority 8B: Appointment Scheduling Tool (Demo + Future MCP Integration) 📋
+**Epic 0030** - [`0030-appointment-scheduling-tool.md`](0030-appointment-scheduling-tool.md)
+
+**Current Scope - Demo Implementation**:
+- 📋 0030-001 - Demo Appointment Scheduling Tool (lightweight, no actual scheduling)
+  - 📋 0030-001-001-01 - Create scheduling_tools.py with demo tool
+  - 📋 0030-001-001-02 - Register tool in agent configuration
+  - 📋 0030-001-001-03 - Update system prompt with scheduling guidance
+  - 📋 0030-001-001-04 - End-to-end testing and validation
+  - 📋 0030-001-001-05 - Standardize appointment_scheduling config across all agents
+
+**Future Scope - Real MCP Integration**:
+- 🔮 0030-002 - Real Scheduling Integration with MCP
+  - Calendly MCP Server integration
+  - Healthcare EMR integration (Epic, Cerner, etc.)
+  - Veterinary EMR integration
+  - Nylas Scheduler API integration
 
 ### Priority 9: OTP Authentication 📋
 - 📋 0017-011-001 - OTP Authentication System

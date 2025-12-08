@@ -4,7 +4,7 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Epic 0028 - Email Summary Tool (Demo Feature)
-> **Last Updated**: December 5, 2025
+> **Last Updated**: January 31, 2025
 > **Supersedes**: Epic 0017-008 (Email Summary Tool with Mailgun)
 
 Implement demo email summary tool that creates the illusion of sending conversation summaries without actual email integration.
@@ -60,11 +60,31 @@ flowchart TD
 
 ---
 
-## 0028-001 - FEATURE - Email Summary Tool
+## 0028-001 - FEATURE - Email Summary Tool ✅
+
+**Status**: Completed — Demo email summary tool fully implemented and production-ready for Wind River Hospital agent.
+
+**Implementation Summary**:
+- Created lightweight demo tool with Logfire logging (no actual email sent)
+- Tool conditionally registered based on agent configuration
+- System prompt updated with comprehensive guidance on when/how to offer summaries
+- Full test coverage: 6 unit tests (tool behavior), 4 unit tests (registration), 3 unit tests (prompt), and comprehensive E2E integration tests
+- Currently enabled for Wind River agent (`windriver_info_chat1`)
+- Ready to enable for other agents by adding `email_summary: enabled: true` to their config
+
+**Files Modified**:
+- `backend/app/agents/tools/email_tools.py` (created)
+- `backend/app/agents/simple_chat.py` (tool registration)
+- `backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml` (enabled)
+- `backend/config/agent_configs/windriver/windriver_info_chat1/system_prompt.md` (guidance added)
+- `backend/tests/unit/test_email_tools.py` (created)
+- `backend/tests/unit/test_email_tool_registration.py` (created)
+- `backend/tests/unit/test_email_prompt.py` (created)
+- `backend/tests/integration/test_email_tool_e2e.py` (created)
 
 ### 0028-001-001 - TASK - Demo Email Summary Tool Implementation
 
-- [ ] 0028-001-001-01 - CHUNK - Create email_tools.py with demo tool
+- [x] 0028-001-001-01 - CHUNK - Create email_tools.py with demo tool
   
   **FILE**: `backend/app/agents/tools/email_tools.py`
   
@@ -182,8 +202,10 @@ flowchart TD
     - Check docstring clarity and examples
     - Verify email validation logic
     - Test that function signature is correct for @agent.tool
+  
+  - STATUS: Completed — Created `email_tools.py` with `send_conversation_summary()` function, Logfire logging with structured data, basic email validation, professional confirmation messages, comprehensive docstrings with examples, and 6 unit tests covering all functionality
 
-- [ ] 0028-001-001-02 - CHUNK - Register tool in agent configuration
+- [x] 0028-001-001-02 - CHUNK - Register tool in agent configuration
   
   **CONFIGURATION**:
     ```yaml
@@ -261,8 +283,10 @@ flowchart TD
     - Verify tool available (check LLM request body for tool definitions)
     - Test agent WITHOUT email_summary enabled
     - Verify tool NOT available for that agent
+  
+  - STATUS: Completed — Imported `send_conversation_summary` in `simple_chat.py`, added conditional registration logic (lines 183-189, 399-406), enabled in Wind River `config.yaml`, added Logfire logging with demo_mode flag, created 4 unit tests for tool registration and configuration cascade
 
-- [ ] 0028-001-001-03 - CHUNK - Update system prompt with email guidance
+- [x] 0028-001-001-03 - CHUNK - Update system prompt with email guidance
   
   **SYSTEM PROMPT ADDITIONS**:
     ```markdown
@@ -321,8 +345,10 @@ flowchart TD
     - Verify agent calls send_conversation_summary tool
     - Test agent offers summaries proactively when appropriate
     - Verify agent doesn't over-suggest emails (not pushy)
+  
+  - STATUS: Completed — Added "Sending Conversation Summaries" section to Wind River `system_prompt.md` (lines 223-252), including when to offer summaries, example interactions, guidance on summary_notes parameter, proactive suggestion scenarios, and 3 unit tests for prompt validation
 
-- [ ] 0028-001-001-04 - CHUNK - End-to-end testing and validation
+- [x] 0028-001-001-04 - CHUNK - End-to-end testing and validation
   
   **TEST SCENARIOS**:
     
@@ -427,6 +453,50 @@ flowchart TD
       - Test AgroFresh agent (email_summary disabled)
       - Verify tool NOT available
       - Ask for summary, verify agent can't send email
+  
+  - STATUS: Completed — Created comprehensive E2E integration tests (`test_email_tool_e2e.py`) covering all 5 test scenarios: user requests summary, email provided upfront, invalid email validation, proactive offers, and multiple information items. All tests verify tool registration, agent behavior, Logfire logging, and proper error handling. Ready for production use with Wind River agent.
+
+- [ ] 0028-001-001-05 - CHUNK - Standardize email_summary config across all agents
+  
+  **ISSUE**: Currently only Wind River has `email_summary` in config.yaml. All other agents are missing this section.
+  
+  **REQUIRED ACTION**: Add `email_summary` section to all agent configs (disabled by default)
+  
+  **FILES TO UPDATE**:
+  - `backend/config/agent_configs/acme/acme_chat1/config.yaml`
+  - `backend/config/agent_configs/agrofresh/agro_info_chat1/config.yaml`
+  - `backend/config/agent_configs/default_account/simple_chat1/config.yaml`
+  - `backend/config/agent_configs/default_account/simple_chat2/config.yaml`
+  - `backend/config/agent_configs/prepexcellence/prepexcel_info_chat1/config.yaml`
+  - `backend/config/agent_configs/wyckoff/wyckoff_info_chat1/config.yaml`
+  
+  **STANDARD CONFIGURATION** (add to tools section):
+  ```yaml
+  tools:
+    email_summary:
+      enabled: false  # Demo feature - disabled by default
+    
+    # ... other tool configs
+  ```
+  
+  - SUB-TASKS:
+    - Add `email_summary: enabled: false` to all 6 agent configs
+    - Verify tool registration respects enabled/disabled flag
+    - Test that agents without email_summary enabled don't expose the tool
+    - Document configuration standard in agent config README
+  
+  - AUTOMATED-TESTS: Existing tests already cover this
+    - `test_email_tool_not_registered_when_disabled()` verifies disabled behavior
+    - `test_email_tool_not_registered_by_default()` verifies default disabled state
+  
+  - MANUAL-TESTS:
+    - Check each agent config has email_summary section
+    - Verify Wind River has enabled: true
+    - Verify all others have enabled: false
+    - Test agent with enabled: false doesn't offer email summaries
+    - Toggle one agent to enabled: true and verify tool appears
+  
+  - STATUS: Planned — Standardize configuration across all agent instances for consistency and discoverability
 
 ---
 
