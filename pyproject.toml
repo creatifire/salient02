@@ -1,6 +1,6 @@
 [tool.ruff]
 # Target Python version
-target-version = "py312"
+target-version = "py314"
 
 # Same as Black.
 line-length = 88
@@ -38,4 +38,4 @@ exclude = [
 known-first-party = ["app"]
 
 [tool.ty.environment]
-python-version = "3.12"
+python-version = "3.14"
