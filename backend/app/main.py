@@ -250,7 +250,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:4321", "http://127.0.0.1:4321"],  # Frontend origins
     allow_credentials=True,  # Enable session cookie sharing
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Include OPTIONS for CORS preflight
     allow_headers=["*"],
 )
 
@@ -449,3 +449,8 @@ app.include_router(account_agents_router)
 # Include admin debugging endpoints for chat tracing and LLM inspection
 from .api.admin import router as admin_router
 app.include_router(admin_router)
+
+# System Router Registration
+# Include health check and global configuration endpoints
+from .api.config import router as config_router
+app.include_router(config_router)
