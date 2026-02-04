@@ -245,13 +245,15 @@ except Exception as e:
     pass
 
 # CORS Middleware Configuration: Enable cross-origin requests for development
-# Allows frontend (localhost:4321) to communicate with backend (localhost:8000)
+# Allows frontend (localhost:4321/4322) to communicate with backend (localhost:8000)
+# Using regex to match any localhost port for flexibility during development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4321", "http://127.0.0.1:4321"],  # Frontend origins
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,  # Enable session cookie sharing
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Include OPTIONS for CORS preflight
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods including OPTIONS
+    allow_headers=["*"],  # Allow all request headers
+    expose_headers=["*"],  # Expose all response headers to client
 )
 
 # Middleware Configuration: Session management with path exclusions

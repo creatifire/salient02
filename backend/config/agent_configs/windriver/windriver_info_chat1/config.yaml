@@ -21,9 +21,9 @@ prompting:
       # directory_selection_hints automatically included in directory header when directory tools enabled
 
 model_settings:
-  model: "openai/gpt-4o-mini"  # Fast, reliable OpenAI model with excellent tool support
+  model: "google/gemini-3-flash-preview"  # Fast, reliable OpenAI model with excellent tool support
   temperature: 0.3
-  max_tokens: 2000
+  max_tokens: 8000
 
 tools:
   email_summary:
