@@ -1,0 +1,6 @@
+product_name,category,brand,sku,price,sale_price,in_stock,url,support_email,warranty,dimensions,weight,specifications
+UltraComfort Hospital Bed,Medical Equipment,MedEquip,UC-2000,4999.99,4499.99,TRUE,https://medequip.com/uc2000,support@medequip.com,5 years parts and labor,"84 x 36 x 16 inches",350 lbs,"Electric height adjustment, Memory foam mattress, Built-in side rails"
+Pulse Oximeter Pro,Diagnostic Equipment,HealthTech,POX-500,149.99,,TRUE,https://healthtech.com/pox500,service@healthtech.com,2 years,"3 x 2 x 1.5 inches",0.3 lbs,"SpO2 range: 70-100%, Heart rate: 30-250 bpm, LED display, Auto power-off"
+Digital Blood Pressure Monitor,Diagnostic Equipment,VitalCheck,BP-300,79.99,69.99,TRUE,https://vitalcheck.com/bp300,info@vitalcheck.com,1 year,"6 x 4 x 3 inches",1.2 lbs,"Automatic inflation, Memory for 60 readings, Large LCD display, Irregular heartbeat detection"
+Wheelchair Standard,Mobility Aid,ComfortMove,WC-STD,299.99,,FALSE,https://comfortmove.com/wc-std,sales@comfortmove.com,90 days,"38 x 25 x 36 inches",42 lbs,"Weight capacity: 300 lbs, Foldable frame, Removable armrests, Adjustable footrests"
+

@@ -17,8 +17,12 @@ model_settings:
   max_tokens: 2000
 
 tools:
+  profile_capture:
+    enabled: false  # Disabled for testing/demo - no profile capture
+    schema_file: "profile.yaml"  # Uses system fallback (basic email/phone) when enabled
+  
   vector_search:
-    enabled: true
+    enabled: false  # Disabled - no Pinecone data for generic chat
     max_results: 5
     similarity_threshold: 0.7
     namespace_isolation: true

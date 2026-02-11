@@ -25,15 +25,20 @@ Unauthorized copying of this file is strictly prohibited.
 
 
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, UserPromptPart, TextPart
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, SystemPromptPart, UserPromptPart, TextPart
 from .openrouter import OpenRouterModel, create_openrouter_provider_with_cost_tracking
 from .base.dependencies import SessionDependencies
 from ..config import load_config
 from .config_loader import get_agent_config  # Fixed: correct function name
 from ..services.message_service import get_message_service
 from ..services.llm_request_tracker import LLMRequestTracker
+from ..services.prompt_breakdown_service import PromptBreakdownService
 from .chat_helpers import build_request_messages, build_response_body, extract_session_account_info, save_message_pair
 from .cost_calculator import calculate_streaming_costs, track_chat_request
+from .tools.toolsets import get_enabled_toolsets
+from .tools.directory_tools import get_available_directories, search_directory
+from .tools.vector_tools import vector_search
+from .tools.email_tools import send_conversation_summary
 from typing import List, Optional
 import uuid
 from uuid import UUID
@@ -114,7 +119,7 @@ async def load_conversation_history(session_id: str, max_messages: Optional[int]
 async def create_simple_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> Agent:  # Fixed: async function
+) -> tuple[Agent, dict, str]:  # Return agent, prompt_breakdown, and assembled system_prompt
     """
     Create a simple chat agent with OpenRouter provider for cost tracking.
     
@@ -123,6 +128,9 @@ async def create_simple_chat_agent(
         account_id: Optional account ID for multi-tenant directory documentation generation
                         instead of loading the global config. This enables multi-tenant
                         support where each instance can have different model settings.
+    
+    Returns:
+        tuple: (agent, prompt_breakdown, system_prompt)
     """
     config = instance_config if instance_config is not None else load_config()
     llm_config = config.get("model_settings", {})
@@ -158,50 +166,100 @@ async def create_simple_chat_agent(
             model_used=model_name_simple,
             cost_tracking="disabled"
         )
+        
+        # Build tools list based on agent configuration
+        tools_list = []
+        tools_config = (instance_config or {}).get("tools", {})
+        
+        # Add directory tools if enabled
+        if tools_config.get("directory", {}).get("enabled", False):
+            tools_list.extend([get_available_directories, search_directory])
+        
+        # Add vector search tool if enabled
+        if tools_config.get("vector_search", {}).get("enabled", False):
+            tools_list.append(vector_search)
+        
+        # Add email summary tool if enabled
+        if tools_config.get("email_summary", {}).get("enabled", False):
+            tools_list.append(send_conversation_summary)
+            logfire.info(
+                'agent.tool.registered',
+                tool='send_conversation_summary',
+                agent=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+                demo_mode=True
+            )
+        
+        logfire.info(
+            'agent.creation',
+            agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+            tools_count=len(tools_list),
+            tool_names=[t.__name__ for t in tools_list],
+            mode='fallback'
+        )
+        
+        # Create minimal prompt breakdown for fallback mode
+        prompt_breakdown = PromptBreakdownService.capture_breakdown(
+            base_prompt=system_prompt,
+            account_slug=None,
+            agent_instance_slug=None
+        )
+        
         agent = Agent(
             model_name_simple,
             deps_type=SessionDependencies,
-            system_prompt=system_prompt
+            system_prompt=system_prompt,
+            tools=tools_list  # Direct tool functions
         )
         
-        # Conditionally register vector search tool
-        if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
-            from backend.app.agents.tools import vector_tools
-            agent.tool(vector_tools.vector_search)
+        return agent, prompt_breakdown, system_prompt, tools_list
+    
+    # PHASE 4A: Load critical tool selection rules FIRST (before everything else)
+    # This ensures LLM sees tool selection guidance before tool descriptions
+    from .tools.prompt_modules import load_prompt_module
+    
+    account_slug = None
+    if instance_config:
+        account_slug = instance_config.get("account")
+    
+    # Load tool selection hints at the very top of the prompt
+    critical_rules = ""
+    prompting_config = (instance_config or {}).get('prompting', {}).get('modules', {})
+    if prompting_config.get('enabled', False):
+        tool_selection_content = load_prompt_module("tool_selection_hints", account_slug)
+        if tool_selection_content:
+            critical_rules = tool_selection_content + "\n\n---\n\n"
             logfire.info(
-                'agent.tool.vector_registered',
-                agent_name=instance_config.get('instance_name', 'unknown')
+                'agent.critical_rules.injected',
+                module='tool_selection_hints',
+                position='top_of_prompt',
+                length=len(tool_selection_content)
             )
-        
-        # Conditionally register directory search tool
-        if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
-            from backend.app.agents.tools.directory_tools import search_directory
-            agent.tool(search_directory)
-            logfire.info(
-                'agent.tool.directory_registered',
-                agent_name=instance_config.get('instance_name', 'unknown')
-            )
-        
-        return agent
     
     # Load system prompt from instance_config (multi-tenant) or agent config (single-tenant)
     if instance_config is not None and 'system_prompt' in instance_config:
         # Multi-tenant mode: use the instance-specific system prompt
-        system_prompt = instance_config['system_prompt']
+        base_system_prompt = instance_config['system_prompt']
         logfire.info(
             'agent.system_prompt.loaded',
             source='instance_config',
-            length=len(system_prompt)
+            length=len(base_system_prompt)
         )
     else:
         # Single-tenant mode: load from agent config file
         agent_config = await get_agent_config("simple_chat")
-        system_prompt = agent_config.system_prompt
+        base_system_prompt = agent_config.system_prompt
         logfire.info(
             'agent.system_prompt.loaded',
             source='agent_config',
-            length=len(system_prompt)
+            length=len(base_system_prompt)
         )
+    
+    # Construct prompt with critical rules at the top
+    system_prompt = critical_rules + base_system_prompt
+    
+    # Initialize variables for prompt breakdown tracking
+    directory_docs = ""
+    directory_result = None  # Will hold DirectoryDocsResult if directory tools enabled
     
     # Auto-generate directory tool documentation if enabled
     directory_config = (instance_config or {}).get("tools", {}).get("directory", {})
@@ -213,11 +271,14 @@ async def create_simple_chat_agent(
         
         db_service = get_database_service()
         async with db_service.get_session() as db_session:
-            directory_docs = await generate_directory_tool_docs(
+            directory_result = await generate_directory_tool_docs(
                 agent_config=instance_config or {},
                 account_id=account_id,
                 db_session=db_session
             )
+            
+            # Extract full_text from DirectoryDocsResult for prompt assembly
+            directory_docs = directory_result.full_text if directory_result else ""
             
             if directory_docs:
                 system_prompt = system_prompt + "\n\n" + directory_docs
@@ -241,6 +302,48 @@ async def create_simple_chat_agent(
             'agent.directory.docs.skipped',
             reason='no_account_id'
         )
+    
+    # Load remaining prompt modules (Phase 4A) - skip tool_selection_hints (already loaded at top)
+    from .tools.prompt_modules import load_modules_for_agent, load_prompt_module
+    
+    # Initialize module tracking for prompt breakdown
+    other_modules = []
+    
+    # Load other modules (excluding tool_selection_hints which is already at the top)
+    prompting_config = (instance_config or {}).get('prompting', {}).get('modules', {})
+    if prompting_config.get('enabled', False):
+        selected_modules = prompting_config.get('selected', [])
+        other_modules = [m for m in selected_modules if m != 'tool_selection_hints']
+        
+        if other_modules:
+            other_module_contents = []
+            for module_name in other_modules:
+                module_content = load_prompt_module(module_name, account_slug)
+                if module_content:
+                    other_module_contents.append(module_content)
+            
+            if other_module_contents:
+                combined = "\n\n---\n\n".join(other_module_contents)
+                system_prompt = system_prompt + "\n\n" + combined
+                logfire.info(
+                    'agent.prompt_modules.loaded',
+                    module_count=len(other_modules),
+                    modules=other_modules,
+                    content_length=len(combined),
+                    final_prompt_length=len(system_prompt),
+                    note='tool_selection_hints loaded at top'
+                )
+    
+    # Capture prompt breakdown for admin debugging
+    prompt_breakdown = PromptBreakdownService.capture_breakdown(
+        base_prompt=base_system_prompt,
+        critical_rules=critical_rules if critical_rules else None,
+        directory_result=directory_result if directory_config.get("enabled", False) and account_id is not None else None,
+        modules={name: load_prompt_module(name, account_slug) 
+                 for name in other_modules} if prompting_config.get('enabled') and other_modules else None,
+        account_slug=account_slug,
+        agent_instance_slug=instance_config.get('slug') if instance_config else None
+    )
     
     # Use centralized model settings cascade with comprehensive monitoring
     # BUT: if instance_config was provided, use that instead of loading global config
@@ -280,37 +383,51 @@ async def create_simple_chat_agent(
         usage_tracking="always_included"
     )
     
+    # Build tools list based on agent configuration
+    tools_list = []
+    tools_config = (instance_config or {}).get("tools", {})
+    
+    # Add directory tools if enabled
+    if tools_config.get("directory", {}).get("enabled", False):
+        tools_list.extend([get_available_directories, search_directory])
+    
+    # Add vector search tool if enabled
+    if tools_config.get("vector_search", {}).get("enabled", False):
+        tools_list.append(vector_search)
+    
+    # Add email summary tool if enabled
+    if tools_config.get("email_summary", {}).get("enabled", False):
+        tools_list.append(send_conversation_summary)
+        logfire.info(
+            'agent.tool.registered',
+            tool='send_conversation_summary',
+            agent=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+            demo_mode=True
+        )
+    
+    logfire.info(
+        'agent.creation',
+        agent_name=instance_config.get('instance_name', 'unknown') if instance_config else 'unknown',
+        tools_count=len(tools_list),
+        tool_names=[t.__name__ for t in tools_list],
+        mode='normal'
+    )
+    
     # Create agent with OpenRouterProvider (official pattern)
+    # Pass tools directly - NOT toolsets
     agent = Agent(
         model,
         deps_type=SessionDependencies,
-        system_prompt=system_prompt
+        system_prompt=system_prompt,
+        tools=tools_list  # Direct tool functions, not toolsets
     )
     
-    # Conditionally register vector search tool
-    if instance_config and instance_config.get("tools", {}).get("vector_search", {}).get("enabled", False):
-        from backend.app.agents.tools import vector_tools
-        agent.tool(vector_tools.vector_search)
-        logfire.info(
-            'agent.tool.vector_registered',
-            agent_name=instance_config.get('instance_name', 'unknown')
-        )
-    
-    # Conditionally register directory search tool
-    if instance_config and instance_config.get("tools", {}).get("directory", {}).get("enabled", False):
-        from backend.app.agents.tools.directory_tools import search_directory
-        agent.tool(search_directory)
-        logfire.info(
-            'agent.tool.directory_registered',
-            agent_name=instance_config.get('instance_name', 'unknown')
-        )
-    
-    return agent
+    return agent, prompt_breakdown, system_prompt, tools_list
 
 async def get_chat_agent(
     instance_config: Optional[dict] = None,
     account_id: Optional[UUID] = None
-) -> Agent:  # Fixed: async function
+) -> tuple[Agent, dict, str, list]:  # Return agent, prompt_breakdown, system_prompt, and tools_list
     """
     Create a fresh chat agent instance.
     
@@ -321,13 +438,17 @@ async def get_chat_agent(
     Args:
         instance_config: Optional instance-specific configuration for multi-tenant support
         account_id: Optional account ID for multi-tenant directory documentation generation
+        
+    Returns:
+        tuple: (Agent instance, prompt_breakdown dict, system_prompt str, tools_list)
     """
     # Always create fresh agent to pick up latest configuration
     # This ensures config changes work reliably in production
-    return await create_simple_chat_agent(
+    agent, prompt_breakdown, system_prompt, tools_list = await create_simple_chat_agent(
         instance_config=instance_config,
         account_id=account_id
     )
+    return agent, prompt_breakdown, system_prompt, tools_list
 
 async def simple_chat(
     message: str, 
@@ -353,65 +474,46 @@ async def simple_chat(
     Returns:
         dict with response, messages, new_messages, and usage data
     """
-    # Get history_limit from agent-first configuration cascade
-    from .config_loader import get_agent_history_limit
-    default_history_limit = await get_agent_history_limit("simple_chat")
+    # REFACTOR (CHUNK-0026-010-003): Use AgentExecutionService for setup
+    from ..services.agent_execution_service import get_agent_execution_service
     
-    # Create session dependencies with agent config for tools
-    session_deps = await SessionDependencies.create(
-        session_id=session_id,
-        user_id=None,  # Optional for simple chat
-        history_limit=default_history_limit
-    )
-    # Add agent-specific fields for tool access
-    session_deps.agent_config = instance_config
-    session_deps.agent_instance_id = agent_instance_id
-    
-    # CRITICAL: Ensure account_id is a Python primitive (not SQLAlchemy expression)
-    # This prevents Logfire serialization errors when Pydantic AI instruments tool calls
-    if account_id is not None:
-        # Convert to Python UUID (simplified)
-        session_deps.account_id = UUID(str(account_id)) if account_id and not isinstance(account_id, UUID) else account_id
-    else:
-        session_deps.account_id = None
-    
-    # Load model settings using centralized cascade (Fixed: comprehensive cascade)
-    from .config_loader import get_agent_model_settings
-    model_settings = await get_agent_model_settings("simple_chat")
-    
-    # Load conversation history if not provided (TASK 0017-003)
-    if message_history is None:
-        # Use centralized cascade function for consistent behavior
-        message_history = await load_conversation_history(
+    execution_service = get_agent_execution_service()
+    agent, session_deps, prompt_breakdown, system_prompt, tools_list, message_history, requested_model = \
+        await execution_service.setup_execution_context(
             session_id=session_id,
-            max_messages=None  # load_conversation_history will use get_agent_history_limit internally
+            agent_name="simple_chat",
+            agent_instance_id=agent_instance_id,
+            account_id=account_id,
+            instance_config=instance_config,
+            message_history=message_history
         )
     
-    # Get the agent (Fixed: await async function)
-    # Pass instance_config and account_id for multi-tenant support and directory docs generation
-    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
-    
-    # Extract requested model for debugging
-    config_to_use = instance_config if instance_config is not None else load_config()
-    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    # Load model_settings for cost tracking (still needed for LLM request tracking)
+    from .config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
     
     # Get database session for tools (directory_search, etc.) - wrap execution in context manager
     from ..database import get_database_service
     db_service = get_database_service()
+    
+    # Track start time for error handling (execution service provides latency_ms on success)
+    start_time = datetime.now(UTC)
     
     async with db_service.get_session() as db_session:
         # BUG-0023-001: db_session no longer assigned to dependencies
         # Tools create their own sessions via get_db_session() to eliminate concurrent operation errors
         # This db_session is still used for non-tool operations (session loading, directory docs generation)
         
-        # Pure Pydantic AI agent execution
-        start_time = datetime.now(UTC)
-        
         try:
-            # Execute agent with Pydantic AI
-            result = await agent.run(message, deps=session_deps, message_history=message_history)
-            end_time = datetime.now(UTC)
-            latency_ms = int((end_time - start_time).total_seconds() * 1000)
+            # REFACTOR (CHUNK-0026-010-003): Use AgentExecutionService for execution
+            result, latency_ms = await execution_service.execute_agent(
+                agent=agent,
+                message=message,
+                session_deps=session_deps,
+                message_history=message_history,
+                session_id=session_id,
+                streaming=False
+            )
             
             # Extract response and usage data
             try:
@@ -571,6 +673,11 @@ async def simple_chat(
                     agent_type=agent_type
                 )
             
+                # Format tools for request_body (capture tool names sent to LLM)
+                tools_for_tracking = None
+                if tools_list:
+                    tools_for_tracking = [{"type": "function", "function": {"name": tool.__name__}} for tool in tools_list]
+            
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
                     provider="openrouter",
@@ -579,7 +686,8 @@ async def simple_chat(
                         "messages": request_messages,
                         "model": requested_model,
                         "temperature": model_settings.get("temperature"),
-                        "max_tokens": model_settings.get("max_tokens")
+                        "max_tokens": model_settings.get("max_tokens"),
+                        "tools": tools_for_tracking
                     },
                     response_body=response_body_full,
                     tokens={"prompt": prompt_tokens, "completion": completion_tokens, "total": total_tokens},
@@ -595,7 +703,9 @@ async def simple_chat(
                     account_slug=account_slug,
                     agent_instance_slug=agent_instance_slug,
                     agent_type=agent_type,
-                    completion_status="complete"
+                    completion_status="complete",
+                    meta={"prompt_breakdown": prompt_breakdown},  # Admin debugging
+                    assembled_prompt=system_prompt  # Complete assembled prompt as sent to LLM
                 )
         
             # Save messages to database for multi-tenant message attribution
@@ -604,28 +714,22 @@ async def simple_chat(
                 message_service = MessageService()
             
                 try:
-                    # Save user message (link to LLM request for cost attribution)
-                    await message_service.save_message(
+                    # REFACTOR (CHUNK-0026-010-002): Use new save_message_pair() method
+                    user_msg_id, assistant_msg_id = await message_service.save_message_pair(
                         session_id=UUID(session_id),
                         agent_instance_id=agent_instance_id,
                         llm_request_id=llm_request_id,
-                        role="human",
-                        content=message
+                        user_message=message,
+                        assistant_message=response_text,
+                        result=result  # Automatically extracts tool calls
                     )
-                
-                    # Save assistant response (link to same LLM request)
-                    await message_service.save_message(
-                        session_id=UUID(session_id),
-                        agent_instance_id=agent_instance_id,
-                        llm_request_id=llm_request_id,
-                        role="assistant",
-                        content=response_text
-                    )
-                
+                    
                     logfire.info(
                         'agent.messages.saved',
                         session_id=session_id,
                         agent_instance_id=agent_instance_id,
+                        user_message_id=str(user_msg_id),
+                        assistant_message_id=str(assistant_msg_id),
                         user_message_length=len(message),
                         assistant_message_length=len(response_text)
                     )
@@ -722,40 +826,55 @@ async def simple_chat_stream(
     """
     import json
     
-    # Get history_limit from agent-first configuration cascade
-    from .config_loader import get_agent_history_limit
-    default_history_limit = await get_agent_history_limit("simple_chat")
+    # REFACTOR (CHUNK-0026-010-003): Use AgentExecutionService for setup
+    from ..services.agent_execution_service import get_agent_execution_service
     
-    # Create session dependencies with agent config for tools
-    session_deps = await SessionDependencies.create(
-        session_id=session_id,
-        user_id=None,
-        history_limit=default_history_limit
-    )
-    # Add agent-specific fields for tool access
-    session_deps.agent_config = instance_config
-    session_deps.agent_instance_id = agent_instance_id
-    session_deps.account_id = account_id  # Multi-tenant: for directory tool data isolation
-    
-    # Load conversation history if not provided
-    if message_history is None:
-        message_history = await load_conversation_history(
+    execution_service = get_agent_execution_service()
+    agent, session_deps, prompt_breakdown, system_prompt, tools_list, message_history, requested_model = \
+        await execution_service.setup_execution_context(
             session_id=session_id,
-            max_messages=None
+            agent_name="simple_chat",
+            agent_instance_id=agent_instance_id,
+            account_id=account_id,
+            instance_config=instance_config,
+            message_history=message_history
         )
     
-    # Get the agent (pass instance_config and account_id for multi-tenant support and directory docs generation)
-    agent = await get_chat_agent(instance_config=instance_config, account_id=account_id)
+    # Load model_settings for cost tracking (still needed for LLM request tracking)
+    from .config_loader import get_agent_model_settings
+    model_settings = await get_agent_model_settings("simple_chat")
     
-    # Extract requested model for logging
-    config_to_use = instance_config if instance_config is not None else load_config()
-    requested_model = config_to_use.get("model_settings", {}).get("model", "unknown")
+    # CRITICAL FIX: Inject system prompt into message history (same as non-streaming path)
+    # When Pydantic AI sees message_history, it expects the first ModelRequest to include SystemPromptPart
+    # Our database doesn't store system prompts, so we must inject it here
+    if message_history and len(message_history) > 0:
+        first_msg = message_history[0]
+        if isinstance(first_msg, ModelRequest):
+            # Check if SystemPromptPart is already present
+            has_system_prompt = any(isinstance(part, SystemPromptPart) for part in first_msg.parts)
+            
+            if not has_system_prompt:
+                # Inject SystemPromptPart at the beginning of the first message
+                system_prompt_part = SystemPromptPart(content=system_prompt)
+                # Create new ModelRequest with SystemPromptPart prepended
+                new_parts = [system_prompt_part] + list(first_msg.parts)
+                message_history[0] = ModelRequest(parts=new_parts)
+                
+                logfire.info(
+                    'agent.message_history.system_prompt_injected',
+                    session_id=session_id,
+                    original_parts_count=len(first_msg.parts),
+                    new_parts_count=len(new_parts),
+                    streaming=True
+                )
     
     chunks = []
     start_time = datetime.now(UTC)
     
     try:
-        # Execute agent with streaming
+        # NOTE: Streaming execution uses agent.run_stream() directly with async context manager
+        # AgentExecutionService.execute_agent() with streaming=True could be used, but the
+        # current pattern with async context manager is more explicit for streaming use case
         logfire.info(
             'agent.streaming.start',
             session_id=session_id,
@@ -1047,6 +1166,11 @@ async def simple_chat_stream(
                     agent_type=agent_type
                 )
                 
+                # Format tools for request_body (capture tool names sent to LLM)
+                tools_for_tracking = None
+                if tools_list:
+                    tools_for_tracking = [{"type": "function", "function": {"name": tool.__name__}} for tool in tools_list]
+                
                 llm_request_id = await tracker.track_llm_request(
                     session_id=UUID(session_id),
                     provider="openrouter",
@@ -1056,7 +1180,8 @@ async def simple_chat_stream(
                         "model": requested_model,
                         "temperature": model_settings.get("temperature"),
                         "max_tokens": model_settings.get("max_tokens"),
-                        "stream": True
+                        "stream": True,
+                        "tools": tools_for_tracking
                     },
                     response_body=response_body_full,
                     tokens={
@@ -1072,7 +1197,9 @@ async def simple_chat_stream(
                     account_slug=account_slug,
                     agent_instance_slug=agent_instance_slug,
                     agent_type=agent_type,
-                    completion_status="complete"
+                    completion_status="complete",
+                    meta={"prompt_breakdown": prompt_breakdown},  # Admin debugging
+                    assembled_prompt=system_prompt  # Complete assembled prompt as sent to LLM
                 )
                 
                 logfire.info(
@@ -1095,28 +1222,20 @@ async def simple_chat_stream(
             
             message_service = get_message_service()
             
-            # Save user message (link to LLM request for cost attribution)
-            await message_service.save_message(
+            # REFACTOR (CHUNK-0026-010-002): Use new save_message_pair() method
+            user_msg_id, assistant_msg_id = await message_service.save_message_pair(
                 session_id=UUID(session_id),
                 agent_instance_id=agent_instance_id,
                 llm_request_id=llm_request_id,
-                role="human",
-                content=message
-            )
-            
-            # Save assistant response (link to same LLM request)
-            await message_service.save_message(
-                session_id=UUID(session_id),
-                agent_instance_id=agent_instance_id,
-                llm_request_id=llm_request_id,
-                role="assistant",
-                content=response_text
+                user_message=message,
+                assistant_message=response_text,
+                result=result  # Automatically extracts tool calls
             )
             
             logfire.info(
                 'agent.streaming.messages_saved',
-                session_id=session_id,
-                completion_status="complete"
+                user_message_id=str(user_msg_id),
+                assistant_message_id=str(assistant_msg_id)
             )
             
             # Yield completion event

@@ -1,0 +1,41 @@
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
+# System Default Profile Schema
+# Basic email + phone capture template (fallback for all agents)
+
+profile_version: "1.0"
+
+fields:
+  email:
+    type: email
+    required: true
+    description: "Email address for contact and follow-up"
+    validation: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    examples:
+      - "user@example.com"
+      - "contact@company.com"
+      - "name.surname@domain.co.uk"
+    semantic_hints: "Capture when user wants to receive information, stay in touch, or receive a conversation summary"
+    min_length: 5
+    max_length: 100
+  
+  phone:
+    type: phone
+    required: false
+    description: "Phone number for direct contact (optional)"
+    validation: '^\+?[1-9]\d{1,14}$'
+    examples:
+      - "+12125551234"
+      - "12125551234"
+      - "+442071234567"
+    semantic_hints: "Capture if user prefers phone contact or mentions being available by phone"
+    min_length: 10
+    max_length: 15
+
+capture_hints:
+  timing: "Ask for contact information near the end of conversation, after providing value"
+  approach: "Frame as 'staying in touch' or 'sending a summary of our conversation'"
+  natural_flow: "Don't present as a form - weave into conversation naturally"
+  example: "I'd be happy to email you a summary of what we discussed. What's the best email address for you?"
+

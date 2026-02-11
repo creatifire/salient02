@@ -1,0 +1,177 @@
+entry_type: up_sell
+schema_version: "1.0"
+description: "Schema for up-sell recommendations - premium versions and upgrades"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Up-sell recommendations for premium versions, upgrades, and enhanced options"
+  
+  use_for:
+    - "Suggesting premium versions of products"
+    - "Recommending service upgrades"
+    - "Highlighting enhanced features"
+    - "Increasing customer lifetime value"
+  
+  example_queries:
+    - "What's the premium version of this monitor?"
+    - "Is there a better wheelchair option?"
+    - "Upgrade options for standard MRI?"
+  
+  not_for:
+    - "Complementary products (use cross_sell)"
+    - "Competitor alternatives (use competitive_sell)"
+
+required_fields:
+  - base_item
+  - premium_item
+  - additional_features
+
+optional_fields:
+  - price_difference
+  - value_proposition
+  - benefits
+  - ideal_for
+  - testimonials
+  - upgrade_priority
+  - conversion_rate
+
+fields:
+  base_item:
+    type: string
+    description: "The standard/base product or service"
+    examples:
+      - "Basic Blood Pressure Monitor"
+      - "Standard Wheelchair"
+      - "Standard MRI"
+      - "Basic Physical Therapy Package"
+  
+  premium_item:
+    type: string
+    description: "The upgraded/premium version"
+    examples:
+      - "Omron 10 Series Bluetooth Monitor"
+      - "Lightweight Titanium Wheelchair"
+      - "3T High-Field MRI with Contrast"
+      - "Advanced Physical Therapy with Hydrotherapy"
+  
+  additional_features:
+    type: array
+    description: "Features in premium version not in base"
+    examples:
+      - ["Bluetooth connectivity", "Mobile app integration", "Unlimited memory", "Irregular heartbeat detection"]
+      - ["30% lighter weight", "Quick-release wheels", "Adjustable armrests", "Premium cushioning"]
+  
+  price_difference:
+    type: string
+    description: "Additional cost for premium version"
+    examples:
+      - "+$30"
+      - "+$150 (20% more)"
+      - "$50/month vs $35/month"
+  
+  value_proposition:
+    type: text
+    description: "Why the upgrade is worth it"
+    examples:
+      - "For just $30 more, track your readings on your phone, share data with your doctor, and get unlimited memory vs 60 readings."
+      - "The lightweight titanium model weighs 30% less, making it easier to transport and maneuver, reducing caregiver strain."
+  
+  benefits:
+    type: array
+    description: "Key benefits of upgrading"
+    examples:
+      - ["Better accuracy", "More convenient", "Professional-grade", "Long-term savings"]
+      - ["Improved comfort", "Enhanced mobility", "Greater independence", "Reduced fatigue"]
+  
+  ideal_for:
+    type: text
+    description: "Who should consider the upgrade"
+    examples:
+      - "Ideal for patients managing hypertension who want to share data with their doctor or track trends over time."
+      - "Perfect for active users who need frequent transport or have limited upper body strength."
+  
+  testimonials:
+    type: array
+    description: "Customer testimonials about the premium version"
+    examples:
+      - ["The app makes tracking so much easier - I can share my readings instantly with my cardiologist", "Worth every penny for the Bluetooth feature"]
+  
+  upgrade_priority:
+    type: integer
+    description: "Recommendation priority (1=highest)"
+    examples:
+      - 1
+      - 2
+      - 3
+  
+  conversion_rate:
+    type: number
+    description: "Percentage who upgrade when presented option"
+    examples:
+      - 35.2
+      - 48.7
+      - 22.5
+
+tags_usage:
+  description: "Upgrade categories and benefits"
+  examples:
+    - "Premium"
+    - "Professional Grade"
+    - "Enhanced Features"
+
+contact_info_fields:
+  product_url:
+    description: "Link to premium product page"
+
+searchable_fields:
+  base_item:
+    type: string
+    description: "Standard product/service"
+  
+  premium_item:
+    type: string
+    description: "Premium product/service"
+  
+  benefits:
+    type: array
+    description: "Upgrade benefits (searchable)"
+
+search_strategy:
+  synonym_mappings_heading: "Up-Sell Query Patterns"
+  
+  guidance: |
+    **When customer views standard item:**
+    1. Search by BASE_ITEM to find premium options
+    2. Emphasize VALUE_PROPOSITION (what they get for the extra cost)
+    3. Highlight ADDITIONAL_FEATURES clearly
+    4. Show who the premium version is IDEAL_FOR
+  
+  examples:
+    - user_query: "Premium version of blood pressure monitor?"
+      tool_calls:
+        - 'search_directory(list_name="up_sell", filters={"base_item": "Blood Pressure Monitor"})'
+    
+    - user_query: "Upgrade options for wheelchair?"
+      tool_calls:
+        - 'search_directory(list_name="up_sell", query="wheelchair")'
+
+# Example entry
+example:
+  name: "Basic Monitor → Bluetooth Premium Monitor"
+  tags:
+    - "Premium"
+    - "Technology Upgrade"
+  contact_info:
+    product_url: "https://hospital.org/products/bp-monitor-premium"
+  entry_data:
+    base_item: "Basic Blood Pressure Monitor"
+    premium_item: "Omron 10 Series Bluetooth Monitor"
+    additional_features: ["Bluetooth smartphone connectivity", "Unlimited memory storage", "AM/PM averaging", "Irregular heartbeat detection", "Multi-user (2 users)", "Mobile app with graphs and trends", "Easy data sharing with doctor"]
+    price_difference: "+$30 (38% more)"
+    value_proposition: "For just $30 more, you get unlimited memory (vs 60 readings), smartphone connectivity to track trends, and the ability to instantly share your data with your doctor. Perfect for patients managing hypertension long-term."
+    benefits: ["Track unlimited readings on your phone", "Share data instantly with healthcare providers", "See trends and patterns over time", "Set reminders for measurements", "Multi-user support for couples"]
+    ideal_for: "Ideal for patients with hypertension, heart conditions, or anyone who wants comprehensive tracking and easy data sharing with their healthcare team. Perfect for tech-savvy users who want insights beyond just numbers."
+    testimonials: ["The app changed everything - I can finally see patterns in my BP readings", "My doctor loves that I can send her my weekly averages instantly", "Worth the extra $30 just for unlimited memory"]
+    upgrade_priority: 1
+    conversion_rate: 42.8
+

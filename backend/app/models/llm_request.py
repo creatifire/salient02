@@ -22,7 +22,7 @@ from datetime import datetime
 from typing import Optional
 from decimal import Decimal
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Numeric
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -95,6 +95,13 @@ class LLMRequest(Base):
     # Performance tracking
     latency_ms = Column(Integer, nullable=True)  # Request duration in milliseconds
     
+    # Extensible metadata for prompt breakdown and other debugging info
+    # Example: {"prompt_breakdown": {"sections": [...], "total_char_count": 15410}}
+    meta = Column(JSONB, nullable=True, comment="Extensible metadata including prompt breakdown for debugging")
+    
+    # Full assembled system prompt (for debugging and copy/paste)
+    assembled_prompt = Column(Text, nullable=True, comment="Complete system prompt as sent to LLM (after all module concatenation)")
+    
     # Timestamp
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
     
@@ -128,5 +135,7 @@ class LLMRequest(Base):
             "completion_cost": float(self.completion_cost) if self.completion_cost else None,
             "total_cost": float(self.total_cost) if self.total_cost else None,
             "latency_ms": self.latency_ms,
+            "meta": self.meta,
+            "assembled_prompt": self.assembled_prompt,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

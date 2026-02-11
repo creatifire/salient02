@@ -567,6 +567,234 @@ class MessageService:
                     session_id=str(session_id)
                 )
                 raise
+    
+    @staticmethod
+    def extract_tool_calls(result: Any) -> list[dict]:
+        """
+        Extract tool calls from Pydantic AI result for metadata storage.
+        
+        Parses the result object to find all tool calls made during agent execution,
+        extracting tool names and arguments for debugging and admin visibility.
+        
+        Args:
+            result: Pydantic AI result object from agent.run() or agent.run_stream()
+        
+        Returns:
+            List of tool call dictionaries with 'tool_name' and 'args' keys.
+            Returns empty list if no tool calls found or result is None.
+        
+        Example:
+            >>> result = await agent.run("Find cardiology")
+            >>> tool_calls = MessageService.extract_tool_calls(result)
+            >>> print(tool_calls)
+            [{"tool_name": "search_directory", "args": {"query": "cardiology"}}]
+        
+        Notes:
+        - Handles both streaming and non-streaming results
+        - Safely handles missing attributes and None values
+        - Used for admin debugging and conversation tracing
+        """
+        tool_calls_meta = []
+        
+        if result is None:
+            return tool_calls_meta
+        
+        try:
+            # Check if result has messages (Pydantic AI result structure)
+            if hasattr(result, 'all_messages') and callable(result.all_messages):
+                messages = result.all_messages()
+                if messages:
+                    from pydantic_ai.messages import ToolCallPart
+                    
+                    for msg in messages:
+                        if hasattr(msg, 'parts'):
+                            for part in msg.parts:
+                                if isinstance(part, ToolCallPart):
+                                    tool_calls_meta.append({
+                                        "tool_name": part.tool_name,
+                                        "args": part.args
+                                    })
+            
+            logfire.debug(
+                'service.message.tool_calls_extracted',
+                count=len(tool_calls_meta)
+            )
+            
+        except Exception as e:
+            logfire.error(
+                'service.message.tool_extraction_error',
+                error=str(e)
+            )
+            # Return empty list rather than raising - tool extraction is not critical
+        
+        return tool_calls_meta
+    
+    async def save_message_pair(
+        self,
+        session_id: uuid.UUID | str,
+        agent_instance_id: uuid.UUID | str,
+        llm_request_id: uuid.UUID | str | None,
+        user_message: str,
+        assistant_message: str,
+        result: Any = None
+    ) -> tuple[uuid.UUID, uuid.UUID]:
+        """
+        Save user + assistant message pair atomically with tool call metadata.
+        
+        Provides atomic saving of message pairs to ensure conversation consistency.
+        Both messages are saved in a single transaction - if either fails, both
+        are rolled back. Automatically extracts and attaches tool call metadata
+        to the assistant message for admin debugging.
+        
+        This method consolidates the duplicate message-saving logic from both
+        streaming and non-streaming endpoints, providing a single source of truth
+        for message pair persistence.
+        
+        Args:
+            session_id: Session UUID for message association
+            agent_instance_id: Agent instance UUID for multi-tenant attribution
+            llm_request_id: LLM request UUID for cost attribution (optional)
+            user_message: User's input message content
+            assistant_message: Agent's response message content
+            result: Optional Pydantic AI result object for tool call extraction
+        
+        Returns:
+            Tuple of (user_message_id, assistant_message_id)
+        
+        Raises:
+            ValueError: If validation fails for any ID or message content
+            SQLAlchemyError: If database transaction fails (both messages rolled back)
+        
+        Example:
+            >>> service = MessageService()
+            >>> result = await agent.run(user_message)
+            >>> user_id, assistant_id = await service.save_message_pair(
+            ...     session_id=session_id,
+            ...     agent_instance_id=agent_instance_id,
+            ...     llm_request_id=llm_request_id,
+            ...     user_message="What is cardiology?",
+            ...     assistant_message=result.output,
+            ...     result=result
+            ... )
+        
+        Benefits:
+        - Atomic transaction: Both messages saved or neither
+        - DRY: Eliminates duplicate code in streaming/non-streaming
+        - Tool extraction: Automatic metadata attachment
+        - Testable: Single method to test message pair logic
+        
+        Transaction Safety:
+        Uses a single database transaction to ensure atomicity. If assistant
+        message save fails, the user message is also rolled back, preventing
+        orphaned messages in the conversation history.
+        """
+        # Input validation
+        if not isinstance(session_id, uuid.UUID):
+            try:
+                session_id = uuid.UUID(str(session_id))
+            except (ValueError, TypeError) as e:
+                logfire.error(
+                    'service.message.save_pair.invalid_session_id',
+                    session_id=str(session_id),
+                    error=str(e)
+                )
+                raise ValueError(f"Invalid session_id format: {session_id}") from e
+        
+        if not isinstance(agent_instance_id, uuid.UUID):
+            try:
+                agent_instance_id = uuid.UUID(str(agent_instance_id))
+            except (ValueError, TypeError) as e:
+                logfire.error(
+                    'service.message.save_pair.invalid_agent_instance_id',
+                    agent_instance_id=str(agent_instance_id),
+                    error=str(e)
+                )
+                raise ValueError(f"Invalid agent_instance_id format: {agent_instance_id}") from e
+        
+        if llm_request_id is not None and not isinstance(llm_request_id, uuid.UUID):
+            try:
+                llm_request_id = uuid.UUID(str(llm_request_id))
+            except (ValueError, TypeError) as e:
+                logfire.error(
+                    'service.message.save_pair.invalid_llm_request_id',
+                    llm_request_id=str(llm_request_id),
+                    error=str(e)
+                )
+                raise ValueError(f"Invalid llm_request_id format: {llm_request_id}") from e
+        
+        if not user_message or not user_message.strip():
+            logfire.error('service.message.save_pair.empty_user_message')
+            raise ValueError("User message content cannot be empty")
+        
+        if not assistant_message or not assistant_message.strip():
+            logfire.error('service.message.save_pair.empty_assistant_message')
+            raise ValueError("Assistant message content cannot be empty")
+        
+        # Extract tool calls if result provided
+        tool_calls_meta = self.extract_tool_calls(result) if result else []
+        
+        db_service = get_database_service()
+        async with db_service.get_session() as session:
+            try:
+                # Create user message
+                user_msg = Message(
+                    session_id=session_id,
+                    agent_instance_id=agent_instance_id,
+                    llm_request_id=llm_request_id,
+                    role="human",
+                    content=user_message.strip(),
+                    meta=None,
+                    created_at=datetime.now(timezone.utc)
+                )
+                session.add(user_msg)
+                
+                # Create assistant message with tool calls metadata
+                assistant_msg = Message(
+                    session_id=session_id,
+                    agent_instance_id=agent_instance_id,
+                    llm_request_id=llm_request_id,
+                    role="assistant",
+                    content=assistant_message.strip(),
+                    meta={"tool_calls": tool_calls_meta} if tool_calls_meta else None,
+                    created_at=datetime.now(timezone.utc)
+                )
+                session.add(assistant_msg)
+                
+                # Commit both messages atomically
+                await session.commit()
+                await session.refresh(user_msg)
+                await session.refresh(assistant_msg)
+                
+                logfire.info(
+                    'service.message.pair_saved',
+                    session_id=str(session_id),
+                    agent_instance_id=str(agent_instance_id),
+                    llm_request_id=str(llm_request_id) if llm_request_id else None,
+                    user_message_id=str(user_msg.id),
+                    assistant_message_id=str(assistant_msg.id),
+                    user_message_length=len(user_message),
+                    assistant_message_length=len(assistant_message),
+                    tool_calls_count=len(tool_calls_meta)
+                )
+                
+                return (user_msg.id, assistant_msg.id)
+                
+            except SQLAlchemyError as e:
+                await session.rollback()
+                logfire.exception(
+                    'service.message.save_pair_error',
+                    session_id=str(session_id),
+                    agent_instance_id=str(agent_instance_id)
+                )
+                raise
+            except Exception as e:
+                await session.rollback()
+                logfire.exception(
+                    'service.message.save_pair_unexpected_error',
+                    session_id=str(session_id),
+                    agent_instance_id=str(agent_instance_id)
+                )
+                raise
 
 
 # Global service instance for dependency injection

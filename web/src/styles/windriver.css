@@ -1,10 +1,30 @@
-/* Windriver Hospital - Green/Teal Healthcare Theme */
+/* Wind River Hospital - Modern Healthcare Theme */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;700&family=Roboto:ital,wght@0,300;0,400;0,700;1,400&display=swap');
 
 :root {
-  --windriver-primary: #2E7D32;     /* Forest Green */
-  --windriver-secondary: #00695C;   /* Teal */
-  --windriver-accent: #4CAF50;      /* Light Green */
-  --windriver-text: #1B5E20;       /* Dark Green */
+  /* Colors */
+  --windriver-primary: #05668D;
+  --windriver-primary-dark: #028090;
+  --windriver-secondary: #00A896;
+  --windriver-secondary-light: #02C39A;
+  --windriver-accent: #F0F3BD;
+  
+  /* Fonts */
+  --font-primary: 'Oswald', sans-serif;
+  --font-secondary: 'Roboto', sans-serif;
+  
+  /* Legacy mapping for backward compatibility if used in components */
+  --windriver-text: #05668D;
+}
+
+body {
+  font-family: var(--font-secondary);
+  --color-secondary-foreground: white;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-primary);
+  text-transform: uppercase;
 }
 
 .navbar-bg {
@@ -15,10 +35,5 @@
 .footer-bg {
   background: var(--windriver-primary);
   color: white;
-}
-
-/* Override color variables for Windriver Hospital */
-body {
-  --color-secondary-foreground: white;
 }
 

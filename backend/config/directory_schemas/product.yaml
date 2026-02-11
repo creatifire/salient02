@@ -1,0 +1,263 @@
+entry_type: product
+schema_version: "1.0"
+description: "Schema for physical products, medical equipment, and supplies"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Physical products, medical equipment, and supplies available for purchase"
+  
+  use_for:
+    - "Finding medical devices and equipment"
+    - "Checking product availability and pricing"
+    - "Finding supplies by category"
+    - "Getting product specifications"
+    - "Comparing similar products"
+  
+  example_queries:
+    - "Do you have blood pressure monitors?"
+    - "What wheelchairs are in stock?"
+    - "Show me your diabetic testing supplies"
+    - "How much does a nebulizer cost?"
+  
+  not_for:
+    - "Pharmaceutical drugs (use pharmaceuticals)"
+    - "Medical services (use services)"
+
+required_fields:
+  - category
+
+optional_fields:
+  - subcategory
+  - price
+  - price_range
+  - in_stock
+  - sku
+  - manufacturer
+  - model_number
+  - specifications
+  - features
+  - dimensions
+  - weight
+  - warranty
+  - certifications
+
+fields:
+  category:
+    type: string
+    description: "Primary product category"
+    examples:
+      - "Medical Devices"
+      - "Mobility Aids"
+      - "Diagnostic Equipment"
+      - "Respiratory Equipment"
+      - "Home Care Supplies"
+  
+  subcategory:
+    type: string
+    description: "Specific product subcategory"
+    examples:
+      - "Blood Pressure Monitors"
+      - "Wheelchairs"
+      - "Glucose Meters"
+      - "Nebulizers"
+  
+  price:
+    type: number
+    description: "Product price in USD"
+    examples:
+      - 45.99
+      - 299.00
+      - 15.50
+  
+  price_range:
+    type: string
+    description: "Price range when exact price varies"
+    examples:
+      - "$50-$100"
+      - "$200-$500"
+      - "Under $25"
+  
+  in_stock:
+    type: boolean
+    description: "Current availability status"
+    examples:
+      - true
+      - false
+  
+  sku:
+    type: string
+    description: "Stock keeping unit / product code"
+    examples:
+      - "MED-BP-001"
+      - "MOB-WC-350"
+  
+  manufacturer:
+    type: string
+    description: "Product manufacturer or brand"
+    examples:
+      - "Omron"
+      - "Drive Medical"
+      - "Medline"
+  
+  model_number:
+    type: string
+    description: "Manufacturer's model number"
+    examples:
+      - "BP786N"
+      - "RTL10266"
+  
+  specifications:
+    type: text
+    description: "Technical specifications"
+    examples:
+      - "Measurement range: 0-299 mmHg, Memory: 120 readings"
+      - "Weight capacity: 350 lbs, Seat width: 22 inches"
+  
+  features:
+    type: array
+    description: "Key product features"
+    examples:
+      - ["Bluetooth connectivity", "Large display", "Irregular heartbeat detection"]
+      - ["Foldable", "Padded armrests", "Swing-away footrests"]
+  
+  dimensions:
+    type: string
+    description: "Physical dimensions"
+    examples:
+      - "6 x 4 x 3 inches"
+      - "28 x 25 x 36 inches (WxDxH)"
+  
+  weight:
+    type: string
+    description: "Product weight"
+    examples:
+      - "1.2 lbs"
+      - "42 lbs"
+  
+  warranty:
+    type: string
+    description: "Warranty information"
+    examples:
+      - "5 year limited warranty"
+      - "1 year manufacturer warranty"
+      - "Lifetime frame warranty"
+  
+  certifications:
+    type: array
+    description: "Certifications and approvals"
+    examples:
+      - ["FDA approved", "CE marked"]
+      - ["ADA compliant", "Medicare eligible"]
+
+tags_usage:
+  description: "Product categories and features for filtering"
+  source_column: "category"
+  examples:
+    - "Medical Devices"
+    - "Mobility"
+    - "Respiratory"
+    - "FDA Approved"
+
+contact_info_fields:
+  phone:
+    description: "Sales or customer service phone"
+  
+  email:
+    description: "Product inquiries email"
+  
+  product_url:
+    description: "Link to product details page"
+  
+  location:
+    description: "Store location where available"
+
+searchable_fields:
+  category:
+    type: string
+    description: "Product category"
+  
+  subcategory:
+    type: string
+    description: "Product subcategory"
+  
+  manufacturer:
+    type: string
+    description: "Brand or manufacturer"
+  
+  sku:
+    type: string
+    description: "Product code"
+  
+  features:
+    type: array
+    description: "Product features (searchable)"
+
+search_strategy:
+  synonym_mappings_heading: "Product & Equipment Synonyms"
+  
+  guidance: |
+    **When users ask about products:**
+    1. Search by CATEGORY first (e.g., "mobility aids", "diagnostic equipment")
+    2. Search by product NAME or TYPE (e.g., "wheelchair", "blood pressure monitor")
+    3. Use FILTERS for specific requirements (e.g., in_stock=true, price range)
+    4. Always include availability status (in_stock) in results
+  
+  synonym_mappings:
+    - lay_terms: ["BP monitor", "blood pressure cuff", "sphygmomanometer"]
+      formal_terms: ["Blood Pressure Monitor"]
+    
+    - lay_terms: ["wheelchair", "chair", "mobility chair"]
+      formal_terms: ["Wheelchair"]
+    
+    - lay_terms: ["glucose meter", "blood sugar monitor", "diabetic tester"]
+      formal_terms: ["Glucose Meter", "Blood Glucose Monitor"]
+    
+    - lay_terms: ["breathing machine", "asthma machine"]
+      formal_terms: ["Nebulizer"]
+    
+    - lay_terms: ["walker", "walking aid"]
+      formal_terms: ["Walker", "Walking Aid"]
+    
+    - lay_terms: ["crutches", "walking crutches"]
+      formal_terms: ["Crutches"]
+  
+  examples:
+    - user_query: "Do you have blood pressure monitors?"
+      tool_calls:
+        - 'search_directory(list_name="products", query="blood pressure monitor")'
+        - 'search_directory(list_name="products", filters={"category": "Diagnostic Equipment"})'
+    
+    - user_query: "What wheelchairs are in stock?"
+      tool_calls:
+        - 'search_directory(list_name="products", query="wheelchair", filters={"in_stock": "true"})'
+    
+    - user_query: "Show me diabetic supplies under $50"
+      tool_calls:
+        - 'search_directory(list_name="products", query="diabetic")'
+      note: "Filter by price in response based on returned data"
+
+# Example entry
+example:
+  name: "Omron 10 Series Blood Pressure Monitor"
+  tags:
+    - "Diagnostic Equipment"
+    - "FDA Approved"
+  contact_info:
+    product_url: "https://example.com/products/bp-monitor-omron-10"
+    phone: "800-555-0123"
+    location: "Medical Supply Store - Main St"
+  entry_data:
+    category: "Diagnostic Equipment"
+    subcategory: "Blood Pressure Monitors"
+    price: 79.99
+    in_stock: true
+    sku: "OMR-BP786N"
+    manufacturer: "Omron"
+    model_number: "BP786N"
+    specifications: "Measurement range: 0-299 mmHg, Pulse range: 40-180 bpm, Memory: 120 readings"
+    features: ["Bluetooth connectivity", "Large LCD display", "Irregular heartbeat detection", "AM/PM averaging"]
+    dimensions: "6.2 x 4.4 x 3.2 inches"
+    weight: "1.3 lbs"
+    warranty: "5 year limited warranty"
+    certifications: ["FDA approved", "Clinically validated"]
+

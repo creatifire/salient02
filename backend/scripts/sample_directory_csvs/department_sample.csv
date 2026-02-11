@@ -1,0 +1,6 @@
+name,department_function,manager_name,staff_count,budget,key_responsibilities,phone,email,location,tags
+Cardiology Department,Cardiovascular care and treatment,Dr. Robert Chen,45,2500000,"Patient cardiac care|Cardiac catheterization|Heart surgery support|Preventive cardiology programs",555-2345,cardiology@hospital.org,"Building B, Floor 2","Cardiology, Clinical"
+Emergency Department,Emergency medical services and trauma care,Dr. Maria Gonzalez,75,4500000,"Emergency triage|Trauma response|Critical care stabilization|Ambulance coordination",555-9111,emergency@hospital.org,Main Building - Ground Floor,"Emergency, Critical Care"
+Radiology Department,Diagnostic imaging services,Dr. James Kim,30,3200000,"X-ray imaging|CT scans|MRI procedures|Ultrasound services|Image interpretation",555-3456,radiology@hospital.org,"Building A, Ground Floor","Radiology, Diagnostic"
+Human Resources,Staff recruitment and employee relations,Sarah Johnson,12,850000,"Hiring and onboarding|Benefits administration|Employee relations|Training programs|Compliance",555-5000,hr@hospital.org,"Administrative Building, Floor 3","Administrative, HR"
+

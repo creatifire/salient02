@@ -18,6 +18,10 @@ model_settings:
   max_tokens: 2000
 
 tools:
+  profile_capture:
+    enabled: false  # Disabled for test account
+    schema_file: "profile.yaml"
+  
   vector_search:
     enabled: true
     max_results: 5

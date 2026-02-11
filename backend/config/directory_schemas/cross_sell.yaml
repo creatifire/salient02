@@ -1,0 +1,182 @@
+entry_type: cross_sell
+schema_version: "1.0"
+description: "Schema for cross-sell recommendations - complementary products and services"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Cross-sell recommendations for complementary products and services"
+  
+  use_for:
+    - "Suggesting complementary products when customer browses an item"
+    - "Recommending related services with a procedure"
+    - "Building product bundles"
+    - "Increasing average order value"
+  
+  example_queries:
+    - "What goes well with a blood pressure monitor?"
+    - "What else do I need with this wheelchair?"
+    - "Complementary services for MRI?"
+  
+  not_for:
+    - "Upgrading to premium versions (use up_sell)"
+    - "Competing product comparisons (use competitive_sell)"
+
+required_fields:
+  - primary_item
+  - suggested_item
+  - relationship
+
+optional_fields:
+  - reason
+  - bundle_discount
+  - frequently_bought_together
+  - compatibility_note
+  - usage_scenario
+  - priority
+  - conversion_rate
+
+fields:
+  primary_item:
+    type: string
+    description: "The main product/service being purchased"
+    examples:
+      - "Blood Pressure Monitor"
+      - "Wheelchair"
+      - "MRI Scan"
+      - "Diabetes Testing Kit"
+  
+  suggested_item:
+    type: string
+    description: "The complementary product/service to recommend"
+    examples:
+      - "Replacement Cuffs"
+      - "Wheelchair Cushion"
+      - "Physical Therapy"
+      - "Test Strips (100 count)"
+  
+  relationship:
+    type: string
+    description: "How the items relate to each other"
+    examples:
+      - "Accessory"
+      - "Consumable Supply"
+      - "Complementary Service"
+      - "Enhancement"
+  
+  reason:
+    type: text
+    description: "Why these items work well together"
+    examples:
+      - "Replacement cuffs extend the life of your monitor and ensure accurate readings. Most users replace cuffs every 6-12 months."
+      - "A quality cushion improves comfort for extended use and helps prevent pressure sores."
+  
+  bundle_discount:
+    type: string
+    description: "Special pricing when purchased together"
+    examples:
+      - "Save 15% when purchased together"
+      - "$20 off bundle"
+      - "Free shipping on bundle"
+  
+  frequently_bought_together:
+    type: boolean
+    description: "Whether customers frequently buy these together"
+    examples:
+      - true
+      - false
+  
+  compatibility_note:
+    type: string
+    description: "Compatibility information"
+    examples:
+      - "Compatible with all Omron 10 Series monitors"
+      - "Fits wheelchairs up to 20 inch seat width"
+  
+  usage_scenario:
+    type: text
+    description: "When/why customer would need both"
+    examples:
+      - "After purchasing a monitor, you'll need replacement cuffs as they wear out with regular use."
+      - "Extended wheelchair use requires a cushion for comfort and health."
+  
+  priority:
+    type: integer
+    description: "Recommendation priority (1=highest)"
+    examples:
+      - 1
+      - 2
+      - 3
+  
+  conversion_rate:
+    type: number
+    description: "Percentage of customers who accept this recommendation"
+    examples:
+      - 45.5
+      - 67.2
+      - 23.8
+
+tags_usage:
+  description: "Relationship types and categories"
+  source_column: "relationship"
+  examples:
+    - "Accessory"
+    - "Supply"
+    - "Service"
+    - "Bundle"
+
+contact_info_fields:
+  product_url:
+    description: "Link to suggested product page"
+
+searchable_fields:
+  primary_item:
+    type: string
+    description: "Main product/service"
+  
+  suggested_item:
+    type: string
+    description: "Recommended product/service"
+  
+  relationship:
+    type: string
+    description: "Type of relationship"
+
+search_strategy:
+  synonym_mappings_heading: "Cross-Sell Query Patterns"
+  
+  guidance: |
+    **When customer views or purchases an item:**
+    1. Search by PRIMARY_ITEM to find complementary suggestions
+    2. Prioritize items with high conversion_rate
+    3. Show items marked frequently_bought_together first
+    4. Explain WHY the items work together (include reason)
+  
+  examples:
+    - user_query: "What accessories for blood pressure monitor?"
+      tool_calls:
+        - 'search_directory(list_name="cross_sell", filters={"primary_item": "Blood Pressure Monitor"})'
+    
+    - user_query: "Frequently bought with wheelchair?"
+      tool_calls:
+        - 'search_directory(list_name="cross_sell", filters={"primary_item": "Wheelchair", "frequently_bought_together": "true"})'
+
+# Example entry
+example:
+  name: "BP Monitor + Replacement Cuffs"
+  tags:
+    - "Accessory"
+    - "Frequently Bought Together"
+  contact_info:
+    product_url: "https://hospital.org/products/bp-cuffs-replacement"
+  entry_data:
+    primary_item: "Blood Pressure Monitor"
+    suggested_item: "Replacement Cuffs (Standard Adult)"
+    relationship: "Consumable Accessory"
+    reason: "Blood pressure cuffs wear out with regular use. Having a replacement ensures continuous monitoring. Most users replace cuffs every 6-12 months for accuracy."
+    bundle_discount: "Save 15% when purchased with monitor"
+    frequently_bought_together: true
+    compatibility_note: "Compatible with Omron 3, 5, 7, and 10 Series monitors"
+    usage_scenario: "After 6-12 months of daily use, cuffs may show wear or become less accurate. Keep a spare on hand for uninterrupted blood pressure monitoring."
+    priority: 1
+    conversion_rate: 52.3
+

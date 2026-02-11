@@ -44,6 +44,16 @@ MAPPERS = {
     'medical_professional': DirectoryImporter.medical_professional_mapper,
     'pharmaceutical': DirectoryImporter.pharmaceutical_mapper,
     'product': DirectoryImporter.product_mapper,
+    'contact_information': DirectoryImporter.contact_information_mapper,
+    'department': DirectoryImporter.department_mapper,
+    'service': DirectoryImporter.service_mapper,
+    'location': DirectoryImporter.location_mapper,
+    'faq': DirectoryImporter.faq_mapper,
+    'cross_sell': DirectoryImporter.cross_sell_mapper,
+    'up_sell': DirectoryImporter.up_sell_mapper,
+    'competitive_sell': DirectoryImporter.competitive_sell_mapper,
+    'classes': DirectoryImporter.classes_mapper,
+    'experts': DirectoryImporter.experts_mapper,
 }
 
 

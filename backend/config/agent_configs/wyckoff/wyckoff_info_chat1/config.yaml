@@ -12,12 +12,24 @@ description: "Healthcare information and doctor search assistant for Wyckoff Hos
 prompts:
   system_prompt_file: "./system_prompt.md"
 
+# Prompt modules configuration (Phase 4A)
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - tool_selection_hints       # NEW - choose correct tool (directory vs vector)
+      # directory_selection_hints automatically included in directory header when directory tools enabled
+
 model_settings:
-  model: "google/gemini-2.5-flash"  # Fast, reliable OpenAI model with excellent tool support
+  model: "google/gemini-2.5-flash"  # Fast, reliable model with excellent tool support
   temperature: 0.3
   max_tokens: 2000
 
 tools:
+  profile_capture:
+    enabled: true
+    schema_file: "profile.yaml"  # Profile schema for hospital visitor information
+  
   vector_search:
     enabled: true  # ENABLED - Hospital WordPress content in Pinecone
     max_results: 10
@@ -33,8 +45,8 @@ tools:
       dimensions: 1536
   
   directory:
-    enabled: true  # ENABLED - Wyckoff doctor profiles from directory_lists
-    accessible_lists: ["doctors"]  # Lists this agent can search
+    enabled: true  # ENABLED - Wyckoff doctor profiles and contact information from directory_lists
+    accessible_lists: ["doctors", "contact_information"]  # Lists this agent can search
     max_results: 10  # Maximum entries to return per search
     search_mode: "fts"  # Search mode: exact | substring | fts (full-text search with ranking)
   
@@ -55,8 +67,8 @@ tools:
     summary_model: "moonshotai/kimi-k2-0905"
 
 context_management:
-  history_limit: 50
-  context_window_tokens: 8000
+  history_limit: 200
+  context_window_tokens: 128000
   summarization:
     enabled: true
     trigger_threshold: 10

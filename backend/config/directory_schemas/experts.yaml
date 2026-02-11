@@ -1,0 +1,479 @@
+# Copyright (c) 2025 Ape4, Inc. All rights reserved.
+# Unauthorized copying of this file is strictly prohibited.
+
+# Experts Directory Schema
+# Used for tutors, consultants, coaches, contractors, and freelancers providing professional services
+
+entry_type: experts
+schema_version: "1.0"
+description: "Schema for experts providing professional services including tutors, consultants, coaches, contractors, and freelancers"
+
+# Directory purpose for multi-directory selection
+directory_purpose:
+  description: "Experts providing professional services - tutors, consultants, coaches, contractors, freelancers"
+  
+  use_for:
+    - "Finding tutors by subject and grade level"
+    - "Finding consultants by expertise area"
+    - "Finding coaches for personal or professional development"
+    - "Finding contractors or freelancers for specific projects"
+    - "Getting expert credentials, experience, and pricing"
+    - "Finding experts available online or in-person"
+  
+  example_queries:
+    - "I need a math tutor for high school"
+    - "Do you have business consultants?"
+    - "Who can help with career coaching?"
+    - "Find me a web developer contractor"
+    - "What's the hourly rate for a marketing consultant?"
+    - "Are there Spanish-speaking tutors?"
+  
+  not_for:
+    - "Medical professionals (use medical_professional)"
+    - "Medical services (use service)"
+    - "Educational classes (use classes)"
+
+# Required fields that must be present in entry_data JSONB
+required_fields:
+  - provider_type
+
+# Optional fields that may be present in entry_data JSONB
+optional_fields:
+  - expertise
+  - years_of_experience
+  - hourly_rate
+  - fixed_price
+  - retainer
+  - per_session_cost
+  - availability
+  - location_type
+  - certifications
+  - education
+  - professional_associations
+  - subjects
+  - levels
+  - bio
+  - portfolio
+  - languages
+
+# Field definitions with types and examples
+fields:
+  provider_type:
+    type: string
+    description: "Type of expert service provider"
+    examples:
+      - "tutor"
+      - "consultant"
+      - "coach"
+      - "contractor"
+      - "freelancer"
+    notes: "Required field - determines which optional fields are relevant"
+  
+  expertise:
+    type: string
+    description: "Primary area of expertise or specialization"
+    examples:
+      - "Mathematics"
+      - "Business Strategy"
+      - "Career Development"
+      - "Web Development"
+      - "Marketing"
+      - "Financial Planning"
+      - "Life Coaching"
+  
+  years_of_experience:
+    type: integer
+    description: "Number of years of professional experience"
+    examples:
+      - 5
+      - 10
+      - 15
+      - 20
+  
+  hourly_rate:
+    type: number
+    description: "Hourly rate in USD"
+    examples:
+      - 50.00
+      - 75.00
+      - 100.00
+      - 150.00
+  
+  fixed_price:
+    type: number
+    description: "Fixed project price in USD"
+    examples:
+      - 500.00
+      - 1000.00
+      - 5000.00
+  
+  retainer:
+    type: number
+    description: "Monthly retainer fee in USD"
+    examples:
+      - 2000.00
+      - 5000.00
+      - 10000.00
+  
+  per_session_cost:
+    type: number
+    description: "Cost per session in USD (for tutors, coaches)"
+    examples:
+      - 60.00
+      - 80.00
+      - 120.00
+  
+  availability:
+    type: object
+    description: "Typical weekly availability schedule (JSON object)"
+    format: "JSON object with day names as keys and time ranges as values"
+    example: |
+      {
+        "Monday": "9:00 AM - 5:00 PM",
+        "Tuesday": "9:00 AM - 5:00 PM",
+        "Wednesday": "9:00 AM - 5:00 PM",
+        "Thursday": "9:00 AM - 5:00 PM",
+        "Friday": "9:00 AM - 1:00 PM",
+        "Saturday": "10:00 AM - 2:00 PM",
+        "Sunday": "Closed"
+      }
+    notes: "Flexible format - can include timezone, specific hours, or availability notes"
+  
+  location_type:
+    type: string
+    description: "Service delivery location type"
+    examples:
+      - "in_person"
+      - "online"
+      - "both"
+    notes: "Indicates whether expert provides services in-person, online, or both"
+  
+  certifications:
+    type: array
+    description: "Professional certifications and licenses"
+    examples:
+      - ["PMP Certified", "Scrum Master", "AWS Solutions Architect"]
+      - ["Certified Public Accountant", "CFA"]
+      - ["Certified Life Coach", "ICF Credentialed"]
+  
+  education:
+    type: string
+    description: "Educational background and degrees"
+    examples:
+      - "MBA, Harvard Business School"
+      - "BS Computer Science, MIT"
+      - "PhD Mathematics, Stanford University"
+      - "Certified Financial Planner, CFP Board"
+  
+  professional_associations:
+    type: array
+    description: "Professional associations and memberships"
+    examples:
+      - ["American Management Association", "Project Management Institute"]
+      - ["International Coach Federation", "National Tutoring Association"]
+      - ["Freelancers Union", "Upwork Top Rated"]
+  
+  subjects:
+    type: array
+    description: "Subjects taught (for tutors)"
+    examples:
+      - ["Mathematics", "Calculus", "Algebra"]
+      - ["English", "Writing", "Literature"]
+      - ["Science", "Chemistry", "Physics"]
+      - ["Test Prep", "SAT", "ACT"]
+    notes: "Primarily for provider_type='tutor'"
+  
+  levels:
+    type: array
+    description: "Grade levels or skill levels taught (for tutors)"
+    examples:
+      - ["Elementary", "Middle School", "High School"]
+      - ["High School", "College"]
+      - ["Elementary"]
+      - ["College", "Graduate"]
+    notes: "Primarily for provider_type='tutor'"
+  
+  bio:
+    type: text
+    description: "Professional biography and background"
+    format: "Free-form text, multi-paragraph"
+    example: "Experienced mathematics tutor with 10+ years helping students achieve academic success. Specializes in algebra, calculus, and test preparation. Patient and encouraging teaching style."
+  
+  portfolio:
+    type: array
+    description: "Portfolio or work samples URLs"
+    examples:
+      - ["https://example.com/portfolio", "https://github.com/username"]
+      - ["https://behance.net/username", "https://dribbble.com/username"]
+    notes: "Array of URLs showcasing work, projects, or achievements"
+  
+  languages:
+    type: array
+    description: "Languages spoken"
+    examples:
+      - ["English", "Spanish"]
+      - ["English", "Mandarin", "French"]
+      - ["English"]
+    notes: "Languages the expert can communicate in"
+
+# Tags usage (stored in tags[] ARRAY column)
+tags_usage:
+  description: "Languages spoken by the expert"
+  source_column: "languages"
+  format: "Array of language names"
+  examples:
+    - "English"
+    - "Spanish"
+    - "Mandarin"
+    - "French"
+  notes: "Languages are stored in both entry_data.languages (for filtering) and tags[] (for search)"
+
+# Contact info usage (stored in contact_info JSONB column)
+contact_info_fields:
+  phone:
+    description: "Primary contact phone number"
+    example: "555-1234"
+  
+  email:
+    description: "Email address for inquiries"
+    example: "expert@example.com"
+  
+  website:
+    description: "Personal or professional website URL"
+    example: "https://expertname.com"
+  
+  location:
+    description: "Physical location (for in-person services)"
+    example: "New York, NY" or "123 Main St, Brooklyn, NY 11201"
+
+# Data handling rules
+data_handling:
+  empty_fields: "Skip empty or null values (don't store in JSONB)"
+  availability_format: "Store as JSON object with flexible structure"
+  pricing_fields: "At least one pricing field should be present (hourly_rate, fixed_price, retainer, or per_session_cost)"
+  provider_type_validation: "Must be one of: tutor, consultant, coach, contractor, freelancer"
+
+# Validation rules
+validation:
+  required_on_import: true
+  name_required: true  # name column is always required
+  provider_type_check: true  # Check provider_type is valid value
+  pricing_check: false  # Phase 2: Ensure at least one pricing field present
+  type_checking: false  # Phase 2 enhancement
+  format_validation: false  # Phase 2 enhancement
+
+# Search configuration
+search_config:
+  search_mode: "fts"  # exact | substring | fts
+  description: |
+    Full-text search (FTS) enables intelligent matching with:
+    - Word variations: "math" matches "mathematics", "math tutor"
+    - Stemming: "tutors" matches "tutor" (singular)
+    - Relevance ranking: Most relevant results first (name > tags > entry_data)
+    - Multi-word queries: "high school math tutor" matches tutors with math expertise and high school levels
+  
+  how_it_works: |
+    FTS indexes all searchable content with weighted priorities:
+    - Weight A (highest): Name field - e.g., "John Smith"
+    - Weight B (medium): Tags (languages) - e.g., "Spanish", "English"
+    - Weight C (lowest): All entry_data fields - expertise, subjects, bio, etc.
+    
+    Search queries are processed with PostgreSQL's to_tsquery():
+    - Single words: "math" → searches for "math*" forms
+    - Multiple words: "high school tutor" → searches for "high" AND "school" AND "tutor"
+    - Results ranked by ts_rank() - higher relevance scores first
+  
+  query_examples:
+    - query: "math tutor"
+      matches:
+        - "Tutors with math in subjects (in entry_data)"
+        - "Tutors with mathematics in expertise"
+        - "Tutors with math in bio"
+      note: "Word variations handled via stemming"
+    
+    - query: "business consultant"
+      matches:
+        - "Consultants with business in expertise"
+        - "Consultants with business strategy in bio"
+      note: "Multi-word queries use AND logic"
+    
+    - query: "spanish speaking"
+      matches:
+        - "Experts with Spanish in tags array"
+        - "Experts with spanish in any entry_data field"
+      note: "Tags have higher weight (B) than entry_data (C)"
+
+# Search strategy for LLM guidance
+# Used by prompt_generator.py to teach LLM how to handle general/ambiguous terms
+search_strategy:
+  # Custom heading for prompt generation
+  synonym_mappings_heading: "Expert Service Provider Synonyms"
+  
+  guidance: |
+    **BEFORE searching, think step-by-step:**
+    1. What type of expert is the user looking for? (tutor, consultant, coach, contractor, freelancer)
+    2. What is their area of expertise or subject?
+    3. Are there specific requirements? (grade level, location type, languages, pricing)
+    4. Make targeted tool calls with appropriate filters
+    5. Combine all results before responding to user
+    
+    **Common Expert Service Synonyms - Use These Mappings:**
+  
+  synonym_mappings:
+    # Tutors
+    - lay_terms: ["tutor", "tutoring", "teacher", "instructor", "private teacher", "academic help"]
+      formal_terms: ["tutor"]
+      search_approach: "Search with provider_type='tutor' and filter by subjects or levels"
+    
+    # Consultants
+    - lay_terms: ["consultant", "advisor", "adviser", "specialist", "expert", "professional advisor"]
+      formal_terms: ["consultant"]
+      search_approach: "Search with provider_type='consultant' and filter by expertise"
+    
+    # Coaches
+    - lay_terms: ["coach", "mentor", "trainer", "guide", "life coach", "career coach"]
+      formal_terms: ["coach"]
+      search_approach: "Search with provider_type='coach' and filter by expertise (e.g., 'career', 'life', 'business')"
+    
+    # Contractors/Freelancers
+    - lay_terms: ["contractor", "freelancer", "independent contractor", "gig worker", "self-employed"]
+      formal_terms: ["contractor", "freelancer"]
+      search_approach: "Search with provider_type='contractor' or 'freelancer' and filter by expertise"
+    
+    # Subject/Topic Synonyms
+    - lay_terms: ["math", "mathematics", "algebra", "calculus"]
+      formal_terms: ["Mathematics", "Algebra", "Calculus"]
+      search_approach: "Search in subjects array or expertise field"
+    
+    - lay_terms: ["business", "business strategy", "management", "strategy"]
+      formal_terms: ["Business Strategy", "Management", "Business"]
+      search_approach: "Search in expertise field"
+    
+    - lay_terms: ["career", "career development", "job search", "professional development"]
+      formal_terms: ["Career Development", "Career Coaching"]
+      search_approach: "Search in expertise field with provider_type='coach'"
+  
+  examples:
+    - user_query: "I need a math tutor for high school"
+      thought_process: |
+        1. User wants a tutor (provider_type='tutor')
+        2. Subject: math/mathematics
+        3. Level: high school
+      tool_calls:
+        - 'search_directory(list_name="experts", filters={"provider_type": "tutor", "subjects": "Mathematics", "levels": "High School"})'
+        - 'search_directory(list_name="experts", query="math tutor high school")'
+    
+    - user_query: "Do you have business consultants?"
+      thought_process: |
+        1. User wants consultants (provider_type='consultant')
+        2. Expertise area: business
+      tool_calls:
+        - 'search_directory(list_name="experts", filters={"provider_type": "consultant", "expertise": "Business Strategy"})'
+        - 'search_directory(list_name="experts", query="business consultant")'
+    
+    - user_query: "Find me a Spanish-speaking tutor"
+      thought_process: |
+        1. User wants a tutor
+        2. Language requirement: Spanish
+      tool_calls:
+        - 'search_directory(list_name="experts", filters={"provider_type": "tutor"}, query="spanish")'
+        - 'search_directory(list_name="experts", filters={"provider_type": "tutor", "tags": "Spanish"})'
+
+# Searchable fields for system prompt generation
+# These fields can be used in the filters parameter: filters={"field_name": "value"}
+# This section is used by prompt_generator.py to auto-generate tool documentation
+searchable_fields:
+  provider_type:
+    type: string
+    description: "Type of expert (tutor, consultant, coach, contractor, freelancer)"
+    examples:
+      - "tutor"
+      - "consultant"
+      - "coach"
+      - "contractor"
+      - "freelancer"
+  
+  expertise:
+    type: string
+    description: "Area of expertise or specialization"
+    examples:
+      - "Mathematics"
+      - "Business Strategy"
+      - "Web Development"
+      - "Career Development"
+  
+  subjects:
+    type: array
+    description: "Subjects taught (for tutors)"
+    examples:
+      - ["Mathematics", "Algebra"]
+      - ["English", "Writing"]
+      - ["Science", "Chemistry"]
+  
+  levels:
+    type: array
+    description: "Grade levels taught (for tutors)"
+    examples:
+      - ["Elementary", "Middle School"]
+      - ["High School", "College"]
+  
+  location_type:
+    type: string
+    description: "Service delivery type (in_person, online, both)"
+    examples:
+      - "in_person"
+      - "online"
+      - "both"
+  
+  languages:
+    type: array
+    description: "Languages spoken"
+    examples:
+      - ["English", "Spanish"]
+      - ["English", "Mandarin"]
+
+# Search and filter capabilities
+searchable_by:
+  - name  # Indexed column, fast text search
+  - tags  # Languages spoken, GIN indexed array
+  - provider_type  # JSONB field, can filter
+  - expertise  # JSONB field, can filter
+  - subjects  # JSONB field (array), can filter
+  - levels  # JSONB field (array), can filter
+  - location_type  # JSONB field, can filter
+
+# Example entry
+example:
+  name: "Sarah Chen, Math Tutor"
+  tags:
+    - "English"
+    - "Mandarin"
+  contact_info:
+    phone: "555-0123"
+    email: "sarah.chen@tutoring.com"
+    website: "https://sarahchentutoring.com"
+    location: "New York, NY"
+  entry_data:
+    provider_type: "tutor"
+    expertise: "Mathematics"
+    years_of_experience: 8
+    hourly_rate: 75.00
+    per_session_cost: 80.00
+    availability:
+      Monday: "3:00 PM - 8:00 PM"
+      Tuesday: "3:00 PM - 8:00 PM"
+      Wednesday: "3:00 PM - 8:00 PM"
+      Thursday: "3:00 PM - 8:00 PM"
+      Friday: "3:00 PM - 6:00 PM"
+      Saturday: "10:00 AM - 2:00 PM"
+      Sunday: "Closed"
+    location_type: "both"
+    certifications: ["Certified Math Teacher", "National Tutoring Association"]
+    education: "MS Mathematics Education, Columbia University"
+    professional_associations: ["National Tutoring Association"]
+    subjects: ["Mathematics", "Algebra", "Calculus", "Geometry", "Test Prep"]
+    levels: ["Middle School", "High School", "College"]
+    bio: "Experienced mathematics tutor with 8 years helping students achieve academic success. Specializes in algebra, calculus, and SAT/ACT test preparation. Patient and encouraging teaching style with proven track record of improving student grades."
+    portfolio: ["https://sarahchentutoring.com/testimonials", "https://sarahchentutoring.com/success-stories"]
+    languages: ["English", "Mandarin"]
+

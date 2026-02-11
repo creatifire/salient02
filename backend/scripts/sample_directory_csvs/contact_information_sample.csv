@@ -1,0 +1,7 @@
+department_name,phone_number,service_type,hours_of_operation,building_location,description,fax_number,email
+Emergency Department,555-9111,Emergency Services,24/7,Main Building - Ground Floor,Emergency care and trauma services,555-9112,emergency@hospital.org
+Main Information,555-1000,Administrative,Mon-Fri 8am-8pm,Main Lobby,General hospital information,555-1001,info@hospital.org
+Appointments,555-1234,Patient Services,Mon-Fri 7am-7pm,"Building A, 2nd Floor",Schedule appointments with specialists,555-1235,appointments@hospital.org
+Billing Department,555-5555,Administrative,Mon-Fri 9am-5pm,"Building B, 1st Floor",Patient billing inquiries,555-5556,billing@hospital.org
+Pharmacy,555-7000,Clinical Services,Mon-Fri 8am-6pm,"Building A, Ground Floor",Prescription pickup and consultations,555-7001,pharmacy@hospital.org
+

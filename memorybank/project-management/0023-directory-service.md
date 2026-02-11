@@ -198,6 +198,11 @@ Agent:    5dc7a769-bb5e-485b-9f19-093b95dd404d (wyckoff_info_chat1)
 - [ ] 0023-004-003 - Centralized Tool Registry - Priority 3 (optional)
 - [ ] 0023-005-001 - Incremental CSV Updates - Priority 4 (if needed)
 
+**New Directory Types** 📋:
+- [ ] 0023-010 - Insurance Coverage Directory - Healthcare insurance and coverage information
+- [ ] 0023-011 - Directions and Locations Directory - Building/office navigation and wayfinding
+- [ ] 0023-012 - Parking Information Directory - Parking lots, rates, and accessibility
+
 **Deferred** ⏸️:
 - [ ] 0023-003 - Semantic Search (Pinecone) - Re-evaluate after FTS
 
@@ -3019,11 +3024,819 @@ assert len(result) == 0  # Should be empty due to multi-tenant filtering
 
 ---
 
+## Feature 0023-010 - Insurance Coverage Directory
+
+**Status**: 📝 Planning
+
+**Objective**: Provide comprehensive insurance coverage information including accepted insurance plans, coverage types, prior authorization requirements, and contact information for insurance verification.
+
+**Business Value**: 
+- Reduces patient confusion about insurance acceptance
+- Minimizes front desk inquiries about coverage
+- Provides self-service insurance verification
+- Improves appointment scheduling efficiency
+
+**Schema**: `backend/config/directory_schemas/insurance_coverage.yaml`
+
+### 0023-010-001 - TASK - Schema Design
+
+**Entry Type**: `insurance_coverage`
+
+**Required Fields**:
+- `insurance_provider`: Insurance company name (e.g., "Aetna", "Blue Cross Blue Shield")
+- `plan_type`: Type of plan (e.g., "PPO", "HMO", "Medicare", "Medicaid")
+- `coverage_level`: Coverage tier (e.g., "In-Network", "Out-of-Network", "Partial")
+
+**Optional Fields**:
+- `plan_name`: Specific plan name
+- `member_id_format`: Format for member ID validation
+- `group_number_required`: Boolean - whether group number is needed
+- `prior_auth_required`: Boolean - whether prior authorization required
+- `copay_info`: Copay structure information
+- `deductible_info`: Deductible information
+- `covered_services`: Array of covered services
+- `excluded_services`: Array of excluded services
+- `verification_process`: Instructions for verifying coverage
+- `claim_submission_info`: How to submit claims
+
+**Contact Fields**:
+- `phone`: Insurance verification phone
+- `fax`: Fax for pre-authorizations
+- `email`: Insurance coordinator email
+- `product_url`: Insurance provider portal URL
+
+**Tags Usage**: Plan categories (e.g., "Commercial", "Government", "Medicare Advantage")
+
+**Search Strategy**:
+- Natural language: "Do you accept Aetna?" → filters: {insurance_provider: "Aetna"}
+- Natural language: "What insurance do you take?" → query: ""
+- Synonym mappings: "Blue Cross" → "Blue Cross Blue Shield"
+
+**MANUAL-TESTS**:
+1. Validate YAML syntax
+2. Review searchable fields completeness
+3. Verify synonym mappings cover common abbreviations
+4. Check examples represent real insurance scenarios
+
+**AUTOMATED-TESTS**: Schema validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-010-002 - TASK - CSV Mapper and Sample Data
+
+**Objective**: Create mapper function and sample insurance data
+
+#### 0023-010-002-001 - CHUNK - Create mapper function
+
+**Location**: `backend/app/services/directory_importer.py`
+
+**Mapper Function**:
+```python
+@staticmethod
+def insurance_coverage_mapper(row: Dict) -> Dict:
+    """Map insurance coverage CSV to DirectoryEntry fields.
+    
+    Expected CSV columns:
+    - insurance_provider (required)
+    - plan_type (required)
+    - coverage_level (required)
+    - plan_name, member_id_format, group_number_required
+    - prior_auth_required, copay_info, deductible_info
+    - covered_services (pipe-separated), excluded_services (pipe-separated)
+    - verification_process, claim_submission_info
+    - phone, fax, email, product_url (contact_info)
+    - tags (comma-separated)
+    """
+    tags = []
+    if row.get('tags', '').strip():
+        tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+    
+    contact_info = {}
+    if row.get('phone', '').strip():
+        contact_info['phone'] = row['phone'].strip()
+    if row.get('fax', '').strip():
+        contact_info['fax'] = row['fax'].strip()
+    if row.get('email', '').strip():
+        contact_info['email'] = row['email'].strip()
+    if row.get('product_url', '').strip():
+        contact_info['product_url'] = row['product_url'].strip()
+    
+    entry_data = {}
+    if row.get('plan_type', '').strip():
+        entry_data['plan_type'] = row['plan_type'].strip()
+    if row.get('coverage_level', '').strip():
+        entry_data['coverage_level'] = row['coverage_level'].strip()
+    if row.get('plan_name', '').strip():
+        entry_data['plan_name'] = row['plan_name'].strip()
+    if row.get('member_id_format', '').strip():
+        entry_data['member_id_format'] = row['member_id_format'].strip()
+    if row.get('copay_info', '').strip():
+        entry_data['copay_info'] = row['copay_info'].strip()
+    if row.get('deductible_info', '').strip():
+        entry_data['deductible_info'] = row['deductible_info'].strip()
+    if row.get('verification_process', '').strip():
+        entry_data['verification_process'] = row['verification_process'].strip()
+    if row.get('claim_submission_info', '').strip():
+        entry_data['claim_submission_info'] = row['claim_submission_info'].strip()
+    
+    # Boolean fields
+    if row.get('group_number_required', '').strip():
+        entry_data['group_number_required'] = row['group_number_required'].strip().upper() == 'TRUE'
+    if row.get('prior_auth_required', '').strip():
+        entry_data['prior_auth_required'] = row['prior_auth_required'].strip().upper() == 'TRUE'
+    
+    # Array fields (pipe-separated)
+    if row.get('covered_services', '').strip():
+        services = [s.strip() for s in row['covered_services'].split('|') if s.strip()]
+        if services:
+            entry_data['covered_services'] = services
+    if row.get('excluded_services', '').strip():
+        excluded = [e.strip() for e in row['excluded_services'].split('|') if e.strip()]
+        if excluded:
+            entry_data['excluded_services'] = excluded
+    
+    return {
+        'name': row.get('insurance_provider', '').strip(),
+        'tags': tags,
+        'contact_info': contact_info,
+        'entry_data': entry_data
+    }
+```
+
+**MANUAL-TESTS**:
+1. Verify mapper handles all required fields
+2. Test boolean field parsing (TRUE/FALSE)
+3. Test array field parsing (pipe-separated)
+4. Verify empty field handling
+
+**AUTOMATED-TESTS**: Mapper unit test
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-010-002-002 - CHUNK - Create sample CSV
+
+**Location**: `backend/scripts/sample_directory_csvs/insurance_coverage_sample.csv`
+
+**Sample Data** (5-10 insurance plans):
+```csv
+insurance_provider,plan_type,coverage_level,plan_name,member_id_format,group_number_required,prior_auth_required,copay_info,deductible_info,covered_services,excluded_services,verification_process,claim_submission_info,phone,fax,email,product_url,tags
+"Aetna",PPO,In-Network,"Aetna Choice POS II",ABC123456789,TRUE,TRUE,"$25 specialist copay, $50 ER copay","$1500 individual, $3000 family","Primary Care|Specialist Visits|Emergency Care|Inpatient Surgery|Outpatient Surgery","Cosmetic Surgery|Experimental Treatments","Call 800-555-0100 with member ID and group number","Submit claims via Aetna provider portal within 90 days",800-555-0100,800-555-0101,provider.services@aetna.com,https://www.aetna.com/providers,"Commercial, PPO"
+"Blue Cross Blue Shield",HMO,In-Network,"BCBS HMO Blue",XYZ987654321,TRUE,TRUE,"$20 PCP, $35 specialist","$1000 individual, $2000 family","Primary Care|Specialist Visits|Preventive Care|Emergency Care|Urgent Care","Chiropractic|Acupuncture","Verify eligibility online at BCBS provider portal","Electronic claims submission required",800-555-0200,800-555-0201,provider@bcbs.com,https://www.bcbs.com/providers,"Commercial, HMO"
+"Medicare",Medicare Part A,In-Network,"Original Medicare",,FALSE,FALSE,"No copay for most services","Annual deductible $1600","Inpatient Hospital|Skilled Nursing|Hospice|Home Health","Outpatient Prescription Drugs|Routine Dental","Verify Medicare eligibility using patient Medicare number","File claims through Medicare Administrative Contractor",800-633-4227,,provider.help@medicare.gov,https://www.medicare.gov/providers,"Government, Medicare"
+"Medicaid",Medicaid,In-Network,"New York Medicaid",MC1234567890,FALSE,TRUE,"No copay for most services","No deductible","Primary Care|Specialist Visits|Emergency Care|Prescriptions|Mental Health","Elective Surgery|Cosmetic Procedures","Check eligibility daily - coverage can change monthly","Submit claims within 30 days of service",800-541-2831,800-541-2832,provider@health.ny.gov,https://www.emedny.org,"Government, Medicaid"
+"UnitedHealthcare",PPO,In-Network,"UHC Choice Plus",UHC123456789,TRUE,TRUE,"$30 specialist, $100 ER","$2000 individual, $4000 family","Primary Care|Specialist Visits|Surgery|Mental Health|Physical Therapy","Experimental Treatments|Weight Loss Programs","Online verification at UHC provider portal","Claims auto-submitted for in-network providers",800-555-0300,800-555-0301,provider.services@uhc.com,https://www.uhcprovider.com,"Commercial, PPO"
+```
+
+**MANUAL-TESTS**:
+1. Verify CSV formatting valid
+2. Check required fields present for all rows
+3. Verify pipe-separated arrays formatted correctly
+4. Validate boolean fields use TRUE/FALSE
+
+**AUTOMATED-TESTS**: CSV validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-010-003 - TASK - Directory Tool Handler
+
+**Objective**: Add insurance_coverage handler to directory_tools.py
+
+**Location**: `backend/app/agents/tools/directory_tools.py` (around line 306)
+
+**Handler Code**:
+```python
+elif entry_type == "insurance_coverage":
+    if entry.entry_data.get('plan_type'):
+        result["plan_type"] = entry.entry_data['plan_type']
+    if entry.entry_data.get('coverage_level'):
+        result["coverage_level"] = entry.entry_data['coverage_level']
+    if entry.entry_data.get('plan_name'):
+        result["plan_name"] = entry.entry_data['plan_name']
+    if entry.entry_data.get('member_id_format'):
+        result["member_id_format"] = entry.entry_data['member_id_format']
+    if entry.entry_data.get('group_number_required') is not None:
+        result["group_number_required"] = entry.entry_data['group_number_required']
+    if entry.entry_data.get('prior_auth_required') is not None:
+        result["prior_auth_required"] = entry.entry_data['prior_auth_required']
+    if entry.entry_data.get('copay_info'):
+        result["copay_info"] = entry.entry_data['copay_info']
+    if entry.entry_data.get('deductible_info'):
+        result["deductible_info"] = entry.entry_data['deductible_info']
+    if entry.entry_data.get('covered_services'):
+        result["covered_services"] = entry.entry_data['covered_services']
+    if entry.entry_data.get('excluded_services'):
+        result["excluded_services"] = entry.entry_data['excluded_services']
+    if entry.entry_data.get('verification_process'):
+        result["verification_process"] = entry.entry_data['verification_process']
+    if entry.entry_data.get('claim_submission_info'):
+        result["claim_submission_info"] = entry.entry_data['claim_submission_info']
+```
+
+**MANUAL-TESTS**:
+1. Verify handler placement before `results.append(result)`
+2. Check boolean fields use `is not None`
+3. Verify all schema fields represented
+4. Test with sample data
+
+**AUTOMATED-TESTS**: Handler integration test
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-010-004 - TASK - Agent Configuration and Testing
+
+**Objective**: Configure agent to access insurance directory and verify functionality
+
+**Test Queries**:
+- "Do you accept Aetna insurance?"
+- "What Medicare plans do you take?"
+- "Which insurance requires prior authorization?"
+- "Is Blue Cross covered?"
+- "What's your insurance verification number?"
+
+**MANUAL-TESTS**:
+1. Add `insurance_coverage` to agent config `accessible_lists`
+2. Seed insurance data for test account
+3. Test queries via chat interface
+4. Verify tool calls use correct filters
+5. Check responses include coverage details
+
+**AUTOMATED-TESTS**: E2E insurance search test
+
+**STATUS**: 📝 Not started
+
+---
+
+## Feature 0023-011 - Directions and Locations Directory
+
+**Status**: 📝 Planning
+
+**Objective**: Provide detailed directions to buildings, offices, departments, wings, and specific locations within the facility including landmarks, parking references, and accessibility information.
+
+**Business Value**:
+- Reduces patient confusion navigating large facilities
+- Minimizes "lost patient" calls to information desk
+- Improves patient experience and reduces anxiety
+- Provides accessibility information for disabled visitors
+
+**Schema**: `backend/config/directory_schemas/directions.yaml`
+
+### 0023-011-001 - TASK - Schema Design
+
+**Entry Type**: `directions`
+
+**Required Fields**:
+- `location_name`: Name of destination (e.g., "Cardiology Department", "Building A Entrance")
+- `location_type`: Category (e.g., "Department", "Building", "Office", "Wing", "Entrance")
+- `building`: Which building (e.g., "Main Building", "Building A", "Pavilion")
+
+**Optional Fields**:
+- `floor`: Floor level (e.g., "Ground Floor", "3rd Floor", "Basement")
+- `wing_section`: Wing or section (e.g., "East Wing", "South Tower")
+- `room_number`: Specific room number
+- `main_entrance_directions`: Step-by-step from main entrance
+- `parking_lot_directions`: Directions from specific parking lots
+- `elevator_bank`: Which elevator bank to use
+- `landmarks`: Array of nearby landmarks for wayfinding
+- `accessibility_notes`: Wheelchair access, ramps, accessible entrances
+- `estimated_walk_time`: Walking time from main entrance
+- `visitor_restrictions`: Any access restrictions or requirements
+- `hours_accessible`: When this location is accessible
+- `special_instructions`: Additional wayfinding notes
+
+**Contact Fields**:
+- `phone`: Department/office phone
+- `location`: Brief address/location string
+
+**Tags Usage**: Location categories (e.g., "Clinical", "Administrative", "Public", "Restricted")
+
+**Search Strategy**:
+- Natural language: "How do I get to cardiology?" → filters: {location_name: "Cardiology Department"}
+- Natural language: "Where is the pharmacy?" → query: "pharmacy"
+- Synonym mappings: "ER" → "Emergency Department", "X-ray" → "Radiology"
+
+**MANUAL-TESTS**:
+1. Validate YAML schema completeness
+2. Review searchable fields cover common queries
+3. Verify synonym mappings include abbreviations
+4. Check examples represent realistic scenarios
+
+**AUTOMATED-TESTS**: Schema validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-011-002 - TASK - CSV Mapper and Sample Data
+
+**Objective**: Create mapper function and sample directions data
+
+#### 0023-011-002-001 - CHUNK - Create mapper function
+
+**Location**: `backend/app/services/directory_importer.py`
+
+**Mapper Function**:
+```python
+@staticmethod
+def directions_mapper(row: Dict) -> Dict:
+    """Map directions CSV to DirectoryEntry fields.
+    
+    Expected CSV columns:
+    - location_name (required)
+    - location_type (required)
+    - building (required)
+    - floor, wing_section, room_number
+    - main_entrance_directions, parking_lot_directions
+    - elevator_bank, landmarks (pipe-separated)
+    - accessibility_notes, estimated_walk_time
+    - visitor_restrictions, hours_accessible, special_instructions
+    - phone, location (contact_info)
+    - tags (comma-separated)
+    """
+    tags = []
+    if row.get('tags', '').strip():
+        tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+    
+    contact_info = {}
+    if row.get('phone', '').strip():
+        contact_info['phone'] = row['phone'].strip()
+    if row.get('location', '').strip():
+        contact_info['location'] = row['location'].strip()
+    
+    entry_data = {}
+    if row.get('location_type', '').strip():
+        entry_data['location_type'] = row['location_type'].strip()
+    if row.get('building', '').strip():
+        entry_data['building'] = row['building'].strip()
+    if row.get('floor', '').strip():
+        entry_data['floor'] = row['floor'].strip()
+    if row.get('wing_section', '').strip():
+        entry_data['wing_section'] = row['wing_section'].strip()
+    if row.get('room_number', '').strip():
+        entry_data['room_number'] = row['room_number'].strip()
+    if row.get('main_entrance_directions', '').strip():
+        entry_data['main_entrance_directions'] = row['main_entrance_directions'].strip()
+    if row.get('parking_lot_directions', '').strip():
+        entry_data['parking_lot_directions'] = row['parking_lot_directions'].strip()
+    if row.get('elevator_bank', '').strip():
+        entry_data['elevator_bank'] = row['elevator_bank'].strip()
+    if row.get('accessibility_notes', '').strip():
+        entry_data['accessibility_notes'] = row['accessibility_notes'].strip()
+    if row.get('estimated_walk_time', '').strip():
+        entry_data['estimated_walk_time'] = row['estimated_walk_time'].strip()
+    if row.get('visitor_restrictions', '').strip():
+        entry_data['visitor_restrictions'] = row['visitor_restrictions'].strip()
+    if row.get('hours_accessible', '').strip():
+        entry_data['hours_accessible'] = row['hours_accessible'].strip()
+    if row.get('special_instructions', '').strip():
+        entry_data['special_instructions'] = row['special_instructions'].strip()
+    
+    # Array fields (pipe-separated)
+    if row.get('landmarks', '').strip():
+        landmarks_list = [l.strip() for l in row['landmarks'].split('|') if l.strip()]
+        if landmarks_list:
+            entry_data['landmarks'] = landmarks_list
+    
+    return {
+        'name': row.get('location_name', '').strip(),
+        'tags': tags,
+        'contact_info': contact_info,
+        'entry_data': entry_data
+    }
+```
+
+**MANUAL-TESTS**:
+1. Verify mapper handles all required fields
+2. Test array field parsing (landmarks)
+3. Verify multiline text fields preserved
+4. Test empty field handling
+
+**AUTOMATED-TESTS**: Mapper unit test
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-011-002-002 - CHUNK - Create sample CSV
+
+**Location**: `backend/scripts/sample_directory_csvs/directions_sample.csv`
+
+**Sample Data**:
+```csv
+location_name,location_type,building,floor,wing_section,room_number,main_entrance_directions,parking_lot_directions,elevator_bank,landmarks,accessibility_notes,estimated_walk_time,visitor_restrictions,hours_accessible,special_instructions,phone,location,tags
+"Emergency Department",Department,Main Building,Ground Floor,East Wing,,"Enter main entrance, turn right, follow red line on floor to East Wing. Emergency entrance is clearly marked with red signs.","From Parking Lot A: Enter through main entrance. From Parking Lot B: Use east entrance directly into Emergency wing.",East Bank,"Main Information Desk|Gift Shop|Cafeteria","Wheelchair accessible entrance on east side. Automatic doors. Accessible parking spaces available near east entrance.",3 minutes,Open to public - no visitor badge required,24/7 - Always open,"Emergency patients enter through dedicated ER entrance marked with red cross. Family members check in at ER waiting room desk.",718-963-7272,"Main Building - Ground Floor, East Wing","Clinical, Emergency, Public"
+"Cardiology Department",Department,Building A,3rd Floor,North Wing,301-315,"From main entrance, take elevators to 3rd floor. Exit elevators and turn left. Cardiology is straight ahead on the left side.",From Parking Lot A: Take main entrance then elevators. From Parking Garage: Use Building A bridge on 2nd floor and take stairs up one level.,Central Bank - Building A,"Cardiology Waiting Area|Cardiac Testing Lab|Elevator Bank","Fully wheelchair accessible. Wheelchair available at check-in if needed.",5 minutes,Visitor badge required - check in at main information desk first,Mon-Fri 7am-7pm | Sat 8am-2pm,"Check in 15 minutes before appointment. Fasting requirements may apply for certain tests - verify with scheduler.",718-963-2000,"Building A, 3rd Floor, Suite 301","Clinical, Appointment Required"
+"Main Lobby Information Desk",Office,Main Building,Ground Floor,Central,,"Located immediately inside main entrance - you cannot miss it. Large circular desk in center of lobby.","Accessible from all parking lots via main entrance. Directly ahead when entering main doors.",N/A,"Main Entrance|Gift Shop|Cafeteria Entrance","Fully accessible. Staff available to assist with directions and wheelchair assistance.",0 minutes,Open to public,Mon-Fri 8am-8pm | Sat-Sun 9am-5pm,"Stop here first for visitor badges, directions, patient room numbers, and general questions.",718-963-7000,"Main Building Lobby","Administrative, Public, Information"
+"Parking Garage Entrance",Entrance,Parking Garage,Ground Level,,"","From street: Turn onto Hospital Drive, garage entrance is 500 feet on right side. Look for green 'Parking' sign.","This IS the parking garage. Follow entrance signs from Hospital Drive.",N/A,"Hospital Drive|Building A Bridge|Pay Station","Accessible parking on Level 1 near elevators. Elevator access to all buildings.",N/A,Open to public,24/7,"Pay station accepts cash and credit cards. Validate parking ticket at information desk for reduced rate. Bridge to Building A on Level 2.",718-963-7010,"Hospital Drive at North Entrance","Parking, Public"
+"Radiology Department",Department,Building C,1st Floor,,"C-100 to C-130","From main entrance: Exit building through west doors, walk to Building C (large white building). Enter Building C and Radiology check-in is on your right.","From Parking Lot C: Enter Building C directly. Radiology is on right side after entrance.",Building C Elevators,"Building C Entrance|Imaging Center Sign|Patient Registration","Wheelchair accessible entrance. Accessible changing rooms available. Staff assistance available for transfers.",8 minutes,Visitor badge required - obtain from main information desk,Mon-Fri 7am-9pm | Sat 8am-4pm | Sun 9am-1pm,"Arrive 30 minutes early for registration. Bring insurance card and ID. Fasting requirements depend on exam type.",718-963-3100,"Building C, 1st Floor","Clinical, Appointment Required, Imaging"
+"Cafeteria",Public Area,Main Building,Basement Level,Central,,"From main entrance, take elevators or stairs down one level. Exit and turn right. Follow signs for cafeteria.","From any parking: Enter main building and take elevators/stairs down to basement level.",Any elevator bank - all go to basement,"Vending Machines|Seating Area|Coffee Bar","Fully wheelchair accessible. Wide aisles. Accessible seating available.",4 minutes,Open to public,Mon-Fri 6:30am-8pm | Sat-Sun 8am-6pm,"Cash and credit cards accepted. Visitor meal discounts available - ask at register. Free coffee refills with meal purchase.",718-963-7500,"Main Building Basement Level","Public, Food Service"
+"Pharmacy",Department,Main Building,1st Floor,South Wing,150,"From main entrance, walk straight ahead past information desk. Take first hallway on left. Pharmacy is 100 feet on right with large 'Pharmacy' sign.",From Parking Lot A: Enter main building. From Parking Lot B: Use south entrance and pharmacy is immediately on your left.,South Elevators,"Main Information Desk|South Corridor|Outpatient Lab","Wheelchair accessible. Drive-up window available on south side of building for prescription pickup.",3 minutes,Open to public,Mon-Sun 7am-11pm,"Bring prescription and insurance card. Call ahead for prescription refills. Drive-up window available for pickup only.",718-963-4000,"Main Building, 1st Floor, Room 150","Clinical, Public, Pharmacy"
+```
+
+**MANUAL-TESTS**:
+1. Verify CSV formatting valid
+2. Check required fields present
+3. Verify directions text clear and actionable
+4. Validate landmarks helpful for wayfinding
+
+**AUTOMATED-TESTS**: CSV validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-011-003 - TASK - Directory Tool Handler
+
+**Objective**: Add directions handler to directory_tools.py
+
+**Location**: `backend/app/agents/tools/directory_tools.py`
+
+**Handler Code**:
+```python
+elif entry_type == "directions":
+    if entry.entry_data.get('location_type'):
+        result["location_type"] = entry.entry_data['location_type']
+    if entry.entry_data.get('building'):
+        result["building"] = entry.entry_data['building']
+    if entry.entry_data.get('floor'):
+        result["floor"] = entry.entry_data['floor']
+    if entry.entry_data.get('wing_section'):
+        result["wing_section"] = entry.entry_data['wing_section']
+    if entry.entry_data.get('room_number'):
+        result["room_number"] = entry.entry_data['room_number']
+    if entry.entry_data.get('main_entrance_directions'):
+        result["main_entrance_directions"] = entry.entry_data['main_entrance_directions']
+    if entry.entry_data.get('parking_lot_directions'):
+        result["parking_lot_directions"] = entry.entry_data['parking_lot_directions']
+    if entry.entry_data.get('elevator_bank'):
+        result["elevator_bank"] = entry.entry_data['elevator_bank']
+    if entry.entry_data.get('landmarks'):
+        result["landmarks"] = entry.entry_data['landmarks']
+    if entry.entry_data.get('accessibility_notes'):
+        result["accessibility_notes"] = entry.entry_data['accessibility_notes']
+    if entry.entry_data.get('estimated_walk_time'):
+        result["estimated_walk_time"] = entry.entry_data['estimated_walk_time']
+    if entry.entry_data.get('visitor_restrictions'):
+        result["visitor_restrictions"] = entry.entry_data['visitor_restrictions']
+    if entry.entry_data.get('hours_accessible'):
+        result["hours_accessible"] = entry.entry_data['hours_accessible']
+    if entry.entry_data.get('special_instructions'):
+        result["special_instructions"] = entry.entry_data['special_instructions']
+```
+
+**MANUAL-TESTS**:
+1. Verify handler placement correct
+2. Check all fields included
+3. Test with sample data
+4. Verify array fields handled properly
+
+**AUTOMATED-TESTS**: Handler integration test
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-011-004 - TASK - Agent Configuration and Testing
+
+**Objective**: Configure agent and test directions functionality
+
+**Test Queries**:
+- "How do I get to cardiology?"
+- "Where is the emergency room?"
+- "Directions to the cafeteria?"
+- "How do I find the pharmacy?"
+- "Where should I park to get to Building A?"
+- "Is there wheelchair access to radiology?"
+
+**MANUAL-TESTS**:
+1. Add `directions` to agent config `accessible_lists`
+2. Seed directions data for test account
+3. Test navigation queries
+4. Verify responses include step-by-step directions
+5. Check accessibility information included when relevant
+
+**AUTOMATED-TESTS**: E2E directions search test
+
+**STATUS**: 📝 Not started
+
+---
+
+## Feature 0023-012 - Parking Information Directory
+
+**Status**: 📝 Planning
+
+**Objective**: Provide comprehensive parking information including lot locations, availability, pricing, access instructions, payment methods, and parking validation policies.
+
+**Business Value**:
+- Reduces patient stress about parking
+- Minimizes confusion about parking locations and fees
+- Provides self-service parking information
+- Improves visitor experience and reduces late arrivals
+
+**Schema**: `backend/config/directory_schemas/parking.yaml`
+
+### 0023-012-001 - TASK - Schema Design
+
+**Entry Type**: `parking`
+
+**Required Fields**:
+- `parking_lot_name`: Name of parking facility (e.g., "Parking Lot A", "Main Garage")
+- `parking_type`: Type of parking (e.g., "Surface Lot", "Parking Garage", "Street Parking", "Valet")
+- `capacity`: Number of spaces (e.g., "200 spaces", "500 spaces")
+
+**Optional Fields**:
+- `parking_lot_number`: Lot identifier number
+- `location_description`: Where parking facility is located relative to buildings
+- `entrance_instructions`: How to access the parking facility
+- `available_spaces_typical`: Typical availability by time of day
+- `handicap_spaces`: Number of accessible parking spaces
+- `ev_charging_stations`: Number of electric vehicle charging stations
+- `covered_parking`: Boolean - whether parking is covered/indoor
+- `security_features`: Security measures (cameras, lighting, patrols)
+- `hourly_rate`: Hourly parking cost
+- `daily_max_rate`: Maximum daily cost
+- `validation_policy`: Parking validation information
+- `payment_methods`: Accepted payment methods (array)
+- `payment_locations`: Where to pay (e.g., "Pay station on Level 1", "Pay at exit")
+- `height_restriction`: Vehicle height limit (for garages)
+- `operating_hours`: When parking is available
+- `overnight_parking`: Whether overnight parking allowed
+- `closest_buildings`: Array of nearby buildings/entrances
+- `walk_time_to_main`: Walking time to main entrance
+- `shuttle_service`: Whether shuttle service available
+- `special_restrictions`: Permit requirements, time limits, etc.
+
+**Contact Fields**:
+- `phone`: Parking office phone
+- `location`: Physical address or brief location
+
+**Tags Usage**: Parking categories (e.g., "Visitor", "Patient", "Staff", "Emergency", "Premium")
+
+**Search Strategy**:
+- Natural language: "Where can I park?" → list all parking options
+- Natural language: "How much is parking?" → filters showing pricing info
+- Natural language: "Is there handicap parking?" → filters: {handicap_spaces: >0}
+- Synonym mappings: "disabled parking" → "handicap parking", "garage" → "parking garage"
+
+**MANUAL-TESTS**:
+1. Validate YAML schema
+2. Review fields cover common parking questions
+3. Verify synonym mappings complete
+4. Check examples realistic
+
+**AUTOMATED-TESTS**: Schema validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-012-002 - TASK - CSV Mapper and Sample Data
+
+**Objective**: Create mapper function and sample parking data
+
+#### 0023-012-002-001 - CHUNK - Create mapper function
+
+**Location**: `backend/app/services/directory_importer.py`
+
+**Mapper Function**:
+```python
+@staticmethod
+def parking_mapper(row: Dict) -> Dict:
+    """Map parking CSV to DirectoryEntry fields.
+    
+    Expected CSV columns:
+    - parking_lot_name (required)
+    - parking_type (required)
+    - capacity (required)
+    - parking_lot_number, location_description, entrance_instructions
+    - available_spaces_typical, handicap_spaces, ev_charging_stations
+    - covered_parking (TRUE/FALSE), security_features
+    - hourly_rate, daily_max_rate, validation_policy
+    - payment_methods (pipe-separated), payment_locations
+    - height_restriction, operating_hours
+    - overnight_parking (TRUE/FALSE)
+    - closest_buildings (pipe-separated), walk_time_to_main
+    - shuttle_service, special_restrictions
+    - phone, location (contact_info)
+    - tags (comma-separated)
+    """
+    tags = []
+    if row.get('tags', '').strip():
+        tags = [t.strip() for t in row['tags'].split(',') if t.strip()]
+    
+    contact_info = {}
+    if row.get('phone', '').strip():
+        contact_info['phone'] = row['phone'].strip()
+    if row.get('location', '').strip():
+        contact_info['location'] = row['location'].strip()
+    
+    entry_data = {}
+    if row.get('parking_type', '').strip():
+        entry_data['parking_type'] = row['parking_type'].strip()
+    if row.get('capacity', '').strip():
+        entry_data['capacity'] = row['capacity'].strip()
+    if row.get('parking_lot_number', '').strip():
+        entry_data['parking_lot_number'] = row['parking_lot_number'].strip()
+    if row.get('location_description', '').strip():
+        entry_data['location_description'] = row['location_description'].strip()
+    if row.get('entrance_instructions', '').strip():
+        entry_data['entrance_instructions'] = row['entrance_instructions'].strip()
+    if row.get('available_spaces_typical', '').strip():
+        entry_data['available_spaces_typical'] = row['available_spaces_typical'].strip()
+    if row.get('handicap_spaces', '').strip():
+        entry_data['handicap_spaces'] = row['handicap_spaces'].strip()
+    if row.get('ev_charging_stations', '').strip():
+        entry_data['ev_charging_stations'] = row['ev_charging_stations'].strip()
+    if row.get('security_features', '').strip():
+        entry_data['security_features'] = row['security_features'].strip()
+    if row.get('hourly_rate', '').strip():
+        entry_data['hourly_rate'] = row['hourly_rate'].strip()
+    if row.get('daily_max_rate', '').strip():
+        entry_data['daily_max_rate'] = row['daily_max_rate'].strip()
+    if row.get('validation_policy', '').strip():
+        entry_data['validation_policy'] = row['validation_policy'].strip()
+    if row.get('payment_locations', '').strip():
+        entry_data['payment_locations'] = row['payment_locations'].strip()
+    if row.get('height_restriction', '').strip():
+        entry_data['height_restriction'] = row['height_restriction'].strip()
+    if row.get('operating_hours', '').strip():
+        entry_data['operating_hours'] = row['operating_hours'].strip()
+    if row.get('walk_time_to_main', '').strip():
+        entry_data['walk_time_to_main'] = row['walk_time_to_main'].strip()
+    if row.get('shuttle_service', '').strip():
+        entry_data['shuttle_service'] = row['shuttle_service'].strip()
+    if row.get('special_restrictions', '').strip():
+        entry_data['special_restrictions'] = row['special_restrictions'].strip()
+    
+    # Boolean fields
+    if row.get('covered_parking', '').strip():
+        entry_data['covered_parking'] = row['covered_parking'].strip().upper() == 'TRUE'
+    if row.get('overnight_parking', '').strip():
+        entry_data['overnight_parking'] = row['overnight_parking'].strip().upper() == 'TRUE'
+    
+    # Array fields (pipe-separated)
+    if row.get('payment_methods', '').strip():
+        methods = [m.strip() for m in row['payment_methods'].split('|') if m.strip()]
+        if methods:
+            entry_data['payment_methods'] = methods
+    if row.get('closest_buildings', '').strip():
+        buildings = [b.strip() for b in row['closest_buildings'].split('|') if b.strip()]
+        if buildings:
+            entry_data['closest_buildings'] = buildings
+    
+    return {
+        'name': row.get('parking_lot_name', '').strip(),
+        'tags': tags,
+        'contact_info': contact_info,
+        'entry_data': entry_data
+    }
+```
+
+**MANUAL-TESTS**:
+1. Verify mapper handles required fields
+2. Test boolean parsing
+3. Test array parsing (payment methods, closest buildings)
+4. Verify empty field handling
+
+**AUTOMATED-TESTS**: Mapper unit test
+
+**STATUS**: 📝 Not started
+
+---
+
+#### 0023-012-002-002 - CHUNK - Create sample CSV
+
+**Location**: `backend/scripts/sample_directory_csvs/parking_sample.csv`
+
+**Sample Data**:
+```csv
+parking_lot_name,parking_type,capacity,parking_lot_number,location_description,entrance_instructions,available_spaces_typical,handicap_spaces,ev_charging_stations,covered_parking,security_features,hourly_rate,daily_max_rate,validation_policy,payment_methods,payment_locations,height_restriction,operating_hours,overnight_parking,closest_buildings,walk_time_to_main,shuttle_service,special_restrictions,phone,location,tags
+"Parking Lot A",Surface Lot,200,A,"Located on north side of campus, adjacent to Main Building","From Hospital Drive, turn right at first entrance. Lot A is immediately on your right.","Usually full after 9am on weekdays. Best availability before 8am or after 6pm.",15,0,FALSE,"24/7 security cameras, well-lit, security patrols every 2 hours",$3/hour,$15/day,"Validate at information desk for $5 discount. Free for patients with same-day appointments.","Cash|Credit Card|Debit Card","Pay at kiosk near lot entrance or at information desk before leaving",N/A,24/7 - Always open,TRUE,"Main Building|Building A",2 minutes,No,"3 hour limit for visitor parking. Overnight requires permit from security.",718-963-7010,"North Campus at Hospital Drive","Visitor, Patient, Short-term"
+"Main Parking Garage",Parking Garage,500,G1,"Multi-level garage connected to Main Building via enclosed bridge on Level 2","From Hospital Drive, follow green 'Parking Garage' signs. Entrance is 500 feet past main entrance on right.","Level 1 usually full by 10am. Levels 2-4 typically have spaces available all day.",40,8,TRUE,"24/7 security cameras, emergency call buttons on each level, security office on Level 1",$2/hour,$12/day,"Free for first 2 hours with validation from any department. $8 max with appointment validation.","Cash|Credit Card|Mobile Pay","Pay stations on each level and at exit. Validate at department check-in desk.",6'8" clearance,24/7 - Always open,TRUE,"Main Building|Building A|Building C",Direct access via bridge,"No, connected via bridge","Payment required before returning to vehicle. Lost ticket fee $25.",718-963-7015,"Hospital Drive at North Entrance, connected to Main Building","Visitor, Patient, Staff, Covered"
+"Emergency Parking",Surface Lot,50,E,"Directly adjacent to Emergency Department entrance on east side","From Hospital Drive, turn at Emergency Department sign. Follow red line painted on pavement to Emergency entrance.","Reserved for emergency patients and ambulances. Spaces usually available.","10 (closest to entrance)",0,FALSE,"24/7 security cameras, direct view of ED entrance, security present at all times",Free for first 4 hours,$10 after 4 hours,"Automatically validated for emergency patients. Present ED paperwork at exit for validation.","Cash|Credit Card","Pay at ED registration desk or parking kiosk near exit",N/A,24/7 - Always open,FALSE,"Main Building (Emergency Department)",Direct access to ED entrance,No,"Emergency patients only. Non-emergency visitors will be redirected to Lot A. Strictly enforced.",718-963-7272,"East side of Main Building at Emergency entrance","Emergency, Patient, Short-term"
+"Staff Parking Lot B",Surface Lot,150,B,"West side of campus behind Building C, staff badge required for access","From west entrance on Medical Center Drive, swipe staff badge at gate. Lot B is straight ahead.","Staff permit required. Typically 20-30 spaces available during day shift.",8,4,FALSE,"Gated access with badge required, 24/7 security cameras, security patrols",$0 (Staff only),N/A,"Staff only - no validation needed. Permit must be visible in vehicle.","Staff Badge Required",N/A,N/A,24/7 - Badge access required,TRUE,"Building C|Building A",5 minutes to main entrance,No,"Staff permit required. Guest parking must use Lot A or Main Garage. Permit violations result in fines.",718-963-7020,"West Campus on Medical Center Drive","Staff, Permit Required, Restricted"
+"Parking Lot C - Visitor",Surface Lot,100,C,"South side of campus, closest to Building C and Radiology","From Hospital Drive, pass main entrance and take second right onto South Campus Road. Lot C is on left.","Best option for Building C and Radiology appointments. Usually spaces available.",12,2,FALSE,"Security cameras, well-lit, security patrols during business hours",$3/hour,$15/day,"Free parking with validation from Radiology, Physical Therapy, or Building C departments.","Cash|Credit Card|Mobile Pay","Pay at lot kiosk or validate at department before leaving",N/A,Mon-Fri 6am-10pm | Sat-Sun 7am-7pm,FALSE,"Building C|Radiology|Physical Therapy",Direct access to Building C,No,"Closes at 10pm weekdays, 7pm weekends. Overnight parking not permitted.",718-963-7025,"South Campus Road near Building C","Visitor, Patient, Building C Access"
+"Valet Parking",Valet Service,N/A,Valet,"Main entrance of hospital, valet stand clearly marked","Pull up to main entrance valet stand. Valet will park your vehicle in secure garage.","Always available - no wait time. Popular option for patients with mobility issues or urgent appointments.",N/A,N/A,TRUE (garage),"Vehicles parked in secure garage with 24/7 monitoring. Keys kept in secure lockbox.",$10 first 2 hours,"$20 all day (no hourly rate after 2 hrs)","No validation available. Flat valet rates apply to all users.","Cash|Credit Card","Pay valet when retrieving vehicle",N/A,Mon-Fri 7am-7pm | Sat-Sun 9am-5pm,FALSE,"Main Building - Main Entrance",Direct drop-off at entrance,"Premium service - vehicle brought to you","Tips appreciated but not required. 15-20 minute wait time for vehicle retrieval during peak hours.",718-963-7000,"Main Building entrance","Visitor, Patient, Premium, Valet"
+```
+
+**MANUAL-TESTS**:
+1. Verify CSV formatting
+2. Check required fields present
+3. Verify pricing information clear
+4. Validate special restrictions documented
+
+**AUTOMATED-TESTS**: CSV validation script
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-012-003 - TASK - Directory Tool Handler
+
+**Objective**: Add parking handler to directory_tools.py
+
+**Location**: `backend/app/agents/tools/directory_tools.py`
+
+**Handler Code**:
+```python
+elif entry_type == "parking":
+    if entry.entry_data.get('parking_type'):
+        result["parking_type"] = entry.entry_data['parking_type']
+    if entry.entry_data.get('capacity'):
+        result["capacity"] = entry.entry_data['capacity']
+    if entry.entry_data.get('parking_lot_number'):
+        result["parking_lot_number"] = entry.entry_data['parking_lot_number']
+    if entry.entry_data.get('location_description'):
+        result["location_description"] = entry.entry_data['location_description']
+    if entry.entry_data.get('entrance_instructions'):
+        result["entrance_instructions"] = entry.entry_data['entrance_instructions']
+    if entry.entry_data.get('available_spaces_typical'):
+        result["available_spaces_typical"] = entry.entry_data['available_spaces_typical']
+    if entry.entry_data.get('handicap_spaces'):
+        result["handicap_spaces"] = entry.entry_data['handicap_spaces']
+    if entry.entry_data.get('ev_charging_stations'):
+        result["ev_charging_stations"] = entry.entry_data['ev_charging_stations']
+    if entry.entry_data.get('covered_parking') is not None:
+        result["covered_parking"] = entry.entry_data['covered_parking']
+    if entry.entry_data.get('security_features'):
+        result["security_features"] = entry.entry_data['security_features']
+    if entry.entry_data.get('hourly_rate'):
+        result["hourly_rate"] = entry.entry_data['hourly_rate']
+    if entry.entry_data.get('daily_max_rate'):
+        result["daily_max_rate"] = entry.entry_data['daily_max_rate']
+    if entry.entry_data.get('validation_policy'):
+        result["validation_policy"] = entry.entry_data['validation_policy']
+    if entry.entry_data.get('payment_methods'):
+        result["payment_methods"] = entry.entry_data['payment_methods']
+    if entry.entry_data.get('payment_locations'):
+        result["payment_locations"] = entry.entry_data['payment_locations']
+    if entry.entry_data.get('height_restriction'):
+        result["height_restriction"] = entry.entry_data['height_restriction']
+    if entry.entry_data.get('operating_hours'):
+        result["operating_hours"] = entry.entry_data['operating_hours']
+    if entry.entry_data.get('overnight_parking') is not None:
+        result["overnight_parking"] = entry.entry_data['overnight_parking']
+    if entry.entry_data.get('closest_buildings'):
+        result["closest_buildings"] = entry.entry_data['closest_buildings']
+    if entry.entry_data.get('walk_time_to_main'):
+        result["walk_time_to_main"] = entry.entry_data['walk_time_to_main']
+    if entry.entry_data.get('shuttle_service'):
+        result["shuttle_service"] = entry.entry_data['shuttle_service']
+    if entry.entry_data.get('special_restrictions'):
+        result["special_restrictions"] = entry.entry_data['special_restrictions']
+```
+
+**MANUAL-TESTS**:
+1. Verify handler placement
+2. Check boolean fields use `is not None`
+3. Verify array fields handled
+4. Test with sample data
+
+**AUTOMATED-TESTS**: Handler integration test
+
+**STATUS**: 📝 Not started
+
+---
+
+### 0023-012-004 - TASK - Agent Configuration and Testing
+
+**Objective**: Configure agent and test parking functionality
+
+**Test Queries**:
+- "Where can I park?"
+- "How much is parking?"
+- "Is there handicap parking available?"
+- "Do you have covered parking?"
+- "What are the parking rates?"
+- "Is there overnight parking?"
+- "Where's the closest parking to Building C?"
+- "Do you offer valet parking?"
+
+**MANUAL-TESTS**:
+1. Add `parking` to agent config `accessible_lists`
+2. Seed parking data for test account
+3. Test parking queries
+4. Verify responses include rates, locations, and validation info
+5. Check special restrictions mentioned when relevant
+
+**AUTOMATED-TESTS**: E2E parking search test
+
+**STATUS**: 📝 Not started
+
+---
+
 ## Future Extensibility
 
 **Additional Directory Types** (using same pattern):
 - **Services Directory**: Clinical services, procedures, treatments offered
-- **Facilities Directory**: Buildings, rooms, parking, amenities
+- **Facilities Directory**: Buildings, rooms, amenities
 - **Equipment Directory**: Medical equipment available, rental options
 - **FAQ Directory**: Common questions and answers
 - **Forms Directory**: Patient forms, insurance forms, documents

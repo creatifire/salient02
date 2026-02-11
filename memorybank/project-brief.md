@@ -68,11 +68,22 @@ Multi-tenant AI agent platform for customer engagement, information retrieval, a
 
 ## Development Environment
 
+**Project Root Location:**
+- Project root: `/Users/arifsufi/Documents/GitHub/OpenThought/salient02`
+- Virtual environment: `.venv` (located at project root - Python 3.14)
+
 **Backend Execution Convention:**
-- Backend is **always run from project root** (where venv is located)
+- Backend is **always run from project root** (where `.venv` is located)
+- Activate venv: `source .venv/bin/activate` (from project root)
 - Command: `uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000`
 - All imports must use `from backend.app...` not `from app...`
-- Virtual environment: `backend/venv/` activated from project root
+- Run tests: `cd backend && python -m pytest tests/`
+
+**Cursor IDE Configuration:**
+- **Project rules location**: `.cursor/rules/persona.mdc` (project root)
+- Official format per [Cursor docs](https://cursor.com/docs/context/rules)
+- `.cursorrules` is legacy format (deprecated, do not use)
+- MDC format supports metadata: `description`, `globs`, `alwaysApply`
 
 **Logging Standards:**
 - **Logfire is the standard** - All logging uses Logfire (migration complete)

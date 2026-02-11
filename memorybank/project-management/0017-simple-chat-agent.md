@@ -16,8 +16,8 @@ flowchart TD
     User["👤 User"] --> FastAPI["📡 FastAPI Endpoint"]
     
     %% Configuration System
-    AgentConfig["🎛️ simple_chat/config.yaml"] --> Agent["🤖 Pydantic AI Agent"]
-    ProfileFields["📋 profile_fields.yaml"] --> Agent
+    AgentConfig["🎛️ {account}/{instance}/config.yaml"] --> Agent["🤖 Pydantic AI Agent"]
+    ProfileConfig["📋 {account}/{instance}/profile.yaml"] --> Agent
     SystemPromptFile["📝 system_prompt.md"] --> Agent
     GlobalConfig["⚙️ app.yaml (fallback)"] --> Agent
     
@@ -3065,77 +3065,79 @@ Implement backend-controlled per-agent cookie naming to ensure proper session is
 ## Priority 2D: Profile Configuration & Schema
 
 ### 0017-006 - FEATURE - Profile Fields Configuration & Database Schema
-**Status**: Planned
+**Status**: 🔄 In Progress (2/12 chunks complete)
 
-Configure dynamic profile fields via YAML and migrate profiles table to JSONB storage.
+**📋 Detailed Planning Documents**:
+- **Complete Implementation Plan**: [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md)
+- **Design Decisions & Clarifications**: [`PRIORITY-6-CLARIFICATIONS.md`](PRIORITY-6-CLARIFICATIONS.md)
 
-- [ ] 0017-006-001 - TASK - Profile Fields YAML Configuration
-  - [ ] 0017-006-001-01 - CHUNK - Create profile_fields.yaml structure
-    - SUB-TASKS:
-      - Define fields with name, type, required, validation, description
-      - Support email and phone field types for simple-chat
-      - Configuration loaded via agent config loader
-    - STATUS: Planned — Profile fields defined externally
+**Progress**:
+- ✅ 0017-006-001-01 - Add profile_capture config to agent config.yaml (commit d8252e2)
+- ✅ 0017-006-001-02 - Create ProfileSchemaLoader class (commit bb89882)
+- 📋 Next: 0017-006-001-03 - Create basic profile.yaml for default_account
+
+**Quick Summary**:
+- Configure dynamic profile fields via `profile.yaml` files (per agent instance)
+- File-level cascade: instance → system fallback
+- ProfileSchemaLoader class handles loading, validation, and prompt generation
+- Migrate profiles table to JSONB storage (required_profile_fields, captured_profile_fields)
+- 10 field types supported (email, phone, url, string, text, enum, date, number, boolean, address)
+- Integrated with modular prompt system (position 4 in system prompt assembly)
+
+**Architecture Overview**:
+```
+System Prompt Assembly:
+  [1. Critical Rules] + [2. Base Prompt] + [3. Directory Docs] 
+  + [4. Profile Hints ← NEW] + [5. Other Modules]
+
+File Cascade:
+  1. backend/config/agent_configs/{account}/{instance}/profile.yaml
+  2. backend/config/prompt_modules/system/profile.yaml (fallback)
+```
+
+**Task Breakdown**: See [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md) for complete implementation plan with 12 chunks.
+
+**Progress**:
+- ✅ 0017-006-001-01: Add profile_capture config to agent config.yaml (Complete - commit d8252e2)
+- 📋 Next: 0017-006-001-02 - Create ProfileSchemaLoader class
+
+**Key Components**:
+- 0017-006-001: Profile Schema Infrastructure (7 chunks) - 1/7 complete
+- 0017-006-002: Migrate Profiles Table to JSONB (2 chunks)
+- 0017-012-001: Profile Capture Agent Tool Implementation (2 chunks)
+- 0017-012-002: Update User Guide in Memorybank (1 chunk)
+
+---
+
+## Priority 2E: Email Summary Tool with Mailgun
+
+### 0017-008 - FEATURE - Email Summary Tool with Mailgun
+**Status**: ⚠️ **SUPERSEDED BY EPIC 0028** — See [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
+
+**NOTE**: This feature has been moved to its own epic (Epic 0028) with a comprehensive implementation plan. Epic 0028 implements a demo email tool first (lightweight, no actual email sending) with a clear migration path to real Mailgun integration in the future.
+
+**Original placeholder tasks** (superseded):
+- [ ] 0017-008-001 - TASK - Mailgun Integration → **See Epic 0028 "Future: Real Email Integration" section**
   
-- [ ] 0017-006-002 - TASK - Migrate Profiles Table to JSONB
-  - [ ] 0017-006-002-01 - CHUNK - Add JSONB fields to profiles table
-    - SUB-TASKS:
-      - Add `required_profile_fields` JSONB column
-      - Add `captured_profile_fields` JSONB column  
-      - Add `required_fields_updated_at` timestamp column
-    - STATUS: Planned — JSONB storage for flexible profiles
-    - NOTE: Review and elaborate when implementing migration from hardcoded columns
-  
-  - [ ] 0017-006-002-02 - CHUNK - Remove hardcoded profile columns
-    - SUB-TASKS:
-      - Migrate existing data to JSONB fields
-      - Remove email, phone, and other hardcoded columns
-      - Update SQLAlchemy ORM models
-    - STATUS: Planned — Clean schema using JSONB
-    - NOTE: Review and elaborate migration strategy before implementing
+**New implementation location**: [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
 
-## Priority 2D: Profile Capture Tool
+---
+
+## Priority 2F: Profile Capture Tool
 
 ### 0017-012 - FEATURE - Profile Capture Tool
 **Status**: Planned
 
-Implement agent tool to capture and validate profile information during conversation.
+**📋 Detailed Planning Documents**:
+- **Complete Implementation Plan**: [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md)
+- **Design Decisions & Clarifications**: [`PRIORITY-6-CLARIFICATIONS.md`](PRIORITY-6-CLARIFICATIONS.md)
 
-**Note**: Renumbered from 0017-007 to 0017-012 to avoid conflict with Per-Agent Cookie Configuration (Priority 10).
+**Quick Summary**:
+Implement agent tool to capture and validate profile information during conversation. Integrated with ProfileSchemaLoader and modular prompt system.
 
-- [ ] 0017-012-001 - TASK - Profile Capture Agent Tool
-  - [ ] 0017-012-001-01 - CHUNK - Implement @agent.tool for profile capture
-    - SUB-TASKS:
-      - Tool validates captured data against profile_fields.yaml
-      - Stores data in captured_profile_fields JSONB
-      - Checks required_fields_updated_at and refreshes if stale (24h)
-      - Returns validation results to agent
-    - STATUS: Planned — Agent captures profile during conversation
-
-## Priority 2E: Email Summary with Mailgun
-
-### 0017-008 - FEATURE - Email Summary Tool with Mailgun
-**Status**: Planned
-
-Implement agent tool to generate conversation summary and email via Mailgun.
-
-- [ ] 0017-008-001 - TASK - Mailgun Integration
-  - [ ] 0017-008-001-01 - CHUNK - Mailgun service setup
-    - SUB-TASKS:
-      - Configure Mailgun API credentials
-      - Email template for conversation summaries
-      - Error handling and delivery tracking
-    - STATUS: Planned — Mailgun email service
-
-- [ ] 0017-008-002 - TASK - Email Summary Agent Tool  
-  - [ ] 0017-008-002-01 - CHUNK - Implement @agent.tool for email summary
-    - SUB-TASKS:
-      - Check profile completeness before sending
-      - Request missing required fields if needed
-      - Generate conversation summary using LLM
-      - Send email via Mailgun when profile complete
-      - Configuration setting for auto-send behavior
-    - STATUS: Planned — Agent emails summaries when requested
+**Task Breakdown**: See UPDATE file for complete implementation plan (2 chunks):
+- 0017-012-001: Profile Capture Agent Tool Implementation
+- 0017-012-002: Update User Guide in Memorybank
 
 ---
 
@@ -3143,7 +3145,7 @@ Implement agent tool to generate conversation summary and email via Mailgun.
 
 Optional enhancements that extend InfoBot capabilities beyond core MVP.
 
-## Priority 2F: Email Capture & Consent (Optional)
+## Priority 2G: Email Capture & Consent (Optional)
 
 ### 0017-009 - FEATURE - Email Capture & User Consent
 **Status**: Planned

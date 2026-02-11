@@ -1,0 +1,6 @@
+doctor_name,department,speciality,phone,email,location,board_certifications,education,residencies,fellowships,gender,language
+"Dr. Sarah Chen, MD",Cardiology,"Interventional Cardiology",555-0101,schen@hospital.org,"Building A, Floor 3, Suite 301","Cardiovascular Disease, 2018
+Interventional Cardiology, 2020",Johns Hopkins Medical School,"Massachusetts General Hospital, Internal Medicine 2015-2018","Brigham and Women's Hospital, Interventional Cardiology 2018-2020",Female,"English, Mandarin"
+"Dr. Michael Rodriguez, MD",Emergency Medicine,,555-0102,mrodriguez@hospital.org,Emergency Department - Ground Floor,"Emergency Medicine, 2016",University of Miami Medical School,"Jackson Memorial Hospital, Emergency Medicine 2013-2016",,Male,"English, Spanish"
+"Dr. Jennifer Williams, DO",Pediatrics,"General Pediatrics",555-0103,jwilliams@hospital.org,"Building B, Floor 2","Pediatrics, 2017",Michigan State College of Osteopathic Medicine,"Children's Hospital of Michigan, Pediatrics 2014-2017",,Female,English
+

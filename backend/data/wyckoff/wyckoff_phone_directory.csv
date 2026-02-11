@@ -1,0 +1,13 @@
+department_name,phone_number,service_type,hours_of_operation,building_location,description,fax_number,email
+Emergency Department,718-963-7272,Emergency Services,24/7,Main Building - Ground Floor,Emergency care and trauma services,718-963-7273,
+Main Information,718-963-7000,Administrative,Mon-Fri 8am-8pm,Main Lobby,General hospital information,718-963-7001,info@wyckoffhospital.org
+Appointments,718-963-1234,Patient Services,Mon-Fri 7am-7pm,Building A - 2nd Floor,Schedule appointments with specialists,718-963-1235,appointments@wyckoffhospital.org
+Billing Department,718-963-5555,Administrative,Mon-Fri 9am-5pm,Building B - 1st Floor,Patient billing inquiries,718-963-5556,billing@wyckoffhospital.org
+Cardiology,718-963-2000,Clinical Departments,Mon-Fri 8am-6pm,Building A - 3rd Floor,Cardiology department direct line,718-963-2001,cardiology@wyckoffhospital.org
+Laboratory,718-963-3000,Clinical Departments,Mon-Sat 7am-7pm,Main Building - Basement,Lab results and test scheduling,718-963-3001,lab@wyckoffhospital.org
+Radiology,718-963-3100,Clinical Departments,Mon-Fri 7am-9pm,Building C,Imaging and radiology services,718-963-3101,radiology@wyckoffhospital.org
+Patient Relations,718-963-6000,Patient Services,Mon-Fri 9am-5pm,Main Building - 1st Floor,Patient feedback and concerns,718-963-6001,patientrelations@wyckoffhospital.org
+Pharmacy,718-963-4000,Clinical Departments,Mon-Sun 7am-11pm,Main Building - 1st Floor,Prescription refills and inquiries,718-963-4001,pharmacy@wyckoffhospital.org
+Surgery Scheduling,718-963-8000,Patient Services,Mon-Fri 8am-6pm,Building A - 4th Floor,Schedule surgical procedures,718-963-8001,surgerysched@wyckoffhospital.org
+Pediatrics,718-907-4301,Clinical Departments,Mon-Fri 8am-6pm,1411 Myrtle Avenue,Pediatric care for babies toddlers teenagers and young adults,718-919-1309,
+

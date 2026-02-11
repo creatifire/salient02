@@ -21,8 +21,8 @@ except ImportError:
     # Fallback for different pinecone versions
     PineconeException = Exception
 
-from backend.app.services.pinecone_client import PineconeClient, get_pinecone_client
-from backend.app.services.embedding_service import get_embedding_service, EmbeddingService
+from .pinecone_client import PineconeClient, get_pinecone_client
+from .embedding_service import get_embedding_service, EmbeddingService
 
 
 class VectorDocument(BaseModel):
@@ -85,11 +85,11 @@ class VectorService:
     ):
         # Lazy import and initialization - only create defaults if not provided
         if pinecone_client is None:
-            from backend.app.services.pinecone_client import get_default_pinecone_client
+            from .pinecone_client import get_default_pinecone_client
             pinecone_client = get_default_pinecone_client()
         
         if embedding_service is None:
-            from backend.app.services.embedding_service import get_default_embedding_service
+            from .embedding_service import get_default_embedding_service
             embedding_service = get_default_embedding_service()
         
         self.pinecone_client = pinecone_client

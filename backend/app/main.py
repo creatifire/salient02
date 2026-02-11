@@ -245,21 +245,23 @@ except Exception as e:
     pass
 
 # CORS Middleware Configuration: Enable cross-origin requests for development
-# Allows frontend (localhost:4321) to communicate with backend (localhost:8000)
+# Allows frontend (localhost:4321/4322) to communicate with backend (localhost:8000)
+# Using regex to match any localhost port for flexibility during development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4321", "http://127.0.0.1:4321"],  # Frontend origins
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,  # Enable session cookie sharing
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all HTTP methods including OPTIONS
+    allow_headers=["*"],  # Allow all request headers
+    expose_headers=["*"],  # Expose all response headers to client
 )
 
 # Middleware Configuration: Session management with path exclusions
 # SimpleSessionMiddleware provides automatic session creation, validation, and persistence
-# Excluded paths are optimized for performance (health checks, static assets, dev tools)
+# Excluded paths are optimized for performance (health checks, static assets, dev tools, admin)
 app.add_middleware(
     SimpleSessionMiddleware,
-    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config"]
+    exclude_paths=["/health", "/favicon.ico", "/robots.txt", "/dev/logs/tail", "/static", "/api/config", "/api/admin"]
 )
 
 # Static file serving configuration for assets (images, CSS, JS)
@@ -444,3 +446,13 @@ async def _load_chat_history_for_session(session_id: uuid.UUID) -> List[Dict[str
 # Include multi-tenant endpoints for account-scoped agent instances
 from .api.account_agents import router as account_agents_router
 app.include_router(account_agents_router)
+
+# Admin API Router Registration
+# Include admin debugging endpoints for chat tracing and LLM inspection
+from .api.admin import router as admin_router
+app.include_router(admin_router)
+
+# System Router Registration
+# Include health check and global configuration endpoints
+from .api.config import router as config_router
+app.include_router(config_router)

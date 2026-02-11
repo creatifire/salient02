@@ -2,6 +2,7 @@
 .DS_Store
 .idea/
 .vscode/
+.cursor/mcp.json
 
 # Environment & secrets
 .env
@@ -42,8 +43,15 @@ backend/logs/
 *.log
 *.jsonl
 
+# Test outputs
+backend/investigate/tool-calling/test_outputs/
+backend/test_results/
+
 # Data files
 backend/data/
+
+# Output directory
+output/
 
 # Node / Astro
 node_modules/
