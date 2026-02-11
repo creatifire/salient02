@@ -50,6 +50,9 @@ backend/test_results/
 # Data files
 backend/data/
 
+# Output directory
+output/
+
 # Node / Astro
 node_modules/
 web/node_modules/
