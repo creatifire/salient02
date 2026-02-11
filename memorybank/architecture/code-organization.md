@@ -270,8 +270,8 @@ Notes:
 
 ## Local development flow
 - Backend:
-  - Create/activate Python venv in `salient02/` or `backend/`.
-  - Run the FastAPI app (serves HTMX and SSE).
+  - Activate Python venv at project root: `source .venv/bin/activate`
+  - Run the FastAPI app from project root (serves HTMX and SSE).
 - Frontend:
   - `cd web && pnpm install && pnpm dev` to run Astro dev server.
   - Visit the Astro page to see the shell/host experience; it embeds or links to the backend chat UI.

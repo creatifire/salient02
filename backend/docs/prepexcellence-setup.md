@@ -194,8 +194,8 @@ cd backend && python -c "import yaml; yaml.safe_load(open('config/agent_configs/
 # Verify environment variable
 echo $PINECONE_API_KEY_OPENTHOUGHT
 
-# Test direct connection
-cd backend && source venv/bin/activate
+# Test direct connection (from project root)
+cd /path/to/salient02 && source .venv/bin/activate
 python -c "
 from pinecone import Pinecone
 import os

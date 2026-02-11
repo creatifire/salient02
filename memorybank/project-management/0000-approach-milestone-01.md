@@ -67,7 +67,7 @@ Epic 0022 - Foundational Infrastructure for Pydantic AI Migration
 - ✅ 0017-005-003 - Multi-Agent Data Integrity Verification Script
 
 ### Priority 4: Vector Search Tool ✅
-Epic 0017-005 - Vector Search Tool with Multi-Client Demo Architecture
+FEATURE 0017-005 - Vector Search Tool with Multi-Client Demo Architecture
 
 - ✅ 0017-005-001 - Multi-Client Demo Site Architecture
   - ✅ 0017-005-001-01 - Multi-client folder structure and layouts
@@ -176,7 +176,6 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
 - ✅ 0025-003 - Schema Standardization + Multi-Directory Selection (Phase 3)
 - 🔄 0025-004 - Multi-Tool Testing + Tool Calling Improvements (Phase 4A)
 
-**>> You are here <<**
 - 🔄 0025-004-004 - Implement Tool Calling Improvements (via Modular Prompts)
   - ✅ 0025-004-004-001 - Diagnostic Test with Alternative Model
   - ✅ 0025-004-004-002 - Quick Fix - Keyword Hints Module
@@ -185,19 +184,158 @@ Reference: `memorybank/project-management/0025-dynamic-prompting-plan.md`
   - ✅ 0025-004-004-005 - Integrate Module Loading into simple_chat
   - 📋 0025-004-004-006 - Measure and Validate Improvements
 
-### Priority 6: Profile Fields Configuration & Database Schema 📋
-- 📋 0017-006-001 - Profile Fields YAML Configuration
+**>> You are here <<**
+## Demo to Otto
+- ✅ Load contact_information into wind river account
+  - CSV file: `backend/data/windriver/windriver_contact_information.csv` (40 departments/services)
+  - Schema: `backend/config/directory_schemas/contact_information.yaml`
+  - Accessible via: `config.yaml` - `accessible_lists: ["doctors", "contact_information"]`
+  - Status: COMPLETED - Data loaded and searchable
+- 📋 Create classes information into wind river account
+  - Schema exists: `backend/config/directory_schemas/classes.yaml`
+  - CSV needed: `backend/data/windriver/windriver_classes.csv`
+  - Status: PENDING - Need to create CSV data and load
+- 📋 Create services information (other than medical services)
+  - Schema exists: `backend/config/directory_schemas/service.yaml`
+  - CSV needed: `backend/data/windriver/windriver_services.csv`
+  - Status: PENDING - Need to create CSV data and load
+- 📋 Create departments information
+  - Schema exists: `backend/config/directory_schemas/department.yaml`
+  - CSV needed: `backend/data/windriver/windriver_departments.csv`
+  - Status: PENDING - Need to create CSV data and load
+- ✅ 0028-001-001 - TASK - Demo Email Summary Tool Implementation
+  - Status: COMPLETED - All 4 chunks implemented and tested
+- 📋 0028-001-001-05 - CHUNK - Standardize email_summary config across all agents
+  - Status: PENDING - Add to 6 agent configs (disabled by default)
+- 📋 0030-001-001 - TASK - Demo Appointment Scheduling Tool Implementation
+  - Status: PLANNED - Epic 0030 documentation complete, ready to implement
+
+- BUG-0017-011: Directory selection hints hardcoded instead of configurable
+- BUG-0017-012: Inconsistent Configuration Cascade Patterns Across All Config Files
+
+### Priority 6: Profile Fields Configuration & Database Schema & Profile Capture 📋
+
+See [`0017-priority-6-profile-capture-UPDATE.md`](0017-priority-6-profile-capture-UPDATE.md) for complete implementation plan (12 chunks total).
+
+FEATURE 0017-006 - Profile Configuration Infrastructure
+- 📋 0017-006-001 - Profile Schema Infrastructure
+  - ✅ 0017-006-001-01 - Add profile_capture config to agent config.yaml
+  - ✅ 0017-006-001-02 - Create ProfileSchemaLoader class
+  - 📋 0017-006-001-03 - Create system default profile.yaml
+  - 📋 0017-006-001-04 - Create profile.yaml for hospital sites (Wyckoff & Wind River)
+  - 📋 0017-006-001-05 - Create profile.yaml for PrepExcellence
+  - 📋 0017-006-001-06 - Create profile.yaml for AgroFresh
+  - 📋 0017-006-001-07 - Disable profile capture for default_account/simple_chat1
 - 📋 0017-006-002 - Migrate Profiles Table to JSONB
+  - 📋 0017-006-002-01 - Add JSONB fields to profiles table
+  - 📋 0017-006-002-02 - Remove hardcoded profile columns
 
-### Priority 7: Profile Capture Tool 📋
-Epic 0017-012
-- 📋 0017-012-001 - Profile Capture Agent Tool
+FEATURE 0017-012 - Profile Capture Tool
+- 📋 0017-012-001 - Profile Capture Agent Tool Implementation
+  - 📋 0017-012-001-01 - Implement @agent.tool for profile capture
+  - 📋 0017-012-001-02 - Integrate profile hints into system prompt assembly
+- 📋 0017-012-002 - Update User Guide in Memorybank
+  - 📋 0017-012-002-01 - Document profile capture feature
 
-### Priority 8: Email Summary Tool with Mailgun 📋
-- 📋 0017-008-001 - Mailgun Integration
-- 📋 0017-008-002 - Email Summary Agent Tool
+### Priority 7: Opening Message
+- Epic 29 - The message to be displayed when a new chat session is started 📋
 
-### Priority 8A: Admin Frontend UI Polish & Prompt Engineering Tool 📋
+### Priority 8A: Email Summary Tool (Demo + Future Mailgun) 🔄
+**Epic 0028** - [`0028-email-summary-tool.md`](0028-email-summary-tool.md)
+
+**Current Scope - Demo Implementation**:
+- 🔄 0028-001 - Demo Email Summary Tool (lightweight, no actual email)
+  - ✅ 0028-001-001-01 - Create email_tools.py with demo tool
+  - ✅ 0028-001-001-02 - Register tool in agent configuration
+  - ✅ 0028-001-001-03 - Update system prompt with email guidance
+  - ✅ 0028-001-001-04 - End-to-end testing and validation
+  - 📋 0028-001-001-05 - Standardize email_summary config across all agents
+- 📋 0028-002 - Analytics and Monitoring (optional)
+
+**Future Scope - Real Email Integration** (supersedes 0017-008):
+- 🔮 0028-003 - Real Email Integration with Mailgun
+  - 0028-003-001 - Mailgun Service Integration
+    - 0028-003-001-01 - Create MailgunService class
+    - 0028-003-001-02 - Add Mailgun configuration to app.yaml
+  - 0028-003-002 - Conversation Summarization Engine
+    - 0028-003-002-01 - Create conversation summary generator
+    - 0028-003-002-02 - Create HTML email templates
+  - 0028-003-003 - Update Email Tool for Production
+    - 0028-003-003-01 - Add environment-based routing to email tool
+  - 0028-003-004 - Email Consent and Compliance
+    - 0028-003-004-01 - Add email consent tracking
+
+### Priority 8B: Appointment Scheduling Tool (Demo + Future MCP Integration) 📋
+**Epic 0030** - [`0030-appointment-scheduling-tool.md`](0030-appointment-scheduling-tool.md)
+
+**Current Scope - Demo Implementation**:
+- 📋 0030-001 - Demo Appointment Scheduling Tool (lightweight, no actual scheduling)
+  - 📋 0030-001-001-01 - Create scheduling_tools.py with demo tool
+  - 📋 0030-001-001-02 - Register tool in agent configuration
+  - 📋 0030-001-001-03 - Update system prompt with scheduling guidance
+  - 📋 0030-001-001-04 - End-to-end testing and validation
+  - 📋 0030-001-001-05 - Standardize appointment_scheduling config across all agents
+
+**Future Scope - Real MCP Integration**:
+- 🔮 0030-002 - Real Scheduling Integration with MCP
+  - Calendly MCP Server integration
+  - Healthcare EMR integration (Epic, Cerner, etc.)
+  - Veterinary EMR integration
+  - Nylas Scheduler API integration
+
+### Priority 9: OTP Authentication 📋
+- 📋 0017-011-001 - OTP Authentication System
+- TBD - Closed (Requiring Sign-In) Chat Sessions or Open Chat Sessions
+
+### Priority TBD: "Next Steps" Prompt Module at the Agent-Instance Level
+- TBD - Add hints to the system prompt how to close each interaction.
+
+### Priority 9A: Test Suite Cleanup & Maintenance 📋
+TASK 0099-001 - Test Suite Audit and Cleanup
+- 📋 0099-001-001 - CHUNK - Audit and categorize all existing tests
+  - SUB-TASKS:
+    - List all unit tests (backend/tests/unit/)
+    - List all integration tests (backend/tests/integration/)
+    - List all manual tests (backend/tests/manual/)
+    - Identify obsolete tests (for removed features)
+    - Identify duplicate test coverage
+    - Identify missing test coverage for new features
+  - STATUS: Planned — Foundation for test cleanup
+- 📋 0099-001-002 - CHUNK - Remove obsolete and duplicate tests
+  - SUB-TASKS:
+    - Delete tests for removed features (legacy endpoints, etc.)
+    - Consolidate duplicate test coverage
+    - Archive outdated test configurations
+    - Update test documentation
+  - STATUS: Planned — Reduce test suite noise
+- 📋 0099-001-003 - CHUNK - Add missing test coverage
+  - SUB-TASKS:
+    - Add unit tests for ProfileSchemaLoader
+    - Add integration tests for profile capture tool
+    - Add tests for modular prompt assembly
+    - Ensure all Priority 6 features have test coverage
+  - STATUS: Planned — Comprehensive test coverage
+
+### Priority 10: Per-Agent Cookie Configuration 📋
+FEATURE 0017-007 - Per-Agent Session Management
+Dependencies: Epic 0022 (complete)
+
+- 📋 0017-007-001 - Backend Session Cookie Configuration
+  - 📋 0017-007-001-001 - Add cookie configuration to agent config.yaml
+  - 📋 0017-007-001-002 - Update session middleware for per-agent cookies
+  - 📋 0017-007-001-003 - Update chat widget for per-agent cookies
+  - 📋 0017-007-001-004 - Database cleanup and migration
+  - 📋 0017-007-001-005 - End-to-end testing and documentation
+
+### Priority 11: Multi-Provider Infrastructure 📋
+- 📋 0022-001-002-01 - Provider factory and base infrastructure
+- 📋 0022-001-002-02 - Config schema and validation
+- 📋 0022-001-002-03 - Update simple_chat agent to use factory
+- 📋 0022-001-002-04 - Update test instance configs (Together.ai)
+- 📋 0022-001-002-05 - Provider-specific cost tracking
+- 📋 0022-001-002-06 - Integration testing and validation
+
+### Priority 12: Admin Frontend UI Polish & Prompt Engineering Tool 📋
 Epic 0026 - Simple Admin Frontend
 
 - 📋 FEATURE-0026-012 - Professional Dashboard UI
@@ -228,27 +366,8 @@ Epic 0026 - Simple Admin Frontend
   - 📋 TASK-0026-017-002 - Variant Management UI
   - 📋 TASK-0026-017-003 - Compare Variants
 
-### Priority 9: Multi-Provider Infrastructure 📋
-- 📋 0022-001-002-01 - Provider factory and base infrastructure
-- 📋 0022-001-002-02 - Config schema and validation
-- 📋 0022-001-002-03 - Update simple_chat agent to use factory
-- 📋 0022-001-002-04 - Update test instance configs (Together.ai)
-- 📋 0022-001-002-05 - Provider-specific cost tracking
-- 📋 0022-001-002-06 - Integration testing and validation
-
-### Priority 10: Per-Agent Cookie Configuration 📋
-Epic 0017-007 - Per-Agent Session Management
-Dependencies: Epic 0022 (complete)
-
-- 📋 0017-007-001 - Backend Session Cookie Configuration
-  - 📋 0017-007-001-001 - Add cookie configuration to agent config.yaml
-  - 📋 0017-007-001-002 - Update session middleware for per-agent cookies
-  - 📋 0017-007-001-003 - Update chat widget for per-agent cookies
-  - 📋 0017-007-001-004 - Database cleanup and migration
-  - 📋 0017-007-001-005 - End-to-end testing and documentation
-
-### Priority 11: Logging Infrastructure Consolidation ✅
-Epic 0017-013 - Complete Migration from Loguru to Logfire
+### Priority 13: Logging Infrastructure Consolidation ✅
+FEATURE 0017-013 - Complete Migration from Loguru to Logfire
 
 - ✅ Phase 1 - Core Agent & Tools (4 files)
 - ✅ Phase 2 - Services (8 files)
@@ -266,42 +385,41 @@ Epic 0017-013 - Complete Migration from Loguru to Logfire
 
 ## PHASE 2: Enhanced Functionality
 
-### Priority 12: Email Capture & Consent ⚠️
+### Priority 14: Email Capture & Consent ⚠️
 Status: DEPRECATED - Superseded by Priority 7
 
-### Priority 13: Periodic Summarization 📋
+### Priority 15: Periodic Summarization 📋
 - 📋 0017-010-001 - Context Window Management System
 
-### Priority 14: OTP Authentication 📋
-- 📋 0017-011-001 - OTP Authentication System
+
 
 ## PHASE 3: Multi-Agent Platform
 
-### Priority 15: Multi-Client Widget Foundation ✅
+### Priority 16: Multi-Client Widget Foundation ✅
 - ✅ 0003-001-001 - Shadow DOM Widget
 - ✅ 0003-001-002 - Preact Islands Integration
 - ✅ 0003-001-003 - HTMX UI Examples
 
-### Priority 16: Agent Type Plumbing ✅
-Epic 0005-002 (superseded by Epic 0022)
+### Priority 17: Agent Type Plumbing ✅
+FEATURE 0005-002 (superseded by Epic 0022)
 - ✅ 0005-002-001 - Agent type registration and discovery (superseded by 0022-001-001-04)
 - ✅ 0005-002-002 - Configuration validation (superseded by 0022-001-001-03)
 - ✅ 0005-002-003 - Routing enhancement (superseded by Epic 0022)
 - 📋 0005-002-004 - Health checks and status monitoring
 
-### Priority 17: Sales Agent Addition 📋
+### Priority 18: Sales Agent Addition 📋
 - 📋 0008-001-001 - Sales agent foundation with business tools
 - 📋 0008-001-002 - RAG integration with business knowledge
 - 📋 0008-001-003 - Email integration (Mailgun)
 - 📋 0008-001-004 - Scheduling integration (Nylas/Calendly)
 - 📋 0008-001-005 - Profile data collection and lead qualification
 
-### Priority 18: React and Vue Chat Widgets 📋
+### Priority 19: React and Vue Chat Widgets 📋
 - 📋 0003-002-001 - React Widget Component with TypeScript
 - 📋 0003-002-002 - Vue 3 Widget Component with Composition API
 - 📋 0003-002-003 - NPM Package Distribution
 
-### Priority 19: Advanced Widget Features 📋
+### Priority 20: Advanced Widget Features 📋
 - 📋 0003-003-001 - Iframe Adapter for security isolation
 - 📋 0003-003-002 - API-Only Mode for mobile integration
 - 📋 0003-003-003 - Advanced Theming with CSS variables

@@ -103,3 +103,81 @@ If query involves multiple aspects, search the most specific directory first:
 - "I need a cardiologist, what's the phone number?"
   → Search `doctors` first (doctor's contact info is in their profile)
 
+---
+
+## Multi-Directory Orchestration
+
+### When to Chain Directory Searches
+
+Some queries require searching **multiple directories in sequence**:
+
+#### Pattern 1: Doctor Appointment Booking (MOST COMMON)
+
+**Query**: "I want to make an appointment with Dr. [Name]"
+
+**Workflow**:
+1. Search `doctors` to find doctor and extract their **department**
+2. Search `contact_information` using that department name to get phone/hours/location
+3. Combine both results in response with complete booking instructions
+
+**Example**:
+```
+User: "I want to schedule with Dr. Maria Diaz"
+
+Step 1: search_directory(list_name="doctors", query="Maria Diaz")
+→ Result: Dr. Maria Diaz, DO
+   Department: "Podiatry"
+   Specialty: "Podiatric Surgery"
+
+Step 2: search_directory(list_name="contact_information", query="Podiatry")
+→ Result: Podiatry Department
+   Phone: 307-555-2500
+   Hours: Mon-Fri 8am-5pm
+   Location: Medical Plaza - 1st Floor
+
+Response: "To schedule an appointment with Dr. Maria Diaz (Podiatric Surgery), 
+please call the Podiatry department at 307-555-2500. They're available 
+Mon-Fri 8am-5pm and are located in the Medical Plaza on the 1st Floor."
+```
+
+#### Pattern 2: Department + Doctor Lookup
+
+**Query**: "Who are the cardiologists and what's their phone number?"
+
+**Workflow**:
+1. Search `doctors` with filters for Cardiology
+2. Search `contact_information` for Cardiology department contact info
+3. Combine doctor names + department contact details
+
+**Example**:
+```
+search_directory(list_name="doctors", filters={"specialty": "Cardiology"})
+→ List of cardiologists
+
+search_directory(list_name="contact_information", query="Cardiology")
+→ Phone: 307-555-2000, Hours: Mon-Fri 8am-6pm
+
+Response: List doctors + "To schedule with any of our cardiologists, 
+call the Cardiology department at 307-555-2000 (Mon-Fri 8am-6pm)."
+```
+
+### Department Name Mapping (CRITICAL!)
+
+**When chaining from doctors → contact_information**:
+
+1. Extract the **exact department name** from doctor results (NOT specialty)
+2. Use that department name to search contact_information
+3. If department name is generic (like "Medicine"), try the specialty first
+
+**Common Mappings**:
+- Doctor department: "Cardiology" → Contact: "Cardiology" ✅
+- Doctor department: "Pediatrics" → Contact: "Pediatrics" ✅
+- Doctor department: "OB/GYN" → Contact: "OB/GYN" ✅
+- Doctor department: "Medicine" + Specialty: "Nephrology" → Try: "Nephrology" first, fallback to "Medicine" ✅
+- Doctor department: "Surgery" + Specialty: "Cardiothoracic Surgery" → Try: "Surgery" ✅
+
+**Best Practice**:
+- Always use the **department** field from doctor results
+- If department is too generic (Medicine, Surgery), try specialty name first
+- Include hours and location in your appointment instructions
+

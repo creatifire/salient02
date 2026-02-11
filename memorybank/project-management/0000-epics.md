@@ -4,7 +4,7 @@ Unauthorized copying of this file is strictly prohibited.
 -->
 
 # Epics
-> **Last Updated**: November 14, 2025
+> **Last Updated**: January 31, 2025
 > Convention: Use `[ ]` for open items and `[x]` for completed items across FEATURES, TASKS, and CHUNKS.
 
 ## Milestone Planning
@@ -27,6 +27,8 @@ Unauthorized copying of this file is strictly prohibited.
 13. [Ticketing Tool](./0024-ticketing.md) - 📋 Planned
 14. [Simple Admin Frontend](./0026-simple-admin-frontend.md) - ✅ Phase 3B Complete (Admin UI for session/prompt debugging)
 15. [Reasoning Chain & Confidence Score Capture](./0027-reasoning-chain-confidence-capture.md) - 📋 Proposed (LLM transparency features)
+16. [Email Summary Tool](./0028-email-summary-tool.md) - 🔄 In Progress (Priority 8A - Demo complete, config standardization pending)
+17. [Appointment Scheduling Tool](./0030-appointment-scheduling-tool.md) - 📋 Planned (Priority 8B - Demo implementation)
 
 ## Epic Backlog
 

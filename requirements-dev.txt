@@ -12,7 +12,6 @@ coverage==7.12.0
 iniconfig==2.3.0
 pluggy==1.6.0
 
-# Code quality tools (add as needed)
-# black==24.4.0          # Code formatting
-# ruff==0.4.0            # Linting and formatting
-# mypy==1.10.0           # Type checking
+# Code quality tools (installed via brew at system level)
+# - ruff
+# - ty

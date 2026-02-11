@@ -18,6 +18,10 @@ model_settings:
   max_tokens: 2000
 
 tools:
+  profile_capture:
+    enabled: false  # Disabled for testing/demo - no profile capture
+    schema_file: "profile.yaml"  # Uses system fallback (basic email/phone) when enabled
+  
   vector_search:
     enabled: false  # Disabled for simple_chat1 - direct LLM responses only
     max_results: 5

@@ -25,6 +25,10 @@ model_settings:
   max_tokens: 2000
 
 tools:
+  profile_capture:
+    enabled: true
+    schema_file: "profile.yaml"  # Profile schema for student/parent information
+  
   vector_search:
     enabled: true  # ENABLED - PrepExcellence website content in Pinecone
     max_results: 5
