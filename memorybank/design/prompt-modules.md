@@ -315,6 +315,142 @@ backend/config/prompt_modules/accounts/
 
 ---
 
+## Configuration Cascade Rules
+
+All configuration files follow a **3-level cascade** pattern: **Agent Instance → Account → System → None**.
+
+### Standard Cascade Order
+
+For any configuration file (prompt modules, system prompts, profile schemas, etc.):
+
+1. **Agent Instance** - Most specific, highest priority
+2. **Account** - Account-wide defaults
+3. **System** - Global defaults
+4. **None** - Return None if not found at any level
+
+### File Path Resolution
+
+#### Prompt Modules (e.g., `tool_selection_hints.md`)
+
+```
+1. backend/config/agent_configs/{account}/{instance}/tool_selection_hints.md
+   ↓ (if not found)
+2. backend/config/prompt_modules/accounts/{account}/tool_selection_hints.md
+   ↓ (if not found)
+3. backend/config/prompt_modules/system/tool_selection_hints.md
+   ↓ (if not found)
+4. Return None
+```
+
+#### System Prompt (`system_prompt.md`)
+
+```
+1. backend/config/agent_configs/{account}/{instance}/system_prompt.md
+   ↓ (if not found)
+2. backend/config/prompt_modules/accounts/{account}/system_prompt.md
+   ↓ (if not found)
+3. backend/config/prompt_modules/system/system_prompt.md
+   ↓ (if not found)
+4. Return None
+```
+
+#### Profile Schema (`profile.yaml`)
+
+```
+1. backend/config/agent_configs/{account}/{instance}/profile.yaml
+   ↓ (if not found)
+2. backend/config/prompt_modules/accounts/{account}/profile.yaml
+   ↓ (if not found)
+3. backend/config/prompt_modules/system/profile.yaml
+   ↓ (if not found)
+4. Return None
+```
+
+#### Email Summarization Prompt (`email_summarization_prompt.md`)
+
+```
+1. backend/config/agent_configs/{account}/{instance}/email_summarization_prompt.md
+   ↓ (if not found)
+2. backend/config/prompt_modules/accounts/{account}/email_summarization_prompt.md
+   ↓ (if not found)
+3. backend/config/prompt_modules/system/email_summarization_prompt.md
+   ↓ (if not found)
+4. Return None (use default in code)
+```
+
+### Current Implementation Status
+
+**⚠️ WARNING**: As of December 5, 2025, the cascade implementation is **inconsistent** across different file types. See **BUG-0017-012** for details.
+
+**Current Status**:
+- ❌ **Prompt Modules**: 2-level cascade (account → system), **MISSING** instance level
+- ❌ **System Prompt**: 1-level (instance only), **MISSING** account/system fallback
+- ❌ **Profile Schema**: 2-level (instance → system), **SKIPS** account level
+
+**Target State** (when BUG-0017-012 is fixed):
+- ✅ **All files**: 3-level cascade (instance → account → system → none)
+
+### Usage Examples
+
+**Example 1**: Wyckoff-specific tool selection rules
+
+```
+File: backend/config/prompt_modules/accounts/wyckoff/tool_selection_hints.md
+Result: All Wyckoff agents use this instead of system default
+```
+
+**Example 2**: Wind River instance-specific system prompt
+
+```
+File: backend/config/agent_configs/windriver/windriver_info_chat1/system_prompt.md
+Result: This specific instance uses custom prompt, others fall back to account/system
+```
+
+**Example 3**: Global profile schema
+
+```
+File: backend/config/prompt_modules/system/profile.yaml
+Result: All agents use this unless overridden at account or instance level
+```
+
+### Implementation Reference
+
+**Current Implementation**: `backend/app/agents/tools/prompt_modules.py`
+
+```python
+def load_prompt_module(module_name: str, account_slug: Optional[str] = None) -> Optional[str]:
+    """
+    Load a prompt module from markdown file.
+    
+    CASCADE (current - 2-level):
+    1. Try account-level: backend/config/prompt_modules/accounts/{account_slug}/{module_name}.md
+    2. Fall back to system-level: backend/config/prompt_modules/system/{module_name}.md
+    
+    TODO (BUG-0017-012): Add instance-level as first priority
+    """
+```
+
+**Target Implementation** (when BUG-0017-012 is fixed):
+
+```python
+def load_prompt_module(
+    module_name: str,
+    account_slug: Optional[str] = None,
+    instance_name: Optional[str] = None
+) -> Optional[str]:
+    """
+    Load a prompt module from markdown file with full cascade.
+    
+    CASCADE (3-level):
+    1. Try instance-level: backend/config/agent_configs/{account}/{instance}/{module_name}.md
+    2. Try account-level: backend/config/prompt_modules/accounts/{account}/{module_name}.md
+    3. Fall back to system-level: backend/config/prompt_modules/system/{module_name}.md
+    4. Return None if not found at any level
+    """
+```
+
+---
+
 ## Monitoring
 
 ### Logfire Events

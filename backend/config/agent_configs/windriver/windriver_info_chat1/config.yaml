@@ -1,23 +1,34 @@
-# Windriver Hospital Info Chat - Healthcare Information Assistant
-# Demo agent for Windriver Hospital website
+# Wind River Hospital Info Chat - Healthcare Information Assistant
+# Demo agent for Wind River Hospital website
 # Focus: Medical services, doctor search, healthcare information
 
 agent_type: "simple_chat"
 account: "windriver"
 instance_name: "windriver_info_chat1"
 name: "Wind River Hospital"
-description: "Healthcare information and doctor search assistant for Windriver Hospital"
+description: "Healthcare information and doctor search assistant for Wind River Hospital"
 
 # System prompt configuration
 prompts:
   system_prompt_file: "./system_prompt.md"
 
+# Prompt modules configuration (Phase 4A)
+prompting:
+  modules:
+    enabled: true
+    selected:
+      - tool_selection_hints       # NEW - choose correct tool (directory vs vector vs email)
+      # directory_selection_hints automatically included in directory header when directory tools enabled
+
 model_settings:
-  model: "openai/gpt-4o-mini"  # Fast, reliable OpenAI model with excellent tool support
+  model: "google/gemini-3-flash-preview"  # Fast, reliable OpenAI model with excellent tool support
   temperature: 0.3
-  max_tokens: 2000
+  max_tokens: 8000
 
 tools:
+  email_summary:
+    enabled: true  # Demo feature - allows users to request conversation summaries via email
+  
   profile_capture:
     enabled: true
     schema_file: "profile.yaml"  # Profile schema for hospital visitor information
@@ -27,7 +38,7 @@ tools:
     max_results: 10
     similarity_threshold: 0.4  # Lower threshold for better recall on medical content
     pinecone:
-      index_name: "wyckoff-poc-01"  # Windriver WordPress site content (update with actual index name)
+      index_name: "wyckoff-poc-01"  # Wind River WordPress site content (update with actual index name)
       # index_host will be auto-discovered via Pinecone API if not specified
       # index_host: "https://windriver-poc-01-xyz.svc.region.pinecone.io"  # Optional: explicit host
       namespace: "__default__"  # Pinecone default namespace
@@ -37,8 +48,8 @@ tools:
       dimensions: 1536
   
   directory:
-    enabled: true  # ENABLED - Windriver doctor profiles from directory_lists
-    accessible_lists: ["doctors"]  # Lists this agent can search
+    enabled: true  # ENABLED - Wind River doctor profiles and contact information from directory_lists
+    accessible_lists: ["doctors", "contact_information"]  # Lists this agent can search
     max_results: 10  # Maximum entries to return per search
     search_mode: "fts"  # Search mode: exact | substring | fts (full-text search with ranking)
   

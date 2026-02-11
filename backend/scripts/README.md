@@ -349,3 +349,215 @@ python backend/scripts/seed_directory.py \
     --description "Windriver Hospital - Medical Professionals"
 ```
 
+---
+
+## summarize_session.py
+
+Generates conversation summaries using OpenRouter with config-driven model settings. Supports printing to stdout, saving to file, and sending via email (Mailgun).
+
+### Quick Start
+
+```bash
+cd /path/to/salient02
+
+# Print summary to stdout
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml
+
+# Save to file
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+    --output summary.txt
+
+# Send via email (HTML format)
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+    --email user@example.com \
+    --format html
+
+# French summary
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+    --language french
+
+# Spanish HTML email
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+    --language spanish \
+    --format html \
+    --email user@example.com
+
+# All options (German summary to file and email)
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+    --language german \
+    --output zusammenfassung.html \
+    --email user@example.com \
+    --format html
+```
+
+### Arguments
+
+| Argument | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `session_id` | Yes | Session ID (UUID) or session_key | `abc123`, `550e8400-e29b-41d4-a716-446655440000` |
+| `config_path` | Yes | Path to agent config.yaml with model_settings | `backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml` |
+| `--output`, `-o` | No | Save summary to file | `summary.txt`, `output/email_summary.html` |
+| `--email`, `-e` | No | Send summary via email (Mailgun) | `user@example.com` |
+| `--format`, `-f` | No | Output format: `text` or `html` (default: text) | `html`, `text` |
+| `--language`, `-l` | No | Target language for summary (default: english) | `french`, `spanish`, `german`, `mandarin` |
+| `--api-key`, `-a` | No | OpenRouter API key (defaults to env var) | `sk-or-v1-...` |
+
+### How It Works
+
+**Configuration Loading**:
+- Reads `model_settings` from specified config.yaml file
+- Extracts: `model`, `temperature`, `max_tokens`
+- Uses OpenRouter API (like rest of backend)
+
+**Session Retrieval**:
+- Loads session from PostgreSQL database
+- Retrieves all messages in conversation thread (ordered by created_at)
+- Supports lookup by session ID (UUID) or session_key
+
+**Summary Generation**:
+- Formats conversation with timestamps and roles
+- Sends to OpenRouter with professional summarization prompt
+- **Language support**: Generate summaries in any language (English, French, Spanish, German, Mandarin, etc.)
+- Returns concise summary (200-400 words) highlighting:
+  - Main topics discussed
+  - Key information provided
+  - Questions and answers
+  - Action items or follow-ups
+
+**Output Options**:
+1. **Print to stdout** (default) - Display in terminal
+2. **Save to file** (`--output`) - Write to text/HTML file
+3. **Send via email** (`--email`) - Mailgun integration with professional formatting
+
+### Output Formats
+
+**Text Format** (`--format text`):
+```
+Conversation Summary
+Date: 2025-01-28 10:30:00
+Account: windriver
+
+The conversation focused on finding a cardiologist...
+
+Key topics:
+- Doctor search by specialty
+- Insurance acceptance
+- Office locations
+
+---
+This summary was automatically generated.
+```
+
+**HTML Format** (`--format html`):
+- Professional email styling
+- Section headings (<h2>)
+- Bullet points for key topics
+- Highlighted important information
+- Responsive design for email clients
+
+### Prerequisites
+
+1. **Database Connection**: `DATABASE_URL` in .env file
+2. **OpenRouter API Key**: `OPENROUTER_API_KEY` in .env file
+3. **Mailgun (optional)**: `MAILGUN_API_KEY` and `MAILGUN_DOMAIN` for email
+4. **Python Dependencies**: `sqlalchemy`, `asyncpg`, `pyyaml`, `python-dotenv`, `openai`, `requests` (for email)
+5. **Virtual Environment**: Backend `.venv` activated
+
+### Example: Generate Email Summary
+
+```bash
+# Load session and generate HTML email
+python backend/scripts/summarize_session.py \
+    550e8400-e29b-41d4-a716-446655440000 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+    --email patient@example.com \
+    --format html
+```
+
+Result: Professional HTML email sent via Mailgun with conversation summary.
+
+### Example: Batch Processing
+
+```bash
+# Generate summaries for multiple sessions
+for session_id in abc123 def456 ghi789; do
+    python backend/scripts/summarize_session.py \
+        $session_id \
+        backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml \
+        --output "summaries/session_${session_id}.txt"
+done
+```
+
+### Configuration Examples
+
+**Using Wind River config** (Gemini Flash 3):
+```bash
+python backend/scripts/summarize_session.py \
+    abc123 \
+    backend/config/agent_configs/windriver/windriver_info_chat1/config.yaml
+```
+Uses: `google/gemini-3-flash-preview`, temperature: 0.3, max_tokens: 8000
+
+**Using custom config** (GPT-4o):
+```yaml
+# custom_config.yaml
+model_settings:
+  model: "openai/gpt-4o"
+  temperature: 0.5
+  max_tokens: 4000
+```
+
+```bash
+python backend/scripts/summarize_session.py \
+    abc123 \
+    custom_config.yaml
+```
+
+### Error Handling
+
+**Session Not Found**:
+```
+✗ Error: Session not found: abc123
+```
+Check session ID is correct (UUID or session_key)
+
+**Config File Not Found**:
+```
+✗ Error: Config file not found: config.yaml
+```
+Verify path to config.yaml file
+
+**Missing API Key**:
+```
+✗ Error: OpenRouter API key required (set OPENROUTER_API_KEY env var)
+```
+Add `OPENROUTER_API_KEY` to .env file
+
+**No Messages in Session**:
+```
+⚠ Warning: No messages found in this session
+```
+Session exists but has no conversation history
+
+### Cost Tracking
+
+The script uses OpenRouter's cost tracking:
+```
+✓ Summary generated
+  Tokens - Prompt: 1247, Completion: 234, Total: 1481
+```
+
+Cost is tracked in OpenRouter's usage dashboard.
+
