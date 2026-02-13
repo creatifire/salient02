@@ -31,6 +31,8 @@ Scripts run sequentially, each producing output that feeds the next stage. Progr
 
 ## Workflow Steps
 
+Scripts run sequentially, each producing output that feeds the next stage. Progress tracked through file existence.
+
 ### Script 1: Initialize Configuration
 **File:** `01_init_config.py`
 **Purpose:** Gather requirements and create site-gen-config.yaml
@@ -261,6 +263,38 @@ Scripts run sequentially, each producing output that feeds the next stage. Progr
 
 ---
 
+### Script 12: Generate Demo Features List
+**File:** `12_generate_demo_features.py`
+**Purpose:** Create comprehensive numbered list of demoable features
+
+**Process:**
+1. Read all generated content and data files
+2. Analyze site structure, products, directories, relationships
+3. LLM generates thorough numbered list of features
+4. Organize by categories (content, functionality, chatbot, data)
+5. Include specific examples from generated site
+
+**Output:**
+- `{industry}/demo-features.md` - Numbered list of all demoable features
+
+**Features Documented:**
+- Site structure and navigation
+- Product catalog capabilities
+- Category organization
+- Directory integrations (cross-sell, up-sell, etc.)
+- Chatbot integration points
+- RAG-powered search capabilities
+- Content relationships and linking
+- Data consistency demonstrations
+- Industry-specific features
+
+**Validation:**
+- All listed features exist in generated site
+- Examples reference actual generated content
+- Features are actionable for demos
+
+---
+
 ## Data Flow
 
 ```
@@ -279,6 +313,8 @@ Research Files → Config → Research → Product Schema (CSV)
                             Validation → Validation Report
                                            ↓
                             Astro Conversion → Live Site
+                                           ↓
+                            Demo Features List → Feature Documentation
 ```
 
 ## File Organization
@@ -306,6 +342,7 @@ gen/industry-site/
 ├── 09_generate_site_pages.py
 ├── 10_validate_site.py
 ├── 11_convert_to_astro.py
+├── 12_generate_demo_features.py
 └── agtech/
     ├── site-gen-config.yaml
     ├── research/
@@ -334,7 +371,8 @@ gen/industry-site/
     │   │   └── {product-slug}.md
     │   └── categories/
     │       └── {category-slug}.md
-    └── validation-report.md
+    ├── validation-report.md
+    └── demo-features.md
 ```
 
 ## Technical Implementation
@@ -525,7 +563,8 @@ generation:
 
 1. Review this design
 2. Iterate on any ambiguities
-3. Implement script 01 (init_config.py)
-4. Test on agtech vertical
-5. Refine based on results
-6. Extend to other industries
+3. Implement scripts sequentially (01-12)
+4. Test complete workflow on agtech vertical
+5. Review generated demo-features.md for demo preparation
+6. Refine based on results
+7. Extend to other industries
