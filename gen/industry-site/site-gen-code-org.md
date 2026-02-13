@@ -8,10 +8,11 @@ Hybrid architecture using classes for stateful components (LLM clients, config, 
 
 1. **Immutable Config**: `site-gen-config.yaml` created by Script 1, read-only for all subsequent scripts
 2. **Mutable State**: `site-gen-state.yaml` tracks progress, updated by each script
-3. **Function-Based Organization**: `lib/` organized by functional domain
-4. **Centralized Error Handling**: Shared exceptions, retry logic, logging
-5. **Environment Integration**: Reads from project `.env` file
-6. **Manual Testing**: Code structured for clarity and debuggability
+3. **External Prompts**: Prompts stored as markdown files in `lib/llm/prompts/`
+4. **Function-Based Organization**: `lib/` organized by functional domain
+5. **Centralized Error Handling**: Shared exceptions, retry logic, logging
+6. **Environment Integration**: Reads from project `.env` file
+7. **Manual Testing**: Code structured for clarity and debuggability
 
 ## Directory Structure
 
@@ -27,8 +28,31 @@ gen/industry-site/
 │   ├── llm/
 │   │   ├── __init__.py
 │   │   ├── client.py              # LLMClient class
-│   │   ├── prompts.py             # Prompt templates
-│   │   └── retry.py               # Retry logic with backoff
+│   │   ├── retry.py               # Retry logic with backoff
+│   │   └── prompts/               # External prompt files
+│   │       ├── __init__.py
+│   │       ├── loader.py          # Prompt loader utility
+│   │       ├── research/          # Research prompts (.md)
+│   │       │   ├── search_companies.md
+│   │       │   ├── analyze_website.md
+│   │       │   ├── extract_products.md
+│   │       │   └── categorize_products.md
+│   │       ├── generation/        # Generation prompts (.md)
+│   │       │   ├── product_names.md
+│   │       │   ├── product_page.md
+│   │       │   ├── category_page.md
+│   │       │   ├── home_page.md
+│   │       │   ├── directory_entries.md
+│   │       │   └── new_schema.md
+│   │       ├── analysis/          # Analysis prompts (.md)
+│   │       │   ├── schema_relevance.md
+│   │       │   └── propose_schemas.md
+│   │       ├── validation/        # Validation prompts (.md)
+│   │       │   └── demo_features.md
+│   │       └── system/            # System prompts (.md)
+│   │           ├── researcher.md
+│   │           ├── generator.md
+│   │           └── analyst.md
 │   ├── research/
 │   │   ├── __init__.py
 │   │   ├── exa_client.py          # Exa search integration
@@ -590,7 +614,144 @@ def exponential_backoff(
 
 ---
 
-## Error Handling
+### Prompt Management
+
+**Purpose**: External prompt storage and loading
+
+**File**: `lib/llm/prompts/loader.py`
+
+```python
+from pathlib import Path
+from typing import Dict, Any
+
+PROMPTS_DIR = Path(__file__).parent
+
+def load_prompt(category: str, name: str, variables: Dict[str, Any] = None) -> str:
+    """
+    Load prompt from file with variable substitution.
+    
+    Args:
+        category: Prompt category (research, generation, analysis, validation, system)
+        name: Prompt filename without .md extension
+        variables: Dict of variables to substitute using {var} syntax
+        
+    Returns:
+        Formatted prompt string
+        
+    Raises:
+        FileNotFoundError: If prompt file doesn't exist
+        KeyError: If required variable missing
+        
+    Example:
+        >>> prompt = load_prompt('generation', 'product_names', {
+        ...     'count': 100,
+        ...     'industry': 'agtech',
+        ...     'company_name': 'AgriTech Solutions',
+        ...     'real_products': 'Tractor\\nHarvester\\nDrone',
+        ...     'categories': 'Equipment\\nSoftware\\nServices'
+        ... })
+    """
+    prompt_path = PROMPTS_DIR / category / f"{name}.md"
+    
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt not found: {prompt_path}")
+    
+    prompt_template = prompt_path.read_text(encoding='utf-8')
+    
+    if variables:
+        try:
+            return prompt_template.format(**variables)
+        except KeyError as e:
+            raise KeyError(f"Missing required variable in prompt: {e}")
+    
+    return prompt_template
+
+def load_system_prompt(role: str) -> str:
+    """
+    Load system prompt for specific role.
+    
+    Args:
+        role: researcher, generator, or analyst
+        
+    Returns:
+        System prompt string
+        
+    Example:
+        >>> system = load_system_prompt('generator')
+    """
+    return load_prompt('system', role)
+```
+
+**Prompt Organization:**
+
+```
+lib/llm/prompts/
+├── loader.py
+├── research/                    # Script 02 prompts
+│   ├── search_companies.md      # Exa search prompt
+│   ├── analyze_website.md       # Analyze scraped content
+│   ├── extract_products.md      # Extract product information
+│   └── categorize_products.md   # Organize into categories
+├── generation/                  # Scripts 03, 07, 08, 09 prompts
+│   ├── product_names.md         # Generate product names (S03)
+│   ├── product_page.md          # Generate product page content (S07)
+│   ├── category_page.md         # Generate category page (S08)
+│   ├── home_page.md             # Generate home page (S09)
+│   ├── about_page.md            # Generate about page (S09)
+│   ├── contact_page.md          # Generate contact page (S09)
+│   ├── directory_entries.md     # Generate directory data (S06)
+│   └── new_schema.md            # Generate schema YAML (S05)
+├── analysis/                    # Script 04 prompts
+│   ├── schema_relevance.md      # Evaluate schema relevance
+│   └── propose_schemas.md       # Propose new schemas
+├── validation/                  # Script 12 prompts
+│   └── demo_features.md         # Generate demo features list
+└── system/                      # System prompts for roles
+    ├── researcher.md            # For research tasks (S02)
+    ├── generator.md             # For content generation (S03,S06-S09)
+    └── analyst.md               # For analysis tasks (S04,S12)
+```
+
+**Sample Prompt File:**
+
+```markdown
+<!-- lib/llm/prompts/generation/product_names.md -->
+Generate {count} realistic product names for {company_name} in the {industry} industry.
+
+Base them on these real products from market research:
+{real_products}
+
+Organize the products into these {category_count} categories:
+{categories}
+
+Requirements:
+- Product names should sound professional and realistic
+- Names should be similar to real products but not identical
+- Distribute products evenly across all categories
+- Include brief description for each product (1-2 sentences)
+
+Return as JSON array with this format:
+[
+  {{
+    "name": "Product Name",
+    "category": "Category Name",
+    "description": "Brief product description"
+  }}
+]
+```
+
+**Benefits:**
+
+1. **Version Control**: Track prompt changes in git
+2. **Easy Iteration**: Edit prompts without code changes
+3. **Organized**: Clear structure by function
+4. **Reusable**: Load same prompt in multiple contexts
+5. **Testable**: Test prompts independently
+6. **Pattern Match**: Similar to `backend/config/prompt_modules/`
+
+---
+
+### Retry Logic
 
 ### Custom Exceptions
 

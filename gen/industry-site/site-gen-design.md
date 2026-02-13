@@ -325,12 +325,23 @@ gen/industry-site/
 ├── industry-site-gen-design.md        # This file
 ├── site-gen-config.yaml               # Default template
 ├── lib/
-│   ├── llm_client.py                  # OpenRouter client
-│   ├── research_tools.py              # Exa + Jina integration
-│   ├── generic_directory_generator.py # CSV generator
-│   ├── schema_validator.py            # Schema validation
-│   ├── link_validator.py              # Link checking
-│   └── logger.py                      # Leverage backend logger
+│   ├── config/                        # Config and state management
+│   ├── llm/
+│   │   ├── client.py                  # OpenRouter client
+│   │   ├── retry.py                   # Retry logic
+│   │   └── prompts/                   # External prompt files
+│   │       ├── loader.py              # Prompt loader utility
+│   │       ├── research/              # Research prompts
+│   │       ├── generation/            # Generation prompts
+│   │       ├── analysis/              # Analysis prompts
+│   │       ├── validation/            # Validation prompts
+│   │       └── system/                # System prompts
+│   ├── research/                      # Exa + Jina integration
+│   ├── generation/                    # Generator functions
+│   ├── validation/                    # Validators
+│   ├── io/                            # File operations
+│   ├── errors/                        # Error handling
+│   └── logging/                       # Logger integration
 ├── 01_init_config.py
 ├── 02_research_industry.py
 ├── 03_generate_product_schema.py
@@ -377,26 +388,89 @@ gen/industry-site/
 
 ## Technical Implementation
 
+### Prompt Storage
+
+**External Markdown Files**: Prompts stored in `lib/llm/prompts/` organized by function.
+
+**Structure:**
+```
+lib/llm/prompts/
+├── loader.py              # Prompt loading utility
+├── research/
+│   ├── search_companies.md
+│   ├── analyze_website.md
+│   ├── extract_products.md
+│   └── categorize_products.md
+├── generation/
+│   ├── product_names.md
+│   ├── product_page.md
+│   ├── category_page.md
+│   ├── home_page.md
+│   ├── directory_entries.md
+│   └── new_schema.md
+├── analysis/
+│   ├── schema_relevance.md
+│   └── propose_schemas.md
+├── validation/
+│   └── demo_features.md
+└── system/
+    ├── researcher.md
+    ├── generator.md
+    └── analyst.md
+```
+
+**Loader Utility:**
+```python
+# lib/llm/prompts/loader.py
+def load_prompt(category: str, name: str, variables: dict = None) -> str:
+    """Load and format prompt from markdown file."""
+    prompt_path = PROMPTS_DIR / category / f"{name}.md"
+    template = prompt_path.read_text(encoding='utf-8')
+    
+    if variables:
+        return template.format(**variables)
+    return template
+
+def load_system_prompt(role: str) -> str:
+    """Load system prompt for role (researcher, generator, analyst)."""
+    return load_prompt('system', role)
+```
+
+**Benefits:**
+- Matches backend pattern (`backend/config/prompt_modules/`)
+- Easy to iterate without code changes
+- Version controlled
+- Organized by function
+
 ### LLM Integration
 
 **Client Setup:**
 ```python
-# lib/llm_client.py
+# lib/llm/client.py
 from openai import OpenAI
-import yaml
+from .prompts.loader import load_prompt, load_system_prompt
 
-def get_llm_client(config_path):
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    return OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=config['llm']['api_key']
-    )
+# See code organization doc for full LLMClient implementation
+```
 
-def call_llm(client, model, messages, tools=None):
-    # Multiple small calls for traceability
-    # Log each call for debugging
-    pass
+**Usage Example:**
+```python
+from lib.llm.client import LLMClient
+from lib.llm.prompts.loader import load_prompt, load_system_prompt
+
+llm = LLMClient(api_key=config['llm']['api_key'])
+
+# Load prompt with variables
+prompt = load_prompt('generation', 'product_names', {
+    'count': 100,
+    'industry': 'agtech',
+    'real_products': product_list_text,
+    'categories': category_list_text
+})
+
+system_prompt = load_system_prompt('generator')
+
+response = llm.generate_text(prompt, system_prompt=system_prompt)
 ```
 
 **Model Selection:**
