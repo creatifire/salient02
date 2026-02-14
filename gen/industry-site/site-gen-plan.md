@@ -57,7 +57,7 @@ Develop scripts independently using sample data.
 
 #### Tasks
 
-**F01-T1: Implement ConfigLoader Class**
+**[x] F01-T1: Implement ConfigLoader Class**
 
 Create configuration loader with environment variable substitution and validation.
 
@@ -91,7 +91,7 @@ See [testing conventions](site-gen-auto-tests.md) for details.
 
 ---
 
-**F01-T2: Implement StateManager Class**
+**[ ] F01-T2: Implement StateManager Class**
 
 Create state manager for tracking progress across scripts.
 
@@ -128,7 +128,7 @@ Create `tests/unit/test_state_manager.py` with:
 
 ---
 
-**F01-T3: Implement Error Handling**
+**[ ] F01-T3: Implement Error Handling**
 
 Create custom exceptions and error handling utilities.
 
@@ -159,7 +159,7 @@ Create `tests/unit/test_exceptions.py` with:
 
 ---
 
-**F01-T4: Integrate Backend Logger**
+**[ ] F01-T4: Integrate Backend Logger**
 
 Leverage existing backend logfire for structured logging.
 
@@ -213,7 +213,7 @@ Create `tests/unit/test_logger.py` with:
 
 #### Tasks
 
-**F02-T1: Implement Retry Logic**
+**[ ] F02-T1: Implement Retry Logic**
 
 Create exponential backoff decorator for LLM calls.
 
@@ -250,7 +250,7 @@ Create `tests/unit/test_retry.py` with:
 
 ---
 
-**F02-T2: Implement LLMClient Class**
+**[ ] F02-T2: Implement LLMClient Class**
 
 Create unified LLM client for OpenRouter API.
 
@@ -288,7 +288,7 @@ Mark with `@pytest.mark.llm` for tests requiring real API calls.
 
 ---
 
-**F02-T3: Create Prompt Management System**
+**[ ] F02-T3: Create Prompt Management System**
 
 Implement external prompt storage and loading.
 
@@ -368,7 +368,7 @@ Create `tests/unit/test_prompt_loader.py` with:
 
 #### Tasks
 
-**F03-T1: Implement Exa Search Client**
+**[ ] F03-T1: Implement Exa Search Client**
 
 Create Exa API integration for company/product search.
 
@@ -401,7 +401,7 @@ Create `tests/unit/test_exa_client.py` with:
 
 ---
 
-**F03-T2: Implement Jina Reader**
+**[ ] F03-T2: Implement Jina Reader**
 
 Create Jina Reader API integration for web scraping.
 
@@ -435,7 +435,7 @@ Create `tests/unit/test_jina_reader.py` with:
 
 ---
 
-**F03-T3: Implement Research Analyzer**
+**[ ] F03-T3: Implement Research Analyzer**
 
 Create functions to analyze and structure research data.
 
@@ -494,7 +494,7 @@ Create `tests/unit/test_research_analyzer.py` with:
 
 #### Tasks
 
-**F04-T1: Implement File Operations**
+**[ ] F04-T1: Implement File Operations**
 
 Create file read/write and directory utilities.
 
@@ -530,7 +530,7 @@ Create `tests/unit/test_file_ops.py` with:
 
 ---
 
-**F04-T2: Implement CSV Operations**
+**[ ] F04-T2: Implement CSV Operations**
 
 Create CSV read/write and validation functions.
 
@@ -565,7 +565,7 @@ Create `tests/unit/test_csv_ops.py` with:
 
 ---
 
-**F04-T3: Implement YAML Operations**
+**[ ] F04-T3: Implement YAML Operations**
 
 Create YAML read/write functions.
 
@@ -623,7 +623,7 @@ Create `tests/unit/test_yaml_ops.py` with:
 
 #### Tasks
 
-**F05-T1: Implement Schema Validator**
+**[ ] F05-T1: Implement Schema Validator**
 
 Create CSV-to-schema validation functions.
 
@@ -658,7 +658,7 @@ Create `tests/unit/test_schema_validator.py` with:
 
 ---
 
-**F05-T2: Implement Link Validator**
+**[ ] F05-T2: Implement Link Validator**
 
 Create markdown link validation functions.
 
@@ -695,7 +695,7 @@ Create `tests/unit/test_link_validator.py` with:
 
 ---
 
-**F05-T3: Implement Data Validator**
+**[ ] F05-T3: Implement Data Validator**
 
 Create data consistency validation functions.
 
@@ -752,7 +752,7 @@ Create `tests/unit/test_data_validator.py` with:
 
 #### Tasks
 
-**F06-T1: Implement Product Generator**
+**[ ] F06-T1: Implement Product Generator**
 
 Create product name and description generation functions.
 
@@ -789,7 +789,7 @@ Create `tests/unit/test_product_generator.py` with:
 
 ---
 
-**F06-T2: Implement Directory Generator**
+**[ ] F06-T2: Implement Directory Generator**
 
 Create generic directory CSV generation function.
 
@@ -828,7 +828,7 @@ Create `tests/unit/test_directory_generator.py` with:
 
 ---
 
-**F06-T3: Implement Page Generator**
+**[ ] F06-T3: Implement Page Generator**
 
 Create markdown page generation functions.
 
@@ -890,7 +890,7 @@ Create `tests/unit/test_page_generator.py` with:
 
 #### Tasks
 
-**S01-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S01-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample research files for testing without real data.
 
@@ -917,7 +917,7 @@ Create `tests/functional/test_script_01.py` with:
 
 ---
 
-**S01-T2: Implement Interactive Prompts**
+**[ ] S01-T2: Implement Interactive Prompts**
 
 Create CLI interface to gather configuration requirements.
 
@@ -937,7 +937,7 @@ python 01_init_config.py agtech
 
 ---
 
-**S01-T3: Generate Company Profile from Research**
+**[ ] S01-T3: Generate Company Profile from Research**
 
 Use LLM to analyze research files and generate company profile.
 
@@ -961,7 +961,7 @@ print('Profile generated from research')"
 
 ---
 
-**S01-T4: Write Configuration File**
+**[ ] S01-T4: Write Configuration File**
 
 Create and write site-gen-config.yaml with all settings.
 
@@ -986,7 +986,7 @@ print(f\"Company: {config['company']['name']}\")"
 
 ---
 
-**S01-T5: Initialize State Tracking**
+**[ ] S01-T5: Initialize State Tracking**
 
 Create site-gen-state.yaml and mark script complete.
 
@@ -1010,7 +1010,7 @@ print(state.is_script_complete('01_init_config'))"
 
 ---
 
-**S01-T6: Integration - Complete Script**
+**[ ] S01-T6: Integration - Complete Script**
 
 Implement main() function following [Script Structure Template](site-gen-code-org.md#script-structure-template).
 
@@ -1059,7 +1059,7 @@ python 01_init_config.py agtech
 
 #### Tasks
 
-**S02-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S02-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample site-gen-config.yaml for testing without Script 01.
 
@@ -1076,7 +1076,7 @@ cat agtech/site-gen-config.yaml
 
 ---
 
-**S02-T2: Search Companies with Exa**
+**[ ] S02-T2: Search Companies with Exa**
 
 Use Exa API to find top companies in industry.
 
@@ -1098,7 +1098,7 @@ print(f'Found {len(companies)} companies')"
 
 ---
 
-**S02-T3: Scrape Company Pages with Jina**
+**[ ] S02-T3: Scrape Company Pages with Jina**
 
 Use Jina Reader to scrape product pages.
 
@@ -1119,7 +1119,7 @@ print('Scraped content length:', len(content))"
 
 ---
 
-**S02-T4: Extract Products with LLM**
+**[ ] S02-T4: Extract Products with LLM**
 
 Analyze scraped content to extract product information.
 
@@ -1143,7 +1143,7 @@ print(f'Extracted {len(products)} products')"
 
 ---
 
-**S02-T5: Write Research Outputs**
+**[ ] S02-T5: Write Research Outputs**
 
 Write companies.json, products-catalog.json, research-summary.md.
 
@@ -1168,7 +1168,7 @@ print(f'Categories: {len(set(p[\"category\"] for p in data))}')"
 
 ---
 
-**S02-T6: Integration - Complete Script**
+**[ ] S02-T6: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -1224,7 +1224,7 @@ Create `tests/functional/test_script_02.py` with:
 
 #### Tasks
 
-**S03-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S03-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample products-catalog.json for testing.
 
@@ -1241,7 +1241,7 @@ cat agtech/research/products-catalog.json
 
 ---
 
-**S03-T2: Generate Product Categories**
+**[ ] S03-T2: Generate Product Categories**
 
 Analyze research and generate category list.
 
@@ -1262,7 +1262,7 @@ print('Categories:', categories)"
 
 ---
 
-**S03-T3: Generate Product Names**
+**[ ] S03-T3: Generate Product Names**
 
 Create realistic product names based on research.
 
@@ -1287,7 +1287,7 @@ print(f'Generated {len(products)} products')"
 
 ---
 
-**S03-T4: Write Product CSV**
+**[ ] S03-T4: Write Product CSV**
 
 Write product directory following product.yaml schema.
 
@@ -1315,7 +1315,7 @@ print('Valid:', report['valid'])"
 
 ---
 
-**S03-T5: Integration - Complete Script**
+**[ ] S03-T5: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -1372,7 +1372,7 @@ Create `tests/functional/test_script_03.py` with:
 
 #### Tasks
 
-**S04-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S04-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample product.csv for testing.
 
@@ -1387,7 +1387,7 @@ cat agtech/data/product.csv
 
 ---
 
-**S04-T2: Load All Available Schemas**
+**[ ] S04-T2: Load All Available Schemas**
 
 Read all schema files from backend/config/directory_schemas/.
 
@@ -1411,7 +1411,7 @@ for s in schemas[:5]: print(s.name)"
 
 ---
 
-**S04-T3: Analyze Schema Relevance**
+**[ ] S04-T3: Analyze Schema Relevance**
 
 Use LLM with tool calling to evaluate each schema.
 
@@ -1435,7 +1435,7 @@ print('Relevant schemas:', selected_schemas)"
 
 ---
 
-**S04-T4: Generate New Schema Proposals**
+**[ ] S04-T4: Generate New Schema Proposals**
 
 Use LLM to propose industry-specific schemas.
 
@@ -1458,7 +1458,7 @@ cat agtech/schemas/new-schema-proposals.md
 
 ---
 
-**S04-T5: Write Outputs**
+**[ ] S04-T5: Write Outputs**
 
 Write selected-schemas.json and new-schema-proposals.md.
 
@@ -1483,7 +1483,7 @@ assert 'cross_sell' in data"
 
 ---
 
-**S04-T6: Integration - Complete Script**
+**[ ] S04-T6: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -1539,7 +1539,7 @@ Create `tests/functional/test_script_04.py` with:
 
 #### Tasks
 
-**S05-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S05-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample new-schema-proposals.md for testing.
 
@@ -1554,7 +1554,7 @@ cat agtech/schemas/new-schema-proposals.md
 
 ---
 
-**S05-T2: Parse Approved Proposals**
+**[ ] S05-T2: Parse Approved Proposals**
 
 Read and parse new-schema-proposals.md.
 
@@ -1574,7 +1574,7 @@ print('Schemas to create:', schema_names)"
 
 ---
 
-**S05-T3: Generate YAML Schemas**
+**[ ] S05-T3: Generate YAML Schemas**
 
 Use LLM to generate schema YAML files.
 
@@ -1598,7 +1598,7 @@ print('Generated schema YAML')"
 
 ---
 
-**S05-T4: Validate Generated Schemas**
+**[ ] S05-T4: Validate Generated Schemas**
 
 Check schemas against existing patterns.
 
@@ -1622,7 +1622,7 @@ print('Schema valid')"
 
 ---
 
-**S05-T5: Write Schema Files**
+**[ ] S05-T5: Write Schema Files**
 
 Write schemas and validation report.
 
@@ -1642,7 +1642,7 @@ cat agtech/schemas/schema-validation-report.md
 
 ---
 
-**S05-T6: Integration - Complete Script**
+**[ ] S05-T6: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -1699,7 +1699,7 @@ Create `tests/functional/test_script_05.py` with:
 
 #### Tasks
 
-**S06-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S06-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample selected-schemas.json and product.csv.
 
@@ -1716,7 +1716,7 @@ cat agtech/data/product.csv
 
 ---
 
-**S06-T2: Load Products and Schemas**
+**[ ] S06-T2: Load Products and Schemas**
 
 Read product.csv and selected schemas.
 
@@ -1739,7 +1739,7 @@ print(f'Products: {len(products)}, Schemas: {len(schemas)}')"
 
 ---
 
-**S06-T3: Generate Directory CSVs**
+**[ ] S06-T3: Generate Directory CSVs**
 
 For each schema, generate coherent CSV data.
 
@@ -1770,7 +1770,7 @@ print('Valid:', report['valid'])"
 
 ---
 
-**S06-T4: Validate Data Consistency**
+**[ ] S06-T4: Validate Data Consistency**
 
 Check all product references and relationships.
 
@@ -1792,7 +1792,7 @@ print('Validation complete')"
 
 ---
 
-**S06-T5: Integration - Complete Script**
+**[ ] S06-T5: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -1849,7 +1849,7 @@ Create `tests/functional/test_script_06.py` with:
 
 #### Tasks
 
-**S07-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S07-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample product.csv and directory CSVs.
 
@@ -1866,7 +1866,7 @@ cat agtech/data/cross_sell.csv
 
 ---
 
-**S07-T2: Load Products and Directories**
+**[ ] S07-T2: Load Products and Directories**
 
 Read product.csv and all directory CSVs.
 
@@ -1888,7 +1888,7 @@ print(f'Products: {len(products)}, Cross-sells: {len(cross_sell)}')"
 
 ---
 
-**S07-T3: Generate Product Page Content**
+**[ ] S07-T3: Generate Product Page Content**
 
 For each product, generate detailed markdown page.
 
@@ -1916,7 +1916,7 @@ print('Page generated with frontmatter')"
 
 ---
 
-**S07-T4: Generate All Product Pages**
+**[ ] S07-T4: Generate All Product Pages**
 
 Loop through all products and generate pages.
 
@@ -1939,7 +1939,7 @@ print(f'Expected {len(products)} pages')"
 
 ---
 
-**S07-T5: Validate Product Links**
+**[ ] S07-T5: Validate Product Links**
 
 Check all internal links in product pages.
 
@@ -1962,7 +1962,7 @@ print('Broken links:', len(report.get('broken_links', [])))"
 
 ---
 
-**S07-T6: Integration - Complete Script**
+**[ ] S07-T6: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -2018,7 +2018,7 @@ Create `tests/functional/test_script_07.py` with:
 
 #### Tasks
 
-**S08-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S08-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample product.csv for testing.
 
@@ -2033,7 +2033,7 @@ cat agtech/data/product.csv
 
 ---
 
-**S08-T2: Extract Categories**
+**[ ] S08-T2: Extract Categories**
 
 Read products and extract unique categories.
 
@@ -2056,7 +2056,7 @@ print(list(categories))"
 
 ---
 
-**S08-T3: Generate Category Pages**
+**[ ] S08-T3: Generate Category Pages**
 
 For each category, create landing page.
 
@@ -2079,7 +2079,7 @@ cat agtech/content/categories/precision-equipment.md
 
 ---
 
-**S08-T4: Validate Category Links**
+**[ ] S08-T4: Validate Category Links**
 
 Check all product links in category pages.
 
@@ -2101,7 +2101,7 @@ print('Valid:', report['valid'])"
 
 ---
 
-**S08-T5: Integration - Complete Script**
+**[ ] S08-T5: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -2157,7 +2157,7 @@ Create `tests/functional/test_script_08.py` with:
 
 #### Tasks
 
-**S09-T1: Create Sample Data (Optional for Parallel Development)**
+**[ ] S09-T1: Create Sample Data (Optional for Parallel Development)**
 
 Create sample site-gen-config.yaml with company profile.
 
@@ -2172,7 +2172,7 @@ cat agtech/site-gen-config.yaml
 
 ---
 
-**S09-T2: Generate Home Page**
+**[ ] S09-T2: Generate Home Page**
 
 Create index.md with category navigation.
 
@@ -2195,7 +2195,7 @@ cat agtech/content/index.md
 
 ---
 
-**S09-T3: Generate About Page**
+**[ ] S09-T3: Generate About Page**
 
 Create about.md with company story.
 
@@ -2216,7 +2216,7 @@ cat agtech/content/about.md
 
 ---
 
-**S09-T4: Generate Contact Page**
+**[ ] S09-T4: Generate Contact Page**
 
 Create contact.md with contact information.
 
@@ -2237,7 +2237,7 @@ cat agtech/content/contact.md
 
 ---
 
-**S09-T5: Generate Navigation Structure**
+**[ ] S09-T5: Generate Navigation Structure**
 
 Create _navigation.json with site structure.
 
@@ -2259,7 +2259,7 @@ print('Navigation sections:', len(nav))"
 
 ---
 
-**S09-T6: Validate Site Links**
+**[ ] S09-T6: Validate Site Links**
 
 Check all links in site pages.
 
@@ -2281,7 +2281,7 @@ print('Total files:', report['files_checked'])"
 
 ---
 
-**S09-T7: Integration - Complete Script**
+**[ ] S09-T7: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -2338,7 +2338,7 @@ Create `tests/functional/test_script_09.py` with:
 
 #### Tasks
 
-**S10-T1: Validate All Links**
+**[ ] S10-T1: Validate All Links**
 
 Check every internal link across all markdown files.
 
@@ -2360,7 +2360,7 @@ print(report)"
 
 ---
 
-**S10-T2: Validate Product References**
+**[ ] S10-T2: Validate Product References**
 
 Check CSV directories reference valid products.
 
@@ -2381,7 +2381,7 @@ print('Product references validated')"
 
 ---
 
-**S10-T3: Validate CSV Schemas**
+**[ ] S10-T3: Validate CSV Schemas**
 
 Revalidate all CSVs against schemas.
 
@@ -2403,7 +2403,7 @@ print('Schema validation complete')"
 
 ---
 
-**S10-T4: Check for Orphaned Content**
+**[ ] S10-T4: Check for Orphaned Content**
 
 Find any unreferenced pages or data.
 
@@ -2423,7 +2423,7 @@ print('Orphan check complete')"
 
 ---
 
-**S10-T5: Generate Validation Report**
+**[ ] S10-T5: Generate Validation Report**
 
 Create comprehensive validation-report.md.
 
@@ -2443,7 +2443,7 @@ cat agtech/validation-report.md
 
 ---
 
-**S10-T6: Integration - Complete Script**
+**[ ] S10-T6: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -2500,7 +2500,7 @@ Create `tests/functional/test_script_10.py` with:
 
 #### Tasks
 
-**S11-T1: Create Astro Project Structure**
+**[ ] S11-T1: Create Astro Project Structure**
 
 Set up Astro directory in web/src/pages/.
 
@@ -2517,7 +2517,7 @@ ls web/src/pages/agtech/
 
 ---
 
-**S11-T2: Convert Product Pages**
+**[ ] S11-T2: Convert Product Pages**
 
 Transform product markdown to Astro components.
 
@@ -2538,7 +2538,7 @@ cat web/src/pages/agtech/products/precision-planter-pro.astro
 
 ---
 
-**S11-T3: Convert Category Pages**
+**[ ] S11-T3: Convert Category Pages**
 
 Transform category markdown to Astro components.
 
@@ -2557,7 +2557,7 @@ cat web/src/pages/agtech/categories/precision-equipment.astro
 
 ---
 
-**S11-T4: Convert Site Pages**
+**[ ] S11-T4: Convert Site Pages**
 
 Transform home, about, contact to Astro.
 
@@ -2578,7 +2578,7 @@ cat web/src/pages/agtech/contact.astro
 
 ---
 
-**S11-T5: Add Chatbot Integration**
+**[ ] S11-T5: Add Chatbot Integration**
 
 Integrate Salient chat API into pages.
 
@@ -2600,7 +2600,7 @@ cd web && npm run dev
 
 ---
 
-**S11-T6: Integration - Complete Script**
+**[ ] S11-T6: Integration - Complete Script**
 
 Implement main() following script template.
 
@@ -2661,7 +2661,7 @@ Create `tests/functional/test_script_11.py` with:
 
 #### Tasks
 
-**S12-T1: Analyze Generated Content**
+**[ ] S12-T1: Analyze Generated Content**
 
 Read and analyze all generated files.
 
@@ -2684,7 +2684,7 @@ print(f'Directories: {directory_count}')"
 
 ---
 
-**S12-T2: Generate Feature List**
+**[ ] S12-T2: Generate Feature List**
 
 Use LLM to create comprehensive numbered feature list.
 
@@ -2707,7 +2707,7 @@ cat agtech/demo-features.md
 
 ---
 
-**S12-T3: Validate Feature Claims**
+**[ ] S12-T3: Validate Feature Claims**
 
 Check all listed features actually exist.
 
@@ -2727,7 +2727,7 @@ print('All features validated')"
 
 ---
 
-**S12-T4: Integration - Complete Script**
+**[ ] S12-T4: Integration - Complete Script**
 
 Implement main() following script template.
 
