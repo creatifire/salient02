@@ -116,6 +116,16 @@ print(state.is_script_complete('test_script'))"
 - Verify: Script completion tracked
 - Verify: Timestamps updated
 
+**Automated Tests**:
+Create `tests/unit/test_state_manager.py` with:
+- `test_creates_new_state_file()` - Creates state file if missing
+- `test_loads_existing_state()` - Loads existing state correctly
+- `test_set_and_get_values()` - Store and retrieve state values
+- `test_mark_script_complete()` - Track script completion
+- `test_is_script_complete()` - Check completion status
+- `test_timestamps_updated()` - Verify timestamps on save
+- Run: `pytest tests/unit/test_state_manager.py -v`
+
 ---
 
 **F01-T3: Implement Error Handling**
@@ -139,6 +149,14 @@ print(test_func())"
 - Verify: Error decorator catches and logs errors
 - Verify: Error messages clear and actionable
 
+**Automated Tests**:
+Create `tests/unit/test_exceptions.py` with:
+- `test_exception_hierarchy()` - All exceptions inherit from SiteGenError
+- `test_config_error_raised()` - ConfigError can be raised and caught
+- `test_validation_error_message()` - ConfigValidationError has clear message
+- `test_llm_error_types()` - LLMError and LLMRetryExhausted work correctly
+- Run: `pytest tests/unit/test_exceptions.py -v`
+
 ---
 
 **F01-T4: Integrate Backend Logger**
@@ -160,6 +178,14 @@ logger.error('test_error', error='details')"
 - Verify: Log messages appear in console/logfire
 - Verify: Structured parameters captured
 - Verify: No import errors
+
+**Automated Tests**:
+Create `tests/unit/test_logger.py` with:
+- `test_get_logger_returns_logger()` - Logger instance returned
+- `test_logger_info_with_params()` - Info logging with structured params
+- `test_logger_error_with_params()` - Error logging works
+- `test_multiple_loggers()` - Multiple logger instances work independently
+- Run: `pytest tests/unit/test_logger.py -v`
 
 ---
 
@@ -213,6 +239,15 @@ print(flaky_func())"
 - Verify: Success after retries
 - Verify: Exhausted exception after max retries
 
+**Automated Tests**:
+Create `tests/unit/test_retry.py` with:
+- `test_retry_succeeds_on_first_attempt()` - No retry if successful
+- `test_retry_succeeds_after_failures()` - Retry until success
+- `test_exponential_backoff_delays()` - Verify exponential delay timing
+- `test_max_retries_exhausted()` - Raises LLMRetryExhausted after max
+- `test_retry_with_custom_params()` - Custom retry parameters work
+- Run: `pytest tests/unit/test_retry.py -v`
+
 ---
 
 **F02-T2: Implement LLMClient Class**
@@ -238,6 +273,18 @@ print(response)"
 - Verify: Response content returned
 - Verify: Usage statistics logged
 - Verify: Retry on transient failures
+
+**Automated Tests**:
+Create `tests/unit/test_llm_client.py` with:
+- `test_client_initialization()` - Client initializes with API key
+- `test_generate_text_mocked()` - Mock API call returns text (use pytest-mock)
+- `test_chat_with_messages()` - Chat method processes messages correctly
+- `test_usage_tracking()` - Usage statistics tracked
+- `test_retry_on_api_error()` - Retry logic invoked on API errors
+- `test_tool_calling_response()` - Tool calling responses handled
+- Run: `pytest tests/unit/test_llm_client.py -v`
+
+Mark with `@pytest.mark.llm` for tests requiring real API calls.
 
 ---
 
@@ -280,6 +327,16 @@ print(result)"
 ```
 - Verify: System prompt loads correctly
 - Verify: No variables needed for system prompts
+
+**Automated Tests**:
+Create `tests/unit/test_prompt_loader.py` with:
+- `test_load_prompt_with_variables()` - Variable substitution works
+- `test_load_prompt_without_variables()` - Load without substitution
+- `test_missing_prompt_file_raises_error()` - FileNotFoundError for missing
+- `test_missing_variable_raises_error()` - KeyError for missing variable
+- `test_load_system_prompt()` - System prompts load correctly
+- `test_prompt_directory_structure()` - All prompt directories exist
+- Run: `pytest tests/unit/test_prompt_loader.py -v`
 
 ---
 
@@ -334,6 +391,14 @@ print(results[0])"
 - Verify: Results contain URLs
 - Verify: Error handling for rate limits
 
+**Automated Tests**:
+Create `tests/unit/test_exa_client.py` with:
+- `test_search_companies_mocked()` - Mock API returns structured results
+- `test_search_companies_error_handling()` - Handles API errors gracefully
+- `test_result_structure()` - Results have required fields (name, url)
+- Mark with `@pytest.mark.llm` for real API tests
+- Run: `pytest tests/unit/test_exa_client.py -v`
+
 ---
 
 **F03-T2: Implement Jina Reader**
@@ -358,6 +423,15 @@ print(content[:500])"
 - Verify: Content is clean (no HTML tags)
 - Verify: Works without API key (free tier)
 - Verify: Error handling for invalid URLs
+
+**Automated Tests**:
+Create `tests/unit/test_jina_reader.py` with:
+- `test_scrape_url_mocked()` - Mock API returns markdown content
+- `test_clean_markdown_output()` - No HTML tags in output
+- `test_invalid_url_handling()` - Handles bad URLs gracefully
+- `test_empty_content_handling()` - Handles empty pages
+- Mark with `@pytest.mark.llm` for real API tests
+- Run: `pytest tests/unit/test_jina_reader.py -v`
 
 ---
 
@@ -384,6 +458,15 @@ print(products)"
 - Verify: Returns structured data
 - Verify: LLM enhances extraction
 - Verify: Handles empty/invalid content
+
+**Automated Tests**:
+Create `tests/unit/test_research_analyzer.py` with:
+- `test_analyze_products_with_mocked_llm()` - Mock LLM extraction
+- `test_extract_product_names()` - Basic extraction works
+- `test_categorize_products()` - Products categorized correctly
+- `test_empty_content_handling()` - Handles empty input gracefully
+- `test_structured_json_output()` - Output format correct
+- Run: `pytest tests/unit/test_research_analyzer.py -v`
 
 ---
 
@@ -436,6 +519,15 @@ print(f'Files: {files}')"
 - Verify: Glob patterns work
 - Verify: UTF-8 encoding handled
 
+**Automated Tests**:
+Create `tests/unit/test_file_ops.py` with:
+- `test_ensure_dir_creates_directory()` - Directory creation
+- `test_write_and_read_text()` - File write/read cycle
+- `test_list_files_glob()` - Glob pattern matching
+- `test_utf8_encoding()` - UTF-8 handling with special chars
+- `test_read_nonexistent_file()` - Error handling for missing files
+- Run: `pytest tests/unit/test_file_ops.py -v`
+
 ---
 
 **F04-T2: Implement CSV Operations**
@@ -462,6 +554,15 @@ validate_csv_structure('test_output/products.csv', ['name', 'price'])"
 - Verify: Headers included
 - Verify: Validation detects missing fields
 
+**Automated Tests**:
+Create `tests/unit/test_csv_ops.py` with:
+- `test_write_and_read_csv()` - Write/read cycle preserves data
+- `test_csv_headers()` - Headers written correctly
+- `test_empty_csv()` - Handles empty data
+- `test_special_characters_in_csv()` - Handles commas, quotes in data
+- `test_validate_csv_structure()` - Validation function works
+- Run: `pytest tests/unit/test_csv_ops.py -v`
+
 ---
 
 **F04-T3: Implement YAML Operations**
@@ -486,6 +587,15 @@ print(loaded)"
 - Verify: Data round-trips correctly
 - Verify: Nested structures preserved
 - Verify: Human-readable formatting
+
+**Automated Tests**:
+Create `tests/unit/test_yaml_ops.py` with:
+- `test_write_and_read_yaml()` - Write/read cycle preserves data
+- `test_nested_structures()` - Nested dicts/lists work
+- `test_empty_yaml()` - Handles empty data
+- `test_yaml_formatting()` - Output is human-readable
+- `test_read_invalid_yaml()` - Error handling for malformed YAML
+- Run: `pytest tests/unit/test_yaml_ops.py -v`
 
 ---
 
@@ -537,6 +647,15 @@ print(report)"
 - Verify: Errors detected for invalid data
 - Verify: Report is actionable
 
+**Automated Tests**:
+Create `tests/unit/test_schema_validator.py` with:
+- `test_validate_valid_csv()` - Valid CSV passes validation
+- `test_missing_required_field()` - Detects missing required fields
+- `test_extra_fields_allowed()` - Extra fields don't fail validation
+- `test_validation_report_structure()` - Report has correct structure
+- `test_multiple_errors()` - Reports all errors, not just first
+- Run: `pytest tests/unit/test_schema_validator.py -v`
+
 ---
 
 **F05-T2: Implement Link Validator**
@@ -565,6 +684,15 @@ print(report)"
 - Verify: Valid links pass
 - Verify: Report lists all issues
 
+**Automated Tests**:
+Create `tests/unit/test_link_validator.py` with:
+- `test_validate_valid_links()` - Valid links pass
+- `test_detect_broken_links()` - Broken links reported
+- `test_extract_markdown_links()` - Link extraction works
+- `test_skip_external_urls()` - External URLs skipped
+- `test_relative_path_resolution()` - Relative paths resolved correctly
+- Run: `pytest tests/unit/test_link_validator.py -v`
+
 ---
 
 **F05-T3: Implement Data Validator**
@@ -588,6 +716,15 @@ print(report)"
 - Verify: Broken references detected
 - Verify: Valid references pass
 - Verify: Report is comprehensive
+
+**Automated Tests**:
+Create `tests/unit/test_data_validator.py` with:
+- `test_validate_valid_references()` - Valid references pass
+- `test_detect_invalid_references()` - Invalid product IDs detected
+- `test_relationship_count_limits()` - Relationship counts validated
+- `test_referential_integrity()` - All references resolve
+- `test_empty_data_handling()` - Handles empty CSVs gracefully
+- Run: `pytest tests/unit/test_data_validator.py -v`
 
 ---
 
@@ -641,6 +778,15 @@ print(products[0])"
 - Verify: Distributed across categories
 - Verify: Names sound realistic
 
+**Automated Tests**:
+Create `tests/unit/test_product_generator.py` with:
+- `test_generate_product_names_mocked()` - Mock LLM generates products
+- `test_product_count()` - Generates correct number
+- `test_product_structure()` - Products have required fields
+- `test_category_distribution()` - Products distributed across categories
+- `test_realistic_names()` - Names follow pattern of real products
+- Run: `pytest tests/unit/test_product_generator.py -v`
+
 ---
 
 **F06-T2: Implement Directory Generator**
@@ -671,6 +817,15 @@ print(result)"
 - Verify: Product references valid
 - Verify: Data is coherent
 
+**Automated Tests**:
+Create `tests/unit/test_directory_generator.py` with:
+- `test_generate_directory_csv_mocked()` - Mock LLM generates CSV
+- `test_schema_loading()` - Loads schema correctly
+- `test_product_references()` - Product references valid
+- `test_csv_structure()` - Follows schema structure
+- `test_entry_count()` - Generates requested number of entries
+- Run: `pytest tests/unit/test_directory_generator.py -v`
+
 ---
 
 **F06-T3: Implement Page Generator**
@@ -695,6 +850,16 @@ print(page_content[:500])"
 - Verify: Content includes product details
 - Verify: Links formatted correctly
 - Verify: Frontmatter is valid YAML
+
+**Automated Tests**:
+Create `tests/unit/test_page_generator.py` with:
+- `test_generate_product_page_mocked()` - Mock LLM generates page
+- `test_frontmatter_structure()` - Frontmatter is valid YAML
+- `test_markdown_formatting()` - Content is valid markdown
+- `test_internal_links()` - Links formatted correctly
+- `test_category_page_generation()` - Category pages generated
+- `test_site_page_generation()` - Home/about/contact pages generated
+- Run: `pytest tests/unit/test_page_generator.py -v`
 
 ---
 
@@ -740,6 +905,15 @@ ls agtech/research/*.md
 - Verify: Sample research files exist
 - Verify: Files contain meaningful content
 - Note: Skip if using real AgTech research files
+
+**Automated Tests**:
+Create `tests/functional/test_script_01.py` with:
+- `test_config_file_creation()` - Script creates valid config file
+- `test_state_file_initialization()` - State file created correctly
+- `test_config_validation()` - Generated config passes validation
+- `test_env_var_substitution()` - Environment variables in config
+- Mark with `@pytest.mark.functional` and `@pytest.mark.slow`
+- Run: `pytest tests/functional/test_script_01.py -v`
 
 ---
 
@@ -1029,6 +1203,15 @@ python 02_research_industry.py agtech
 - Research outputs meet minimum criteria
 - Ready for Script 03
 
+**Automated Tests**:
+Create `tests/functional/test_script_02.py` with:
+- `test_company_search_and_scraping()` - Companies found and scraped
+- `test_product_extraction()` - Products extracted from content
+- `test_output_file_creation()` - All output files created
+- `test_minimum_data_requirements()` - 20+ products, 5+ categories
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_02.py -v`
+
 ---
 
 ### Feature S03: Generate Product Schema (Script 03)
@@ -1167,6 +1350,15 @@ python 03_generate_product_schema.py agtech
 - Feature verification passed
 - Product CSV validated against schema
 - Product catalog is foundation for all subsequent scripts
+
+**Automated Tests**:
+Create `tests/functional/test_script_03.py` with:
+- `test_product_csv_creation()` - CSV created with correct count
+- `test_category_distribution()` - Products distributed across categories
+- `test_unique_product_ids()` - All IDs unique
+- `test_schema_validation()` - CSV validates against product.yaml
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_03.py -v`
 
 ---
 
@@ -1326,6 +1518,15 @@ python 04_analyze_schemas.py agtech
 - Schema proposals reviewed and approved (checkpoint)
 - Ready to create new schemas or proceed with existing
 
+**Automated Tests**:
+Create `tests/functional/test_script_04.py` with:
+- `test_schema_analysis()` - Schemas analyzed correctly
+- `test_relevant_schema_selection()` - Relevant schemas selected
+- `test_new_schema_proposals()` - Proposals generated
+- `test_output_file_creation()` - Both output files created
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_04.py -v`
+
 ---
 
 ### Feature S05: Create New Schemas (Script 05)
@@ -1477,6 +1678,15 @@ python 05_create_schemas.py agtech
 - Manual approval and copy completed (if new schemas created)
 - Note: Can skip if no new schemas approved in S04
 
+**Automated Tests**:
+Create `tests/functional/test_script_05.py` with:
+- `test_schema_generation()` - YAML schemas generated
+- `test_schema_validation()` - Schemas valid against pattern
+- `test_validation_report()` - Report created with results
+- `test_schema_structure()` - Schemas have required sections
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_05.py -v`
+
 ---
 
 ### Feature S06: Generate Directory Data (Script 06)
@@ -1617,6 +1827,15 @@ python 06_generate_directories.py agtech
 - All CSVs validated against schemas
 - Data consistency checks passed
 - Directory data ready for content generation
+
+**Automated Tests**:
+Create `tests/functional/test_script_06.py` with:
+- `test_directory_csv_generation()` - CSVs generated for all schemas
+- `test_schema_compliance()` - Each CSV validates against its schema
+- `test_product_references()` - All product references valid
+- `test_data_consistency()` - Consistency checks pass
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_06.py -v`
 
 ---
 
@@ -1778,6 +1997,15 @@ python 07_generate_product_pages.py agtech
 - All links validated
 - Content quality acceptable
 
+**Automated Tests**:
+Create `tests/functional/test_script_07.py` with:
+- `test_product_page_generation()` - All product pages created
+- `test_frontmatter_valid()` - Frontmatter is valid YAML
+- `test_internal_links()` - All links valid
+- `test_page_count_matches_products()` - Count matches product.csv
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_07.py -v`
+
 ---
 
 ### Feature S08: Generate Category Pages (Script 08)
@@ -1907,6 +2135,15 @@ python 08_generate_category_pages.py agtech
 - One page per category
 - All product links valid
 - Categories cover all products
+
+**Automated Tests**:
+Create `tests/functional/test_script_08.py` with:
+- `test_category_page_generation()` - All category pages created
+- `test_category_count()` - Correct number of categories
+- `test_product_links()` - All product links valid
+- `test_product_coverage()` - Every product appears on a category page
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_08.py -v`
 
 ---
 
@@ -2080,6 +2317,15 @@ python 09_generate_site_pages.py agtech
 - Navigation complete
 - All links validated
 
+**Automated Tests**:
+Create `tests/functional/test_script_09.py` with:
+- `test_site_page_generation()` - Home, about, contact pages created
+- `test_navigation_structure()` - Navigation JSON valid
+- `test_category_links()` - All category links work
+- `test_content_quality()` - Pages have substantial content
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_09.py -v`
+
 ---
 
 ### Feature S10: Validate Site (Script 10)
@@ -2233,6 +2479,15 @@ python 10_validate_site.py agtech
 - Validation report reviewed (checkpoint)
 - Ready for Astro conversion
 
+**Automated Tests**:
+Create `tests/functional/test_script_10.py` with:
+- `test_validation_report_generation()` - Report created
+- `test_schema_validation()` - All CSVs validate
+- `test_link_validation()` - All links checked
+- `test_data_consistency()` - Consistency checks pass
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`
+- Run: `pytest tests/functional/test_script_10.py -v`
+
 ---
 
 ### Feature S11: Convert to Astro (Script 11)
@@ -2383,6 +2638,15 @@ cd web && npm run dev
 - All markdown converted to Astro
 - Site functional in browser
 - Chatbot integration ready
+
+**Automated Tests**:
+Create `tests/functional/test_script_11.py` with:
+- `test_markdown_to_astro_conversion()` - All files converted
+- `test_frontmatter_preserved()` - Frontmatter converted correctly
+- `test_astro_file_count()` - Count matches markdown files
+- `test_chatbot_integration()` - Chatbot component added
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`
+- Run: `pytest tests/functional/test_script_11.py -v`
 - Ready for final feature documentation
 
 ---
@@ -2499,6 +2763,15 @@ python 12_generate_demo_features.py agtech
 - All features verified to exist
 - Ready for demo presentation
 
+**Automated Tests**:
+Create `tests/functional/test_script_12.py` with:
+- `test_demo_features_generation()` - demo-features.md created
+- `test_feature_categories()` - Features organized by category
+- `test_feature_validation()` - All claimed features exist
+- `test_numbered_list_format()` - Proper markdown formatting
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_script_12.py -v`
+
 ---
 
 ## Completion
@@ -2522,3 +2795,30 @@ All features complete when:
 - Demo features list comprehensive
 
 **AgTech Test Case**: Complete industry site generator proof of concept, ready to extend to other industries.
+
+**Automated Test Suite**:
+Create `tests/functional/test_end_to_end.py` with:
+- `test_full_workflow_execution()` - All 12 scripts run successfully
+- `test_output_completeness()` - All expected files generated
+- `test_site_functionality()` - Astro site works correctly
+- `test_data_integrity()` - All data consistent across files
+- Mark with `@pytest.mark.functional`, `@pytest.mark.slow`, `@pytest.mark.llm`
+- Run: `pytest tests/functional/test_end_to_end.py -v`
+
+**Run All Tests**:
+```bash
+# Run all unit tests (fast)
+pytest tests/unit -v
+
+# Run all integration tests
+pytest tests/integration -v
+
+# Run all functional tests (slow)
+pytest tests/functional -v
+
+# Run with coverage report
+pytest --cov=lib --cov-report=html --cov-report=term-missing
+
+# Run excluding expensive LLM tests
+pytest -m "not llm" -v
+```
