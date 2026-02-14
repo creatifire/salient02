@@ -1,0 +1,41 @@
+# Site Generation Configuration
+# Created by: 01_init_config.py
+# Industry: agtech
+
+company:
+  name: "AgriTech Solutions"
+  industry: "agtech"
+  tagline: "Revolutionizing Agriculture Through Technology"
+  description: "Leading provider of precision agriculture solutions, helping farmers increase yields and reduce costs through data-driven insights."
+  website: "https://agritech-solutions.example.com"
+  founded: 2018
+  employees: "50-100"
+  location: "San Francisco, CA"
+
+llm:
+  api_key: "${OPENROUTER_API_KEY}"
+  base_url: "https://openrouter.ai/api/v1"
+  models:
+    tool_calling: "anthropic/claude-sonnet-4.5"
+    no_tools: "anthropic/claude-haiku-4.5"
+  timeout: 60
+  max_retries: 3
+
+generation:
+  product_count: 100
+  category_count: 10
+  product_relationships:
+    min: 0
+    max: 3
+  entries_per_directory: 25
+
+research:
+  exa_api_key: "${EXA_API_KEY}"
+  jina_api_key: "${JINA_API_KEY}"
+  companies_to_research: 10
+  products_per_company: 5
+  research_files:
+    - "agtech/research/agtech-case-study.md"
+    - "agtech/research/agtech-chatbot-pain-points.md"
+    - "agtech/research/agtech-marketing-strategy.md"
+    - "agtech/research/agtech-strategic-brief.md"

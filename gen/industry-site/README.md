@@ -8,6 +8,7 @@ LLM-powered workflow that generates industry-specific demo sites for the Salient
 
 - **[Site Generation Design](site-gen-design.md)** - Complete workflow design with 12 sequential scripts, data flow, validation checkpoints, and configuration templates
 - **[Code Organization](site-gen-code-org.md)** - Detailed code architecture, module structure, class interfaces, and implementation examples
+- **[Implementation Plan](site-gen-plan.md)** - Feature-by-feature implementation tasks with manual verification steps and completion criteria
 
 ## Quick Start
 
@@ -17,25 +18,28 @@ LLM-powered workflow that generates industry-specific demo sites for the Salient
 
 ## Current Status
 
-**Design Complete**: Workflow and code architecture documented  
-**Implementation**: Ready to begin script development  
+**Status tracking is maintained in [site-gen-plan.md](site-gen-plan.md)** - see individual feature completion criteria and task checkboxes.
+
+**Design Complete**: Workflow and code architecture fully documented  
 **First Industry**: AgTech vertical with initial research completed
 
 ## Project Structure
 
 ```
 industry-site/
-├── README.md                 # This file
-├── site-gen-design.md       # Workflow design
-├── site-gen-code-org.md     # Code architecture
-├── lib/                     # Shared modules (to be created)
-├── 01-12_*.py              # Generation scripts (to be created)
-└── agtech/                 # AgTech vertical
-    └── research/           # Initial research files
-        ├── agtech-case-study.md
-        ├── agtech-chatbot-pain-points.md
-        ├── agtech-marketing-strategy.md
-        └── agtech-strategic-brief.md
+├── README.md                 # This file - navigation hub
+├── site-gen-design.md        # Workflow design
+├── site-gen-code-org.md      # Code architecture  
+├── site-gen-plan.md          # Implementation plan
+├── lib/                      # Shared modules (in progress)
+│   ├── config/              # ✓ ConfigLoader implemented
+│   ├── errors/              # ✓ Exception classes
+│   └── ...                  # Other modules to be created
+├── 01-12_*.py               # Generation scripts (to be created)
+├── test_config_loader.py    # ConfigLoader tests
+└── agtech/                  # AgTech vertical
+    ├── site-gen-config.yaml # Sample configuration
+    └── research/            # Initial research files
 ```
 
 ## Workflow Summary
@@ -77,8 +81,15 @@ Generated sites integrate with:
 
 ## Next Steps
 
-1. Implement `lib/` modules per [code organization](site-gen-code-org.md)
-2. Develop scripts 01-12 following design patterns
+1. Complete Foundation Features (F01-F06):
+   - ✓ F01-T1: ConfigLoader class
+   - → F01-T2: StateManager class (next)
+   - F02: LLM Client with retry logic
+   - F03: Research tools (Exa + Jina)
+   - F04: IO utilities
+   - F05: Validation modules
+   - F06: Generation functions
+2. Develop scripts 01-12 following [implementation plan](site-gen-plan.md)
 3. Test complete workflow on AgTech vertical
 4. Review validation reports and demo features
 5. Refine based on results
