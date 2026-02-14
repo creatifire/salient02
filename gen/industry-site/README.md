@@ -21,8 +21,28 @@ LLM-powered workflow that generates industry-specific demo sites for the Salient
 
 **Status tracking is maintained in [site-gen-plan.md](site-gen-plan.md)** - see individual feature completion criteria and task checkboxes.
 
+**Quick status check**: Run `./manage-tasks.sh status` to see completion percentage
+
 **Design Complete**: Workflow and code architecture fully documented  
 **First Industry**: AgTech vertical with initial research completed
+
+## Task Management
+
+Track implementation progress with the `manage-tasks.sh` helper script:
+
+```bash
+# Show completion status
+./manage-tasks.sh status
+
+# List all incomplete tasks
+./manage-tasks.sh list-incomplete
+
+# Mark task complete
+./manage-tasks.sh complete F01-T2
+
+# Show usage
+./manage-tasks.sh
+```
 
 ## Project Structure
 
@@ -32,6 +52,7 @@ industry-site/
 ├── site-gen-design.md        # Workflow design
 ├── site-gen-code-org.md      # Code architecture  
 ├── site-gen-plan.md          # Implementation plan
+├── manage-tasks.sh           # Task checkbox management
 ├── lib/                      # Shared modules (in progress)
 │   ├── config/              # ✓ ConfigLoader implemented
 │   ├── errors/              # ✓ Exception classes
