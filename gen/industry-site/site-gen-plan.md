@@ -189,12 +189,49 @@ Create `tests/unit/test_logger.py` with:
 
 ---
 
+**[x] F01-T5: Implement File-Based Logging**
+
+Configure industry-specific file logging with dual output (console + file).
+
+- Create `IndustryLogger` class for file + console logging
+- Auto-create `<industry>/logs/` directory
+- Filename format: `<industry>_<script_num>_<timestamp>.log`
+- Timestamp format: `YYYYMMDD_HHMMSS`
+- Dual output: console (INFO+) and file (DEBUG+)
+- Structured log format with timestamps
+
+**Manual Verification**:
+```bash
+python -c "from lib.logging.logger import setup_industry_logger; \
+logger = setup_industry_logger('agtech', '01_init_config'); \
+logger.info('Test info message'); \
+logger.error('Test error message'); \
+import os; \
+print('Log file created:', os.path.exists('agtech/logs'))"
+```
+- Verify: Log file created in `agtech/logs/` directory
+- Verify: Filename matches pattern `agtech_01_init_config_YYYYMMDD_HHMMSS.log`
+- Verify: Messages appear in both console and file
+- Verify: File contains timestamps and log levels
+
+**Automated Tests**:
+Create `tests/unit/test_industry_logger.py` with:
+- `test_creates_log_directory()` - Creates industry logs directory
+- `test_log_file_naming()` - Filename matches expected pattern
+- `test_dual_output()` - Logs to both console and file
+- `test_multiple_loggers()` - Multiple script loggers work independently
+- `test_log_levels()` - Different log levels (DEBUG, INFO, ERROR) work
+- Run: `pytest tests/unit/test_industry_logger.py -v`
+
+---
+
 **Feature F01 Verification**:
 1. Load config from `agtech/site-gen-config.yaml`
 2. Initialize state manager
 3. Trigger and catch custom exception
-4. Verify all logs appear
-5. All four modules work together without errors
+4. Setup industry logger and write log messages
+5. Verify all logs appear in console and file
+6. All five modules work together without errors
 
 **Completion Criteria**:
 - All tasks completed

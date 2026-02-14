@@ -4,10 +4,11 @@ Error handling utilities and decorators.
 
 from typing import Callable, Any, Optional
 from functools import wraps
+import logging
 from .exceptions import SiteGenError
-from ..logging.logger import get_logger
 
-logger = get_logger(__name__)
+# Use standard logging
+logger = logging.getLogger(__name__)
 
 
 def handle_errors(
@@ -41,10 +42,7 @@ def handle_errors(
             except SiteGenError as e:
                 # Log custom application errors
                 logger.error(
-                    'site_gen_error',
-                    function=func.__name__,
-                    error_type=type(e).__name__,
-                    error=str(e)
+                    f"SiteGenError in {func.__name__}: {type(e).__name__}: {str(e)}"
                 )
                 if reraise:
                     raise
@@ -52,10 +50,7 @@ def handle_errors(
             except Exception as e:
                 # Log unexpected errors
                 logger.error(
-                    'unexpected_error',
-                    function=func.__name__,
-                    error_type=type(e).__name__,
-                    error=str(e)
+                    f"Unexpected error in {func.__name__}: {type(e).__name__}: {str(e)}"
                 )
                 if reraise:
                     # Wrap unexpected errors in SiteGenError
@@ -107,16 +102,13 @@ def log_error(
         function_name: Name of the function where error occurred
         context: Optional context dictionary
     """
-    log_data = {
-        'function': function_name,
-        'error_type': type(error).__name__,
-        'error': str(error)
-    }
+    error_msg = f"Error in {function_name}: {type(error).__name__}: {str(error)}"
     
     if context:
-        log_data.update(context)
+        context_str = ", ".join(f"{k}={v}" for k, v in context.items())
+        error_msg += f" | Context: {context_str}"
     
-    logger.error('error_occurred', **log_data)
+    logger.error(error_msg)
 
 
 def validate_and_raise(
@@ -147,5 +139,8 @@ def validate_and_raise(
     """
     if not condition:
         if context:
-            logger.error('validation_failed', message=message, **context)
+            context_str = ", ".join(f"{k}={v}" for k, v in context.items())
+            logger.error(f"Validation failed: {message} | Context: {context_str}")
+        else:
+            logger.error(f"Validation failed: {message}")
         raise error_class(message)
