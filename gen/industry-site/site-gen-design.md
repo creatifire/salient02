@@ -4,6 +4,11 @@
 
 LLM-powered workflow that generates complete industry-specific demo sites with coherent product catalogs, directory data, and supporting content. Operates as a series of sequential scripts with validation checkpoints.
 
+**Related Documentation:**
+- [Code Organization](site-gen-code-org.md) - Module structure and interfaces
+- [Implementation Plan](site-gen-plan.md) - Task breakdown with verification steps
+- [Automated Testing](site-gen-auto-tests.md) - Testing conventions and best practices
+
 ## Architecture
 
 ### Configuration-Driven Approach

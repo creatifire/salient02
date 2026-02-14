@@ -9,6 +9,25 @@ LLM-powered workflow to generate industry-specific demo sites with product catal
 **Documentation**:
 - [Workflow Design](site-gen-design.md) - 12-script sequence, data flow, validation
 - [Code Architecture](site-gen-code-org.md) - Classes, modules, interfaces
+- [Automated Testing](site-gen-auto-tests.md) - Testing conventions and best practices
+
+## Testing Approach
+
+Each task includes **both manual and automated tests**:
+
+### Manual Verification
+- Quick verification commands using Python REPL
+- Immediate feedback during development
+- Listed under "Manual Verification" in each task
+
+### Automated Tests
+- pytest-based test suite following [testing conventions](site-gen-auto-tests.md)
+- Unit tests for each module (`tests/unit/`)
+- Integration tests for multi-module workflows (`tests/integration/`)
+- Run with: `pytest tests/unit/test_<module>.py`
+- Each task should add corresponding automated tests
+
+**Best Practice**: Write automated tests alongside implementation, verify with manual commands during development.
 
 ## Development Approaches
 
@@ -58,6 +77,17 @@ print(config['company']['name'])"
 - Verify: Prints company name from config
 - Verify: Environment variables substituted (check `llm.api_key`)
 - Verify: Invalid config raises `ConfigValidationError`
+
+**Automated Tests**:
+Create `tests/unit/test_config_loader.py` with:
+- `test_loads_valid_config()` - Load valid config successfully
+- `test_env_var_substitution()` - Environment variables substituted
+- `test_missing_required_field_raises_error()` - Validation errors caught
+- `test_dot_notation_access()` - Dot notation access works
+- `test_property_accessors()` - Property methods work
+- Run: `pytest tests/unit/test_config_loader.py -v`
+
+See [testing conventions](site-gen-auto-tests.md) for details.
 
 ---
 

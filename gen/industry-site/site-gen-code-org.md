@@ -12,7 +12,7 @@ Hybrid architecture using classes for stateful components (LLM clients, config, 
 4. **Function-Based Organization**: `lib/` organized by functional domain
 5. **Centralized Error Handling**: Shared exceptions, retry logic, logging
 6. **Environment Integration**: Reads from project `.env` file
-7. **Manual Testing**: Code structured for clarity and debuggability
+7. **Test-Driven Development**: Automated tests alongside manual verification (see [testing conventions](site-gen-auto-tests.md))
 
 ## Directory Structure
 
@@ -83,6 +83,22 @@ gen/industry-site/
 │   └── logging/
 │       ├── __init__.py
 │       └── logger.py              # Leverage backend logger
+├── tests/                         # Automated test suite
+│   ├── conftest.py               # Shared fixtures
+│   ├── unit/                     # Unit tests
+│   │   ├── test_config_loader.py
+│   │   ├── test_state_manager.py
+│   │   └── ...
+│   ├── integration/              # Integration tests
+│   │   ├── test_config_and_state.py
+│   │   └── ...
+│   ├── functional/               # End-to-end tests
+│   │   ├── test_script_01_init.py
+│   │   └── ...
+│   └── fixtures/                 # Test data
+│       ├── valid-config.yaml
+│       └── sample-data.json
+├── pytest.ini                    # pytest configuration
 ├── 01_init_config.py
 ├── 02_research_industry.py
 ├── 03_generate_product_schema.py

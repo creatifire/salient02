@@ -9,6 +9,7 @@ LLM-powered workflow that generates industry-specific demo sites for the Salient
 - **[Site Generation Design](site-gen-design.md)** - Complete workflow design with 12 sequential scripts, data flow, validation checkpoints, and configuration templates
 - **[Code Organization](site-gen-code-org.md)** - Detailed code architecture, module structure, class interfaces, and implementation examples
 - **[Implementation Plan](site-gen-plan.md)** - Feature-by-feature implementation tasks with manual verification steps and completion criteria
+- **[Automated Testing](site-gen-auto-tests.md)** - Testing conventions, framework setup, and best practices for automated tests
 
 ## Quick Start
 
