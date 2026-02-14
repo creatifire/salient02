@@ -1,8 +1,10 @@
 """Error handling module."""
 
 from .exceptions import *
+from .handlers import handle_errors, format_error_message, log_error, validate_and_raise
 
 __all__ = [
+    # Exceptions
     'SiteGenError',
     'ConfigError',
     'ConfigValidationError',
@@ -14,5 +16,10 @@ __all__ = [
     'SchemaValidationError',
     'LinkValidationError',
     'DataConsistencyError',
-    'GenerationError'
+    'GenerationError',
+    # Handlers
+    'handle_errors',
+    'format_error_message',
+    'log_error',
+    'validate_and_raise'
 ]
