@@ -25,9 +25,9 @@ class ConfigLoader:
         """
         self.config_path = Path(config_path)
         
-        # Default to project root .env (4 levels up: lib/config/config_loader.py -> project/.env)
+        # Default to project root .env (5 levels up: config_loader.py -> config/ -> lib/ -> industry-site/ -> gen/ -> salient02/)
         if env_file is None:
-            self.env_file = Path(__file__).parent.parent.parent.parent / '.env'
+            self.env_file = Path(__file__).parent.parent.parent.parent.parent / '.env'
         else:
             self.env_file = Path(env_file)
         
