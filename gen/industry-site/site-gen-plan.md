@@ -159,33 +159,21 @@ Create `tests/unit/test_exceptions.py` with:
 
 ---
 
-**[ ] F01-T4: Integrate Backend Logger**
+**[CANCELLED] F01-T4: Integrate Backend Logger**
 
-Leverage existing backend logfire for structured logging.
+**Status**: Cancelled in favor of F01-T5 (industry-specific file logging)
 
+**Rationale**:
+- Standard Python logging (F01-T5) provides sufficient functionality
+- Console + file logging meets all requirements without backend dependencies
+- Simpler architecture - scripts operate independently
+- No Logfire configuration or setup required
+- Can add Logfire integration later if distributed tracing needed
+
+**Original Plan** (preserved for reference):
+- Leverage existing backend logfire for structured logging
 - Implementation per [Logging](site-gen-code-org.md#logging) specification
-- Import backend logger
-- Configure for site generator
-- Test structured logging
-
-**Manual Verification**:
-```bash
-python -c "from lib.logging.logger import get_logger; \
-logger = get_logger(__name__); \
-logger.info('test_event', key='value'); \
-logger.error('test_error', error='details')"
-```
-- Verify: Log messages appear in console/logfire
-- Verify: Structured parameters captured
-- Verify: No import errors
-
-**Automated Tests**:
-Create `tests/unit/test_logger.py` with:
-- `test_get_logger_returns_logger()` - Logger instance returned
-- `test_logger_info_with_params()` - Info logging with structured params
-- `test_logger_error_with_params()` - Error logging works
-- `test_multiple_loggers()` - Multiple logger instances work independently
-- Run: `pytest tests/unit/test_logger.py -v`
+- Import backend logger, configure for site generator, test structured logging
 
 ---
 
