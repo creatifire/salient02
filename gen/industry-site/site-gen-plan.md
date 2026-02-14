@@ -91,7 +91,7 @@ See [testing conventions](site-gen-auto-tests.md) for details.
 
 ---
 
-**[ ] F01-T2: Implement StateManager Class**
+**[x] F01-T2: Implement StateManager Class**
 
 Create state manager for tracking progress across scripts.
 
