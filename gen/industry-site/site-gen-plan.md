@@ -275,7 +275,7 @@ Create `tests/unit/test_retry.py` with:
 
 ---
 
-**[ ] F02-T2: Implement LLMClient Class**
+**[x] F02-T2: Implement LLMClient Class**
 
 Create unified LLM client for OpenRouter API.
 
