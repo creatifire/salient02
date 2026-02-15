@@ -313,7 +313,7 @@ Mark with `@pytest.mark.llm` for tests requiring real API calls.
 
 ---
 
-**[ ] F02-T3: Create Prompt Management System**
+**[x] F02-T3: Create Prompt Management System**
 
 Implement external prompt storage and loading.
 
