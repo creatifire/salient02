@@ -426,7 +426,7 @@ Create `tests/unit/test_exa_client.py` with:
 
 ---
 
-**[ ] F03-T2: Implement Jina Reader**
+**[x] F03-T2: Implement Jina Reader**
 
 Create Jina Reader API integration for web scraping.
 
