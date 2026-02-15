@@ -16,6 +16,7 @@ pinecone==7.3.0
 httpx==0.28.1
 sse-starlette==3.0.3
 genai-prices==0.0.41
+exa-py==2.4.0
 
 # OpenTelemetry instrumentation packages (required by Logfire)
 opentelemetry-instrumentation-fastapi

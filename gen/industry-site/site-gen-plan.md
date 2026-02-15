@@ -393,7 +393,7 @@ Create `tests/unit/test_prompt_loader.py` with:
 
 #### Tasks
 
-**[ ] F03-T1: Implement Exa Search Client**
+**[x] F03-T1: Implement Exa Search Client**
 
 Create Exa API integration for company/product search.
 
